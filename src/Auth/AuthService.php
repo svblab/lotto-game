@@ -1,0 +1,147 @@
+<?php
+
+namespace Lotto\Auth;
+
+use Exception;
+use Lotto\Infrastructure\Database;
+use Lotto\Infrastructure\PreparedStatements;
+use Lotto\Core\Logger;
+
+class AuthService
+{
+    private Database $db;
+    private PreparedStatements $statements;
+    private Logger $logger;
+
+    /**
+     * Конструктор сервиса с внедрением зависимостей (DI).
+     * Избегаем глобальных состояний и синглтонов.
+     */
+    public function __construct(Database $db, PreparedStatements $statements, Logger $logger)
+    {
+        $this->db = $db;
+        $this->statements = $statements;
+        $this->logger = $logger;
+    }
+
+    /**
+     * Регистрация нового пользователя в системе.
+     *
+     * @param string $username
+     * @param string $password
+     * @return array
+     * @throws Exception
+     */
+    public function register(string $username, string $password): array
+    {
+        try {
+            // 1. Валидация имени пользователя
+            if (!preg_match('/^[A-Za-z0-9_]{3,20}$/', $username)) {
+                throw new Exception('Invalid username format');
+            }
+
+            // 2. Валидация длины пароля
+            $passwordLength = strlen($password);
+            if ($passwordLength < 6 || $passwordLength > 64) {
+                throw new Exception('Password must be between 6 and 64 characters');
+            }
+
+            // 3. Проверка на уникальность username с использованием строгого реестра SQL
+            $selectStmt = $this->statements->get('user_by_username');
+            $selectStmt->execute([$username]);
+            
+            if ($selectStmt->fetch()) {
+                throw new Exception('Username already exists');
+            }
+
+            // 4. Хеширование пароля безопасным системным методом
+            $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+
+            // 5. Запись в БД дефолтных значений через строгое имя в реестре
+            $insertStmt = $this->statements->get('create_user');
+            $insertStmt->execute([$username, $passwordHash]);
+
+            // 6. Логирование успешного исхода (Уровень INFO)
+            $this->logger->write('INFO', "User registered: {$username}");
+
+            return [
+                'success' => true,
+                'username' => $username
+            ];
+
+        } catch (Exception $e) {
+            // Логирование ошибки регистрации (Уровень WARNING)
+            $this->logger->write('WARNING', "Registration failed: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Вход пользователя в систему (Аутентификация и проверка Daily Bonus).
+     *
+     * @param string $username
+     * @param string $password
+     * @return array
+     * @throws Exception
+     */
+    public function login(string $username, string $password): array
+    {
+        try {
+            // Шаг 1: Получить пользователя из реестра PreparedStatements
+            $selectStmt = $this->statements->get('user_by_username');
+            $selectStmt->execute([$username]);
+            $user = $selectStmt->fetch();
+
+            // Шаг 2: Если пользователь не найден
+            if (!$user) {
+                throw new Exception('Invalid username or password');
+            }
+
+            // Шаг 3: Проверить хеш пароля
+            if (!password_verify($password, $user['password_hash'])) {
+                throw new Exception('Invalid username or password');
+            }
+
+            // Шаг 4: Проверить состояние блокировки (бан)
+            if ((int)$user['banned_until'] > time()) {
+                throw new Exception('User is banned');
+            }
+
+            // Шаг 5: Проверить условия начисления Daily Bonus (не админ и прошло >= 24 часов)
+            $dailyBonusReceived = false;
+            if (!(bool)$user['is_admin'] && (time() - (int)$user['last_daily_bonus'] >= 86400)) {
+                $dailyBonusReceived = true;
+                $newCoins = (int)$user['coins'] + 100;
+                $currentTime = time();
+
+                // Шаг 6: Начислить бонус через update_daily_bonus
+                $updateStmt = $this->statements->get('update_daily_bonus');
+                $updateStmt->execute([$newCoins, $currentTime, $user['id']]);
+
+                // Шаг 7: Синхронизировать локальную структуру пользователя
+                $user['coins'] = $newCoins;
+                $user['last_daily_bonus'] = $currentTime;
+            }
+
+            // Шаг 8: Записать лог об успешном входе (Уровень INFO)
+            $this->logger->write('INFO', "User login: {$username}");
+
+            // Шаг 9: Возврат строго типизированного ответа структуры
+            return [
+                'success' => true,
+                'user' => [
+                    'id' => (int)$user['id'],
+                    'username' => (string)$user['username'],
+                    'coins' => (int)$user['coins'],
+                    'is_admin' => (bool)$user['is_admin']
+                ],
+                'daily_bonus_received' => $dailyBonusReceived
+            ];
+
+        } catch (Exception $e) {
+            // Запись лога ошибки выполнения/аутентификации (Уровень WARNING)
+            $this->logger->write('WARNING', "Login failed: " . $e->getMessage());
+            throw $e;
+        }
+    }
+}

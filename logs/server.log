@@ -1,0 +1,160 @@
+[2026-05-31 17:07:58] [INFO] LottoServer started, pid=183356
+[2026-05-31 17:07:58] [INFO] Database connected: /opt/lotto-game/game.db
+[2026-05-31 17:07:58] [INFO] Worker ready. MAX_ROOMS=30, MAX_PLAYERS=150
+[2026-05-31 17:15:35] [INFO] User registered: test id=2
+[2026-05-31 17:15:43] [INFO] Daily bonus granted to user: test
+[2026-05-31 17:15:43] [INFO] User logged in: test id=2 admin=no
+[2026-05-31 17:15:59] [INFO] User disconnected: test
+[2026-05-31 17:15:59] [INFO] Kicked old session for user: test
+[2026-05-31 17:15:59] [INFO] User logged in: test id=2 admin=no
+[2026-05-31 17:18:59] [INFO] Closing idle lobby connection user=test
+[2026-05-31 17:18:59] [INFO] User disconnected: test
+[2026-05-31 17:24:32] [INFO] User logged in: admin id=1 admin=yes
+[2026-05-31 17:25:00] [INFO] Closing unauthorized connection id=5
+[2026-05-31 17:26:51] [INFO] User disconnected: admin
+[2026-05-31 17:27:25] [INFO] User logged in: admin id=1 admin=yes
+[2026-05-31 17:27:58] [INFO] User disconnected: admin
+[2026-05-31 17:27:58] [INFO] Kicked old session for user: admin
+[2026-05-31 17:27:58] [INFO] User logged in: admin id=1 admin=yes
+[2026-05-31 17:30:00] [INFO] Closing unauthorized connection id=9
+[2026-06-01 00:00:08] [INFO] LottoServer started, pid=187198
+[2026-06-01 00:00:08] [INFO] Database connected: /opt/lotto-game/game.db
+[2026-06-01 00:00:08] [INFO] Worker ready. MAX_ROOMS=30, MAX_PLAYERS=150
+[2026-06-01 19:29:29] [INFO] LottoServer started, pid=198668
+[2026-06-01 19:29:29] [INFO] Database connected: /opt/lotto-game/game.db
+[2026-06-01 19:29:29] [INFO] Worker ready. MAX_ROOMS=30, MAX_PLAYERS=150
+[2026-06-01 19:39:29] [INFO] Closing unauthorized connection id=1
+[2026-06-01 19:41:43] [INFO] User logged in: admin id=1 admin=yes
+[2026-06-01 19:44:29] [INFO] Closing idle lobby connection user=admin
+[2026-06-01 19:44:29] [INFO] User disconnected: admin
+[2026-06-02 00:00:10] [INFO] LottoServer started, pid=207148
+[2026-06-02 00:00:10] [INFO] Database connected: /opt/lotto-game/game.db
+[2026-06-02 00:00:10] [INFO] Worker ready. MAX_ROOMS=30, MAX_PLAYERS=150
+[2026-06-03 00:00:11] [INFO] LottoServer started, pid=221095
+[2026-06-03 00:00:11] [INFO] Database connected: /opt/lotto-game/game.db
+[2026-06-03 00:00:11] [INFO] Worker ready. MAX_ROOMS=30, MAX_PLAYERS=150
+[2026-06-03 03:52:15] [INFO] LottoServer started, pid=223568
+[2026-06-03 03:52:15] [INFO] Database connected: /opt/lotto-game/game.db
+[2026-06-03 03:52:15] [INFO] Worker ready. MAX_ROOMS=30, MAX_PLAYERS=150
+[2026-06-03 19:23:26] [INFO] LottoServer started, pid=234930
+[2026-06-03 19:23:26] [INFO] Database connected: /opt/lotto-game/game.db
+[2026-06-03 19:23:26] [INFO] Worker ready. MAX_ROOMS=30, MAX_PLAYERS=150
+[2026-06-03 19:26:11] [INFO] LottoServer started, pid=234982
+[2026-06-03 19:26:11] [INFO] Database connected: /opt/lotto-game/game.db
+[2026-06-03 19:26:11] [INFO] Worker ready. MAX_ROOMS=30, MAX_PLAYERS=150
+[2026-06-03 19:28:20] [INFO] LottoServer started, pid=235013
+[2026-06-03 19:28:20] [INFO] Database connected: /opt/lotto-game/game.db
+[2026-06-03 19:28:20] [INFO] Worker ready. MAX_ROOMS=30, MAX_PLAYERS=150
+[2026-06-03 19:29:22] [INFO] LottoServer started, pid=235036
+[2026-06-03 19:29:22] [INFO] Database connected: /opt/lotto-game/game.db
+[2026-06-03 19:29:22] [INFO] Worker ready. MAX_ROOMS=30, MAX_PLAYERS=150
+[2026-06-03 19:32:23] [INFO] Closing unauthorized connection id=1
+[2026-06-04 00:00:08] [INFO] LottoServer started, pid=238805
+[2026-06-04 00:00:08] [INFO] Database connected: /opt/lotto-game/game.db
+[2026-06-04 00:00:08] [INFO] Worker ready. MAX_ROOMS=30, MAX_PLAYERS=150
+[2026-06-05 00:00:10] [INFO] LottoServer started, pid=257189
+[2026-06-05 00:00:10] [INFO] Database connected: /opt/lotto-game/game.db
+[2026-06-05 00:00:10] [INFO] Worker ready. MAX_ROOMS=30, MAX_PLAYERS=150
+[2026-06-06 00:00:09] [INFO] LottoServer started, pid=280843
+[2026-06-06 00:00:10] [INFO] Database connected: /opt/lotto-game/game.db
+[2026-06-06 00:00:10] [INFO] Worker ready. MAX_ROOMS=30, MAX_PLAYERS=150
+[2026-06-07 00:00:10] [INFO] LottoServer started, pid=297780
+[2026-06-07 00:00:10] [INFO] Database connected: /opt/lotto-game/game.db
+[2026-06-07 00:00:10] [INFO] Worker ready. MAX_ROOMS=30, MAX_PLAYERS=150
+[2026-06-07 10:47:53] [INFO] User registered: player1 id=3
+[2026-06-07 10:48:34] [INFO] Closing unauthorized connection id=62
+[2026-06-07 10:49:34] [INFO] Closing unauthorized connection id=63
+[2026-06-07 10:54:34] [INFO] Closing unauthorized connection id=66
+[2026-06-07 10:56:32] [INFO] User registered: player2 id=4
+[2026-06-07 10:57:34] [INFO] Closing unauthorized connection id=67
+[2026-06-07 11:04:34] [INFO] Closing unauthorized connection id=69
+[2026-06-07 11:05:05] [INFO] LottoServer started, pid=305980
+[2026-06-07 11:05:05] [INFO] Database connected: /opt/lotto-game/game.db
+[2026-06-07 11:05:05] [INFO] Worker ready. MAX_ROOMS=30, MAX_PLAYERS=150
+[2026-06-07 11:07:05] [INFO] Closing unauthorized connection id=1
+[2026-06-07 11:09:26] [INFO] Daily bonus granted to user: player1
+[2026-06-07 11:09:26] [INFO] User logged in: player1 id=3 admin=no
+[2026-06-07 11:09:48] [INFO] Daily bonus granted to user: player2
+[2026-06-07 11:09:48] [INFO] User logged in: player2 id=4 admin=no
+[2026-06-07 11:10:31] [INFO] Room created: dab3556670e4b28e by player1 max=2
+[2026-06-07 11:11:05] [INFO] Player joined room dab3556670e4b28e: player2
+[2026-06-07 11:13:05] [INFO] Host AFK in lobby, transferring host in room dab3556670e4b28e
+[2026-06-07 11:13:05] [INFO] New host after AFK: player2 in room dab3556670e4b28e
+[2026-06-07 11:13:05] [INFO] Closing idle lobby connection user=player1
+[2026-06-07 11:13:05] [INFO] User disconnected: player1
+[2026-06-07 11:14:49] [INFO] User disconnected: player2
+[2026-06-07 11:14:49] [INFO] Player player2 left room dab3556670e4b28e reason=disconnect
+[2026-06-07 11:14:49] [INFO] Room destroyed: dab3556670e4b28e
+[2026-06-07 11:14:49] [INFO] LottoServer started, pid=306204
+[2026-06-07 11:14:49] [INFO] Database connected: /opt/lotto-game/game.db
+[2026-06-07 11:14:50] [INFO] Worker ready. MAX_ROOMS=30, MAX_PLAYERS=150
+[2026-06-08 00:00:07] [INFO] LottoServer started, pid=315707
+[2026-06-08 00:00:07] [INFO] Database connected: /opt/lotto-game/game.db
+[2026-06-08 00:00:07] [INFO] Worker ready. MAX_ROOMS=30, MAX_PLAYERS=150
+[2026-06-08 22:47:59] [INFO] Closing unauthorized connection id=129
+[2026-06-09 00:00:04] [INFO] LottoServer started, pid=332259
+[2026-06-09 00:00:04] [INFO] Database connected: /opt/lotto-game/game.db
+[2026-06-09 00:00:04] [INFO] Worker ready. MAX_ROOMS=30, MAX_PLAYERS=150
+[2026-06-09 05:38:31] [ERROR] Connection error code=2 msg=client closed
+[2026-06-10 00:00:10] [INFO] LottoServer started, pid=352539
+[2026-06-10 00:00:10] [INFO] Database connected: /opt/lotto-game/game.db
+[2026-06-10 00:00:10] [INFO] Worker ready. MAX_ROOMS=30, MAX_PLAYERS=150
+[2026-06-10 03:13:46] [INFO] LottoServer started, pid=356656
+[2026-06-10 03:13:47] [INFO] Database connected: /opt/lotto-game/game.db
+[2026-06-10 03:13:47] [INFO] Worker ready. MAX_ROOMS=30, MAX_PLAYERS=150
+[2026-06-11 00:00:09] [INFO] LottoServer started, pid=368862
+[2026-06-11 00:00:09] [INFO] Database connected: /opt/lotto-game/game.db
+[2026-06-11 00:00:10] [INFO] Worker ready. MAX_ROOMS=30, MAX_PLAYERS=150
+[2026-06-12 00:00:10] [INFO] LottoServer started, pid=385057
+[2026-06-12 00:00:10] [INFO] Database connected: /opt/lotto-game/game.db
+[2026-06-12 00:00:10] [INFO] Worker ready. MAX_ROOMS=30, MAX_PLAYERS=150
+[2026-06-13 00:00:10] [INFO] LottoServer started, pid=403983
+[2026-06-13 00:00:10] [INFO] Database connected: /opt/lotto-game/game.db
+[2026-06-13 00:00:10] [INFO] Worker ready. MAX_ROOMS=30, MAX_PLAYERS=150
+[2026-06-14 00:00:05] [INFO] LottoServer started, pid=421909
+[2026-06-14 00:00:05] [INFO] Database connected: /opt/lotto-game/game.db
+[2026-06-14 00:00:05] [INFO] Worker ready. MAX_ROOMS=30, MAX_PLAYERS=150
+[2026-06-15 00:00:09] [INFO] LottoServer started, pid=439560
+[2026-06-15 00:00:09] [INFO] Database connected: /opt/lotto-game/game.db
+[2026-06-15 00:00:09] [INFO] Worker ready. MAX_ROOMS=30, MAX_PLAYERS=150
+[2026-06-15 16:45:25] [INFO] Testing serverLog wrapper functionality at 1781541925
+[2026-06-15 17:05:54] [WARNING] Registration failed: Unknown prepared 
+            statement key: SELECT id FROM users WHERE username = ? LIMIT 1
+[2026-06-15 17:05:54] [WARNING] Registration failed: Unknown prepared 
+            statement key: SELECT id FROM users WHERE username = ? LIMIT 1
+[2026-06-15 17:05:54] [WARNING] Registration failed: Invalid username format
+[2026-06-15 17:05:54] [WARNING] Registration failed: Password must be between 6 and 64 characters
+[2026-06-15 17:09:01] [WARNING] Registration failed: Unknown prepared 
+            statement key: SELECT id FROM users WHERE username = ? LIMIT 1
+[2026-06-15 17:09:01] [WARNING] Registration failed: Unknown prepared 
+            statement key: SELECT id FROM users WHERE username = ? LIMIT 1
+[2026-06-15 17:09:01] [WARNING] Registration failed: Invalid username format
+[2026-06-15 17:09:01] [WARNING] Registration failed: Password must be between 6 and 64 characters
+[2026-06-15 17:09:36] [WARNING] Registration failed: Unknown prepared 
+            statement key: SELECT id FROM users WHERE username = ? LIMIT 1
+[2026-06-15 17:09:36] [WARNING] Registration failed: Unknown prepared 
+            statement key: SELECT id FROM users WHERE username = ? LIMIT 1
+[2026-06-15 17:09:36] [WARNING] Registration failed: Invalid username format
+[2026-06-15 17:09:36] [WARNING] Registration failed: Password must be between 6 and 64 characters
+[2026-06-15 17:13:54] [INFO] User registered: test_user_1
+[2026-06-15 17:13:54] [WARNING] Registration failed: Username already exists
+[2026-06-15 17:13:54] [WARNING] Registration failed: Invalid username format
+[2026-06-15 17:13:54] [WARNING] Registration failed: Password must be between 6 and 64 characters
+[2026-06-15 17:14:03] [INFO] User registered: test_user_1
+[2026-06-15 17:14:03] [WARNING] Registration failed: Username already exists
+[2026-06-15 17:14:03] [WARNING] Registration failed: Invalid username format
+[2026-06-15 17:14:03] [WARNING] Registration failed: Password must be between 6 and 64 characters
+[2026-06-15 18:11:57] [INFO] User registered: test_user_1
+[2026-06-15 18:11:57] [WARNING] Registration failed: Username already exists
+[2026-06-15 18:11:57] [WARNING] Registration failed: Invalid username format
+[2026-06-15 18:11:57] [WARNING] Registration failed: Password must be between 6 and 64 characters
+[2026-06-15 18:12:35] [INFO] User registered: test_user_1
+[2026-06-15 18:12:35] [WARNING] Registration failed: Username already exists
+[2026-06-15 18:12:35] [WARNING] Registration failed: Invalid username format
+[2026-06-15 18:12:35] [WARNING] Registration failed: Password must be between 6 and 64 characters
+[2026-06-15 19:03:52] [INFO] User login: login_valid
+[2026-06-15 19:03:52] [WARNING] Login failed: Invalid username or password
+[2026-06-15 19:03:52] [WARNING] Login failed: Invalid username or password
+[2026-06-15 19:03:53] [WARNING] Login failed: User is banned
+[2026-06-15 19:03:53] [INFO] User login: login_bonus
+[2026-06-15 19:03:53] [INFO] User login: login_bonus

@@ -1,0 +1,12 @@
+{
+  "name": "lotto-game/server",
+  "type": "project",
+  "require": {
+    "workerman/workerman": "^5.1"
+  },
+  "autoload": {
+    "psr-4": {
+      "Lotto\\": "src/"
+    }
+  }
+}

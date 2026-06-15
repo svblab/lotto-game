@@ -1,0 +1,3 @@
+2026-06-15 18:52:44 pid:439558 Workerman[server.php] received signal SIGTERM
+2026-06-15 18:52:45 pid:439558 Workerman[server.php] stopping
+2026-06-15 18:52:47 pid:439558 Workerman[server.php] has been stopped
