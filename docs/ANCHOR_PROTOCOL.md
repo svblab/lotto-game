@@ -1,709 +1,287 @@
-ANCHOR_PROTOCOL.md
-
-Никогда не меняется.
-
-Содержит:
-
-все входящие пакеты;
-все исходящие пакеты;
-форматы JSON.
-
-========================
 # ANCHOR_PROTOCOL.md
-=======================
+
+Never changes. Contains all incoming/outgoing packets and JSON formats.
+
 ## Purpose
+Defines all WebSocket packets. If implementation contradicts this doc, the doc is correct — fix the code.
 
-This document defines all WebSocket packets.
-
-If implementation contradicts this document:
-
-Protocol is considered correct.
-
-Code must be fixed.
+## General Rules
+All packets are JSON. Every packet must contain `{"type": "packet_name"}`.
 
 ---
 
-# General Rules
-
-All packets are JSON.
-
-Every packet must contain:
-
-```json
-{
-  "type": "packet_name"
-}
-```
-
----
-
-# Error Packet
-
+## Error Packet
 Server → Client
-
 ```json
-{
-  "type": "error",
-  "code": "error_code",
-  "message": "optional text"
-}
+{"type": "error", "code": "error_code", "message": "optional text"}
 ```
+Codes: `error.invalid_json, error.auth_required, error.room_not_found, error.not_your_turn, error.server_full, error.room_limit, error.banned, error.cannot_moderate_admin, error.auth_invalid_username, error.auth_username_taken, error.auth_invalid_credentials, error.auth_invalid_token`
 
-Examples:
+---
 
-```text
-error.invalid_json
-error.auth_required
-error.room_not_found
-error.not_your_turn
-error.server_full
-error.room_limit
-error.banned
-error.cannot_moderate_admin
+## Connection Phase
+
+### hello
+Server → Client, immediately after connection.
+```json
+{"type": "hello", "protocol_version": 1}
 ```
 
 ---
 
-# Connection Phase
+## Authentication
 
-## hello
+### register
+Client → Server
+```json
+{"action": "register", "username": "player", "password": "secret"}
+```
 
+### login
+Client → Server
+```json
+{"action": "login", "username": "player", "password": "secret"}
+```
+
+### reconnect
+Client → Server
+```json
+{"action": "reconnect", "token": "session_token"}
+```
+
+### auth_result
 Server → Client
-
-Immediately after connection.
-
 ```json
-{
-  "type": "hello",
-  "protocol_version": 1
-}
+{"type": "auth_result", "success": true, "user_id": 15, "username": "player", "coins": 500, "is_admin": false, "session_token": "..."}
 ```
 
----
-
-# Authentication
-
-## register
-
-Client → Server
-
-```json
-{
-  "action": "register",
-  "username": "player",
-  "password": "secret"
-}
-```
-
----
-
-## login
-
-Client → Server
-
-```json
-{
-  "action": "login",
-  "username": "player",
-  "password": "secret"
-}
-```
-
----
-
-## reconnect
-
-Client → Server
-
-```json
-{
-  "action": "reconnect",
-  "token": "session_token"
-}
-```
-
----
-
-## auth_result
-
+### banned
 Server → Client
-
 ```json
-{
-  "type": "auth_result",
-  "success": true,
-  "user_id": 15,
-  "username": "player",
-  "coins": 500,
-  "is_admin": false,
-  "session_token": "..."
-}
+{"type": "banned", "until": 4102444800}
 ```
 
 ---
 
-## banned
+## Heartbeat
 
-Server → Client
-
+### ping
+Client → Server. No response required.
 ```json
-{
-  "type": "banned",
-  "until": 4102444800
-}
+{"action": "ping"}
 ```
 
 ---
 
-# Heartbeat
+## Lobby
 
-## ping
-
+### room_list
 Client → Server
-
 ```json
-{
-  "action": "ping"
-}
+{"action": "room_list"}
 ```
-
-No response required.
-
----
-
-# Lobby
-
-## room_list
-
-Client → Server
-
-```json
-{
-  "action": "room_list"
-}
-```
-
----
-
 Server → Client
-
 ```json
-{
-  "type": "room_list",
-  "rooms": []
-}
+{"type": "room_list", "rooms": []}
 ```
-
 Room entry:
-
 ```json
-{
-  "room_id": 7,
-  "players": 3,
-  "max_players": 10,
-  "has_password": false,
-  "status": "waiting"
-}
+{"room_id": 7, "players": 3, "max_players": 10, "has_password": false, "status": "waiting"}
 ```
 
----
-
-## create_room
-
+### create_room
 Client → Server
-
 ```json
-{
-  "action": "create_room",
-  "max_players": 10,
-  "password": "",
-  "cards_count": 1
-}
+{"action": "create_room", "max_players": 10, "password": "", "cards_count": 1}
 ```
+`cards_count`: `1 or 2`
 
-cards_count:
-
-```text
-1 or 2
-```
-
----
-
-## join_room
-
+### join_room
 Client → Server
-
 ```json
-{
-  "action": "join_room",
-  "room_id": 7,
-  "password": "",
-  "cards_count": 2
-}
+{"action": "join_room", "room_id": 7, "password": "", "cards_count": 2}
 ```
 
----
-
-## leave_room
-
+### leave_room
 Client → Server
-
 ```json
-{
-  "action": "leave_room"
-}
+{"action": "leave_room"}
 ```
 
----
-
-## room_joined
-
+### room_joined
 Server → Client
-
 ```json
-{
-  "type": "room_joined",
-
-  "room_id": 7,
-
-  "host": "player1",
-
-  "status": "waiting",
-
-  "bank": 0,
-
-  "players": []
-}
+{"type": "room_joined", "room_id": 7, "host": "player1", "status": "waiting", "bank": 0, "players": []}
 ```
-
 Player entry:
-
 ```json
-{
-  "username": "player",
-  "cards_count": 2,
-  "status": "active"
-}
+{"username": "player", "cards_count": 2, "status": "active"}
 ```
 
----
-
-## player_joined
-
+### player_joined
 Server → Room
-
 ```json
-{
-  "type": "player_joined",
-  "username": "player",
-  "cards_count": 1
-}
+{"type": "player_joined", "username": "player", "cards_count": 1}
 ```
 
----
-
-## player_left
-
+### player_left
 Server → Room
-
 ```json
-{
-  "type": "player_left",
-  "username": "player",
-  "reason": "leave"
-}
+{"type": "player_left", "username": "player", "reason": "leave"}
 ```
 
 ---
 
-# Game Start
+## Game Start
 
-## start_game
-
-Client → Server
-
-Host only.
-
+### start_game
+Client → Server. Host only.
 ```json
-{
-  "action": "start_game"
-}
+{"action": "start_game"}
+```
+
+### game_started
+Server → Room. Own cards visible only to owner; foreign cards never contain numbers.
+```json
+{"type": "game_started", "bank": 40, "drawer_order": ["host", "player2", "player3"], "players": []}
+```
+Player entry, self:
+```json
+{"username": "player", "is_self": true, "cards": [], "masks": []}
+```
+Player entry, others:
+```json
+{"username": "player2", "is_self": false, "cards": null, "masks": []}
 ```
 
 ---
 
-## game_started
+## Turn System
 
-Server → Room
-
-Own cards are visible only to owner.
-
-Foreign cards never contain numbers.
-
-```json
-{
-  "type": "game_started",
-
-  "bank": 40,
-
-  "drawer_order": [
-    "host",
-    "player2",
-    "player3"
-  ],
-
-  "players": []
-}
-```
-
-Player entry:
-
-For self:
-
-```json
-{
-  "username": "player",
-
-  "is_self": true,
-
-  "cards": [],
-
-  "masks": []
-}
-```
-
-For others:
-
-```json
-{
-  "username": "player2",
-
-  "is_self": false,
-
-  "cards": null,
-
-  "masks": []
-}
-```
-
----
-
-# Turn System
-
-## your_turn
-
+### your_turn
 Server → Client
-
 ```json
-{
-  "type": "your_turn"
-}
+{"type": "your_turn"}
 ```
 
----
-
-## draw_barrel
-
+### draw_barrel
 Client → Server
-
 ```json
-{
-  "action": "draw_barrel"
-}
+{"action": "draw_barrel"}
 ```
 
----
-
-## barrels_drawn
-
+### barrels_drawn
 Server → Room
-
 ```json
-{
-  "type": "barrels_drawn",
-
-  "numbers": [15, 44, 81],
-
-  "remaining": 57,
-
-  "next_drawer": "player2",
-
-  "is_final": false
-}
+{"type": "barrels_drawn", "numbers": [15, 44, 81], "remaining": 57, "next_drawer": "player2", "is_final": false}
 ```
-
-numbers:
-
-1–3 values.
+`numbers`: 1-3 values.
 
 ---
 
-# Apartment
+## Apartment
 
-## apartment_alert
-
+### apartment_alert
 Server → Room
-
 ```json
-{
-  "type": "apartment_alert",
-
-  "required": true,
-
-  "time_left": 10
-}
+{"type": "apartment_alert", "required": true, "time_left": 10}
 ```
+`required`: `true = must answer`, `false = immune`
 
-required:
-
-```text
-true  = must answer
-false = immune
-```
-
----
-
-## apartment_choice
-
+### apartment_choice
 Client → Server
-
 ```json
-{
-  "action": "apartment_choice",
-  "choice": "agree"
-}
+{"action": "apartment_choice", "choice": "agree"}
 ```
-
 or
-
 ```json
-{
-  "action": "apartment_choice",
-  "choice": "refuse"
-}
+{"action": "apartment_choice", "choice": "refuse"}
 ```
 
 ---
 
-# Game End
+## Game End
 
-## game_over
-
+### game_over
 Server → Room
-
 ```json
-{
-  "type": "game_over",
-
-  "winner": "player",
-
-  "reason": "victory",
-
-  "prize": 120,
-
-  "final_bank": 120,
-
-  "statistics": []
-}
+{"type": "game_over", "winner": "player", "reason": "victory", "prize": 120, "final_bank": 120, "statistics": []}
 ```
-
 Statistics entry:
-
 ```json
-{
-  "username": "player",
-  "paid": 20,
-  "received": 120
-}
+{"username": "player", "paid": 20, "received": 120}
+```
+
+### last_survivor
+Server → Room (same `game_over` packet, `reason` differs)
+```json
+{"type": "game_over", "winner": "player", "reason": "last_survivor", "prize": 80, "final_bank": 80, "statistics": []}
 ```
 
 ---
 
-## last_survivor
+## Reconnect
 
-Server → Room
-
-```json
-{
-  "type": "game_over",
-
-  "winner": "player",
-
-  "reason": "last_survivor",
-
-  "prize": 80,
-
-  "final_bank": 80,
-
-  "statistics": []
-}
-```
-
----
-
-# Reconnect
-
-## reconnect_state
-
-Server → Client
+### reconnect_state
+Server → Client. Reconnect is forbidden during apartment state.
 
 Waiting room:
-
 ```json
-{
-  "type": "reconnect_state",
-
-  "status": "waiting",
-
-  "room_id": 5,
-
-  "bank": 0,
-
-  "drawn_all": [],
-
-  "my_cards": null
-}
+{"type": "reconnect_state", "status": "waiting", "room_id": 5, "bank": 0, "drawn_all": [], "my_cards": null}
 ```
-
----
-
 Playing:
-
 ```json
-{
-  "type": "reconnect_state",
-
-  "status": "playing",
-
-  "room_id": 5,
-
-  "bank": 80,
-
-  "drawn_all": [],
-
-  "my_cards": []
-}
+{"type": "reconnect_state", "status": "playing", "room_id": 5, "bank": 80, "drawn_all": [], "my_cards": []}
 ```
-
-Reconnect is forbidden during apartment state.
 
 ---
 
-# Administration
+## Administration
 
-## admin_ban_user
-
+### admin_ban_user
 Client → Server
-
 ```json
-{
-  "action": "admin_ban_user",
-  "user_id": 15,
-  "duration": "1d"
-}
+{"action": "admin_ban_user", "user_id": 15, "duration": "1d"}
 ```
+Allowed `duration`: `1d, 3d, permanent`
 
-Allowed values:
-
-```text
-1d
-3d
-permanent
-```
-
----
-
-## admin_unban_user
-
+### admin_unban_user
 Client → Server
-
 ```json
-{
-  "action": "admin_unban_user",
-  "user_id": 15
-}
+{"action": "admin_unban_user", "user_id": 15}
 ```
 
----
-
-## admin_kick_user
-
+### admin_kick_user
 Client → Server
-
 ```json
-{
-  "action": "admin_kick_user",
-  "user_id": 15
-}
+{"action": "admin_kick_user", "user_id": 15}
 ```
 
----
-
-## admin_close_room
-
+### admin_close_room
 Client → Server
-
 ```json
-{
-  "action": "admin_close_room",
-  "room_id": 7
-}
+{"action": "admin_close_room", "room_id": 7}
 ```
 
----
-
-## admin_get_logs
-
+### admin_get_logs
 Client → Server
-
 ```json
-{
-  "action": "admin_get_logs"
-}
+{"action": "admin_get_logs"}
 ```
 
----
-
-## admin_stats_data
-
+### admin_stats_data
 Server → Client
-
 ```json
-{
-  "type": "admin_stats_data",
-
-  "online": 0,
-
-  "memory_mb": 0,
-
-  "rooms": []
-}
+{"type": "admin_stats_data", "online": 0, "memory_mb": 0, "rooms": []}
 ```
 
----
-
-## admin_logs_data
-
+### admin_logs_data
 Server → Client
-
 ```json
-{
-  "type": "admin_logs_data",
-
-  "lines": []
-}
+{"type": "admin_logs_data", "lines": []}
 ```
 
 ---
 
-# Protocol Compatibility Rule
-
-New packets may be added.
-
-Existing packet names may not be changed.
-
-Existing field names may not be renamed.
-
-Existing semantics may not be changed.
-
-Breaking changes require ADR approval.
+## Protocol Compatibility Rule
+New packets may be added. Existing packet names, field names, and semantics may not be changed/renamed. Breaking changes require ADR approval.

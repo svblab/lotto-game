@@ -158,3 +158,35 @@
 [2026-06-15 19:03:53] [WARNING] Login failed: User is banned
 [2026-06-15 19:03:53] [INFO] User login: login_bonus
 [2026-06-15 19:03:53] [INFO] User login: login_bonus
+[2026-06-15 20:08:49] [INFO] User registered: test_user_1
+[2026-06-15 20:08:49] [WARNING] Registration failed: Username already exists
+[2026-06-15 20:08:49] [WARNING] Registration failed: Invalid username format
+[2026-06-15 20:08:49] [WARNING] Registration failed: Password must be between 6 and 64 characters
+[2026-06-15 20:09:31] [INFO] User login: login_valid
+[2026-06-15 20:27:05] [INFO] User registered: test_user_1
+[2026-06-15 20:27:05] [WARNING] Registration failed: Username already exists
+[2026-06-15 20:27:05] [WARNING] Registration failed: Invalid username format
+[2026-06-15 20:27:05] [WARNING] Registration failed: Password must be between 6 and 64 characters
+[2026-06-15 20:27:20] [INFO] User login: login_valid
+[2026-06-15 20:27:20] [WARNING] Login failed: Invalid username or password
+[2026-06-15 20:27:20] [WARNING] Login failed: Invalid username or password
+[2026-06-15 20:27:21] [WARNING] Login failed: User is banned
+[2026-06-15 20:27:21] [INFO] User login: login_bonus
+[2026-06-15 20:27:21] [INFO] User login: login_bonus
+[2026-06-15 20:27:29] [INFO] User login: session_user
+[2026-06-15 20:27:29] [INFO] User login: session_user
+[2026-06-15 20:42:39] [INFO] User login: single_user
+[2026-06-15 20:42:39] [WARNING] Login failed: User already logged in
+[2026-06-15 20:42:39] [INFO] User login: single_user
+[2026-06-15 20:43:22] [INFO] User registered: test_user_1
+[2026-06-15 20:43:22] [WARNING] Registration failed: Username already exists
+[2026-06-15 20:43:22] [WARNING] Registration failed: Invalid username format
+[2026-06-15 20:43:22] [WARNING] Registration failed: Password must be between 6 and 64 characters
+[2026-06-15 20:43:34] [INFO] User login: login_valid
+[2026-06-15 20:43:35] [WARNING] Login failed: Invalid username or password
+[2026-06-15 20:43:35] [WARNING] Login failed: Invalid username or password
+[2026-06-15 20:43:35] [WARNING] Login failed: User is banned
+[2026-06-15 20:43:35] [INFO] User login: login_bonus
+[2026-06-15 20:43:35] [INFO] User login: login_bonus
+[2026-06-15 20:43:51] [INFO] User login: session_user
+[2026-06-15 20:43:51] [INFO] User login: session_user

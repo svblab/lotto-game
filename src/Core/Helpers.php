@@ -26,15 +26,19 @@ function sendJson(object $connection, array $payload): void
 
 /**
  * Унифицированная отправка ошибки протокола.
+ * Контракт пакета error зафиксирован в ANCHOR_PROTOCOL.md и обязан
+ * содержать поле code (см. реестр допустимых кодов в этом документе).
  *
  * @param object $connection Экземпляр соединения Workerman
- * @param string $message Сообщение об ошибке
+ * @param string $code Код ошибки из реестра ANCHOR_PROTOCOL.md (например error.invalid_json)
+ * @param string $message Необязательный текст ошибки
  * @return void
  */
-function sendError(object $connection, string $message): void
+function sendError(object $connection, string $code, string $message = ''): void
 {
     sendJson($connection, [
         'type' => 'error',
+        'code' => $code,
         'message' => $message
     ]);
 }
