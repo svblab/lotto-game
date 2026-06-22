@@ -12,16 +12,18 @@ class AuthService
     private Database $db;
     private PreparedStatements $statements;
     private Logger $logger;
+    private SessionService $sessionService;
 
     /**
      * Конструктор сервиса с внедрением зависимостей (DI).
      * Избегаем глобальных состояний и синглтонов.
      */
-    public function __construct(Database $db, PreparedStatements $statements, Logger $logger)
+    public function __construct(Database $db, PreparedStatements $statements, Logger $logger, SessionService $sessionService)
     {
         $this->db = $db;
         $this->statements = $statements;
         $this->logger = $logger;
+        $this->sessionService = $sessionService;
     }
 
     /**
@@ -81,12 +83,15 @@ class AuthService
      *
      * @param string $username
      * @param string $password
-     * @return array
+     * @param object|null $worker Объект воркера для проверки активных соединений (EPIC-1.3)
+     * @param mixed $connection Экземпляр соединения пользователя (EPIC-1.3)
+     * @return array Контракт EPIC-1.1 + session_token на верхнем уровне
      * @throws Exception
      */
-    public function login(string $username, string $password): array
+    public function login(string $username, string $password, $worker = null, $connection = 'mock_connection'): array
     {
         try {
+            // Шаг 1: Проверить входные данные на валидность формы
             // Шаг 1: Получить пользователя из реестра PreparedStatements
             $selectStmt = $this->statements->get('user_by_username');
             $selectStmt->execute([$username]);
@@ -104,7 +109,7 @@ class AuthService
 
             // Шаг 4: Проверить состояние блокировки (бан)
             if ((int)$user['banned_until'] > time()) {
-                throw new Exception('User is banned');
+                throw new Exception('User is banned', (int)$user['banned_until']);
             }
 
             // Шаг 5: Проверить условия начисления Daily Bonus (не админ и прошло >= 24 часов)
@@ -123,10 +128,27 @@ class AuthService
                 $user['last_daily_bonus'] = $currentTime;
             }
 
+            // EPIC-1.2: Создание нового токена сессии
+            $token = $this->sessionService->generateToken();
+
+            // EPIC-1.2: Проверка валидности созданного токена
+            if (!$this->sessionService->isValidToken($token)) {
+                throw new Exception('Generated session token is invalid');
+            }
+
+            // EPIC-1.3: Single Session Protection
+            $userId = (int)$user['id'];
+            if ($worker !== null) {
+                if (isset($worker->userConnections[$userId])) {
+                    throw new Exception('User already logged in');
+                }
+                $worker->userConnections[$userId] = $connection;
+            }
+
             // Шаг 8: Записать лог об успешном входе (Уровень INFO)
             $this->logger->write('INFO', "User login: {$username}");
 
-            // Шаг 9: Возврат строго типизированного ответа структуры
+            // EPIC-1.2: Возврат существующего контракта с добавлением session_token
             return [
                 'success' => true,
                 'user' => [
@@ -135,7 +157,8 @@ class AuthService
                     'coins' => (int)$user['coins'],
                     'is_admin' => (bool)$user['is_admin']
                 ],
-                'daily_bonus_received' => $dailyBonusReceived
+                'daily_bonus_received' => $dailyBonusReceived,
+                'session_token' => $token
             ];
 
         } catch (Exception $e) {
