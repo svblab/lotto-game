@@ -27,7 +27,7 @@ class PreparedStatements
     private array $queries = [
         'user_by_username' => "SELECT id, username, password_hash, coins, is_admin, banned_until, last_daily_bonus FROM users WHERE username = ? LIMIT 1",
         
-        'create_user' => "INSERT INTO users (username, password_hash, coins, is_admin, banned_until, last_daily_bonus) VALUES (?, ?, 500, 0, 0, 0)",
+        'create_user' => "INSERT INTO users (username, password_hash, coins, is_admin, banned_until, last_daily_bonus) VALUES (?, ?, 500, 0, 0, strftime('%s','now'))",
         
         'update_daily_bonus' => "UPDATE users SET coins = ?, last_daily_bonus = ? WHERE id = ?",
         
