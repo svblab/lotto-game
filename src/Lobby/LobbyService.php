@@ -8,27 +8,29 @@ use Lotto\Core\RoomManager;
 
 use function Lotto\Core\sendJson;
 use function Lotto\Core\sendError;
+use function Lotto\Core\broadcastToRoom;
 
 /**
- * LobbyService — EPIC-2.1
+ * LobbyService — EPIC-2.1 / EPIC-2.2
  *
- * Бизнес-логика создания комнаты (action: create_room).
+ * Бизнес-логика создания и входа в комнату (create_room, join_room).
  * Инфраструктура комнат (хранение, уничтожение, поиск) — RoomManager (EPIC-2.0).
  *
- * Контракт пакета ANCHOR_PROTOCOL.md § Lobby:
- *   create_room  → Client → Server
- *   room_joined  → Server → Client
- *   player_joined → Server → Room (только при join; здесь не нужен — первый игрок)
+ * Контракт пакетов ANCHOR_PROTOCOL.md § Lobby:
+ *   create_room   → Client → Server
+ *   join_room     → Client → Server
+ *   room_joined   → Server → Client (входящему игроку)
+ *   player_joined → Server → Room  (остальным игрокам)
  *
  * Проверяемые лимиты (ANCHOR_CORE.md Part 1):
  *   MAX_ROOMS         = 30  — общее количество комнат
  *   MAX_TOTAL_PLAYERS = 150 — сумма игроков по всем комнатам
  *
  * Экономика (ANCHOR_CORE.md Part 2 § Reservation Rule):
- *   Создание комнаты НЕ списывает монеты. Только start_game() (EPIC-4.3).
+ *   Создание/вход в комнату НЕ списывает монеты. Только start_game() (EPIC-4.3).
  *
  * Worker-память:
- *   $worker->rooms          — array<roomId, room>  (управляется RoomManager)
+ *   $worker->rooms           — array<roomId, room>  (управляется RoomManager)
  *   $worker->userConnections — array<userId, conn>  (управляется AuthHandler)
  */
 final class LobbyService
@@ -131,6 +133,110 @@ final class LobbyService
         sendJson($connection, $this->buildRoomJoinedPacket($worker->rooms[$roomId], $connection));
     }
 
+    /**
+     * Обрабатывает пакет {"action": "join_room"}.
+     *
+     * Контракт входного пакета (ANCHOR_PROTOCOL.md § Lobby → join_room):
+     *   {"action": "join_room", "room_id": 7, "password": "", "cards_count": 2}
+     *
+     * Успех:
+     *   → входящему игроку: room_joined (полный список игроков)
+     *   → остальным игрокам в комнате: player_joined
+     *
+     * Предусловия:
+     *   1. Пользователь аутентифицирован
+     *   2. Комната существует и в статусе 'waiting'
+     *   3. Комната не заполнена (players < max_players)
+     *   4. Общий лимит игроков не достигнут
+     *   5. Пароль верный (если установлен)
+     *   6. cards_count ∈ {1, 2}
+     */
+    public function handleJoinRoom(array $data, object $connection, object $worker): void
+    {
+        // --- 1. Аутентификация ---
+        if (empty($connection->userId)) {
+            sendError($connection, 'error.auth_required', 'Authentication required');
+            return;
+        }
+
+        // --- 2. Комната существует ---
+        $roomId = isset($data['room_id']) ? (int)$data['room_id'] : 0;
+        if (!isset($worker->rooms[$roomId])) {
+            sendError($connection, 'error.room_not_found', 'Room not found');
+            return;
+        }
+
+        $room = &$worker->rooms[$roomId];
+
+        // --- 3. Статус комнаты — только 'waiting' ---
+        if ($room['status'] !== 'waiting') {
+            sendError($connection, 'error.room_not_found', 'Room is not open for joining');
+            return;
+        }
+
+        // --- 4. Комната не заполнена ---
+        if (count($room['players']) >= $room['max_players']) {
+            sendError($connection, 'error.server_full', 'Room is full');
+            return;
+        }
+
+        // --- 5. Общий лимит игроков ---
+        $totalPlayers = $this->roomManager->getTotalPlayerCount($worker);
+        if ($totalPlayers >= Constants::MAX_TOTAL_PLAYERS) {
+            sendError($connection, 'error.server_full', 'Server is full');
+            return;
+        }
+
+        // --- 6. Пароль ---
+        if ($room['password_hash'] !== null) {
+            $passwordRaw = $data['password'] ?? '';
+            if (!is_string($passwordRaw) || !password_verify($passwordRaw, $room['password_hash'])) {
+                sendError($connection, 'error.auth_invalid_credentials', 'Wrong room password');
+                return;
+            }
+        }
+
+        // --- 7. Валидация cards_count ---
+        $cardsCount = isset($data['cards_count']) ? (int)$data['cards_count'] : 1;
+        if ($cardsCount !== 1 && $cardsCount !== 2) {
+            sendError($connection, 'error.invalid_json', 'cards_count must be 1 or 2');
+            return;
+        }
+
+        // --- 8. Добавление игрока ---
+        $connId = $connection->id;
+        $room['players'][$connId] = $this->buildPlayerEntry($connection, $cardsCount);
+
+        // Добавляем в конец drawer_order (ANCHOR_CORE.md § Drawer Order Rules: FIFO)
+        $room['drawer_order'][] = $connId;
+
+        $this->logger->info(
+            "User user_id={$connection->userId} username={$connection->username}" .
+            " joined room_id={$roomId} cards_count={$cardsCount}"
+        );
+
+        // --- 9. Новому игроку: room_joined ---
+        $hostConnId = $room['host_conn_id'];
+        $hostUsername = isset($room['players'][$hostConnId])
+            ? $room['players'][$hostConnId]['username']
+            : '';
+
+        sendJson($connection, $this->buildRoomJoinedPacket($room, $hostUsername));
+
+        // --- 10. Остальным игрокам: player_joined ---
+        $playerJoinedPacket = [
+            'type'        => 'player_joined',
+            'username'    => $connection->username,
+            'cards_count' => $cardsCount,
+        ];
+
+        foreach ($room['players'] as $pid => $player) {
+            if ($pid !== $connId && $player['status'] === 'active') {
+                sendJson($player['connection'], $playerJoinedPacket);
+            }
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
@@ -164,18 +270,15 @@ final class LobbyService
     }
 
     /**
-     * Строит пакет room_joined.
+     * Строит пакет room_joined для входящего игрока.
      * Контракт: ANCHOR_PROTOCOL.md § Lobby → room_joined.
      *
-     * {"type": "room_joined", "room_id": 7, "host": "player1",
-     *  "status": "waiting", "bank": 0, "players": [...]}
-     *
-     * Player entry:
-     * {"username": "player", "cards_count": 2, "status": "active"}
+     * @param array         $room  Структура комнаты
+     * @param string|object $host  username хоста (string) или connection (object, для create_room)
      */
-    private function buildRoomJoinedPacket(array $room, object $hostConnection): array
+    private function buildRoomJoinedPacket(array $room, string|object $host): array
     {
-        $hostUsername = $hostConnection->username;
+        $hostUsername = is_object($host) ? $host->username : $host;
 
         $players = [];
         foreach ($room['players'] as $player) {
