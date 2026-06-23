@@ -11,16 +11,18 @@ use function Lotto\Core\sendError;
 use function Lotto\Core\broadcastToRoom;
 
 /**
- * LobbyService — EPIC-2.1 / EPIC-2.2
+ * LobbyService — EPIC-2.1 / EPIC-2.2 / EPIC-2.3
  *
- * Бизнес-логика создания и входа в комнату (create_room, join_room).
+ * Бизнес-логика создания, входа и выхода из комнаты (create_room, join_room, leave_room).
  * Инфраструктура комнат (хранение, уничтожение, поиск) — RoomManager (EPIC-2.0).
  *
  * Контракт пакетов ANCHOR_PROTOCOL.md § Lobby:
  *   create_room   → Client → Server
  *   join_room     → Client → Server
+ *   leave_room    → Client → Server
  *   room_joined   → Server → Client (входящему игроку)
  *   player_joined → Server → Room  (остальным игрокам)
+ *   player_left   → Server → Room  (остальным при выходе)
  *
  * Проверяемые лимиты (ANCHOR_CORE.md Part 1):
  *   MAX_ROOMS         = 30  — общее количество комнат
@@ -28,6 +30,7 @@ use function Lotto\Core\broadcastToRoom;
  *
  * Экономика (ANCHOR_CORE.md Part 2 § Reservation Rule):
  *   Создание/вход в комнату НЕ списывает монеты. Только start_game() (EPIC-4.3).
+ *   Выход из waiting: монеты не трогаем (ещё не списывались).
  *
  * Worker-память:
  *   $worker->rooms           — array<roomId, room>  (управляется RoomManager)
@@ -237,6 +240,157 @@ final class LobbyService
         }
     }
 
+    /**
+     * Обрабатывает пакет {"action": "leave_room"}.
+     *
+     * Контракт входного пакета (ANCHOR_PROTOCOL.md § Lobby → leave_room):
+     *   {"action": "leave_room"}  — без параметров
+     *
+     * Разрешён только в статусе 'waiting' (ANCHOR_CORE.md Part 4 § State Machine).
+     * В статусе 'playing' выход обрабатывается GameService (EPIC-5.x).
+     *
+     * Последовательность:
+     *   1. Найти комнату игрока
+     *   2. removePlayerFromLobby() — удалить, broadcast player_left
+     *   3. Если комната пуста → destroyRoom()
+     *   4. Если ушёл хост и игроки остались → transferHost()
+     *
+     * Экономика: монеты не затронуты (в waiting ещё не списывались).
+     * Именование: removePlayerFromLobby() — реестр ANCHOR_CORE.md Part 6.
+     */
+    public function handleLeaveRoom(object $connection, object $worker): void
+    {
+        // --- 1. Аутентификация ---
+        if (empty($connection->userId)) {
+            sendError($connection, 'error.auth_required', 'Authentication required');
+            return;
+        }
+
+        $connId = $connection->id;
+
+        // --- 2. Найти комнату ---
+        $roomId = $this->roomManager->findRoomIdByConnId($worker, $connId);
+        if ($roomId === null) {
+            // Игрок не в комнате — silently ignore (idempotent)
+            return;
+        }
+
+        $room = &$worker->rooms[$roomId];
+
+        // --- 3. Только статус 'waiting' ---
+        // В 'playing' выход обрабатывает GameService
+        if ($room['status'] !== 'waiting') {
+            return;
+        }
+
+        $wasHost = ($room['host_conn_id'] === $connId);
+
+        // --- 4. Удалить игрока из комнаты ---
+        $this->removePlayerFromLobby($worker, $roomId, $connId, 'leave');
+
+        // После удаления — проверяем состояние комнаты
+        if (!isset($worker->rooms[$roomId])) {
+            // destroyRoom уже вызван внутри removePlayerFromLobby (комната была пуста)
+            return;
+        }
+
+        // --- 5. Передача хоста если ушёл хост ---
+        if ($wasHost) {
+            $this->transferHost($worker, $roomId);
+        }
+    }
+
+    /**
+     * Удаляет игрока из комнаты в статусе 'waiting', рассылает player_left.
+     * Если после удаления игроков не осталось — уничтожает комнату.
+     *
+     * Именование: ANCHOR_CORE.md Part 6 § Function Names.
+     * Причина: ANCHOR_CORE.md Part 1 § Removal Reasons — 'leave'.
+     *
+     * @param object $worker
+     * @param int    $roomId
+     * @param int    $connId  connection->id удаляемого игрока
+     * @param string $reason  Причина из реестра: leave | disconnect | kicked | banned | admin_close
+     */
+    public function removePlayerFromLobby(object $worker, int $roomId, int $connId, string $reason): void
+    {
+        if (!isset($worker->rooms[$roomId]['players'][$connId])) {
+            return;
+        }
+
+        $room = &$worker->rooms[$roomId];
+        $username = $room['players'][$connId]['username'];
+
+        // Удаляем из players
+        unset($room['players'][$connId]);
+
+        // Удаляем из drawer_order
+        $room['drawer_order'] = array_values(
+            array_filter($room['drawer_order'], fn($id) => $id !== $connId)
+        );
+
+        $this->logger->info(
+            "Player username={$username} removed from lobby room_id={$roomId} reason={$reason}"
+        );
+
+        // Если комната опустела — уничтожаем
+        if (empty($room['players'])) {
+            $this->roomManager->destroyRoom($worker, $roomId);
+            return;
+        }
+
+        // Рассылаем player_left оставшимся активным игрокам
+        // Контракт: ANCHOR_PROTOCOL.md § Lobby → player_left
+        $packet = [
+            'type'     => 'player_left',
+            'username' => $username,
+            'reason'   => $reason,
+        ];
+
+        foreach ($room['players'] as $player) {
+            if ($player['status'] === 'active') {
+                sendJson($player['connection'], $packet);
+            }
+        }
+    }
+
+    /**
+     * Передаёт хост следующему активному игроку по FIFO из drawer_order.
+     * Вызывается когда текущий хост покидает комнату (статус 'waiting').
+     *
+     * Именование: ANCHOR_CORE.md Part 6 § Function Names.
+     * Правило: ANCHOR_CORE.md Part 4 § Host Rules — новый хост = следующий активный FIFO.
+     *
+     * Если активных игроков нет (все disconnected) — destroyRoom().
+     */
+    public function transferHost(object $worker, int $roomId): void
+    {
+        if (!isset($worker->rooms[$roomId])) {
+            return;
+        }
+
+        $room = &$worker->rooms[$roomId];
+
+        // Ищем первого активного игрока из drawer_order (FIFO)
+        foreach ($room['drawer_order'] as $connId) {
+            if (
+                isset($room['players'][$connId]) &&
+                $room['players'][$connId]['status'] === 'active'
+            ) {
+                $room['host_conn_id'] = $connId;
+                $newHostUsername = $room['players'][$connId]['username'];
+
+                $this->logger->info(
+                    "Host transferred in room_id={$roomId} new_host={$newHostUsername}"
+                );
+                return;
+            }
+        }
+
+        // Нет активных игроков — уничтожаем комнату
+        $this->roomManager->destroyRoom($worker, $roomId);
+    }
+
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
@@ -274,7 +428,7 @@ final class LobbyService
      * Контракт: ANCHOR_PROTOCOL.md § Lobby → room_joined.
      *
      * @param array         $room  Структура комнаты
-     * @param string|object $host  username хоста (string) или connection (object, для create_room)
+     * @param string|object $host  username хоста (string) или connection хоста (object, для create_room)
      */
     private function buildRoomJoinedPacket(array $room, string|object $host): array
     {
