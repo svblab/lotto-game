@@ -1,5 +1,27 @@
 # Implementation Status — Lotto Game Project
 
+- [DONE] EPIC-2.5 Host transfer
+Files:
+- src/Lobby/LobbyService.php (реализовано в рамках EPIC-2.3)
+Notes:
+- transferHost(): FIFO по drawer_order среди active → новый host_conn_id
+- Вызывается из handleLeaveRoom() при $wasHost === true
+- Если нет активных игроков → destroyRoom()
+- Отдельного кода не потребовалось: логика покрыта EPIC-2.3
+
+Commit: (входит в EPIC-2.3 leave-room)
+
+- [DONE] EPIC-2.4 Room list
+Files:
+- src/Lobby/LobbyService.php (diff)
+Notes:
+- handleRoomList(): auth guard → итерация $worker->rooms → buildRoomListEntry() → room_list пакет
+- Возвращаются все комнаты в любом статусе (waiting / playing / apartment)
+- Формирование entry делегировано RoomManager::buildRoomListEntry() (EPIC-2.0)
+- Протокол: {"type":"room_list","rooms":[...]} — ANCHOR_PROTOCOL.md § Lobby
+
+Commit: EPIC-2.4 room-list
+
 - [DONE] EPIC-2.3 Leave room
 Files:
 - src/Lobby/LobbyService.php (diff)
@@ -111,6 +133,7 @@ Result:
 - 2026-06-22 — PHASE 1 официально завершена после прохождения интеграционных тестов.
 - 2026-06-23 — EPIC-2.0 RoomManager реализован (src/Core/RoomManager.php, 245 строк).
 - 2026-06-25 — EPIC-2.3 Leave room завершён, FIX: all_players_history в removePlayerFromLobby.
+- 2026-06-28 — EPIC-2.4 Room list завершён.
 
 ---
 
@@ -127,12 +150,12 @@ Result:
 
 PHASE 0 — FOUNDATION: COMPLETE
 PHASE 1 — AUTHENTICATION: COMPLETE
-PHASE 2 — ROOM LOBBY: In progress (4/7)
+PHASE 2 — ROOM LOBBY: In progress (6/7)
 
 Integration tests:
 
 `text
-48 / 48 PASSED (после EPIC-2.3)
+48 / 48 PASSED (после EPIC-2.4)
 `
 
 Current branch:
@@ -144,11 +167,11 @@ main
 Current stable commit:
 
 `text
-EPIC-2.3 leave-room
+EPIC-2.4 room-list
 `
 
 Next planned Epic:
 
 `text
-EPIC-2.4 Room list
+EPIC-2.6 Lobby AFK system
 `

@@ -242,3 +242,29 @@
 [2026-06-28 14:51:25] [INFO] User registered: reconn_user
 [2026-06-28 14:51:26] [INFO] User login: reconn_user
 [2026-06-28 14:51:26] [INFO] Reconnect validated: user_id=1
+[2026-06-28 15:17:55] [INFO] User registered: player1
+[2026-06-28 15:17:55] [WARNING] Registration failed: Username already exists
+[2026-06-28 15:17:55] [WARNING] Registration failed: Invalid username format
+[2026-06-28 15:17:55] [WARNING] Registration failed: Password must be between 6 and 64 characters
+[2026-06-28 15:17:56] [INFO] User registered: loginuser
+[2026-06-28 15:17:56] [INFO] User login: loginuser
+[2026-06-28 15:17:56] [WARNING] Login failed: Invalid username or password
+[2026-06-28 15:17:56] [WARNING] Login failed: Invalid username or password
+[2026-06-28 15:17:56] [WARNING] Login failed: User is banned
+[2026-06-28 15:17:56] [INFO] User registered: bonususer
+[2026-06-28 15:17:57] [INFO] User login: bonususer
+[2026-06-28 15:17:57] [INFO] User registered: doubleuser
+[2026-06-28 15:17:57] [INFO] User login: doubleuser
+[2026-06-28 15:17:57] [WARNING] Login failed: User already logged in
+[2026-06-28 15:17:57] [INFO] User registered: huser1
+[2026-06-28 15:17:58] [INFO] User login: huser1
+[2026-06-28 15:17:58] [WARNING] Registration failed: Invalid username format
+[2026-06-28 15:17:58] [WARNING] Registration failed: Username already exists
+[2026-06-28 15:17:58] [INFO] User registered: luser1
+[2026-06-28 15:17:58] [INFO] User login: luser1
+[2026-06-28 15:17:58] [INFO] User login: luser1
+[2026-06-28 15:17:58] [WARNING] Login failed: Invalid username or password
+[2026-06-28 15:17:59] [WARNING] Login failed: User is banned
+[2026-06-28 15:17:59] [INFO] User registered: reconn_user
+[2026-06-28 15:17:59] [INFO] User login: reconn_user
+[2026-06-28 15:17:59] [INFO] Reconnect validated: user_id=1

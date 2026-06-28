@@ -5,13 +5,14 @@ namespace Lotto\Lobby;
 use Lotto\Core\Constants;
 use Lotto\Core\Logger;
 use Lotto\Core\RoomManager;
+use Workerman\Timer;
 
 use function Lotto\Core\sendJson;
 use function Lotto\Core\sendError;
 use function Lotto\Core\broadcastToRoom;
 
 /**
- * LobbyService — EPIC-2.1 / EPIC-2.2 / EPIC-2.3 / EPIC-2.4
+ * LobbyService — EPIC-2.1 / EPIC-2.2 / EPIC-2.3 / EPIC-2.4 / EPIC-2.6
  *
  * Бизнес-логика создания, входа и выхода из комнаты (create_room, join_room, leave_room).
  * Инфраструктура комнат (хранение, уничтожение, поиск) — RoomManager (EPIC-2.0).
@@ -275,6 +276,14 @@ final class LobbyService
                 sendJson($player['connection'], $playerJoinedPacket);
             }
         }
+
+        // --- 11. Lobby AFK таймер ---
+        // Контракт: ANCHOR_CORE.md § Lobby AFK Timer.
+        // Запускается/рестартуется когда в комнате стало >= 2 игроков.
+        // Предыдущий таймер отменяется перед созданием нового (max 1/room).
+        if (count($room['players']) >= 2) {
+            $this->startLobbyAfkTimer($worker, $roomId);
+        }
     }
 
     /**
@@ -327,8 +336,13 @@ final class LobbyService
 
         // После удаления — проверяем состояние комнаты
         if (!isset($worker->rooms[$roomId])) {
-            // destroyRoom уже вызван внутри removePlayerFromLobby (комната была пуста)
             return;
+        }
+
+        // --- 4a. Остановить AFK таймер если игроков < 2 ---
+        // Контракт: ANCHOR_CORE.md § Lobby AFK Timer — Destroyed when player count <2.
+        if (count($worker->rooms[$roomId]['players']) < 2) {
+            $this->stopLobbyAfkTimer($worker, $roomId);
         }
 
         // --- 5. Передача хоста если ушёл хост ---
@@ -441,6 +455,88 @@ final class LobbyService
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
+
+    /**
+     * Запускает (или рестартует) lobby AFK таймер для комнаты.
+     *
+     * Контракт: ANCHOR_CORE.md § Lobby AFK Timer.
+     *   Owner: room. Interval: 1s repeat. Threshold: LOBBY_HOST_TIMEOUT (120s).
+     *   Action: transferHost() если host.last_action устарел.
+     *   Max 1 на комнату — предыдущий отменяется перед созданием.
+     *
+     * Вызывается из handleJoinRoom() когда count(players) >= 2.
+     *
+     * @param object $worker
+     * @param int    $roomId
+     */
+    private function startLobbyAfkTimer(object $worker, int $roomId): void
+    {
+        if (!isset($worker->rooms[$roomId])) {
+            return;
+        }
+
+        $room = &$worker->rooms[$roomId];
+
+        // Отменяем предыдущий таймер (max 1/room)
+        if (!empty($room['lobby_afk_timer_id'])) {
+            Timer::del($room['lobby_afk_timer_id']);
+            $room['lobby_afk_timer_id'] = null;
+        }
+
+        $timerId = Timer::add(1, function () use ($worker, $roomId): void {
+            if (!isset($worker->rooms[$roomId])) {
+                return;
+            }
+
+            $room = &$worker->rooms[$roomId];
+
+            // Таймер актуален только в статусе waiting
+            if ($room['status'] !== 'waiting') {
+                $this->stopLobbyAfkTimer($worker, $roomId);
+                return;
+            }
+
+            $hostConnId = $room['host_conn_id'];
+            if (!isset($room['players'][$hostConnId])) {
+                return;
+            }
+
+            $hostLastAction = $room['players'][$hostConnId]['last_action'];
+
+            if ((time() - $hostLastAction) >= Constants::LOBBY_HOST_TIMEOUT) {
+                $this->logger->info(
+                    "Lobby AFK: host timed out in room_id={$roomId}, transferring host"
+                );
+                $this->transferHost($worker, $roomId);
+            }
+        });
+
+        $room['lobby_afk_timer_id'] = $timerId;
+    }
+
+    /**
+     * Останавливает lobby AFK таймер комнаты.
+     *
+     * Контракт: ANCHOR_CORE.md § Lobby AFK Timer — Destroyed when player count <2.
+     * Вызывается из handleLeaveRoom() когда count(players) < 2.
+     * destroyRoom() уже отменяет таймер сам — здесь только для count<2 случая.
+     *
+     * @param object $worker
+     * @param int    $roomId
+     */
+    private function stopLobbyAfkTimer(object $worker, int $roomId): void
+    {
+        if (!isset($worker->rooms[$roomId])) {
+            return;
+        }
+
+        $room = &$worker->rooms[$roomId];
+
+        if (!empty($room['lobby_afk_timer_id'])) {
+            Timer::del($room['lobby_afk_timer_id']);
+            $room['lobby_afk_timer_id'] = null;
+        }
+    }
 
     /**
      * Строит запись игрока для $room['players'][$connId].
