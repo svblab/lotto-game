@@ -1,5 +1,20 @@
 # Implementation Status — Lotto Game Project
 
+- [DONE] EPIC-2.6 Lobby AFK system
+Files:
+- src/Lobby/LobbyService.php (diff)
+Notes:
+- startLobbyAfkTimer(): отменяет предыдущий → Timer::add(1s repeat) → проверяет time()-host.last_action >= 120s → transferHost()
+- stopLobbyAfkTimer(): Timer::del + lobby_afk_timer_id = null
+- handleJoinRoom(): вызов startLobbyAfkTimer() когда count(players) >= 2
+- handleLeaveRoom(): вызов stopLobbyAfkTimer() когда count(players) < 2 после удаления
+- destroyRoom() уже отменяет таймер — дублирования нет
+- Добавлен use Workerman\Timer
+- Known gap закрыт (зафиксирован в EPIC-2.3)
+- Функциональный тест (WebSocket) отложен до EPIC-10.x (server.php не создан)
+
+Commit: EPIC-2.6 lobby-afk-system
+
 - [DONE] EPIC-2.5 Host transfer
 Files:
 - src/Lobby/LobbyService.php (реализовано в рамках EPIC-2.3)
@@ -150,12 +165,12 @@ Result:
 
 PHASE 0 — FOUNDATION: COMPLETE
 PHASE 1 — AUTHENTICATION: COMPLETE
-PHASE 2 — ROOM LOBBY: In progress (6/7)
+PHASE 2 — ROOM LOBBY: In progress (7/7)
 
 Integration tests:
 
 `text
-48 / 48 PASSED (после EPIC-2.4)
+48 / 48 PASSED
 `
 
 Current branch:
