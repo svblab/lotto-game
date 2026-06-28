@@ -11,7 +11,7 @@ use function Lotto\Core\sendError;
 use function Lotto\Core\broadcastToRoom;
 
 /**
- * LobbyService — EPIC-2.1 / EPIC-2.2 / EPIC-2.3
+ * LobbyService — EPIC-2.1 / EPIC-2.2 / EPIC-2.3 / EPIC-2.4
  *
  * Бизнес-логика создания, входа и выхода из комнаты (create_room, join_room, leave_room).
  * Инфраструктура комнат (хранение, уничтожение, поиск) — RoomManager (EPIC-2.0).
@@ -20,6 +20,7 @@ use function Lotto\Core\broadcastToRoom;
  *   create_room   → Client → Server
  *   join_room     → Client → Server
  *   leave_room    → Client → Server
+ *   room_list     → Client → Server / Server → Client
  *   room_joined   → Server → Client (входящему игроку)
  *   player_joined → Server → Room  (остальным игрокам)
  *   player_left   → Server → Room  (остальным при выходе)
@@ -50,6 +51,42 @@ final class LobbyService
     // -------------------------------------------------------------------------
     // Public action handlers
     // -------------------------------------------------------------------------
+
+    /**
+     * Обрабатывает пакет {"action": "room_list"}.
+     *
+     * Контракт (ANCHOR_PROTOCOL.md § Lobby → room_list):
+     *   Client → Server: {"action": "room_list"}
+     *   Server → Client: {"type": "room_list", "rooms": [...]}
+     *
+     * Room entry:
+     *   {"room_id": 7, "players": 3, "max_players": 10, "has_password": false, "status": "waiting"}
+     *
+     * Требования:
+     *   - Аутентификация обязательна (ANCHOR_CORE.md Part 3 § Auth Guard).
+     *   - Возвращаются все комнаты в любом статусе (waiting / playing / apartment).
+     *   - Формирование entry делегировано RoomManager::buildRoomListEntry() (EPIC-2.0).
+     */
+    public function handleRoomList(object $connection, object $worker): void
+    {
+        // --- 1. Аутентификация ---
+        if (empty($connection->userId)) {
+            sendError($connection, 'error.auth_required', 'Authentication required');
+            return;
+        }
+
+        // --- 2. Формируем список комнат ---
+        $rooms = [];
+        foreach ($worker->rooms ?? [] as $room) {
+            $rooms[] = $this->roomManager->buildRoomListEntry($room);
+        }
+
+        // --- 3. Отправляем ответ ---
+        sendJson($connection, [
+            'type'  => 'room_list',
+            'rooms' => $rooms,
+        ]);
+    }
 
     /**
      * Обрабатывает пакет {"action": "create_room"}.
@@ -319,7 +356,17 @@ final class LobbyService
         }
 
         $room = &$worker->rooms[$roomId];
-        $username = $room['players'][$connId]['username'];
+        $playerEntry = $room['players'][$connId];
+        $username = $playerEntry['username'];
+
+        // Сохраняем в историю до удаления (ANCHOR_CORE.md Part 4 § Removal Rules,
+        // Part 2 § Admin Close Room / No Survivors — all_players_history используется
+        // для возврата монет. В waiting total_paid=0, но контракт обязателен.)
+        $room['all_players_history'][$connId] = [
+            'user_id'    => $playerEntry['user_id'],
+            'username'   => $playerEntry['username'],
+            'total_paid' => $playerEntry['total_paid'],
+        ];
 
         // Удаляем из players
         unset($room['players'][$connId]);
