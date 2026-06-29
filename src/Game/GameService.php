@@ -202,6 +202,16 @@ final class GameService
             }
             $room['players'][$pConnId]['cards'] = $cards;
 
+            // Инициализировать маски — bool[cardsCount][3][9], все false
+            $masks = [];
+            foreach ($cards as $card) {
+                $masks[] = array_map(
+                    fn($row) => array_fill(0, 9, false),
+                    $card
+                );
+            }
+            $room['players'][$pConnId]['masks'] = $masks;
+
             // Сбросить AFK-поля
             $room['players'][$pConnId]['last_action'] = time();
             $room['players'][$pConnId]['afk_start']   = null;
@@ -297,5 +307,258 @@ final class GameService
 
             $player['connection']->send(json_encode($packet));
         }
+    }
+    // -------------------------------------------------------------------------
+    // EPIC-5.0  Send your_turn
+    // -------------------------------------------------------------------------
+
+    /**
+     * Отправить {"type": "your_turn"} текущему drawer'у.
+     * Также сбрасывает afk_start (таймер AFK начинается с этого момента).
+     */
+    public function sendYourTurn(array &$room): void
+    {
+        $drawerConnId = $room['active_drawer_conn_id'];
+        if (!isset($room['players'][$drawerConnId])) {
+            return;
+        }
+        $player = $room['players'][$drawerConnId];
+        if ($player['status'] !== 'active') {
+            return;
+        }
+        $room['players'][$drawerConnId]['afk_start'] = time();
+        $player['connection']->send(json_encode(['type' => 'your_turn']));
+    }
+
+    // -------------------------------------------------------------------------
+    // EPIC-5.1  Drawer rotation
+    // -------------------------------------------------------------------------
+
+    /**
+     * Установить следующего активного drawer'а в $room['active_drawer_conn_id'].
+     *
+     * Правила (ANCHOR_CORE.md § Drawer Order Rules):
+     *   - Очередь циклическая, обход по drawer_order.
+     *   - Пропускаются: отсутствующие в players, disconnected.
+     *   - Если активных нет — active_drawer_conn_id = null.
+     */
+    public function nextDrawer(array &$room): void
+    {
+        $order = $room['drawer_order'];
+        $count = count($order);
+        if ($count === 0) {
+            $room['active_drawer_conn_id'] = null;
+            return;
+        }
+
+        // Найти текущую позицию в очереди
+        $currentConnId = $room['active_drawer_conn_id'];
+        $currentPos    = array_search($currentConnId, $order);
+        if ($currentPos === false) {
+            $currentPos = 0;
+        }
+
+        // Циклический обход начиная со следующей позиции
+        for ($i = 1; $i <= $count; $i++) {
+            $nextPos   = ($currentPos + $i) % $count;
+            $nextConnId = $order[$nextPos];
+
+            if (!isset($room['players'][$nextConnId])) {
+                continue; // игрок удалён
+            }
+            if ($room['players'][$nextConnId]['status'] !== 'active') {
+                continue; // disconnected — пропустить
+            }
+
+            $room['active_drawer_conn_id'] = $nextConnId;
+            return;
+        }
+
+        // Нет активных игроков
+        $room['active_drawer_conn_id'] = null;
+    }
+
+    // -------------------------------------------------------------------------
+    // EPIC-5.2 / 5.3 / 5.4  Draw barrel + mark + broadcast
+    // -------------------------------------------------------------------------
+
+    /**
+     * Обрабатывает пакет {"action": "draw_barrel"}.
+     *
+     * Шаги:
+     *   1. Auth guard.
+     *   2. Найти комнату.
+     *   3. Проверки: статус playing, это ход текущего drawer'а.
+     *   4. EPIC-5.2 — извлечь следующий бочонок из bag.
+     *   5. EPIC-5.4 — markNumber(): отметить число на картах drawer'а.
+     *   6. EPIC-5.3 — barrels_drawn broadcast всем активным игрокам.
+     *   7. EPIC-5.1 — nextDrawer(), затем sendYourTurn() следующему.
+     *
+     * Победа и апартаменты — делегированы VictoryService / ApartmentService
+     * в последующих фазах. Здесь только механика хода.
+     */
+    public function handleDrawBarrel(object $connection, object $worker): void
+    {
+        // --- 1. Auth guard ---
+        if (empty($connection->userId)) {
+            sendError($connection, 'error.auth_required', 'Authentication required');
+            return;
+        }
+
+        $connId = $connection->id;
+
+        // --- 2. Найти комнату ---
+        $roomId = null;
+        foreach ($worker->rooms as $rid => $r) {
+            if (isset($r['players'][$connId])) {
+                $roomId = $rid;
+                break;
+            }
+        }
+
+        if ($roomId === null) {
+            sendError($connection, 'error.room_not_found', 'You are not in a room');
+            return;
+        }
+
+        $room = &$worker->rooms[$roomId];
+
+        // --- 3. Проверки ---
+
+        if ($room['status'] !== 'playing') {
+            sendError($connection, 'error.not_your_turn', 'Game is not in playing state');
+            return;
+        }
+
+        if ($room['active_drawer_conn_id'] !== $connId) {
+            sendError($connection, 'error.not_your_turn', 'It is not your turn to draw');
+            return;
+        }
+
+        // --- 4. EPIC-5.2 Извлечь бочонок из мешка ---
+
+        if (empty($room['bag'])) {
+            // Мешок пуст — все числа вышли (не должно случиться до победы)
+            $this->logger->warning("Room {$roomId}: bag is empty on draw_barrel");
+            return;
+        }
+
+        $number = array_shift($room['bag']);
+        $room['drawn_numbers'][] = $number;
+
+        // Сбросить AFK счётчики drawer'а (успешный ручной ход)
+        $room['players'][$connId]['afk_start']   = null;
+        $room['players'][$connId]['strikes']      = 0;
+        $room['players'][$connId]['auto_draws']   = 0;
+        $room['players'][$connId]['last_action']  = time();
+
+        // --- 5. EPIC-5.4 markNumber — отметить число на картах drawer'а ---
+        $this->markNumber($room, $connId, $number);
+
+        // --- 6. EPIC-5.3 barrels_drawn broadcast ---
+
+        $remaining  = count($room['bag']);
+        $nextDrawer = $this->peekNextDrawer($room);
+        $nextDrawerUsername = null;
+        if ($nextDrawer !== null && isset($room['players'][$nextDrawer])) {
+            $nextDrawerUsername = $room['players'][$nextDrawer]['username'];
+        }
+
+        $packet = [
+            'type'         => 'barrels_drawn',
+            'numbers'      => [$number],
+            'remaining'    => $remaining,
+            'next_drawer'  => $nextDrawerUsername,
+            'is_final'     => $remaining === 0,
+        ];
+
+        foreach ($room['players'] as $player) {
+            if ($player['status'] === 'active') {
+                $player['connection']->send(json_encode($packet));
+            }
+        }
+
+        $this->logger->info(
+            "Room {$roomId}: barrel {$number} drawn. Remaining: {$remaining}"
+        );
+
+        // --- 7. Передать ход следующему ---
+        $this->nextDrawer($room);
+        $this->sendYourTurn($room);
+    }
+
+    // -------------------------------------------------------------------------
+    // EPIC-5.4  markNumber
+    // -------------------------------------------------------------------------
+
+    /**
+     * Отметить вытянутое число на картах указанного игрока.
+     *
+     * Проходит по всем картам игрока, ищет число в нужной колонке,
+     * устанавливает соответствующую маску в true.
+     *
+     * @param array  &$room
+     * @param int    $connId  conn_id игрока
+     * @param int    $number  вытянутый бочонок
+     */
+    public function markNumber(array &$room, int $connId, int $number): void
+    {
+        if (!isset($room['players'][$connId])) {
+            return;
+        }
+
+        $cards = $room['players'][$connId]['cards'];
+        $masks = $room['players'][$connId]['masks'] ?? [];
+
+        // Определить колонку числа
+        $col = $this->numberToColumn($number);
+
+        foreach ($cards as $cardIdx => $card) {
+            for ($row = 0; $row < 3; $row++) {
+                if (($card[$row][$col] ?? null) === $number) {
+                    $masks[$cardIdx][$row][$col] = true;
+                }
+            }
+        }
+
+        $room['players'][$connId]['masks'] = $masks;
+    }
+
+    /**
+     * Определить индекс колонки (0-8) для числа 1-90.
+     * Зеркалирует LottoEngine::columnRange().
+     */
+    private function numberToColumn(int $number): int
+    {
+        if ($number <= 9)  return 0;
+        if ($number >= 80) return 8;
+        return (int)floor($number / 10);
+    }
+
+    /**
+     * Вернуть conn_id следующего активного drawer'а БЕЗ изменения состояния.
+     * Используется для формирования next_drawer в пакете barrels_drawn.
+     */
+    private function peekNextDrawer(array $room): ?int
+    {
+        $order      = $room['drawer_order'];
+        $count      = count($order);
+        $currentPos = array_search($room['active_drawer_conn_id'], $order);
+        if ($currentPos === false) {
+            $currentPos = 0;
+        }
+
+        for ($i = 1; $i <= $count; $i++) {
+            $nextPos    = ($currentPos + $i) % $count;
+            $nextConnId = $order[$nextPos];
+            if (!isset($room['players'][$nextConnId])) {
+                continue;
+            }
+            if ($room['players'][$nextConnId]['status'] !== 'active') {
+                continue;
+            }
+            return $nextConnId;
+        }
+        return null;
     }
 }
