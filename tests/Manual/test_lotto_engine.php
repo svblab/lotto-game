@@ -156,6 +156,30 @@ for ($col = 0; $col < 9; $col++) {
 }
 assert_true(!$engine->validateCard($badRange),       'Card: out-of-range number invalid');
 
+// Column invariants: each column has >=1 number, numbers sorted top-to-bottom ascending
+$colInvariantOk = true;
+for ($col = 0; $col < 9; $col++) {
+    $colNumbers = [];
+    for ($row = 0; $row < 3; $row++) {
+        if ($card[$row][$col] !== null) {
+            $colNumbers[] = $card[$row][$col];
+        }
+    }
+    // Each column must have at least 1 number
+    if (count($colNumbers) === 0) {
+        $colInvariantOk = false;
+        break;
+    }
+    // Numbers in column must be sorted ascending top-to-bottom
+    $sortedColNumbers = $colNumbers;
+    sort($sortedColNumbers);
+    if ($colNumbers !== $sortedColNumbers) {
+        $colInvariantOk = false;
+        break;
+    }
+}
+assert_true($colInvariantOk, 'Card: column invariants (>=1 number, sorted asc)');
+
 // Generate 100 cards, all must pass validation
 for ($i = 0; $i < 100; $i++) {
     $c = $engine->generateCard();
