@@ -11,6 +11,7 @@ use Lotto\Infrastructure\PreparedStatements;
 
 use function Lotto\Core\sendError;
 use function Lotto\Core\broadcastToRoom;
+use function Lotto\Core\sendJson;
 
 /**
  * GameService — EPIC-4.0 / 4.1 / 4.2 / 4.3 / 4.4
@@ -43,17 +44,20 @@ final class GameService
     private object $stmts;
     private LottoEngine $engine;
     private object $logger;
+    private VictoryService $victory;
 
     public function __construct(
         object $db,
         object $stmts,
         LottoEngine $engine,
-        object $logger
+        object $logger,
+        VictoryService $victory
     ) {
-        $this->db     = $db;
-        $this->stmts  = $stmts;
-        $this->engine = $engine;
-        $this->logger = $logger;
+        $this->db      = $db;
+        $this->stmts   = $stmts;
+        $this->engine  = $engine;
+        $this->logger  = $logger;
+        $this->victory = $victory;
     }
 
     // -------------------------------------------------------------------------
@@ -452,8 +456,21 @@ final class GameService
         $room['players'][$connId]['auto_draws']   = 0;
         $room['players'][$connId]['last_action']  = time();
 
-        // --- 5. EPIC-5.4 markNumber — отметить число на картах drawer'а ---
-        $this->markNumber($room, $connId, $number);
+        // --- 5. EPIC-5.4 markNumber — отметить число на картах всех игроков ---
+        // Каждый игрок отмечает вытянутое число на своих картах
+        foreach ($room['players'] as $pConnId => $player) {
+            if ($player['status'] === 'active') {
+                $this->markNumber($room, $pConnId, $number);
+            }
+        }
+
+        // --- 5b. EPIC-6.0/6.1 Victory check ---
+        $winners = $this->victory->checkAllVictories($room);
+        if (!empty($winners)) {
+            $result = $this->victory->calculatePrize($room['bank'], $winners);
+            $this->finishGame($room, $roomId, $winners, $result['prizes'], $worker);
+            return;
+        }
 
         // --- 6. EPIC-5.3 barrels_drawn broadcast ---
 
@@ -539,6 +556,128 @@ final class GameService
      * Вернуть conn_id следующего активного drawer'а БЕЗ изменения состояния.
      * Используется для формирования next_drawer в пакете barrels_drawn.
      */
+    // -------------------------------------------------------------------------
+    // EPIC-6.3 / 6.4  Winner payout transaction + game finish flow
+    // -------------------------------------------------------------------------
+
+    /**
+     * Завершить игру: транзакционно выплатить призы, разослать game_over, уничтожить комнату.
+     *
+     * @param array  &$room
+     * @param int    $roomId
+     * @param array  $winners  connId → число выигравших карт
+     * @param array  $prizes   connId → сумма приза
+     * @param object $worker
+     */
+    public function finishGame(
+        array &$room,
+        int $roomId,
+        array $winners,
+        array $prizes,
+        object $worker
+    ): void {
+        $pdo = $this->db->getPdo();
+
+        // --- EPIC-6.3 Транзакционная выплата (ANCHOR_CORE.md § Mandatory Transactions) ---
+        try {
+            $pdo->beginTransaction();
+
+            foreach ($prizes as $connId => $prize) {
+                if ($prize <= 0) continue;
+                $userId = $room['players'][$connId]['user_id'];
+
+                // Читаем актуальный баланс
+                $stmt = $this->stmts->get('user_by_id');
+                $stmt->execute([$userId]);
+                $row = $stmt->fetch();
+                if ($row === false) continue;
+
+                $newCoins = (int)$row['coins'] + $prize;
+                $upd = $this->stmts->get('update_user_coins');
+                $upd->execute([$newCoins, $userId]);
+            }
+
+            $pdo->commit();
+        } catch (\Throwable $e) {
+            $pdo->rollBack();
+            $this->logger->error("finishGame: payout failed: " . $e->getMessage());
+            return;
+        }
+
+        // --- EPIC-6.4 Обновить статус комнаты ---
+        $room['status'] = 'finished';
+        $room['bank']   = 0;
+
+        // --- Сформировать statistics ---
+        $statistics = [];
+        foreach ($room['all_players_history'] as $hist) {
+            $statistics[] = [
+                'username' => $hist['username'],
+                'paid'     => $hist['total_paid'],
+                'received' => $prizes[$hist['conn_id']] ?? 0,
+            ];
+        }
+        // Добавить текущих игроков если их нет в истории
+        foreach ($room['players'] as $connId => $player) {
+            $inHistory = false;
+            foreach ($statistics as $s) {
+                if ($s['username'] === $player['username']) { $inHistory = true; break; }
+            }
+            if (!$inHistory) {
+                $statistics[] = [
+                    'username' => $player['username'],
+                    'paid'     => $player['total_paid'],
+                    'received' => $prizes[$connId] ?? 0,
+                ];
+            }
+        }
+
+        // --- Определить победителя и reason ---
+        $totalActive = count(array_filter(
+            $room['players'],
+            fn($p) => $p['status'] === 'active'
+        ));
+
+        if (count($winners) === 1) {
+            $winnerConnId   = array_key_first($winners);
+            $winnerUsername = $room['players'][$winnerConnId]['username'] ?? 'unknown';
+            $reason         = 'victory';
+            $prize          = $prizes[$winnerConnId] ?? 0;
+            $finalBank      = $prize;
+        } else {
+            // Несколько победителей (double + normal одновременно)
+            $winnerConnId   = array_key_first($winners); // primary winner
+            $winnerUsername = $room['players'][$winnerConnId]['username'] ?? 'unknown';
+            $reason         = 'victory';
+            $prize          = $prizes[$winnerConnId] ?? 0;
+            $finalBank      = array_sum($prizes);
+        }
+
+        // --- EPIC-6.4 Broadcast game_over ---
+        $packet = [
+            'type'       => 'game_over',
+            'winner'     => $winnerUsername,
+            'reason'     => $reason,
+            'prize'      => $prize,
+            'final_bank' => $finalBank,
+            'statistics' => $statistics,
+        ];
+
+        foreach ($room['players'] as $player) {
+            if ($player['status'] === 'active') {
+                $player['connection']->send(json_encode($packet));
+            }
+        }
+
+        $this->logger->info(
+            "Room {$roomId}: game over. Winner: {$winnerUsername}, prize: {$prize}"
+        );
+
+        // --- Уничтожить комнату (ANCHOR_CORE.md § Room Destruction Rules) ---
+        // Таймеры: lobby_afk уже остановлен в startGame; game_afk — фаза 8
+        unset($worker->rooms[$roomId]);
+    }
+
     private function peekNextDrawer(array $room): ?int
     {
         $order      = $room['drawer_order'];
