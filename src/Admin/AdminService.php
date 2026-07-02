@@ -265,6 +265,13 @@ final class AdminService
             }
 
             $room['bank'] = max(0, (int)($room['bank'] ?? 0) - $totalPaid);
+
+            // FIX-3: обнулить total_paid ПОСЛЕ рефанда, до записи в
+            // all_players_history (см. removePlayerFromLobby/Game/Apartment
+            // ниже). Иначе handleCloseRoom() позже повторно вернёт те же
+            // total_paid из истории — двойной рефанд, нарушение
+            // Economic Integrity Rule (ANCHOR_CORE.md Part 2).
+            $room['players'][$connId]['total_paid'] = 0;
         }
 
         // --- Structural removal, delegated by room status ---

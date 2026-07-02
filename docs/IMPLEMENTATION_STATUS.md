@@ -1,4 +1,165 @@
 # Implementation Status — Lotto Game Project
+
+- [DONE] EPIC-9.6 Admin integration tests
+Files:
+- src/Admin/AdminService.php (diff — FIX-3, см. ниже)
+- tests/Manual/test_admin_logs.php (новый файл)
+- tests/Manual/test_admin_integration.php (новый файл)
+- test_logger.php (удалён из корня проекта)
+
+Implemented:
+- tests/Manual/test_admin_logs.php: assert-based верификация AdminService::handleGetLogs()
+  (guard auth_required/not_your_turn, пакет admin_logs_data, отсутствие logger, срез
+  limit=100 через Logger::getLastLines(), реальный Logger против файла). Закрывает
+  пробел верификации EPIC-9.5 — прежний tests/Manual/test_logger.php был print_r()
+  смоук-скриптом без assert'ов и не проверял AdminService вообще.
+- tests/Manual/test_admin_integration.php: кросс-сценарии между admin-действиями
+  (test_admin_ban/unban/kick/close_room.php покрывают контракты каждого действия
+  ИЗОЛИРОВАННО; этот файл проверяет последовательности из нескольких действий в
+  одной комнате, где инвариант экономики может нарушаться на стыке контрактов).
+
+Обнаружен и исправлен баг (FIX-3, см. секцию PATCHES):
+- handleKickUser() рефандил total_paid и уменьшал bank, но не обнулял total_paid
+  игрока в памяти. Делегат удаления (removePlayerFromLobby/Game/Apartment) писал
+  в all_players_history СТАРОЕ (дорефандное) значение total_paid. Последующий
+  admin_close_room() безусловно рефандил total_paid из истории каждому участнику —
+  кикнутый игрок получал деньги дважды. Нарушение Economic Integrity Rule
+  (ANCHOR_CORE.md Part 2).
+- Regression-тест (TEST 1 и TEST 3 в test_admin_integration.php) проверен на
+  ложноположительность: временно откатывался FIX-3 → тест дал 5 честных FAIL
+  (520 против фактических 540, 40 против 60); после восстановления фикса — снова
+  20/20 PASSED.
+
+Manual verification:
+- test_admin_logs.php: 16/16 PASSED
+- test_admin_integration.php: 20/20 PASSED
+- Регрессия против всех существующих admin-тестов после FIX-3:
+  test_admin_auth.php 8/8, test_admin_ban.php 9/9, test_admin_unban.php 8/8,
+  test_admin_kick.php 37/37, test_admin_close_room.php 28/28 — все чисты.
+
+PHASE 9 — ADMIN: COMPLETE (9.0–9.6 done)
+
+Integration tests:
+48 / 48 PASSED (auth)
+90 / 90 PASSED (lobby)
+164 / 164 PASSED (lotto engine) — см. KNOWN GAPS: тестовый файл падает по независимой причине
+44 / 44 PASSED (game start) — см. KNOWN GAPS: тестовый файл падает по независимой причине
+37 / 37 PASSED (turn system)
+38 / 38 PASSED (victory system) — см. KNOWN GAPS: тестовый файл падает по независимой причине
+32 / 32 PASSED (apartment)
+15 / 15 PASSED (reconnect)
+8 / 8 PASSED (admin auth)
+9 / 9 PASSED (admin ban)
+8 / 8 PASSED (admin unban)
+37 / 37 PASSED (admin kick)
+28 / 28 PASSED (admin close room)
+16 / 16 PASSED (admin logs)
+20 / 20 PASSED (admin integration)
+
+Next planned Epic: EPIC-10.0 Protocol router
+⚠️ Перед Phase 10: см. KNOWN GAPS ниже — падение test_game_start.php/test_victory.php
+не связано с EPIC-9.6, но обнаружено при регрессионном прогоне и должно быть
+закрыто отдельным FIX перед стартом Phase 10 (Rule 3 — Read Before Writing).
+
+- [DONE] EPIC-9.5 Logs access
+Files:
+- src/Core/Logger.php
+- src/Admin/AdminService.php
+
+Implemented:
+- AdminService::handleGetLogs().
+- Admin authentication via assertAdmin().
+- Protocol packet admin_logs_data.
+- Logger::getLastLines() for reading last log entries.
+
+Notes:
+- Returns up to 100 most recent lines from logs/server.log.
+- Missing or unreadable log file returns an empty array.
+- Action is logged through Logger::info().
+
+Manual verification:
+- logger writes INFO/WARNING/ERROR correctly
+- getLastLines() returns latest log entries
+- limit parameter verified
+- missing log file returns empty array
+- admin endpoint returns admin_logs_data
+- non-admin access denied
+
+Limitations:
+- Reads the log using file(); optimized tail-reading is intentionally deferred.
+- Packet routing will be integrated during Phase 10 (Admin packet integration).
+
+- [DONE] EPIC-9.4 Close room — AdminService::handleCloseRoom()
+Files:
+- src/Admin/AdminService.php (diff — добавлен handleCloseRoom())
+- tests/Manual/test_admin_close_room.php (новый файл)
+Notes:
+- 28/28 тестов пройдено (php test_admin_close_room.php)
+- Покрыто: закрытие waiting-комнаты без рефандов при total_paid=0,
+  закрытие playing-комнаты с полным возвратом средств,
+  возврат ранее удалённым игрокам через all_players_history,
+  уведомление только active-игроков (disconnected не получают packet, но получают refund),
+  room_not_found, guard для не-администратора,
+  rollback при ошибке refund-транзакции (coins/bank не изменяются, destroyRoom не вызывается,
+  комната сохраняется, PDO transaction корректно откатывается)
+- Экономика: ANCHOR_CORE.md Part 2 § Admin Close Room —
+  всем участникам возвращается 100% total_paid (включая apartment payments),
+  источник данных — all_players_history, операция выполняется в одной PDO-транзакции
+
+PHASE 9 — ADMIN: IN PROGRESS (9.0/9.1/9.2/9.3/9.4 done, 9.5 Logs access next)
+
+Integration tests:
+48 / 48 PASSED (auth)
+90 / 90 PASSED (lobby)
+164 / 164 PASSED (lotto engine)
+44 / 44 PASSED (game start)
+37 / 37 PASSED (turn system)
+38 / 38 PASSED (victory system)
+32 / 32 PASSED (apartment)
+37 / 37 PASSED (admin kick)
+28 / 28 PASSED (admin close room)
+
+Next planned Epic: EPIC-9.5 Logs access
+
+- [DONE] EPIC-9.3 Kick player — AdminService::handleKickUser()
+Files:
+- src/Admin/AdminService.php (diff — добавлен параметр $db в конструктор + handleKickUser())
+- tests/Manual/test_admin_kick.php (новый файл)
+Notes:
+- 37/37 тестов пройдено (php test_admin_kick.php)
+- Покрыто: waiting без total_paid (нет рефанда), kick хоста в waiting → transferHost(),
+  playing с рефандом (users.coins += total_paid, bank -= total_paid, removePlayerFromGame
+  с reason='kicked'), apartment с рефандом (removePlayerFromApartment с reason='kicked'),
+  cannot_moderate_admin (нельзя кикнуть админа), room_not_found (цель не в комнате),
+  not_your_turn guard (не-админ), rollback при сбое refund-транзакции (bank/room не тронуты,
+  delegation не вызван, no dangling PDO transaction)
+- Экономика: ANCHOR_CORE.md Part 2 § Kick — bank -= total_paid; coins += total_paid,
+  транзакция обязательна, реализовано через существующий stmt 'add_user_coins'
+- Конструктор AdminService расширен nullable-параметром $db (обратная совместимость
+  сохранена — существующие вызовы с 5 аргументами не ломаются)
+
+⚠️ KNOWN GAP:
+removePlayerFromApartment() (ApartmentService) не выполняет host transfer при
+kick/ban хоста в apartment-состоянии, хотя ANCHOR_CORE.md Host Rules называет
+'kicked'/'banned' валидными причинами смены хоста. Тот же пробел присутствует
+и в существующем handleBanUser() для 'waiting' (не исправлялся — вне scope
+EPIC-9.3, Epic Isolation). Требует отдельного Epic на доработку ApartmentService
+и, возможно, LobbyService.
+
+PHASE 9 — ADMIN: IN PROGRESS (9.0/9.1/9.2/9.3 done, 9.4 Close room next)
+
+Integration tests:
+48 / 48 PASSED (auth)
+90 / 90 PASSED (lobby)
+164 / 164 PASSED (lotto engine)
+44 / 44 PASSED (game start)
+37 / 37 PASSED (turn system)
+38 / 38 PASSED (victory system)
+32 / 32 PASSED (apartment)
+37 / 37 PASSED (admin kick)
+
+Next planned Epic: EPIC-9.4 Close room
+
 - [DONE] EPIC-9.2 Unban user
 Files:
 - src/Admin/AdminService.php (diff)
@@ -355,6 +516,40 @@ Notes:
 
 ## PATCHES
 
+### FIX-3 — Double refund on kick + admin_close_room
+Status: Completed
+Date: 2026-07-03
+
+Files:
+- src/Admin/AdminService.php
+
+Problem:
+- handleKickUser() рефандил total_paid игроку и уменьшал room bank, но НЕ
+  обнулял total_paid игрока в памяти room state.
+- Делегат удаления (removePlayerFromLobby/removePlayerFromGame/
+  removePlayerFromApartment) записывал в all_players_history старое
+  (дорефандное) значение total_paid.
+- handleCloseRoom() безусловно рефандит total_paid из all_players_history
+  каждому участнику — при последующем admin_close_room() ранее кикнутый
+  игрок получал ставку ещё раз. Нарушение ANCHOR_CORE.md Part 2 §
+  Economic Integrity Rule.
+
+Fix:
+- После успешной refund-транзакции в handleKickUser() добавлена строка
+  `$room['players'][$connId]['total_paid'] = 0;` — обнуление ДО вызова
+  делегата удаления, чтобы all_players_history фиксировал 0 (нечего больше
+  возвращать этому игроку).
+
+Result:
+- Обнаружено и зафиксировано regression-тестами в
+  tests/Manual/test_admin_integration.php (TEST 1, TEST 3).
+- Проверено на ложноположительность: без фикса тест даёт 5 честных FAIL,
+  с фиксом — 20/20 PASSED.
+- Вся существующая регрессия (test_admin_kick.php, test_admin_close_room.php
+  и др.) остаётся зелёной.
+
+Diff: patches/FIX-3.patch
+
 ### FIX-1 — sendError() protocol contract
 Status: Completed
 Date: 2026-06-21
@@ -411,10 +606,28 @@ Result:
 - 2026-06-25 — EPIC-2.3 Leave room завершён, FIX: all_players_history в removePlayerFromLobby.
 - 2026-06-28 — EPIC-2.4 Room list завершён.
 - 2026-07-02 — ADR-002 Accepted: GameFinishService extracted; Phase 7 anchor-compliance fixes applied; Phase 7 tests green.
-
+- 2026-07-02 — EPIC-9.3 Kick player завершён. KNOWN GAP: host transfer при kick/ban в apartment-состоянии зафиксирован для будущего Epic.
+- 2026-07-03 — EPIC-9.5 Logs access фактически реализован (handleGetLogs()/getLastLines()), закрыто расхождение между статусом и кодом, обнаруженное при подготовке EPIC-9.6.
+- 2026-07-03 — FIX-3 Accepted: устранён двойной рефанд kick+admin_close_room (Economic Integrity Rule). EPIC-9.6 Admin integration tests завершён, PHASE 9 COMPLETE.
+- 2026-07-03 — Обнаружены pre-existing падения test_game_start.php/test_victory.php (GameFinishService type mismatch) и test_helpers_runner.php (устаревший assert sendError()) — не связаны с EPIC-9.6, зафиксированы в KNOWN GAPS для отдельного FIX перед Phase 10.
 ---
 
 ## KNOWN GAPS / NOT VERIFIED
+
+- ⚠️ NEW (обнаружено при регрессии EPIC-9.6, 2026-07-03): tests/Manual/test_game_start.php
+  и tests/Manual/test_victory.php падают с Fatal error — GameService::__construct()
+  требует Lotto\Game\GameFinishService, а тестовые фикстуры передают анонимный класс
+  (несовместимость типов). Причина — ADR-002 (вынос GameFinishService из GameService)
+  не был пробрасён обратно в фикстуры этих двух тестовых файлов. Подтверждено через
+  `git stash` — падение воспроизводится и без изменений EPIC-9.6, т.е. это pre-existing
+  баг на main, а не регрессия от FIX-3. Заявленные в статусе "164/164" и "44/44"/"38/38"
+  фактически не проходят в текущем состоянии репозитория. Требуется отдельный FIX
+  (Game-модуль, вне scope Admin/EPIC-9.6) до начала Phase 10.
+- ⚠️ NEW (обнаружено при регрессии EPIC-9.6, 2026-07-03): tests/Manual/test_helpers_runner.php
+  падает (Scenario 2, sendError()) — тест ассертит контракт ДО FIX-1 (поле message без code),
+  тогда как реальный sendError() после FIX-1 возвращает {"type","code","message"}. Тестовый
+  файл не был обновлён вместе с FIX-1. Требует правки теста (не реализации — Rule 22 Test
+  Philosophy: sendError() соответствует актуальному протокольному контракту).
 
 - composer.json не перепроверялся в текущей сессии.
 - ReconnectTokenService существует, но пока не используется.
@@ -433,21 +646,27 @@ PHASE 4 — GAME START: COMPLETE
 PHASE 5 — TURN SYSTEM: COMPLETE
 PHASE 6 — VICTORY SYSTEM: COMPLETE
 PHASE 7 — APARTMENT: COMPLETE
+PHASE 8 — RECONNECT & AFK: COMPLETE
+PHASE 9 — ADMIN: COMPLETE
 
 Integration tests:
 
 `text
 48 / 48 PASSED (auth)
 90 / 90 PASSED (lobby)
-164 / 164 PASSED (lotto engine)
-44 / 44 PASSED (game start)
+164 / 164 PASSED (lotto engine)          [!] см. KNOWN GAPS — файл сейчас падает, требует FIX
+44 / 44 PASSED (game start)              [!] см. KNOWN GAPS — файл сейчас падает, требует FIX
 37 / 37 PASSED (turn system)
-38 / 38 PASSED (victory system)
+38 / 38 PASSED (victory system)          [!] см. KNOWN GAPS — файл сейчас падает, требует FIX
 32 / 32 PASSED (apartment)
 15 / 15 PASSED (reconnect)
 8 / 8 PASSED (admin auth)
 9 / 9 PASSED (admin ban)
 8 / 8 PASSED (admin unban)
+37 / 37 PASSED (admin kick)
+28 / 28 PASSED (admin close room)
+16 / 16 PASSED (admin logs)
+20 / 20 PASSED (admin integration)
 `
 
 Current branch:
@@ -459,11 +678,13 @@ main
 Current stable commit:
 
 `text
-PHASE-7 apartment-complete (manual tests green)
+EPIC-9.6 admin-integration-tests + FIX-3 (pending commit)
 `
 
 Next planned Epic:
 
 `text
-EPIC-9.3 Kick player
+EPIC-10.0 Protocol router
 `
+⚠️ Перед стартом Phase 10 рекомендуется закрыть FIX-4 (test_game_start.php /
+test_victory.php / test_helpers_runner.php) — см. KNOWN GAPS.
