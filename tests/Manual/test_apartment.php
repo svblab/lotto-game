@@ -151,7 +151,7 @@ function makeSvc(array $users = [], MockPDO $pdo = null): array {
     $log = new MockLogger();
     $eng = new LottoEngine();
     $vic = new VictoryService();
-    $apt = new ApartmentService();
+    $apt = new ApartmentService($db, $st, $log);
     $svc = new GameService($db, $st, $eng, $log, $vic, $apt);
     return [$svc, $log, $st, $pdo, $apt];
 }
@@ -160,7 +160,10 @@ function makeSvc(array $users = [], MockPDO $pdo = null): array {
 // GROUP 1: ApartmentService::hasLine
 // ---------------------------------------------------------------------------
 
-$apt = new ApartmentService();
+$_mockDb  = new MockDatabase(new MockPDO());
+$_mockSt  = new MockStmts();
+$_mockLog = new MockLogger();
+$apt = new ApartmentService($_mockDb, $_mockSt, $_mockLog);
 
 {
     // No line — empty mask
@@ -408,7 +411,11 @@ $apt = new ApartmentService();
 // ---------------------------------------------------------------------------
 
 {
-    [$svc, , , , $apt2] = makeSvc();
+    [$svc, , , , ] = makeSvc();
+$_db2 = new MockDatabase(new MockPDO());
+$_st2 = new MockStmts();
+$_log2 = new MockLogger();
+$apt2 = new ApartmentService($_db2, $_st2, $_log2);
     $h    = makeConn(1, 10, 'host');
     $card = makeCardWithClosedRow();
     $mask = makeMaskWithClosedRow($card);
