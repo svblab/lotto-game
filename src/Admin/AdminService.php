@@ -184,10 +184,10 @@ final class AdminService
      * Input: {"action":"admin_kick_user","user_id":15}
      *
      * Экономика (ANCHOR_CORE.md Part 2 § Kick):
-     *   Player refunded total_paid: bank -= total_paid; coins += total_paid.
-     *   Транзакция обязательна (ANCHOR_CORE.md § Mandatory Transactions) —
-     *   bank и users.coins обновляются как единое целое: при сбое DB-транзакции
-     *   bank не трогается и игрок НЕ удаляется из комнаты.
+     * Player refunded total_paid: bank -= total_paid; coins += total_paid.
+     * Транзакция обязательна (ANCHOR_CORE.md § Mandatory Transactions) —
+     * bank и users.coins обновляются как единое целое: при сбое DB-транзакции
+     * bank не трогается и игрок НЕ удаляется из комнаты.
      *
      * Removal reason: 'kicked' (ANCHOR_CORE.md § Removal Reasons).
      * Структурное удаление делегируется существующим removePlayerFrom*()
@@ -301,11 +301,11 @@ final class AdminService
      * Input: {"action":"admin_close_room","room_id":7}
      *
      * Экономика (ANCHOR_CORE.md Part 2 § Admin Close Room):
-     *   Reason 'admin_close'. Все участники получают 100% рефанд total_paid,
-     *   ИСТОЧНИК — all_players_history (не только текущие active players,
-     *   но и все ранее удалённые reason=leave/disconnect/afk/refuse/kicked/banned,
-     *   чьи total_paid оставались в банке по правилам этих reason).
-     *   Транзакция обязательна (Mandatory Transactions) — все-или-ничего.
+     * Reason 'admin_close'. Все участники получают 100% рефанд total_paid,
+     * ИСТОЧНИК — all_players_history (не только текущие active players,
+     * но и все ранее удалённые reason=leave/disconnect/afk/refuse/kicked/banned,
+     * чьи total_paid оставались в банке по правилам этих reason).
+     * Транзакция обязательна (Mandatory Transactions) — все-или-ничего.
      *
      * State Machine (ANCHOR_CORE.md Part 4): валидный переход из ЛЮБОГО статуса
      * (waiting/playing/apartment) → destroyed. Ветвления по статусу не требуется —
@@ -400,6 +400,40 @@ final class AdminService
         } else {
             unset($worker->rooms[$roomId]);
         }
+    }
+
+    /**
+     * EPIC-9.5: logs access.
+     *
+     * Input:
+     * {"action":"admin_get_logs"}
+     *
+     * Output:
+     * {"type":"admin_logs_data","lines":[]}
+     */
+    public function handleGetLogs(array $data, object $connection): void
+    {
+        if (!$this->assertAdmin($connection)) {
+            return;
+        }
+
+        if ($this->logger === null) {
+            sendError(
+                $connection,
+                'error.invalid_json',
+                'Logger is not configured'
+            );
+            return;
+        }
+
+        sendJson($connection, [
+            'type'  => 'admin_logs_data',
+            'lines' => $this->logger->getLastLines(100),
+        ]);
+
+        $this->logger->info(
+            "Admin user_id={$connection->userId} requested system logs"
+        );
     }
 
     private function parseBanDuration(string $duration): ?int

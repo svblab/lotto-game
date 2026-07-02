@@ -606,3 +606,9 @@
 [2026-07-02 08:25:36] [INFO] User registered: reconn_user
 [2026-07-02 08:25:36] [INFO] User login: reconn_user
 [2026-07-02 08:25:36] [INFO] Reconnect validated: user_id=1
+[2026-07-02 13:12:09] [INFO] test 1
+[2026-07-02 13:12:09] [WARNING] test 2
+[2026-07-02 13:12:09] [ERROR] test 3
+[2026-07-02 13:14:24] [INFO] test 1
+[2026-07-02 13:14:24] [WARNING] test 2
+[2026-07-02 13:14:24] [ERROR] test 3

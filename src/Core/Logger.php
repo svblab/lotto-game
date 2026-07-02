@@ -55,4 +55,32 @@ class Logger
     {
         $this->write('ERROR', $message);
     }
+
+    /**
+     * Возвращает последние строки server.log.
+     *
+     * Используется административной подсистемой (EPIC-9.5).
+     * При отсутствии или недоступности файла возвращает пустой массив.
+     */
+    public function getLastLines(int $limit = 100): array
+    {
+        if ($limit <= 0) {
+            return [];
+        }
+
+        if (!is_file($this->logFile) || !is_readable($this->logFile)) {
+            return [];
+        }
+
+        $lines = file(
+            $this->logFile,
+            FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES
+        );
+
+        if ($lines === false) {
+            return [];
+        }
+
+        return array_slice($lines, -$limit);
+    }
 }
