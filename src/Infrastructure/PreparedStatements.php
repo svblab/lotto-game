@@ -29,11 +29,16 @@ class PreparedStatements
 
         'user_by_id' => "SELECT id, coins FROM users WHERE id = ? LIMIT 1",
 
+        'user_admin_by_id' => "SELECT id, is_admin FROM users WHERE id = ? LIMIT 1",
+
         'create_user' => "INSERT INTO users (username, password_hash, coins, is_admin, banned_until, last_daily_bonus) VALUES (?, ?, 500, 0, 0, strftime('%s','now'))",
         
         'update_daily_bonus' => "UPDATE users SET coins = ?, last_daily_bonus = ? WHERE id = ?",
         
         'update_user_coins' => "UPDATE users SET coins = ? WHERE id = ?",
+
+        // Atomic coin increment (used in game finish payouts / refunds)
+        'add_user_coins' => "UPDATE users SET coins = coins + ? WHERE id = ?",
         
         'ban_user' => "UPDATE users SET banned_until = ? WHERE id = ?",
         

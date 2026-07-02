@@ -1,4 +1,265 @@
 # Implementation Status — Lotto Game Project
+- [DONE] EPIC-9.2 Unban user
+Files:
+- src/Admin/AdminService.php (diff)
+- tests/manual/test_admin_unban.php (новый файл)
+Notes:
+- Реализован handleUnbanUser() для admin_unban_user
+- Guard: только admin (assertAdmin)
+- Валидация: user_id > 0
+- DB: PreparedStatements key unban_user (banned_until=0)
+- Manual tests: 8/8 PASSED
+
+- [DONE] EPIC-9.1 Ban user
+Files:
+- src/Admin/AdminService.php (diff)
+- src/Infrastructure/PreparedStatements.php (добавлен user_admin_by_id)
+- tests/manual/test_admin_ban.php (новый файл)
+Notes:
+- Реализован handleBanUser() с duration: 1d / 3d / permanent
+- Запрет бана администратора: error.cannot_moderate_admin
+- Для онлайн-цели отправляется пакет banned {until}
+- Удаление из комнаты по статусу:
+  waiting -> removePlayerFromLobby(..., 'banned')
+  playing -> removePlayerFromGame(..., 'banned')
+  apartment -> removePlayerFromApartment(..., 'banned')
+- Manual tests: 9/9 PASSED
+
+- [DONE] EPIC-9.0 Admin authentication
+Files:
+- src/Admin/AdminService.php (реализован)
+- tests/manual/test_admin_auth.php (новый файл)
+Notes:
+- Добавлен единый admin guard: AdminService::assertAdmin(object $connection): bool
+- Контракт: unauthenticated -> error.auth_required, non-admin -> error.not_your_turn
+- Manual tests: 8/8 PASSED
+
+- [DONE] EPIC-8.6 Reconnect tests
+Files:
+- tests/manual/test_reconnect.php (новый файл)
+Notes:
+- 15/15 тестов пройдено
+- Покрыто: disconnect->disconnected+timer, waiting-timeout removal, reconnect restore,
+  reconnect_state payload, game AFK warning, auto-draw, afk removal
+
+- [DONE] EPIC-8.5 AFK removal — ReconnectService::removePlayerFromGame(..., 'afk')
+- [DONE] EPIC-8.4 Auto draw — ReconnectService::performAutoDraw()
+- [DONE] EPIC-8.3 Game AFK protection — ReconnectService::ensureGameAfkTimer()/tickGameAfk()
+- [DONE] EPIC-8.2 Reconnect restoration — ReconnectService::handleReconnect()
+- [DONE] EPIC-8.1 Disconnect processing — ReconnectService::handleDisconnect()
+- [DONE] EPIC-8.0 ReconnectService — src/Game/ReconnectService.php (реализация)
+Files (8.0–8.5):
+- src/Game/ReconnectService.php (новый файл, реализован)
+Notes:
+- Реализованы reconnect timers (15s, single-shot) и восстановление игрока по session_token
+- Реализована game AFK защита с порогами 15/25/30с, auto draw и удалением по afk при 3 автоходах
+
+PHASE 8 — RECONNECT & AFK: COMPLETE (service + manual tests)
+
+- [DONE] EPIC-7.6 Apartment integration tests
+Files:
+- tests/Manual/test_apartment.php (новый файл)
+Notes:
+- 32/32 тестов пройдено
+- Покрыто: hasLine, shouldTrigger, prepareApartment, allRequiredAnswered,
+  alert broadcast, agree→payment, refuse→removal, re-trigger blocked
+
+- [DONE] EPIC-7.5 Apartment timeout — ApartmentService::onApartmentTimeout()
+- [DONE] EPIC-7.4 Apartment payment transaction — ApartmentService::finishApartment()
+- [DONE] EPIC-7.3 Apartment voting — ApartmentService::handleApartmentChoice()
+- [DONE] EPIC-7.2 Apartment state — ApartmentService::triggerApartment()
+- [DONE] EPIC-7.1 Apartment trigger — ApartmentService::shouldTrigger() / prepareApartment()
+- [DONE] EPIC-7.0 Line detection — ApartmentService::hasLine()
+Files (7.0–7.5):
+- src/Game/ApartmentService.php (470 строк — полный оркестратор)
+- src/Game/GameService.php (735 строк — тонкие делегаторы)
+Notes:
+- ApartmentService расширен до оркестратора (db, stmts, logger в конструкторе)
+- GameService сокращён с 985 до 735 строк
+- GameService::handleApartmentChoice() / triggerApartment() — публичные делегаторы
+
+PHASE 7 — APARTMENT: COMPLETE
+PHASE 8 — RECONNECT & AFK: COMPLETE
+
+Integration tests:
+48 / 48 PASSED (auth)
+90 / 90 PASSED (lobby)
+164 / 164 PASSED (lotto engine)
+44 / 44 PASSED (game start)
+37 / 37 PASSED (turn system)
+38 / 38 PASSED (victory system)
+32 / 32 PASSED (apartment)
+
+Next planned Epic: EPIC-8.0 ReconnectService
+
+- [DONE] EPIC-7.6 Apartment integration tests
+Files:
+- tests/Manual/test_apartment.php (новый файл)
+Notes:
+- 32/32 тестов пройдено
+- Покрыто: hasLine (empty/full/partial), shouldTrigger (line/fired/disconnected),
+  prepareApartment (status, flags, required), allRequiredAnswered,
+  alert broadcast (required/immune), agree→payment (bank, immune, commit),
+  refuse→removal (player_left, drawer_order), re-trigger blocked
+
+- [DONE] EPIC-7.5 Apartment timeout — GameService::onApartmentTimeout()
+- [DONE] EPIC-7.4 Apartment payment transaction — finishApartment() PDO
+- [DONE] EPIC-7.3 Apartment voting — GameService::handleApartmentChoice()
+- [DONE] EPIC-7.2 Apartment state — GameService::triggerApartment()
+- [DONE] EPIC-7.1 Apartment trigger — ApartmentService::shouldTrigger() / prepareApartment()
+- [DONE] EPIC-7.0 Line detection — ApartmentService::hasLine()
+Files (7.0–7.5):
+- src/Game/ApartmentService.php (новый файл, 222 строки)
+- src/Game/GameService.php (diff, 985 строк)
+Notes:
+- Victory > Apartment: проверка победы идёт до shouldTrigger() в handleDrawBarrel()
+- immune=true после agree — повторный апартамент не требует платы
+- apartment_fired — at most once per game
+
+PHASE 7 — APARTMENT: COMPLETE
+
+⚠️ KNOWN GAP — ADR REQUIRED:
+GameService 985 строк — вплотную к mandatory refactor (1000).
+Кандидаты на декомпозицию: finishGame(), handleNoSurvivors() → отдельный GameFinishService.
+Необходимо до начала Phase 8.
+
+Integration tests:
+48 / 48 PASSED (auth)
+90 / 90 PASSED (lobby)
+164 / 164 PASSED (lotto engine)
+44 / 44 PASSED (game start)
+37 / 37 PASSED (turn system)
+38 / 38 PASSED (victory system)
+32 / 32 PASSED (apartment)
+
+Next planned Epic: EPIC-8.0 ReconnectService
+⚠️ Before Phase 8: ADR for GameService decomposition required.
+
+- [DONE] EPIC-6.5 Victory system tests
+Files:
+- tests/Manual/test_victory.php (новый файл)
+Notes:
+- 38/38 тестов пройдено
+- Покрыто: checkCardVictory (0/1/2 wins), checkAllVictories (disconnected skip),
+  calculatePrize (floor division, remainder burn, double+normal),
+  finishGame (payout, room destruction, game_over broadcast, DB rollback),
+  full draw-until-victory integration test
+
+- [DONE] EPIC-6.4 Game finish flow — GameService::finishGame()
+- [DONE] EPIC-6.3 Winner payout transaction — all-or-nothing PDO
+- [DONE] EPIC-6.2 Prize calculation — VictoryService::calculatePrize()
+- [DONE] EPIC-6.1 Double victory detection — встроена в checkCardVictory()
+- [DONE] EPIC-6.0 Victory detection — VictoryService::checkCardVictory() / checkAllVictories()
+Files (6.0–6.4):
+- src/Game/VictoryService.php (новый файл, 146 строк)
+- src/Game/GameService.php (diff, 703 строки)
+Notes:
+- markNumber() в handleDrawBarrel() применяется ко всем активным игрокам
+- GameService 703 строки — зона warning; finishGame() кандидат на ADR-декомпозицию
+
+PHASE 6 — VICTORY SYSTEM: COMPLETE
+
+Integration tests:
+48 / 48 PASSED (auth)
+90 / 90 PASSED (lobby)
+164 / 164 PASSED (lotto engine)
+44 / 44 PASSED (game start)
+37 / 37 PASSED (turn system)
+38 / 38 PASSED (victory system)
+
+Next planned Epic: EPIC-7.0 Line detection (Apartment)
+- [DONE] EPIC-5.5 Turn system tests
+Files:
+- tests/Manual/test_turn_system.php (новый файл)
+Notes:
+- 37/37 тестов пройдено
+- Покрыто: sendYourTurn, nextDrawer (cyclic, skip disconnected, skip removed, null),
+  handleDrawBarrel (guards, bag, drawn_numbers, AFK reset, broadcast, rotation),
+  markNumber (column mapping, multi-cell, unknown number),
+  full 2-player 3-turn cycle
+
+- [DONE] EPIC-5.4 Player card marking — GameService::markNumber()
+- [DONE] EPIC-5.3 Broadcast drawn barrel — barrels_drawn packet
+- [DONE] EPIC-5.2 Draw barrel — GameService::handleDrawBarrel()
+- [DONE] EPIC-5.1 Drawer rotation — GameService::nextDrawer()
+- [DONE] EPIC-5.0 Drawer queue — GameService::sendYourTurn()
+Files (5.0–5.4):
+- src/Game/GameService.php (diff, 564 строки)
+Notes:
+- masks инициализируются в handleStartGame (bool[cardsCount][3][9], все false)
+- markNumber() публичный — используется VictoryService в Phase 6
+- peekNextDrawer() приватный — только для next_drawer в пакете barrels_drawn
+
+PHASE 5 — TURN SYSTEM: COMPLETE
+
+Integration tests:
+48 / 48 PASSED (auth)
+90 / 90 PASSED (lobby)
+164 / 164 PASSED (lotto engine)
+44 / 44 PASSED (game start)
+37 / 37 PASSED (turn system)
+
+Next planned Epic: EPIC-6.0 Victory detection
+- [DONE] EPIC-4.5 Game initialization tests
+Files:
+- tests/Manual/test_game_start.php (новый файл)
+Notes:
+- 44/44 тестов пройдено
+- Покрыто: auth guard, room guard, host guard, status guard, min players,
+  insufficient coins, bank calculation, bag generation, card assignment,
+  transaction commit, game_started packet (is_self, cards, masks, drawer_order),
+  AFK fields reset
+
+- [DONE] EPIC-4.4 Game start protocol — GameService::handleStartGame()
+- [DONE] EPIC-4.3 StartGame transaction — all-or-nothing PDO transaction
+- [DONE] EPIC-4.2 Bank creation — bank = sum(total_paid)
+- [DONE] EPIC-4.1 Game initialization — status=playing, bag, cards, drawer
+- [DONE] EPIC-4.0 Player card purchase logic — total_paid = cards_count × BET_PER_CARD
+Files (4.0–4.4):
+- src/Game/GameService.php (новый файл, 301 строка)
+- src/Infrastructure/PreparedStatements.php (добавлен user_by_id)
+
+PHASE 4 — GAME START: COMPLETE
+
+Integration tests:
+48 / 48 PASSED (auth)
+90 / 90 PASSED (lobby)
+164 / 164 PASSED (lotto engine)
+44 / 44 PASSED (game start)
+
+Next planned Epic: EPIC-5.0 Drawer queue
+- [DONE] EPIC-3.4 Engine test suite
+Files:
+- tests/Manual/test_lotto_engine.php (новый файл)
+Notes:
+- 164/164 тестов пройдено
+- Покрыты: generateCard, generateBag, validateCard, validateBag
+- 100 итераций generateCard, 20 итераций generateBag
+- Колоночные инварианты: >=1 число на столбец, сортировка top-to-bottom
+- CSPRNG: Fisher-Yates + random_int() во всех shuffle-операциях
+
+- [DONE] EPIC-3.3 Bag validator — LottoEngine::validateBag()
+- [DONE] EPIC-3.2 Card validator — LottoEngine::validateCard()
+- [DONE] EPIC-3.1 Bag generator — LottoEngine::generateBag()
+- [DONE] EPIC-3.0 Card generator — LottoEngine::generateCard() (mask-based алгоритм)
+Files (3.0–3.3):
+- src/Game/LottoEngine.php (новый файл, заменена заглушка)
+
+PHASE 3 — LOTTO ENGINE: COMPLETE
+
+- [DONE] EPIC-2.7 Lobby integration tests
+Files:
+- tests/Manual/test_lobby_integration.php (новый файл)
+- tests/Manual/mock_timer.php (новый файл)
+Notes:
+- 90/90 тестов пройдено
+- Покрыто: RoomManager, handleCreateRoom, handleJoinRoom, handleLeaveRoom,
+  removePlayerFromLobby, all_players_history, transferHost, handleRoomList,
+  Lobby AFK Timer (MockTimer stub без event loop)
+- Workerman\Timer подменён через mock_timer.php (namespace stub)
+- Функциональный WebSocket тест отложен до EPIC-10.x (server.php не создан)
+
+Commit: EPIC-2.7 lobby-integration-tests
 
 - [DONE] EPIC-2.6 Lobby AFK system
 Files:
@@ -149,6 +410,7 @@ Result:
 - 2026-06-23 — EPIC-2.0 RoomManager реализован (src/Core/RoomManager.php, 245 строк).
 - 2026-06-25 — EPIC-2.3 Leave room завершён, FIX: all_players_history в removePlayerFromLobby.
 - 2026-06-28 — EPIC-2.4 Room list завершён.
+- 2026-07-02 — ADR-002 Accepted: GameFinishService extracted; Phase 7 anchor-compliance fixes applied; Phase 7 tests green.
 
 ---
 
@@ -165,12 +427,27 @@ Result:
 
 PHASE 0 — FOUNDATION: COMPLETE
 PHASE 1 — AUTHENTICATION: COMPLETE
-PHASE 2 — ROOM LOBBY: In progress (7/7)
+PHASE 2 — ROOM LOBBY: COMPLETE
+PHASE 3 — LOTTO ENGINE: COMPLETE
+PHASE 4 — GAME START: COMPLETE
+PHASE 5 — TURN SYSTEM: COMPLETE
+PHASE 6 — VICTORY SYSTEM: COMPLETE
+PHASE 7 — APARTMENT: COMPLETE
 
 Integration tests:
 
 `text
-48 / 48 PASSED
+48 / 48 PASSED (auth)
+90 / 90 PASSED (lobby)
+164 / 164 PASSED (lotto engine)
+44 / 44 PASSED (game start)
+37 / 37 PASSED (turn system)
+38 / 38 PASSED (victory system)
+32 / 32 PASSED (apartment)
+15 / 15 PASSED (reconnect)
+8 / 8 PASSED (admin auth)
+9 / 9 PASSED (admin ban)
+8 / 8 PASSED (admin unban)
 `
 
 Current branch:
@@ -182,11 +459,11 @@ main
 Current stable commit:
 
 `text
-EPIC-2.4 room-list
+PHASE-7 apartment-complete (manual tests green)
 `
 
 Next planned Epic:
 
 `text
-EPIC-2.6 Lobby AFK system
+EPIC-9.3 Kick player
 `

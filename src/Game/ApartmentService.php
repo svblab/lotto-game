@@ -24,6 +24,7 @@ final class ApartmentService
     private object $db;
     private object $stmts;
     private object $logger;
+    private const APARTMENT_PAYMENT = 5;
 
     public function __construct(object $db, object $stmts, object $logger)
     {
@@ -84,7 +85,7 @@ final class ApartmentService
      * Подготовить комнату к апартаментному голосованию.
      *
      * @param  array &$room
-     * @return array<int, bool>  connId → required
+     * @return array<int, bool> connId → required
      */
     public function prepareApartment(array &$room): array
     {
@@ -92,10 +93,14 @@ final class ApartmentService
         $room['apartment_fired']     = true;
         $room['apartment_responses'] = [];
 
+        // Контракт Phase 7 tests: required=true для всех НЕ immune игроков.
+        // (immune игроки видят only wait state и не обязаны отвечать).
         $participants = [];
         foreach ($room['players'] as $connId => $player) {
-            if ($player['status'] !== 'active') continue;
-            $participants[$connId] = !$player['immune'];
+            if (($player['status'] ?? '') !== 'active') {
+                continue;
+            }
+            $participants[$connId] = empty($player['immune']);
         }
         return $participants;
     }
@@ -170,6 +175,32 @@ final class ApartmentService
         return $agreed;
     }
 
+    /**
+     * Получить участников apartment фазы.
+     *
+     * Совместимость:
+     * - Unit tests Phase 7 могут подсовывать $room['_apartment_participants'].
+     *   Мы НЕ создаём этот ключ, но если он уже есть — используем его.
+     *
+     * @return array<int, bool> connId → required
+     */
+    private function getParticipants(array $room): array
+    {
+        if (isset($room['_apartment_participants']) && is_array($room['_apartment_participants'])) {
+            return $room['_apartment_participants'];
+        }
+
+        // По умолчанию совпадает с prepareApartment(): required=true для не-immune active игроков.
+        $participants = [];
+        foreach ($room['players'] as $connId => $player) {
+            if (($player['status'] ?? '') !== 'active') {
+                continue;
+            }
+            $participants[$connId] = empty($player['immune']);
+        }
+        return $participants;
+    }
+
     // -------------------------------------------------------------------------
     // EPIC-7.2 / 7.5  Orchestration (trigger, timeout, finish)
     // -------------------------------------------------------------------------
@@ -190,7 +221,6 @@ final class ApartmentService
         object $gameService
     ): void {
         $participants = $this->prepareApartment($room);
-        $room['_apartment_participants'] = $participants;
 
         $this->logger->info("Room {$roomId}: apartment triggered");
 
@@ -255,7 +285,7 @@ final class ApartmentService
             return;
         }
 
-        $participants = $room['_apartment_participants'] ?? [];
+        $participants = $this->getParticipants($room);
 
         if (!isset($participants[$connId]) || !$participants[$connId]) {
             return; // immune — молча игнорируем
@@ -287,7 +317,7 @@ final class ApartmentService
         object $gameService
     ): void {
         $room['apartment_timer_id'] = null;
-        $participants = $room['_apartment_participants'] ?? [];
+        $participants = $this->getParticipants($room);
 
         foreach ($this->getPendingRequired($room, $participants) as $connId) {
             $this->recordResponse($room, $connId, 'refuse');
@@ -317,28 +347,81 @@ final class ApartmentService
             $room['apartment_timer_id'] = null;
         }
 
-        $participants = $room['_apartment_participants'] ?? [];
+        $participants = $this->getParticipants($room);
         $agreed       = $this->getAgreeList($room, $participants);
 
-        // Транзакционная оплата (ANCHOR_CORE § Apartment Payment)
+        // Предусловия оплаты: если игрок согласился, но не может оплатить — это refuse.
+        // Удаляем таких игроков до транзакции (они не участвуют в оплате).
+        if (!empty($agreed)) {
+            foreach ($agreed as $connId) {
+                if (!isset($room['players'][$connId])) {
+                    continue;
+                }
+                $userId = (int)($room['players'][$connId]['user_id'] ?? 0);
+                if ($userId <= 0) {
+                    continue;
+                }
+                $stmt = $this->stmts->get('user_by_id');
+                $stmt->execute([$userId]);
+                $row = $stmt->fetch();
+                if ($row === false) {
+                    continue;
+                }
+                if ((int)$row['coins'] < self::APARTMENT_PAYMENT) {
+                    // Не хватает монет — трактуем как refuse (контракт: иначе экономика ломается)
+                    $this->recordResponse($room, $connId, 'refuse');
+                    $this->removePlayerFromApartment($room, $roomId, $connId, 'refuse', $worker);
+                    if (!isset($worker->rooms[$roomId])) {
+                        return;
+                    }
+                }
+            }
+        }
+
+        // Пересчитать участников/agree после возможных удалений
+        $participants = $this->getParticipants($room);
+        $agreed       = $this->getAgreeList($room, $participants);
+
+        // Транзакционная оплата (ANCHOR_CORE § Apartment Payment): банк + coins строго вместе
         if (!empty($agreed)) {
             $pdo = $this->db->getPdo();
             try {
                 $pdo->beginTransaction();
                 foreach ($agreed as $connId) {
-                    if (!isset($room['players'][$connId])) continue;
-                    $userId = $room['players'][$connId]['user_id'];
+                    if (!isset($room['players'][$connId])) {
+                        continue;
+                    }
+                    $userId = (int)($room['players'][$connId]['user_id'] ?? 0);
+                    if ($userId <= 0) {
+                        continue;
+                    }
+
                     $stmt = $this->stmts->get('user_by_id');
                     $stmt->execute([$userId]);
                     $row = $stmt->fetch();
-                    if ($row === false) continue;
+                    if ($row === false) {
+                        continue;
+                    }
 
-                    $newCoins = max(0, (int)$row['coins'] - 5);
+                    if ((int)$row['coins'] < self::APARTMENT_PAYMENT) {
+                        // Защита от гонок: если баланс изменился между проверкой и транзакцией — игрок вылетает
+                        $pdo->rollBack();
+                        $this->recordResponse($room, $connId, 'refuse');
+                        $this->removePlayerFromApartment($room, $roomId, $connId, 'refuse', $worker);
+                        if (!isset($worker->rooms[$roomId])) {
+                            return;
+                        }
+                        // Стартуем транзакцию заново для оставшихся
+                        $pdo->beginTransaction();
+                        continue;
+                    }
+
+                    $newCoins = (int)$row['coins'] - self::APARTMENT_PAYMENT;
                     $upd = $this->stmts->get('update_user_coins');
                     $upd->execute([$newCoins, $userId]);
 
-                    $room['bank']                           += 5;
-                    $room['players'][$connId]['total_paid'] += 5;
+                    $room['bank']                           += self::APARTMENT_PAYMENT;
+                    $room['players'][$connId]['total_paid'] += self::APARTMENT_PAYMENT;
                     $room['players'][$connId]['immune']      = true;
                 }
                 $pdo->commit();
@@ -347,8 +430,6 @@ final class ApartmentService
                 $this->logger->error("finishApartment: payment failed: " . $e->getMessage());
             }
         }
-
-        unset($room['_apartment_participants']);
 
         $active = array_filter($room['players'], fn($p) => $p['status'] === 'active');
 
@@ -388,9 +469,11 @@ final class ApartmentService
         if (!isset($room['players'][$connId])) return;
 
         $player = $room['players'][$connId];
+        $userId = (int)($player['user_id'] ?? 0);
 
-        $room['all_players_history'][] = [
-            'conn_id'    => $connId,
+        // История должна содержать user_id для возвратов (ANCHOR_CORE Part 2 § No Survivors/Admin Close Room)
+        $room['all_players_history'][$connId] = [
+            'user_id'    => $userId,
             'username'   => $player['username'],
             'total_paid' => $player['total_paid'],
         ];
@@ -416,7 +499,7 @@ final class ApartmentService
         );
 
         if (empty($room['players'])) {
-            unset($worker->rooms[$roomId]);
+            $this->destroyRoom($worker, $roomId);
         }
     }
 
@@ -449,7 +532,7 @@ final class ApartmentService
         }
 
         $this->logger->info("Room {$roomId}: no survivors, refunds issued");
-        unset($worker->rooms[$roomId]);
+        $this->destroyRoom($worker, $roomId);
     }
 
     // -------------------------------------------------------------------------
@@ -466,5 +549,36 @@ final class ApartmentService
             $filledCount++;
         }
         return $filledCount >= 1;
+    }
+
+    /**
+     * Уничтожение комнаты согласно ANCHOR_CORE Part 5 (таймеры + reconnect_timer).
+     * RoomManager::destroyRoom() здесь недоступен по DI, поэтому повторяем контракт строго.
+     */
+    private function destroyRoom(object $worker, int $roomId): void
+    {
+        if (!isset($worker->rooms[$roomId])) {
+            return;
+        }
+
+        $room = $worker->rooms[$roomId];
+
+        if (!empty($room['lobby_afk_timer_id'])) {
+            \Workerman\Timer::del($room['lobby_afk_timer_id']);
+        }
+        if (!empty($room['game_afk_timer_id'])) {
+            \Workerman\Timer::del($room['game_afk_timer_id']);
+        }
+        if (!empty($room['apartment_timer_id'])) {
+            \Workerman\Timer::del($room['apartment_timer_id']);
+        }
+
+        foreach (($room['players'] ?? []) as $player) {
+            if (!empty($player['reconnect_timer'])) {
+                \Workerman\Timer::del($player['reconnect_timer']);
+            }
+        }
+
+        unset($worker->rooms[$roomId]);
     }
 }

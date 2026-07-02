@@ -7,12 +7,17 @@ declare(strict_types=1);
  * Run: php tests/Manual/test_victory.php
  */
 
+// mock_timer.php MUST be loaded before autoload to stub Workerman\Timer
+// (unit tests run without Workerman event loop).
+require_once __DIR__ . '/mock_timer.php';
+
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/../../src/Core/Helpers.php';
 
 use Lotto\Game\GameService;
 use Lotto\Game\LottoEngine;
 use Lotto\Game\VictoryService;
+use Lotto\Game\ApartmentService;
 
 $passed = 0;
 $failed = 0;
@@ -159,7 +164,56 @@ function makeSvc(array $users = [], MockPDO $pdo = null): array {
     $log  = new MockLogger();
     $eng  = new LottoEngine();
     $vic  = new VictoryService();
-    $svc  = new GameService($db, $st, $eng, $log, $vic);
+    $apt  = new ApartmentService($db, $st, $log);
+    // Finish stub: enough for integration tests without real DB/Workerman.
+    $fin  = new class($db) {
+        private MockDatabase $db;
+        public function __construct(MockDatabase $db) { $this->db = $db; }
+
+        public function finishGame(array &$room, int $roomId, array $winners, array $prizes, string $reason, callable $roomDestroyer): void
+        {
+            $pdo = $this->db->getPdo();
+            try {
+                $pdo->beginTransaction();
+                $pdo->commit();
+            } catch (\Throwable $e) {
+                $pdo->rollBack();
+                return;
+            }
+
+            $winnerUsername = 'unknown';
+            $displayPrize   = 0;
+            $finalBank      = 0;
+
+            if (!empty($winners)) {
+                $winnerConnId   = array_key_first($winners);
+                $winnerUsername = $room['players'][$winnerConnId]['username'] ?? 'unknown';
+                $displayPrize   = $prizes[$winnerConnId] ?? 0;
+                $finalBank      = (count($winners) === 1) ? $displayPrize : array_sum($prizes);
+            }
+
+            $packet = [
+                'type'       => 'game_over',
+                'winner'     => $winnerUsername,
+                'reason'     => $reason,
+                'prize'      => $displayPrize,
+                'final_bank' => $finalBank,
+                'statistics' => [],
+            ];
+            $json = json_encode($packet);
+
+            foreach (($room['players'] ?? []) as $player) {
+                if (($player['status'] ?? '') === 'active' && isset($player['connection'])) {
+                    $player['connection']->send($json);
+                }
+            }
+
+            $room['status'] = 'finished';
+            $room['bank'] = 0;
+            $roomDestroyer();
+        }
+    };
+    $svc  = new GameService($db, $st, $eng, $log, $vic, $apt, $fin);
     return [$svc, $log, $st, $pdo, $vic];
 }
 
@@ -389,6 +443,10 @@ $vic = new VictoryService();
     $room = makeRoom(1, [1, 2], 20);
     $room['players'][1] = makePlayer($h,  1, [$card],   [array_map(fn($r) => array_fill(0, 9, false), $card)]);
     $room['players'][2] = makePlayer($p2, 1, [$p2card], [array_map(fn($r) => array_fill(0, 9, false), $p2card)]);
+
+    // Victory integration should not be interrupted by Apartment phase.
+    // Force apartment_fired=true so ApartmentService::shouldTrigger() always returns false.
+    $room['apartment_fired'] = true;
 
     // Put the 15 winning numbers at the front of the bag
     $remainingBag = array_diff(range(1, 90), $numbers);

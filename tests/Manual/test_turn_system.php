@@ -12,6 +12,9 @@ require_once __DIR__ . '/../../src/Core/Helpers.php';
 
 use Lotto\Game\GameService;
 use Lotto\Game\LottoEngine;
+use Lotto\Game\VictoryService;
+use Lotto\Game\ApartmentService;
+use Lotto\Game\GameFinishService;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -144,7 +147,10 @@ function makeSvc(): array {
     $st  = new MockStmts();
     $log = new MockLogger();
     $eng = new LottoEngine();
-    $svc = new GameService($db, $st, $eng, $log);
+    $vic = new VictoryService();
+    $apt = new ApartmentService($db, $st, $log);
+    $fin = (new ReflectionClass(GameFinishService::class))->newInstanceWithoutConstructor();
+    $svc = new GameService($db, $st, $eng, $log, $vic, $apt, $fin);
     return [$svc, $log];
 }
 

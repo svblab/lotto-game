@@ -14,6 +14,7 @@ use Lotto\Game\GameService;
 use Lotto\Game\LottoEngine;
 use Lotto\Game\VictoryService;
 use Lotto\Game\ApartmentService;
+use Lotto\Game\GameFinishService;
 
 $passed = 0; $failed = 0;
 function ok(string $l): void  { global $passed; $passed++; echo "[PASS] $l\n"; }
@@ -144,7 +145,7 @@ function makeRoom(int $hostId, array $connIds, int $bank = 20): array {
     ];
 }
 
-function makeSvc(array $users = [], MockPDO $pdo = null): array {
+function makeSvc(array $users = [], ?MockPDO $pdo = null): array {
     $pdo = $pdo ?? new MockPDO();
     $db  = new MockDatabase($pdo);
     $st  = new MockStmts($users);
@@ -152,7 +153,8 @@ function makeSvc(array $users = [], MockPDO $pdo = null): array {
     $eng = new LottoEngine();
     $vic = new VictoryService();
     $apt = new ApartmentService($db, $st, $log);
-    $svc = new GameService($db, $st, $eng, $log, $vic, $apt);
+    $fin = (new ReflectionClass(GameFinishService::class))->newInstanceWithoutConstructor();
+    $svc = new GameService($db, $st, $eng, $log, $vic, $apt, $fin);
     return [$svc, $log, $st, $pdo, $apt];
 }
 

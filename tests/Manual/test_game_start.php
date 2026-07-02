@@ -15,6 +15,8 @@ require_once __DIR__ . '/../../src/Core/Helpers.php';
 
 use Lotto\Game\GameService;
 use Lotto\Game\LottoEngine;
+use Lotto\Game\VictoryService;
+use Lotto\Game\ApartmentService;
 use Lotto\Core\Constants;
 
 // ---------------------------------------------------------------------------
@@ -223,7 +225,16 @@ function makeService(array $users, MockPDO $pdo): array {
     $stmts = new MockPreparedStatements($users);
     $log   = new MockLogger();
     $eng   = new LottoEngine();
-    $svc   = new GameService($db, $stmts, $eng, $log);
+    $vic   = new VictoryService();
+    $apt   = new ApartmentService($db, $stmts, $log);
+    $fin   = new class {
+        public function finishGame(array &$room, int $roomId, array $winners, array $prizes, string $reason, callable $roomDestroyer): void
+        {
+            $room['status'] = 'finished';
+            $roomDestroyer();
+        }
+    };
+    $svc   = new GameService($db, $stmts, $eng, $log, $vic, $apt, $fin);
     return [$svc, $log, $stmts, $pdo];
 }
 
