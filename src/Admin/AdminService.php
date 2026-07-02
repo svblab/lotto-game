@@ -21,6 +21,7 @@ final class AdminService
     private ?object $reconnectService;
     private ?object $apartmentService;
     private ?object $db;
+    private ?object $roomManager;
 
     public function __construct(
         ?object $stmts = null,
@@ -28,7 +29,8 @@ final class AdminService
         ?object $lobbyService = null,
         ?object $reconnectService = null,
         ?object $apartmentService = null,
-        ?object $db = null
+        ?object $db = null,
+        ?object $roomManager = null
     ) {
         $this->stmts = $stmts;
         $this->logger = $logger;
@@ -36,6 +38,7 @@ final class AdminService
         $this->reconnectService = $reconnectService;
         $this->apartmentService = $apartmentService;
         $this->db = $db;
+        $this->roomManager = $roomManager;
     }
 
     /**
@@ -289,6 +292,113 @@ final class AdminService
             $this->logger->info(
                 "Admin user_id={$connection->userId} kicked user_id={$targetUserId} refunded={$totalPaid}"
             );
+        }
+    }
+
+    /**
+     * EPIC-9.4: close room.
+     *
+     * Input: {"action":"admin_close_room","room_id":7}
+     *
+     * Экономика (ANCHOR_CORE.md Part 2 § Admin Close Room):
+     *   Reason 'admin_close'. Все участники получают 100% рефанд total_paid,
+     *   ИСТОЧНИК — all_players_history (не только текущие active players,
+     *   но и все ранее удалённые reason=leave/disconnect/afk/refuse/kicked/banned,
+     *   чьи total_paid оставались в банке по правилам этих reason).
+     *   Транзакция обязательна (Mandatory Transactions) — все-или-ничего.
+     *
+     * State Machine (ANCHOR_CORE.md Part 4): валидный переход из ЛЮБОГО статуса
+     * (waiting/playing/apartment) → destroyed. Ветвления по статусу не требуется —
+     * комната уничтожается целиком, не через removePlayerFrom*().
+     *
+     * Таймеры: полная очистка делегирована RoomManager::destroyRoom() (EPIC-2.0) —
+     * повторно реализует контракт ANCHOR_CORE § Room Destruction Cleanup корректно,
+     * дублировать его здесь запрещено (Rule 6).
+     */
+    public function handleCloseRoom(array $data, object $connection, object $worker): void
+    {
+        if (!$this->assertAdmin($connection)) {
+            return;
+        }
+        if ($this->stmts === null || $this->db === null) {
+            sendError($connection, 'error.invalid_json', 'Admin statements storage is not configured');
+            return;
+        }
+
+        $roomId = isset($data['room_id']) ? (int)$data['room_id'] : 0;
+        if ($roomId <= 0) {
+            sendError($connection, 'error.invalid_json', 'room_id must be positive integer');
+            return;
+        }
+        if (!isset($worker->rooms[$roomId])) {
+            sendError($connection, 'error.room_not_found', 'Room not found');
+            return;
+        }
+
+        $room = &$worker->rooms[$roomId];
+
+        // --- Мигрировать ещё присутствующих игроков в историю ---
+        // (all_players_history — единый источник рефанда, ANCHOR_CORE § Admin Close Room)
+        foreach ($room['players'] as $connId => $player) {
+            if (!isset($room['all_players_history'][$connId])) {
+                $room['all_players_history'][$connId] = [
+                    'user_id'    => $player['user_id'],
+                    'username'   => $player['username'],
+                    'total_paid' => $player['total_paid'],
+                ];
+            }
+        }
+
+        // --- Транзакционный 100% рефанд всем участникам истории ---
+        $pdo = $this->db->getPdo();
+        try {
+            $pdo->beginTransaction();
+            foreach ($room['all_players_history'] as $hist) {
+                $userId    = (int)($hist['user_id'] ?? 0);
+                $totalPaid = (int)($hist['total_paid'] ?? 0);
+                if ($userId <= 0 || $totalPaid <= 0) {
+                    continue;
+                }
+                $refundStmt = $this->stmts->get('add_user_coins');
+                $refundStmt->execute([$totalPaid, $userId]);
+            }
+            $pdo->commit();
+        } catch (\Throwable $e) {
+            $pdo->rollBack();
+            if ($this->logger !== null) {
+                $this->logger->error(
+                    "Admin close_room refund failed for room_id={$roomId}: " . $e->getMessage()
+                );
+            }
+            sendError($connection, 'error.invalid_json', 'Failed to process room close refund');
+            return;
+        }
+
+        $room['bank'] = 0;
+
+        // --- Уведомление активных игроков (reason: admin_close) ---
+        foreach ($room['players'] as $player) {
+            if (($player['status'] ?? null) === 'active' && isset($player['connection'])) {
+                sendJson($player['connection'], [
+                    'type'     => 'player_left',
+                    'username' => $player['username'],
+                    'reason'   => 'admin_close',
+                ]);
+            }
+        }
+
+        if ($this->logger !== null) {
+            $this->logger->info(
+                "Admin user_id={$connection->userId} closed room_id={$roomId}, refunded " .
+                count($room['all_players_history']) . " participants"
+            );
+        }
+
+        // --- Уничтожение комнаты: полная очистка таймеров (RoomManager) ---
+        if ($this->roomManager !== null) {
+            $this->roomManager->destroyRoom($worker, $roomId);
+        } else {
+            unset($worker->rooms[$roomId]);
         }
     }
 
