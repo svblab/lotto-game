@@ -471,6 +471,15 @@ final class ApartmentService
         $player = $room['players'][$connId];
         $userId = (int)($player['user_id'] ?? 0);
 
+        // FIX-6: защитная отмена reconnect_timer (ANCHOR_CORE.md Part 5 §
+        // Timer Integrity Rules). В apartment-состоянии reconnect запрещён
+        // и таймер по спецификации не должен существовать, но правило
+        // абсолютное ("A destroyed owner keeps no timers") — на случай
+        // рассогласования состояния.
+        if (!empty($player['reconnect_timer'])) {
+            \Workerman\Timer::del($player['reconnect_timer']);
+        }
+
         // История должна содержать user_id для возвратов (ANCHOR_CORE Part 2 § No Survivors/Admin Close Room)
         $room['all_players_history'][$connId] = [
             'user_id'    => $userId,

@@ -373,6 +373,14 @@ final class LobbyService
         $playerEntry = $room['players'][$connId];
         $username = $playerEntry['username'];
 
+        // FIX-6: отменить reconnect_timer ДО удаления игрока (ANCHOR_CORE.md
+        // Part 5 § Timer Integrity Rules — "No reconnect timer survives
+        // player removal"). Симметрично уже корректной
+        // ReconnectService::removePlayerFromGame().
+        if (!empty($playerEntry['reconnect_timer'])) {
+            Timer::del($playerEntry['reconnect_timer']);
+        }
+
         // Сохраняем в историю до удаления (ANCHOR_CORE.md Part 4 § Removal Rules,
         // Part 2 § Admin Close Room / No Survivors — all_players_history используется
         // для возврата монет. В waiting total_paid=0, но контракт обязателен.)

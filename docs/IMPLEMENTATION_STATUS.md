@@ -516,6 +516,53 @@ Notes:
 
 ## PATCHES
 
+### FIX-6 — Reconnect timer leak on kick/ban removal (Timer Integrity)
+Status: Completed
+Date: 2026-07-03
+
+Files:
+- src/Lobby/LobbyService.php
+- src/Game/ApartmentService.php
+- tests/Manual/test_timer_integrity.php (новый файл)
+
+Found during: post-Phase-9 audit for bugs similar in class to FIX-3
+(запрошен пользователем перед стартом Phase 10).
+
+Problem:
+- ANCHOR_CORE.md Part 5 § Timer Integrity Rules: "No reconnect timer
+  survives player removal" / "A destroyed owner keeps no timers" —
+  безусловное правило.
+- ReconnectService::removePlayerFromGame() корректно отменяет
+  player['reconnect_timer'] ПЕРЕД удалением игрока.
+- LobbyService::removePlayerFromLobby() и ApartmentService::
+  removePlayerFromApartment() — НЕ отменяли, асимметрия между тремя
+  "сёстринскими" методами удаления игрока.
+- Достижимость (реальный сценарий, не гипотетический): disconnected-игрок
+  в waiting-комнате имеет активный 15s reconnect_timer (ANCHOR_CORE §
+  Reconnect Timer). Если администратор кикает/банит его до истечения
+  таймера, removePlayerFromLobby() удаляет игрока, но таймер остаётся
+  зарегистрированным в Workerman. RoomManager::generateRoomId()
+  переиспользует ПЕРВЫЙ свободный room_id сразу после уничтожения комнаты
+  (MAX_ROOMS=30) — то есть это не просто утечка памяти на 15 секунд, а
+  нарушение инварианта на активно переиспользуемом ресурсе (Rule 28 VPS
+  Awareness: 1 CPU/500MB RAM).
+- removePlayerFromApartment(): тот же пробел, но по state machine
+  (ANCHOR_CORE § Reconnect Rules: reconnect запрещён в apartment) в
+  норме недостижим — исправлено защитно, т.к. правило безусловное.
+
+Fix:
+- Timer::del($player['reconnect_timer']) добавлен в оба метода ДО
+  удаления игрока — идентичный уже корректному паттерну в
+  ReconnectService::removePlayerFromGame().
+
+Result:
+- tests/Manual/test_timer_integrity.php: 5/5 PASSED.
+- Regression проверен на ложноположительность: временно откатывались обе
+  правки → 3/5 честных FAIL; после восстановления — снова 5/5.
+- Полный регресс по всем 23 файлам tests/Manual/*.php — 0 failed.
+
+Diff: patches/FIX-6.patch
+
 ### FIX-4 — Stale test fixtures after ADR-002 (GameFinishService)
 Status: Completed
 Date: 2026-07-03
@@ -683,6 +730,7 @@ Result:
 - 2026-07-03 — FIX-3 Accepted: устранён двойной рефанд kick+admin_close_room (Economic Integrity Rule). EPIC-9.6 Admin integration tests завершён, PHASE 9 COMPLETE.
 - 2026-07-03 — Обнаружены pre-existing падения test_game_start.php/test_victory.php (GameFinishService type mismatch) и test_helpers_runner.php (устаревший assert sendError()) — не связаны с EPIC-9.6, зафиксированы в KNOWN GAPS для отдельного FIX перед Phase 10.
 - 2026-07-03 — FIX-4 Accepted: Database получил DI-seam (опциональный PDO), test_game_start.php/test_victory.php переведены на реальный GameFinishService вместо type-несовместимых анонимных классов. FIX-5 Accepted: test_helpers_runner.php приведён к актуальному контракту sendError(). Полный регресс по всем 22 файлам tests/Manual/*.php — 0 failed. PHASE 9 стабильна, путь к Phase 10 открыт без известных дефектов.
+- 2026-07-03 — Аудит на баги, аналогичные FIX-3 (по запросу перед Phase 10): найден и исправлен FIX-6 (утечка reconnect_timer при kick/ban удалении в Lobby/Apartment — Timer Integrity Rule). Проверены: экономические мутации (bank/total_paid/coins — чисто), reconnect/disconnect история (чисто), timer cleanup при destroyRoom (чисто, делегирование корректно), state machine записи статусов (чисто), Module Boundaries Admin→Game (чисто, только публичные методы), host-transfer комментарий в handleKickUser (соответствует уже задокументированному KNOWN GAP EPIC-9.3, новых расхождений нет). Полный регресс по 23 файлам tests/Manual/*.php (добавлен test_timer_integrity.php) — 0 failed.
 ---
 
 ## KNOWN GAPS / NOT VERIFIED
@@ -741,7 +789,7 @@ main
 Current stable commit:
 
 `text
-FIX-5 stale-sendError-assertion (все 22 tests/Manual/*.php зелёные)
+FIX-6 timer-integrity-audit (все 23 tests/Manual/*.php зелёные)
 `
 
 Next planned Epic:
@@ -749,4 +797,5 @@ Next planned Epic:
 `text
 EPIC-10.0 Protocol router
 `
-✅ Известных дефектов нет. Полный регресс по всем 22 тестовым файлам — 0 failed. Phase 10 можно начинать.
+✅ Известных дефектов нет. Аудит на баги, аналогичные FIX-3, проведён (2026-07-03) —
+найден и исправлен FIX-6. Полный регресс по всем 23 тестовым файлам — 0 failed. Phase 10 можно начинать.

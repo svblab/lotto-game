@@ -721,3 +721,107 @@
 [2026-07-03 04:58:58] [INFO] Room 1: game over successfully processed. Winner: host, reason: victory
 [2026-07-03 04:58:58] [ERROR] Room 1: finishGame Сбой транзакции начисления: SQLSTATE[23000]: Integrity constraint violation: 19 CHECK constraint failed: coins <= 200
 [2026-07-03 04:58:58] [INFO] Room 1: game over successfully processed. Winner: host, reason: victory
+[2026-07-03 05:25:04] [INFO] Admin user_id=1 kicked user_id=9 refunded=0
+[2026-07-03 05:25:04] [INFO] integration-marker-6a4747b0d5b76
+[2026-07-03 05:25:04] [INFO] Admin user_id=1 requested system logs
+[2026-07-03 05:25:04] [INFO] test_admin_logs marker line
+[2026-07-03 05:25:05] [INFO] User registered: player1
+[2026-07-03 05:25:05] [WARNING] Registration failed: Username already exists
+[2026-07-03 05:25:05] [WARNING] Registration failed: Invalid username format
+[2026-07-03 05:25:05] [WARNING] Registration failed: Password must be between 6 and 64 characters
+[2026-07-03 05:25:05] [INFO] User registered: loginuser
+[2026-07-03 05:25:05] [INFO] User login: loginuser
+[2026-07-03 05:25:05] [WARNING] Login failed: Invalid username or password
+[2026-07-03 05:25:05] [WARNING] Login failed: Invalid username or password
+[2026-07-03 05:25:06] [WARNING] Login failed: User is banned
+[2026-07-03 05:25:06] [INFO] User registered: bonususer
+[2026-07-03 05:25:06] [INFO] User login: bonususer
+[2026-07-03 05:25:06] [INFO] User registered: doubleuser
+[2026-07-03 05:25:06] [INFO] User login: doubleuser
+[2026-07-03 05:25:07] [WARNING] Login failed: User already logged in
+[2026-07-03 05:25:07] [INFO] User registered: huser1
+[2026-07-03 05:25:07] [INFO] User login: huser1
+[2026-07-03 05:25:07] [WARNING] Registration failed: Invalid username format
+[2026-07-03 05:25:07] [WARNING] Registration failed: Username already exists
+[2026-07-03 05:25:07] [INFO] User registered: luser1
+[2026-07-03 05:25:07] [INFO] User login: luser1
+[2026-07-03 05:25:08] [INFO] User login: luser1
+[2026-07-03 05:25:08] [WARNING] Login failed: Invalid username or password
+[2026-07-03 05:25:08] [WARNING] Login failed: User is banned
+[2026-07-03 05:25:08] [INFO] User registered: reconn_user
+[2026-07-03 05:25:08] [INFO] User login: reconn_user
+[2026-07-03 05:25:08] [INFO] Reconnect validated: user_id=1
+[2026-07-03 05:25:08] [INFO] Testing serverLog wrapper functionality at 1783056308
+[2026-07-03 05:25:08] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-03 05:25:08] [INFO] Room destroyed: room_id=1
+[2026-07-03 05:25:08] [INFO] Room created: room_id=1 host_conn_id=99 max_players=4
+[2026-07-03 05:25:08] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-03 05:25:08] [INFO] Room created: room_id=2 host_conn_id=2 max_players=4
+[2026-07-03 05:25:08] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-03 05:25:08] [INFO] Room 1 created by user_id=1 username=host cards_count=1 max_players=4
+[2026-07-03 05:25:09] [INFO] Room created: room_id=1 host_conn_id=7 max_players=4
+[2026-07-03 05:25:09] [INFO] Room 1 created by user_id=9 username=u9 cards_count=1 max_players=4
+[2026-07-03 05:25:09] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-03 05:25:09] [INFO] Room 1 created by user_id=1 username=host cards_count=1 max_players=4
+[2026-07-03 05:25:09] [INFO] User user_id=2 username=joiner joined room_id=1 cards_count=2
+[2026-07-03 05:25:09] [INFO] Room created: room_id=1 host_conn_id=4 max_players=2
+[2026-07-03 05:25:09] [INFO] Room 1 created by user_id=10 username=hfull cards_count=1 max_players=2
+[2026-07-03 05:25:09] [INFO] User user_id=11 username=j2 joined room_id=1 cards_count=1
+[2026-07-03 05:25:09] [INFO] Room created: room_id=1 host_conn_id=7 max_players=4
+[2026-07-03 05:25:09] [INFO] Room 1 created by user_id=20 username=hpwd cards_count=1 max_players=4
+[2026-07-03 05:25:09] [INFO] User user_id=22 username=goodpwd joined room_id=1 cards_count=1
+[2026-07-03 05:25:09] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-03 05:25:09] [INFO] Room 1 created by user_id=1 username=host cards_count=1 max_players=4
+[2026-07-03 05:25:09] [INFO] User user_id=2 username=joiner joined room_id=1 cards_count=1
+[2026-07-03 05:25:09] [INFO] Player username=joiner removed from lobby room_id=1 reason=leave
+[2026-07-03 05:25:09] [INFO] Room created: room_id=1 host_conn_id=3 max_players=4
+[2026-07-03 05:25:09] [INFO] Room 1 created by user_id=10 username=solo cards_count=1 max_players=4
+[2026-07-03 05:25:09] [INFO] Player username=solo removed from lobby room_id=1 reason=leave
+[2026-07-03 05:25:09] [INFO] Room destroyed: room_id=1
+[2026-07-03 05:25:09] [INFO] Room created: room_id=1 host_conn_id=4 max_players=4
+[2026-07-03 05:25:09] [INFO] Room 1 created by user_id=20 username=hplaying cards_count=1 max_players=4
+[2026-07-03 05:25:09] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-03 05:25:09] [INFO] Room 1 created by user_id=1 username=host cards_count=1 max_players=4
+[2026-07-03 05:25:09] [INFO] User user_id=2 username=j1 joined room_id=1 cards_count=1
+[2026-07-03 05:25:09] [INFO] User user_id=3 username=j2 joined room_id=1 cards_count=1
+[2026-07-03 05:25:09] [INFO] Player username=host removed from lobby room_id=1 reason=leave
+[2026-07-03 05:25:09] [INFO] Host transferred in room_id=1 new_host=j1
+[2026-07-03 05:25:09] [INFO] Player username=j1 removed from lobby room_id=1 reason=leave
+[2026-07-03 05:25:09] [INFO] Host transferred in room_id=1 new_host=j2
+[2026-07-03 05:25:09] [INFO] Player username=j2 removed from lobby room_id=1 reason=leave
+[2026-07-03 05:25:09] [INFO] Room destroyed: room_id=1
+[2026-07-03 05:25:09] [INFO] Room created: room_id=1 host_conn_id=2 max_players=4
+[2026-07-03 05:25:09] [INFO] Room 1 created by user_id=2 username=h1 cards_count=1 max_players=4
+[2026-07-03 05:25:10] [INFO] Room created: room_id=2 host_conn_id=3 max_players=6
+[2026-07-03 05:25:10] [INFO] Room 2 created by user_id=3 username=h2 cards_count=2 max_players=6
+[2026-07-03 05:25:10] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-03 05:25:10] [INFO] Room 1 created by user_id=1 username=host cards_count=1 max_players=4
+[2026-07-03 05:25:10] [INFO] User user_id=2 username=j1 joined room_id=1 cards_count=1
+[2026-07-03 05:25:10] [INFO] User user_id=3 username=j2 joined room_id=1 cards_count=1
+[2026-07-03 05:25:10] [INFO] Player username=j2 removed from lobby room_id=1 reason=leave
+[2026-07-03 05:25:10] [INFO] Player username=j1 removed from lobby room_id=1 reason=leave
+[2026-07-03 05:25:10] [INFO] Room created: room_id=1 host_conn_id=4 max_players=4
+[2026-07-03 05:25:10] [INFO] Room 1 created by user_id=10 username=h2 cards_count=1 max_players=4
+[2026-07-03 05:25:10] [INFO] User user_id=11 username=jj joined room_id=1 cards_count=1
+[2026-07-03 05:25:10] [INFO] Room destroyed: room_id=1
+[2026-07-03 05:25:10] [INFO] test 1
+[2026-07-03 05:25:10] [WARNING] test 2
+[2026-07-03 05:25:10] [ERROR] test 3
+[2026-07-03 05:25:10] [INFO] User login: login_valid
+[2026-07-03 05:25:10] [WARNING] Login failed: Invalid username or password
+[2026-07-03 05:25:10] [WARNING] Login failed: Invalid username or password
+[2026-07-03 05:25:11] [WARNING] Login failed: User is banned
+[2026-07-03 05:25:11] [INFO] User login: login_bonus
+[2026-07-03 05:25:11] [INFO] User login: login_bonus
+[2026-07-03 05:25:11] [INFO] User registered: test_user_1
+[2026-07-03 05:25:11] [WARNING] Registration failed: Username already exists
+[2026-07-03 05:25:11] [WARNING] Registration failed: Invalid username format
+[2026-07-03 05:25:11] [WARNING] Registration failed: Password must be between 6 and 64 characters
+[2026-07-03 05:25:12] [INFO] User login: session_user
+[2026-07-03 05:25:12] [INFO] User login: session_user
+[2026-07-03 05:25:12] [INFO] User login: single_user
+[2026-07-03 05:25:13] [WARNING] Login failed: User already logged in
+[2026-07-03 05:25:13] [INFO] User login: single_user
+[2026-07-03 05:25:13] [INFO] Room 1: game over successfully processed. Winner: host, reason: victory
+[2026-07-03 05:25:13] [ERROR] Room 1: finishGame Сбой транзакции начисления: SQLSTATE[23000]: Integrity constraint violation: 19 CHECK constraint failed: coins <= 200
+[2026-07-03 05:25:13] [INFO] Room 1: game over successfully processed. Winner: host, reason: victory
