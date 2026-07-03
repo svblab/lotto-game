@@ -731,9 +731,38 @@ Result:
 - 2026-07-03 — Обнаружены pre-existing падения test_game_start.php/test_victory.php (GameFinishService type mismatch) и test_helpers_runner.php (устаревший assert sendError()) — не связаны с EPIC-9.6, зафиксированы в KNOWN GAPS для отдельного FIX перед Phase 10.
 - 2026-07-03 — FIX-4 Accepted: Database получил DI-seam (опциональный PDO), test_game_start.php/test_victory.php переведены на реальный GameFinishService вместо type-несовместимых анонимных классов. FIX-5 Accepted: test_helpers_runner.php приведён к актуальному контракту sendError(). Полный регресс по всем 22 файлам tests/Manual/*.php — 0 failed. PHASE 9 стабильна, путь к Phase 10 открыт без известных дефектов.
 - 2026-07-03 — Аудит на баги, аналогичные FIX-3 (по запросу перед Phase 10): найден и исправлен FIX-6 (утечка reconnect_timer при kick/ban удалении в Lobby/Apartment — Timer Integrity Rule). Проверены: экономические мутации (bank/total_paid/coins — чисто), reconnect/disconnect история (чисто), timer cleanup при destroyRoom (чисто, делегирование корректно), state machine записи статусов (чисто), Module Boundaries Admin→Game (чисто, только публичные методы), host-transfer комментарий в handleKickUser (соответствует уже задокументированному KNOWN GAP EPIC-9.3, новых расхождений нет). Полный регресс по 23 файлам tests/Manual/*.php (добавлен test_timer_integrity.php) — 0 failed.
+- 2026-07-03 — Второй раунд аудита (протокол/edge cases): обнаружены и удалены docs/ANCHOR_PROJECT_STATUS.md (устарел с начала проекта, вводил в заблуждение будущие сессии). Обнаружены docs/prompt.md (исходное ТЗ v4.0) и docs/GAME_RULES.md — оба тоже не обновлялись с начала проекта; из prompt.md извлечены два незадокументированных требования (rate limiting, invalid-JSON policy) — см. KNOWN GAPS, решение отложено до EPIC-10.1 по решению пользователя. Также обнаружены два протокольных долга низкого приоритета: afk_warning (не задекларирован) и admin_stats_data (задекларирован, не реализован, без Epic). Кодовых багов в этом раунде не найдено — все находки документационные/процессные.
 ---
 
 ## KNOWN GAPS / NOT VERIFIED
+
+- ✅ RESOLVED (2026-07-03): docs/ANCHOR_PROJECT_STATUS.md удалён — файл не
+  обновлялся с самого начала проекта (заморожен на состоянии "EPIC-1.1,
+  Lobby/WebSocket/Economy: Not implemented"), при этом сам файл предписывал
+  будущим моделям читать его как обязательный контекст. Риск катастрофической
+  путаницы для новой сессии. ANCHOR_RULES.md Part 19 (Context Recovery Rule)
+  уже корректно определяет 5 авторитетных документов без него.
+- ⚠️ OPEN (обнаружено при аудите протокола/edge cases, 2026-07-03, к решению
+  в рамках EPIC-10.1 Packet validation): docs/prompt.md (исходное ТЗ v4.0,
+  тоже не обновлялось с начала проекта) содержит два требования, отсутствующие
+  во ВСЕХ ANCHOR_CORE.md/ANCHOR_PROTOCOL.md/ANCHOR_RULES.md и в ROADMAP.md:
+  (a) Rate limiting: "более 15 пакетов/сек от одного соединения — немедленный
+  разрыв соединения" — нигде не задокументировано как правило;
+  (b) Обработка невалидного JSON — prompt.md требует "закрыть соединение",
+  тогда как ANCHOR_PROTOCOL.md уже объявляет код ошибки error.invalid_json
+  (подразумевая отправку error-пакета, а не разрыв) — прямое противоречие
+  между исходным ТЗ и текущим протокольным контрактом, требует явного решения
+  до/во время EPIC-10.1, иначе оба сценария поведения останутся undefined.
+- ⚠️ OPEN (низкий приоритет, документационный долг): пакет afk_warning
+  (src/Game/ReconnectService.php, EPIC-8.3 Game AFK protection) используется
+  и покрыт тестами, но не задекларирован ни в ANCHOR_PROTOCOL.md, ни в
+  реестре Protocol Packet Types (ANCHOR_CORE.md Part 6). Требует добавления
+  в оба документа (документация, не код — поведение корректно).
+- ⚠️ OPEN (низкий приоритет, roadmap-долг): пакет admin_stats_data объявлен
+  в ANCHOR_PROTOCOL.md и в реестре ANCHOR_CORE.md, но ни разу не реализован
+  и не назначен ни одному Epic в ROADMAP.md (EPIC-9.x покрыл только
+  admin_logs_data). Нужно либо завести Epic, либо формально исключить из
+  протокола.
 
 - ✅ RESOLVED (FIX-4, 2026-07-03): test_game_start.php/test_victory.php падали из-за
   устаревших фикстур после ADR-002. Устранено — см. секцию PATCHES § FIX-4.
