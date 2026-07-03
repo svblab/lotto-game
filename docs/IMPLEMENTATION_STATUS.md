@@ -516,6 +516,78 @@ Notes:
 
 ## PATCHES
 
+### FIX-4 — Stale test fixtures after ADR-002 (GameFinishService)
+Status: Completed
+Date: 2026-07-03
+
+Files:
+- src/Infrastructure/Database.php
+- tests/Manual/test_game_start.php
+- tests/Manual/test_victory.php
+
+Problem:
+- ADR-002 (вынос GameFinishService, final class со строгой типизацией
+  Database/PreparedStatements/Logger) не был пробрасён в тестовые фикстуры
+  test_game_start.php и test_victory.php — обе продолжали использовать
+  анонимные классы вместо GameFinishService, что несовместимо по типу с
+  GameService::__construct(). Оба файла падали с Fatal TypeError.
+- Корневая причина невозможности честного (без reflection — запрещённого
+  ANCHOR_RULES.md Part 22) исправления: Database жёстко хардкодила путь к
+  game.db в конструкторе без точки внедрения зависимостей.
+
+Fix:
+- Database::__construct() расширен опциональным параметром `?PDO $pdo = null`
+  (обратно совместимо — на момент фикса `new Database()` нигде в проекте не
+  вызывается напрямую, server.php/init_db.php ещё не реализованы; поведение
+  без аргумента идентично прежнему).
+- test_game_start.php: finishGame() не вызывается ни в одном сценарии
+  EPIC-4.5 → анонимный класс заменён на уже принятый в проекте паттерн
+  ReflectionClass::newInstanceWithoutConstructor() (см. test_apartment.php,
+  test_turn_system.php).
+- test_victory.php: GROUP 4/5/6 реально вызывают finishGame() → makeSvc()
+  теперь строит настоящий GameFinishService(Database, PreparedStatements,
+  Logger) поверх in-memory SQLite. GROUP 5 (сбой БД → rollback) переписан с
+  искусственного MockPDO->shouldFail флага на честное нарушение SQL
+  CHECK-ограничения (coins<=200) — тестирует реальный путь отката внутри
+  GameFinishService, а не имитацию.
+
+Result:
+- test_game_start.php: 44/44 PASSED
+- test_victory.php: 40/40 PASSED (было 38 заявлено в статусе; +2 более
+  строгие проверки добавлены в GROUP 5 — inTransaction()===false,
+  room не уничтожена при откате)
+- Полный регрессионный прогон всех 22 файлов tests/Manual/*.php — 0 failed.
+
+Diff: patches/FIX-4.patch
+
+---
+
+### FIX-5 — Stale sendError() assertion (pre-FIX-1 contract)
+Status: Completed
+Date: 2026-07-03
+
+Files:
+- tests/Manual/test_helpers_runner.php
+
+Problem:
+- Scenario 2 вызывала sendError($conn, 'Invalid action syntax') по старому
+  однопараметровому контракту (до FIX-1) и ожидала пакет без поля code.
+  Реальный sendError(object $connection, string $code, string $message = '')
+  после FIX-1 корректно требует code — тест не был обновлён вместе с FIX-1.
+
+Fix:
+- Scenario 2 переписан под актуальный вызов
+  sendError($conn2, 'error.invalid_json', 'Invalid action syntax') и
+  ожидаемый пакет {"type":"error","code":"error.invalid_json","message":"..."}
+  (ANCHOR_PROTOCOL.md § Error Packet). Правился тест, не реализация —
+  ANCHOR_RULES.md Part 22 (Test Philosophy): sendError() уже верно
+  реализует актуальный контракт.
+
+Result:
+- test_helpers_runner.php: все 4 сценария PASSED.
+
+Diff: patches/FIX-5.patch
+
 ### FIX-3 — Double refund on kick + admin_close_room
 Status: Completed
 Date: 2026-07-03
@@ -610,24 +682,15 @@ Result:
 - 2026-07-03 — EPIC-9.5 Logs access фактически реализован (handleGetLogs()/getLastLines()), закрыто расхождение между статусом и кодом, обнаруженное при подготовке EPIC-9.6.
 - 2026-07-03 — FIX-3 Accepted: устранён двойной рефанд kick+admin_close_room (Economic Integrity Rule). EPIC-9.6 Admin integration tests завершён, PHASE 9 COMPLETE.
 - 2026-07-03 — Обнаружены pre-existing падения test_game_start.php/test_victory.php (GameFinishService type mismatch) и test_helpers_runner.php (устаревший assert sendError()) — не связаны с EPIC-9.6, зафиксированы в KNOWN GAPS для отдельного FIX перед Phase 10.
+- 2026-07-03 — FIX-4 Accepted: Database получил DI-seam (опциональный PDO), test_game_start.php/test_victory.php переведены на реальный GameFinishService вместо type-несовместимых анонимных классов. FIX-5 Accepted: test_helpers_runner.php приведён к актуальному контракту sendError(). Полный регресс по всем 22 файлам tests/Manual/*.php — 0 failed. PHASE 9 стабильна, путь к Phase 10 открыт без известных дефектов.
 ---
 
 ## KNOWN GAPS / NOT VERIFIED
 
-- ⚠️ NEW (обнаружено при регрессии EPIC-9.6, 2026-07-03): tests/Manual/test_game_start.php
-  и tests/Manual/test_victory.php падают с Fatal error — GameService::__construct()
-  требует Lotto\Game\GameFinishService, а тестовые фикстуры передают анонимный класс
-  (несовместимость типов). Причина — ADR-002 (вынос GameFinishService из GameService)
-  не был пробрасён обратно в фикстуры этих двух тестовых файлов. Подтверждено через
-  `git stash` — падение воспроизводится и без изменений EPIC-9.6, т.е. это pre-existing
-  баг на main, а не регрессия от FIX-3. Заявленные в статусе "164/164" и "44/44"/"38/38"
-  фактически не проходят в текущем состоянии репозитория. Требуется отдельный FIX
-  (Game-модуль, вне scope Admin/EPIC-9.6) до начала Phase 10.
-- ⚠️ NEW (обнаружено при регрессии EPIC-9.6, 2026-07-03): tests/Manual/test_helpers_runner.php
-  падает (Scenario 2, sendError()) — тест ассертит контракт ДО FIX-1 (поле message без code),
-  тогда как реальный sendError() после FIX-1 возвращает {"type","code","message"}. Тестовый
-  файл не был обновлён вместе с FIX-1. Требует правки теста (не реализации — Rule 22 Test
-  Philosophy: sendError() соответствует актуальному протокольному контракту).
+- ✅ RESOLVED (FIX-4, 2026-07-03): test_game_start.php/test_victory.php падали из-за
+  устаревших фикстур после ADR-002. Устранено — см. секцию PATCHES § FIX-4.
+- ✅ RESOLVED (FIX-5, 2026-07-03): test_helpers_runner.php Scenario 2 ассертил контракт
+  до FIX-1. Устранено — см. секцию PATCHES § FIX-5.
 
 - composer.json не перепроверялся в текущей сессии.
 - ReconnectTokenService существует, но пока не используется.
@@ -654,10 +717,10 @@ Integration tests:
 `text
 48 / 48 PASSED (auth)
 90 / 90 PASSED (lobby)
-164 / 164 PASSED (lotto engine)          [!] см. KNOWN GAPS — файл сейчас падает, требует FIX
-44 / 44 PASSED (game start)              [!] см. KNOWN GAPS — файл сейчас падает, требует FIX
+164 / 164 PASSED (lotto engine)
+44 / 44 PASSED (game start)
 37 / 37 PASSED (turn system)
-38 / 38 PASSED (victory system)          [!] см. KNOWN GAPS — файл сейчас падает, требует FIX
+40 / 40 PASSED (victory system)          [+2 vs заявленных 38 — усилены проверки FIX-4]
 32 / 32 PASSED (apartment)
 15 / 15 PASSED (reconnect)
 8 / 8 PASSED (admin auth)
@@ -678,7 +741,7 @@ main
 Current stable commit:
 
 `text
-EPIC-9.6 admin-integration-tests + FIX-3 (pending commit)
+FIX-5 stale-sendError-assertion (все 22 tests/Manual/*.php зелёные)
 `
 
 Next planned Epic:
@@ -686,5 +749,4 @@ Next planned Epic:
 `text
 EPIC-10.0 Protocol router
 `
-⚠️ Перед стартом Phase 10 рекомендуется закрыть FIX-4 (test_game_start.php /
-test_victory.php / test_helpers_runner.php) — см. KNOWN GAPS.
+✅ Известных дефектов нет. Полный регресс по всем 22 тестовым файлам — 0 failed. Phase 10 можно начинать.

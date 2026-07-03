@@ -15,9 +15,23 @@ class Database
     /**
      * Конструктор инициализирует соединение с базой данных SQLite
      * со строгими настройками, зафиксированными в EPIC-0.6.
+     *
+     * FIX-4: опциональный параметр $pdo — точка внедрения зависимости для
+     * тестов (in-memory SQLite), без которой GameFinishService (ADR-002,
+     * строгая типизация Database) невозможно честно сконструировать в
+     * тестах без reflection (запрещённого ANCHOR_RULES.md Part 22).
+     * Без аргумента поведение полностью идентично прежнему — открывается
+     * game.db с теми же PRAGMA. На момент этого фикса `new Database()`
+     * нигде в проекте не вызывается напрямую (server.php/init_db.php ещё
+     * не реализованы — Phase 10), обратная совместимость не нарушена.
      */
-    public function __construct()
+    public function __construct(?PDO $pdo = null)
     {
+        if ($pdo !== null) {
+            $this->pdo = $pdo;
+            return;
+        }
+
         $dbPath = dirname(__DIR__, 2) . '/game.db';
         
         $this->pdo = new PDO("sqlite:" . $dbPath, null, null, [

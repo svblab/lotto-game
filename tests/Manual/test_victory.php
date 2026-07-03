@@ -18,6 +18,8 @@ use Lotto\Game\GameService;
 use Lotto\Game\LottoEngine;
 use Lotto\Game\VictoryService;
 use Lotto\Game\ApartmentService;
+use Lotto\Infrastructure\Database;
+use Lotto\Infrastructure\PreparedStatements;
 
 $passed = 0;
 $failed = 0;
@@ -157,7 +159,7 @@ function makeRoom(int $hostId, array $connIds, int $bank = 20): array {
     ];
 }
 
-function makeSvc(array $users = [], MockPDO $pdo = null): array {
+function makeSvc(array $users = [], ?MockPDO $pdo = null, ?\PDO $realPdo = null): array {
     $pdo  = $pdo ?? new MockPDO();
     $db   = new MockDatabase($pdo);
     $st   = new MockStmts($users);
@@ -165,54 +167,19 @@ function makeSvc(array $users = [], MockPDO $pdo = null): array {
     $eng  = new LottoEngine();
     $vic  = new VictoryService();
     $apt  = new ApartmentService($db, $st, $log);
-    // Finish stub: enough for integration tests without real DB/Workerman.
-    $fin  = new class($db) {
-        private MockDatabase $db;
-        public function __construct(MockDatabase $db) { $this->db = $db; }
 
-        public function finishGame(array &$room, int $roomId, array $winners, array $prizes, string $reason, callable $roomDestroyer): void
-        {
-            $pdo = $this->db->getPdo();
-            try {
-                $pdo->beginTransaction();
-                $pdo->commit();
-            } catch (\Throwable $e) {
-                $pdo->rollBack();
-                return;
-            }
+    // FIX-4: GameFinishService — final class со строгой типизацией
+    // зависимостей (ADR-002). Анонимный класс не проходит проверку типа
+    // конструктора GameService, поэтому используется РЕАЛЬНЫЙ
+    // GameFinishService с реальными Database/PreparedStatements поверх
+    // in-memory SQLite ($realPdo, готовится вызывающим кодом — GROUP 4/5),
+    // и реальным Core\Logger (побочный эффект — запись в logs/server.log,
+    // как и в остальных интеграционных тестах проекта).
+    $realDb    = new Database($realPdo);
+    $realStmts = new PreparedStatements($realPdo);
+    $realLog   = new \Lotto\Core\Logger();
+    $fin       = new \Lotto\Game\GameFinishService($realDb, $realStmts, $realLog);
 
-            $winnerUsername = 'unknown';
-            $displayPrize   = 0;
-            $finalBank      = 0;
-
-            if (!empty($winners)) {
-                $winnerConnId   = array_key_first($winners);
-                $winnerUsername = $room['players'][$winnerConnId]['username'] ?? 'unknown';
-                $displayPrize   = $prizes[$winnerConnId] ?? 0;
-                $finalBank      = (count($winners) === 1) ? $displayPrize : array_sum($prizes);
-            }
-
-            $packet = [
-                'type'       => 'game_over',
-                'winner'     => $winnerUsername,
-                'reason'     => $reason,
-                'prize'      => $displayPrize,
-                'final_bank' => $finalBank,
-                'statistics' => [],
-            ];
-            $json = json_encode($packet);
-
-            foreach (($room['players'] ?? []) as $player) {
-                if (($player['status'] ?? '') === 'active' && isset($player['connection'])) {
-                    $player['connection']->send($json);
-                }
-            }
-
-            $room['status'] = 'finished';
-            $room['bank'] = 0;
-            $roomDestroyer();
-        }
-    };
     $svc  = new GameService($db, $st, $eng, $log, $vic, $apt, $fin);
     return [$svc, $log, $st, $pdo, $vic];
 }
@@ -356,11 +323,25 @@ $vic = new VictoryService();
     $h  = makeConn(1, 10, 'host');
     $p2 = makeConn(2, 20, 'p2');
     $worker = new MockWorker();
-    $pdo    = new MockPDO();
+
+    $realPdo = new \PDO('sqlite::memory:');
+    $realPdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+    $realPdo->exec("CREATE TABLE users (
+        id INTEGER PRIMARY KEY,
+        username TEXT NOT NULL,
+        password_hash TEXT NOT NULL DEFAULT 'x',
+        coins INTEGER NOT NULL DEFAULT 500,
+        is_admin INTEGER NOT NULL DEFAULT 0,
+        banned_until INTEGER NOT NULL DEFAULT 0,
+        last_daily_bonus INTEGER NOT NULL DEFAULT 0
+    )");
+    $realPdo->exec("INSERT INTO users (id, username, coins) VALUES (10, 'host', 100)");
+    $realPdo->exec("INSERT INTO users (id, username, coins) VALUES (20, 'p2', 100)");
+
     [$svc, $log, $st] = makeSvc([
         10 => ['id' => 10, 'coins' => 100],
         20 => ['id' => 20, 'coins' => 100],
-    ], $pdo);
+    ], null, $realPdo);
 
     $room = makeRoom(1, [1, 2], 20);
     $room['players'][1] = makePlayer($h);
@@ -374,8 +355,9 @@ $vic = new VictoryService();
     // Room destroyed
     assert_true(!isset($worker->rooms[1]), 'finishGame: room destroyed');
 
-    // Transaction committed
-    assert_true($pdo->committed === true, 'finishGame: transaction committed');
+    // Real DB: prize actually credited (100 -> 120)
+    $hostCoins = (int)$realPdo->query("SELECT coins FROM users WHERE id = 10")->fetch()['coins'];
+    assert_true($hostCoins === 120, 'finishGame: transaction committed (coins credited 100 -> 120)');
 
     // Winner got game_over
     $pkts = $h->sentOfType('game_over');
@@ -395,27 +377,49 @@ $vic = new VictoryService();
 // ---------------------------------------------------------------------------
 // GROUP 5: finishGame — DB failure → rollback
 // ---------------------------------------------------------------------------
-
+// FIX-4: реальный сбой транзакции через SQL CHECK-ограничение (coins<=200)
+// вместо искусственного MockPDO->shouldFail флага — честно проверяет
+// настоящий rollback внутри GameFinishService::finishGame() (ANCHOR_CORE.md
+// Part 2 § Mandatory Transactions: all-or-nothing).
 {
     $h  = makeConn(1, 10, 'host');
     $p2 = makeConn(2, 20, 'p2');
     $worker = new MockWorker();
-    $pdo    = new MockPDO(); $pdo->shouldFail = true;
+
+    $realPdo = new \PDO('sqlite::memory:');
+    $realPdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+    $realPdo->exec("CREATE TABLE users (
+        id INTEGER PRIMARY KEY,
+        username TEXT NOT NULL,
+        password_hash TEXT NOT NULL DEFAULT 'x',
+        coins INTEGER NOT NULL DEFAULT 500 CHECK(coins <= 200),
+        is_admin INTEGER NOT NULL DEFAULT 0,
+        banned_until INTEGER NOT NULL DEFAULT 0,
+        last_daily_bonus INTEGER NOT NULL DEFAULT 0
+    )");
+    $realPdo->exec("INSERT INTO users (id, username, coins) VALUES (10, 'host', 100)");
+    $realPdo->exec("INSERT INTO users (id, username, coins) VALUES (20, 'p2', 100)");
+
     [$svc, $log] = makeSvc([
         10 => ['id' => 10, 'coins' => 100],
         20 => ['id' => 20, 'coins' => 100],
-    ], $pdo);
+    ], null, $realPdo);
 
     $room = makeRoom(1, [1, 2], 20);
     $room['players'][1] = makePlayer($h);
     $room['players'][2] = makePlayer($p2);
     $worker->rooms[1] = $room;
 
-    $svc->finishGame($worker->rooms[1], 1, [1 => 1], [1 => 20], $worker);
+    // prize=150 → 100+150=250 нарушает CHECK(coins<=200) → PDOException → rollback
+    $svc->finishGame($worker->rooms[1], 1, [1 => 1], [1 => 150], $worker);
 
-    assert_true($pdo->rolledBack === true, 'finishGame: DB fail → rollback');
+    $hostCoins = (int)$realPdo->query("SELECT coins FROM users WHERE id = 10")->fetch()['coins'];
+    assert_true($hostCoins === 100, 'finishGame: DB fail → rollback (coins unchanged at 100)');
+    assert_true($realPdo->inTransaction() === false, 'finishGame: DB fail → no dangling transaction');
     // No game_over sent
     assert_true(count($h->sentOfType('game_over')) === 0, 'finishGame: DB fail → no game_over');
+    // Room NOT destroyed — finishGame() returns early on transaction failure
+    assert_true(isset($worker->rooms[1]), 'finishGame: DB fail → room not destroyed');
 }
 
 // ---------------------------------------------------------------------------
@@ -428,6 +432,20 @@ $vic = new VictoryService();
     $worker = new MockWorker();
     $pdo    = new MockPDO();
 
+    $realPdo = new \PDO('sqlite::memory:');
+    $realPdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+    $realPdo->exec("CREATE TABLE users (
+        id INTEGER PRIMARY KEY,
+        username TEXT NOT NULL,
+        password_hash TEXT NOT NULL DEFAULT 'x',
+        coins INTEGER NOT NULL DEFAULT 500,
+        is_admin INTEGER NOT NULL DEFAULT 0,
+        banned_until INTEGER NOT NULL DEFAULT 0,
+        last_daily_bonus INTEGER NOT NULL DEFAULT 0
+    )");
+    $realPdo->exec("INSERT INTO users (id, username, coins) VALUES (10, 'host', 490)");
+    $realPdo->exec("INSERT INTO users (id, username, coins) VALUES (20, 'p2', 490)");
+
     // Give host a complete card so we can trigger victory immediately
     $card = makeCompleteCard();
     // All numbers on this card: 1,2,10,11,20,21,30,31,40,41,50,51,60,70,80
@@ -438,7 +456,7 @@ $vic = new VictoryService();
     [$svc, $log] = makeSvc([
         10 => ['id' => 10, 'coins' => 490],
         20 => ['id' => 20, 'coins' => 490],
-    ], $pdo);
+    ], $pdo, $realPdo);
 
     $room = makeRoom(1, [1, 2], 20);
     $room['players'][1] = makePlayer($h,  1, [$card],   [array_map(fn($r) => array_fill(0, 9, false), $card)]);
@@ -470,7 +488,10 @@ $vic = new VictoryService();
     $goPackets = $h->sentOfType('game_over');
     assert_true(count($goPackets) === 1,            'Integration: game_over sent');
     assert_true($goPackets[0]['winner'] === 'host', 'Integration: host is winner');
-    assert_true($pdo->committed === true,           'Integration: payout committed');
+
+    // Real DB: bank (20) credited to host (490 -> 510)
+    $hostCoinsAfter = (int)$realPdo->query("SELECT coins FROM users WHERE id = 10")->fetch()['coins'];
+    assert_true($hostCoinsAfter === 510, 'Integration: payout committed (coins 490 -> 510)');
 }
 
 // ---------------------------------------------------------------------------

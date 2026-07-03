@@ -17,6 +17,7 @@ use Lotto\Game\GameService;
 use Lotto\Game\LottoEngine;
 use Lotto\Game\VictoryService;
 use Lotto\Game\ApartmentService;
+use Lotto\Game\GameFinishService;
 use Lotto\Core\Constants;
 
 // ---------------------------------------------------------------------------
@@ -227,13 +228,13 @@ function makeService(array $users, MockPDO $pdo): array {
     $eng   = new LottoEngine();
     $vic   = new VictoryService();
     $apt   = new ApartmentService($db, $stmts, $log);
-    $fin   = new class {
-        public function finishGame(array &$room, int $roomId, array $winners, array $prizes, string $reason, callable $roomDestroyer): void
-        {
-            $room['status'] = 'finished';
-            $roomDestroyer();
-        }
-    };
+    // finishGame() не вызывается ни в одном сценарии EPIC-4.5 (только
+    // handleStartGame()). GameFinishService — final class со строгой
+    // типизацией зависимостей (ADR-002), анонимный класс не проходит
+    // проверку типа конструктора GameService. newInstanceWithoutConstructor()
+    // — уже принятый в проекте паттерн для этого случая, см.
+    // tests/Manual/test_apartment.php и tests/Manual/test_turn_system.php.
+    $fin   = (new \ReflectionClass(\Lotto\Game\GameFinishService::class))->newInstanceWithoutConstructor();
     $svc   = new GameService($db, $stmts, $eng, $log, $vic, $apt, $fin);
     return [$svc, $log, $stmts, $pdo];
 }

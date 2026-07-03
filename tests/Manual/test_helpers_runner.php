@@ -55,12 +55,16 @@ echo "----------------------------------------\n";
 
 
 // --- СЦЕНАРИЙ 2: Проверка sendError ---
+// --- СЦЕНАРИЙ 2: Проверка sendError() ---
+// FIX-5: обновлено под актуальный контракт после FIX-1 —
+// sendError(object $connection, string $code, string $message = ''):
+// пакет содержит обязательное поле code (ANCHOR_PROTOCOL.md § Error Packet).
 echo "[Scenario 2] Testing sendError()...\n";
 $conn2 = new MockConnection();
 
-sendError($conn2, 'Invalid action syntax');
+sendError($conn2, 'error.invalid_json', 'Invalid action syntax');
 $resultErrorJson = $conn2->sentMessages[0] ?? '';
-$expectedError = '{"type":"error","message":"Invalid action syntax"}';
+$expectedError = '{"type":"error","code":"error.invalid_json","message":"Invalid action syntax"}';
 
 if ($resultErrorJson === $expectedError) {
     echo "✅ Success: Protocol error packet formatted perfectly.\n";
