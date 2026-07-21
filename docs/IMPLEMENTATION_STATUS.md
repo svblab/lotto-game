@@ -1,5 +1,81 @@
 # Implementation Status — Lotto Game Project
 
+- [DONE] EPIC-10.0 Protocol router
+Files:
+- server.php (новый файл, 175 строк)
+- tests/Manual/test_server_bootstrap.php (новый файл, 227 строк)
+
+Implemented:
+- Workerman bootstrap: websocket://0.0.0.0:8080, single worker (count=1),
+  согласно LOCAL_ENVIRONMENT.md и ANCHOR_CORE.md Part 1.
+- onWorkerStart: инициализация Database/Logger/RoomManager-совместимой
+  runtime-памяти ($worker->rooms/userConnections/sessionTokens = []),
+  Global Watchdog Timer (60s, закрытие мёртвых соединений по порогам
+  AUTHORIZED_TIMEOUT/UNAUTHORIZED_TIMEOUT — ANCHOR_CORE.md Part 5).
+- onWebSocketConnected (не onConnect — handshake на этот момент уже
+  завершён, что подтверждено докблоком Workerman "Emitted after websocket
+  handshake"): инициализация Connection Runtime Fields (userId/username/
+  isAdmin/sessionToken/lastPing), немедленная отправка hello
+  {"type":"hello","protocol_version":1}.
+- onMessage: безопасный json_decode (не-объект → error.invalid_json),
+  ping без ответа (ANCHOR_PROTOCOL.md § Heartbeat), пустой action-диспетчер
+  (match/default → error.invalid_json для любого ещё не подключённого action).
+- onClose: диагностическое логирование + явный TODO — полная реконнект-
+  логика невозможна в этом Epic (см. ниже).
+
+Сознательно НЕ реализовано (Rule 11 Epic Isolation):
+- Маршрутизация auth/lobby/game/admin-пакетов — EPIC-10.3/10.4/10.5/10.6.
+  AuthHandler уже существует (Phase 1), но не подключён.
+  LobbyHandler/GameHandler/AdminHandler ещё предстоит создать.
+- Rate limiting (>15 пакетов/сек) и точная policy невалидного JSON —
+  EPIC-10.1 (решено с пользователем явно, см. KNOWN GAPS).
+- onClose → ReconnectService::handleDisconnect() не подключён: сам
+  конструктор ReconnectService требует ОДНОВРЕМЕННО LobbyService И
+  GameService — подключить его в server.php раньше EPIC-10.4/10.5
+  означало бы нарушить Rule 11 (Auth+Lobby+Game в одном Epic).
+
+Verification (автоматическая, полностью самодостаточная):
+- tests/Manual/test_server_bootstrap.php поднимает server.php как
+  реальный подпроцесс (proc_open), общается с ним через собственноручно
+  написанный RFC6455 WebSocket-клиент (без внешних библиотек) по
+  настоящему TCP-сокету на 127.0.0.1:8080, затем корректно останавливает
+  процесс (SIGTERM → graceful shutdown, SIGKILL как fallback).
+- Результат: 8/8 PASSED. Прогнан дважды подряд — порт корректно
+  освобождается между запусками.
+- Ручная проверка `php server.php start` — Workerman поднимается,
+  таблица воркеров показывает [OK], graceful stop по SIGTERM.
+- ⚠️→✅ ИСПРАВЛЕНО (2026-07-21): первая версия test_server_bootstrap.php
+  зависала на VPS (требовался Ctrl+C). Причина — классический proc_open
+  deadlock: stdout/stderr дочернего процесса шли в pipe, который никогда
+  не вычитывался; ОС-буфер пайпа заполнялся выводом Workerman, дочерний
+  процесс блокировался на write() до реального биндинга порта. В песочнице
+  не воспроизводилось из-за небольшого объёма вывода, помещавшегося в буфер.
+  Исправлено: вывод дочернего процесса теперь идёт в файлы (['file', ...],
+  не ['pipe', ...] — запись в файл не блокируется по объёму), опрос порта
+  вместо фиксированного sleep, диагностика stdout/stderr при сбое биндинга,
+  жёсткий watchdog по SIGALRM (HARD_TIMEOUT_SECONDS=20) как последний
+  рубеж — скрипт физически не может зависнуть навсегда. Проверено 5
+  прогонов подряд (~3-4s каждый) + отдельно путь диагностики при заведомо
+  нерабочем порте (5s, чистое сообщение об ошибке, без зависания).
+- ⚠️→✅ ИСПРАВЛЕНО (второй раунд, тот же день): после первого фикса тест
+  всё ещё падал на VPS — "WS handshake failed" с пустым ответом.
+  Причина: осиротевший процесс server.php с ПЕРВОЙ (зависшей) попытки
+  остался жить и держать порт 8080 (Workerman stdout честно писал
+  "already running"), а тест по ошибке подключался к ЭТОМУ старому
+  процессу вместо своего свежесозданного. Исправлено: перед стартом
+  тест теперь сам вызывает `php server.php stop` (idempotent, безопасно
+  при отсутствии запущенного процесса) для гарантированно чистого
+  состояния, плюс явная диагностика "already running" с подсказкой
+  ручной команды на случай, если self-healing не сработает. Проверено:
+  вручную создан осиротевший процесс → тест сам его погасил и стартовал
+  заново — 8/8 PASSED, без зомби-процессов после. 3 дополнительных
+  прогона с чистого состояния — стабильно 8/8, ~3-4s каждый.
+- Полный регресс по всем 24 файлам tests/Manual/*.php (был 23, добавлен
+  test_server_bootstrap.php) — 0 failed.
+
+PHASE 10 — WEBSOCKET PROTOCOL: IN PROGRESS (10.0 done, 10.1 Packet
+validation next — включает решение по rate limiting и invalid-JSON policy)
+
 - [DONE] EPIC-9.6 Admin integration tests
 Files:
 - src/Admin/AdminService.php (diff — FIX-3, см. ниже)
@@ -56,10 +132,7 @@ Integration tests:
 16 / 16 PASSED (admin logs)
 20 / 20 PASSED (admin integration)
 
-Next planned Epic: EPIC-10.0 Protocol router
-⚠️ Перед Phase 10: см. KNOWN GAPS ниже — падение test_game_start.php/test_victory.php
-не связано с EPIC-9.6, но обнаружено при регрессионном прогоне и должно быть
-закрыто отдельным FIX перед стартом Phase 10 (Rule 3 — Read Before Writing).
+Next planned Epic: EPIC-10.0 Protocol router (историческая запись на момент завершения EPIC-9.6 — выполнено, см. запись выше)
 
 - [DONE] EPIC-9.5 Logs access
 Files:
@@ -732,6 +805,7 @@ Result:
 - 2026-07-03 — FIX-4 Accepted: Database получил DI-seam (опциональный PDO), test_game_start.php/test_victory.php переведены на реальный GameFinishService вместо type-несовместимых анонимных классов. FIX-5 Accepted: test_helpers_runner.php приведён к актуальному контракту sendError(). Полный регресс по всем 22 файлам tests/Manual/*.php — 0 failed. PHASE 9 стабильна, путь к Phase 10 открыт без известных дефектов.
 - 2026-07-03 — Аудит на баги, аналогичные FIX-3 (по запросу перед Phase 10): найден и исправлен FIX-6 (утечка reconnect_timer при kick/ban удалении в Lobby/Apartment — Timer Integrity Rule). Проверены: экономические мутации (bank/total_paid/coins — чисто), reconnect/disconnect история (чисто), timer cleanup при destroyRoom (чисто, делегирование корректно), state machine записи статусов (чисто), Module Boundaries Admin→Game (чисто, только публичные методы), host-transfer комментарий в handleKickUser (соответствует уже задокументированному KNOWN GAP EPIC-9.3, новых расхождений нет). Полный регресс по 23 файлам tests/Manual/*.php (добавлен test_timer_integrity.php) — 0 failed.
 - 2026-07-03 — Второй раунд аудита (протокол/edge cases): обнаружены и удалены docs/ANCHOR_PROJECT_STATUS.md (устарел с начала проекта, вводил в заблуждение будущие сессии). Обнаружены docs/prompt.md (исходное ТЗ v4.0) и docs/GAME_RULES.md — оба тоже не обновлялись с начала проекта; из prompt.md извлечены два незадокументированных требования (rate limiting, invalid-JSON policy) — см. KNOWN GAPS, решение отложено до EPIC-10.1 по решению пользователя. Также обнаружены два протокольных долга низкого приоритета: afk_warning (не задекларирован) и admin_stats_data (задекларирован, не реализован, без Epic). Кодовых багов в этом раунде не найдено — все находки документационные/процессные.
+- 2026-07-03 — EPIC-10.0 Protocol router завершён: server.php (Workerman bootstrap, onWorkerStart/onWebSocketConnected/onMessage/onClose) без auth/lobby/game/admin-логики (Rule 11 Epic Isolation — ReconnectService требует LobbyService+GameService одновременно, подключение onClose к реальной бизнес-логике отложено до EPIC-10.4/10.5). Верифицирован полностью автоматически через реальный WebSocket-клиент (без внешних библиотек) поверх настоящего TCP-сокета — 8/8 PASSED. Rate limiting и invalid-JSON policy подтверждены как открытые вопросы EPIC-10.1 (не реализованы намеренно).
 ---
 
 ## KNOWN GAPS / NOT VERIFIED
@@ -807,6 +881,8 @@ Integration tests:
 28 / 28 PASSED (admin close room)
 16 / 16 PASSED (admin logs)
 20 / 20 PASSED (admin integration)
+5 / 5 PASSED (timer integrity)
+8 / 8 PASSED (server bootstrap — real WS client, EPIC-10.0)
 `
 
 Current branch:
@@ -818,13 +894,13 @@ main
 Current stable commit:
 
 `text
-FIX-6 timer-integrity-audit (все 23 tests/Manual/*.php зелёные)
+EPIC-10.0 protocol-router (server.php создан, 24/24 tests/Manual/*.php зелёные)
 `
 
 Next planned Epic:
 
 `text
-EPIC-10.0 Protocol router
+EPIC-10.1 Packet validation (rate limiting + invalid-JSON policy — открытые
+вопросы из docs/prompt.md, требуют решения в рамках этого Epic)
 `
-✅ Известных дефектов нет. Аудит на баги, аналогичные FIX-3, проведён (2026-07-03) —
-найден и исправлен FIX-6. Полный регресс по всем 23 тестовым файлам — 0 failed. Phase 10 можно начинать.
+PHASE 10 — WEBSOCKET PROTOCOL: IN PROGRESS (10.0 done). Известных дефектов нет.
