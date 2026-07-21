@@ -17,6 +17,12 @@ Server → Client
 ```
 Codes: `error.invalid_json, error.auth_required, error.room_not_found, error.not_your_turn, error.server_full, error.room_limit, error.banned, error.cannot_moderate_admin, error.auth_invalid_username, error.auth_username_taken, error.auth_invalid_credentials, error.auth_invalid_token`
 
+`error.invalid_json` (ADR-003): sent for malformed JSON or missing/invalid
+`action` field. The connection is NOT closed — the client remains
+connected and may send further packets. Abuse via repeated malformed
+packets is bounded separately by rate limiting (ANCHOR_CORE.md Part 1 §
+Connection Runtime Fields), not by closing on the first offense.
+
 ---
 
 ## Connection Phase

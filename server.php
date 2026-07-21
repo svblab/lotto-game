@@ -15,10 +15,16 @@
  *   - Маршрутизация lobby-пакетов (create_room/join_room/...) → EPIC-10.4
  *   - Маршрутизация game-пакетов (draw_barrel/apartment_choice) → EPIC-10.5
  *   - Маршрутизация admin-пакетов (admin_*)                   → EPIC-10.6
- *   - Rate limiting (>15 пакетов/сек → disconnect)            → EPIC-10.1
- *   - Точная policy обработки невалидного JSON                → EPIC-10.1
- *     (см. docs/prompt.md vs ANCHOR_PROTOCOL.md error.invalid_json —
- *     открытый вопрос, зафиксирован в IMPLEMENTATION_STATUS.md KNOWN GAPS)
+ *
+ * EPIC-10.1 (Packet validation): rate limiting и invalid-JSON policy
+ * теперь реализованы и формализованы в ADR-003
+ * (docs/ADR/003-rate-limiting-and-invalid-json-policy.md):
+ *   - Невалидный JSON / неизвестный action → error.invalid_json,
+ *     соединение НЕ закрывается.
+ *   - Более RATE_LIMIT_PACKETS_PER_WINDOW пакетов за
+ *     RATE_LIMIT_WINDOW_SECONDS секунд от одного соединения →
+ *     немедленное закрытие БЕЗ error-пакета (это защита от злоупотребления,
+ *     а не сообщение об ошибке клиенту).
  *
  * $worker->onClose ниже — намеренная заглушка с TODO: полноценная
  * обработка disconnect требует ReconnectService, который согласно его
@@ -105,6 +111,10 @@ $worker->onWebSocketConnected = function ($connection): void {
     $connection->sessionToken = null;
     $connection->lastPing     = time();
 
+    // ADR-003: Rate limiting — счётчик пакетов в текущем окне (1s).
+    $connection->packetCount       = 0;
+    $connection->packetWindowStart = time();
+
     sendJson($connection, [
         'type'             => 'hello',
         'protocol_version' => Constants::PROTOCOL_VERSION,
@@ -112,20 +122,44 @@ $worker->onWebSocketConnected = function ($connection): void {
 };
 
 // -----------------------------------------------------------------------
-// onMessage — безопасный парсинг JSON + пустой диспетчер действий.
+// onMessage — rate limiting (ADR-003) + безопасный парсинг JSON + пустой
+// диспетчер действий.
 //
-// Rate limiting и точная policy для невалидного JSON намеренно не
-// реализованы здесь (EPIC-10.1, решение отложено пользователем). Текущее
-// временное поведение (провизорное, подлежит пересмотру в EPIC-10.1):
-// невалидный/не-объектный JSON → error.invalid_json, соединение НЕ рвётся
-// (согласуется с самим фактом существования кода ошибки error.invalid_json
-// в ANCHOR_PROTOCOL.md — если бы политика требовала разрыва, отдельный
-// код ошибки был бы не нужен). docs/prompt.md указывает на "закрыть
-// соединение" — прямое противоречие, вынесено в KNOWN GAPS.
+// Rate limiting считает КАЖДОЕ входящее сообщение (валидное или нет) —
+// это защита от объёма трафика, а не от конкретно невалидных пакетов,
+// поэтому счётчик инкрементируется ДО json_decode.
+//
+// error.invalid_json (невалидный JSON, отсутствующий/неизвестный action)
+// НЕ закрывает соединение — финализировано ADR-003 (docs/ADR/
+// 003-rate-limiting-and-invalid-json-policy.md): код ошибки в
+// ANCHOR_PROTOCOL.md предполагает, что клиент его получит и разберёт,
+// что требует открытого соединения. Защиту от злоупотребления
+// малформед-JSON обеспечивает rate limiting выше, а не разрыв на первом
+// же невалидном пакете.
 // -----------------------------------------------------------------------
 
 $worker->onMessage = function ($connection, string $rawData) use ($worker): void {
     $connection->lastPing = time();
+
+    // ADR-003: Rate limiting — окно RATE_LIMIT_WINDOW_SECONDS, лимит
+    // RATE_LIMIT_PACKETS_PER_WINDOW пакетов. При превышении — немедленное
+    // закрытие БЕЗ error-пакета (защита от злоупотребления, не сообщение
+    // об ошибке).
+    $now = time();
+    if (($now - $connection->packetWindowStart) >= Constants::RATE_LIMIT_WINDOW_SECONDS) {
+        $connection->packetWindowStart = $now;
+        $connection->packetCount = 0;
+    }
+    $connection->packetCount++;
+
+    if ($connection->packetCount > Constants::RATE_LIMIT_PACKETS_PER_WINDOW) {
+        $worker->logger->info(
+            'Rate limit exceeded, closing connection (userId=' .
+            ($connection->userId ?? 'null') . ", count={$connection->packetCount})"
+        );
+        $connection->close();
+        return;
+    }
 
     $data = json_decode($rawData, true);
 

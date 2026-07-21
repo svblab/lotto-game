@@ -1,5 +1,55 @@
 # Implementation Status — Lotto Game Project
 
+- [DONE] EPIC-10.1 Packet validation
+Files:
+- docs/ADR/003-rate-limiting-and-invalid-json-policy.md (новый файл)
+- docs/ANCHOR_CORE.md (diff — Connection Runtime Fields + Global Constants,
+  Part 1 и Part 6, согласно ADR-003)
+- docs/ANCHOR_PROTOCOL.md (diff — уточнение семантики error.invalid_json)
+- src/Core/Constants.php (diff — RATE_LIMIT_PACKETS_PER_WINDOW=15,
+  RATE_LIMIT_WINDOW_SECONDS=1)
+- server.php (diff — реализация rate limiting в onMessage, инициализация
+  packetCount/packetWindowStart в onWebSocketConnected)
+- tests/Manual/test_packet_validation.php (новый файл)
+- .gitignore (новый файл — попутно обнаружены случайно закоммиченные
+  рантайм-артефакты game.db-shm/game.db-wal/workerman.*.pid)
+
+Implemented:
+- ADR-003 закрывает оба KNOWN GAP, зафиксированных при пре-Phase-10 аудите:
+  1. Rate limiting (docs/prompt.md): > RATE_LIMIT_PACKETS_PER_WINDOW (15)
+     пакетов за RATE_LIMIT_WINDOW_SECONDS (1) секунду от одного соединения
+     → немедленное закрытие БЕЗ error-пакета. Считает ЛЮБЫЕ входящие
+     сообщения (валидные/невалидные/ping) — инкремент до json_decode.
+  2. Invalid-JSON policy (противоречие prompt.md "закрыть соединение" vs
+     ANCHOR_PROTOCOL.md error.invalid_json): решено в пользу
+     ANCHOR_PROTOCOL.md — код ошибки предполагает, что клиент его получит
+     и разберёт, значит соединение НЕ закрывается. Подкреплено прецедентом
+     error.server_full (уже реализован в LobbyService через sendError(),
+     не через разрыв). Защиту от флуда малформед-JSON обеспечивает rate
+     limiting, а не разрыв на первом невалидном пакете.
+- Оба решения формализованы как ADR-003 и отражены в ANCHOR_CORE.md
+  (новые Connection Runtime Fields: packetCount, packetWindowStart) и
+  ANCHOR_PROTOCOL.md (явное уточнение про error.invalid_json).
+
+Verification (полностью автоматическая, реальный WebSocket-клиент):
+- tests/Manual/test_packet_validation.php — 11/11 PASSED, 5 сценариев:
+  1. Ровно 15 невалидных пакетов — все получают error.invalid_json,
+     соединение живо.
+  2. 16-й пакет в том же окне — закрытие БЕЗ error-пакета (отличается от
+     таймаута через feof()-проверку, не только по отсутствию ответа).
+  3. Rate limit считает ping наравне с прочими (не делает исключения для
+     валидных action) — 15 ping ок, 16-й закрывает соединение.
+  4. Окно реально сбрасывается — burst 15+пауза>1s+burst 15 не суммируется
+     в закрытие.
+  5. Единичный невалидный JSON не закрывает соединение (базовый ADR-003
+     сценарий вне контекста rate limit).
+- Прогнано 3 раза подряд — стабильно, ~4s каждый, без зомби-процессов.
+- Полный регресс по всем 25 файлам tests/Manual/*.php (было 24, добавлен
+  test_packet_validation.php) — 0 failed.
+
+PHASE 10 — WEBSOCKET PROTOCOL: IN PROGRESS (10.0, 10.1 done). Следующий:
+EPIC-10.2 Protocol error handling.
+
 - [DONE] EPIC-10.0 Protocol router
 Files:
 - server.php (новый файл, 175 строк)
@@ -806,6 +856,7 @@ Result:
 - 2026-07-03 — Аудит на баги, аналогичные FIX-3 (по запросу перед Phase 10): найден и исправлен FIX-6 (утечка reconnect_timer при kick/ban удалении в Lobby/Apartment — Timer Integrity Rule). Проверены: экономические мутации (bank/total_paid/coins — чисто), reconnect/disconnect история (чисто), timer cleanup при destroyRoom (чисто, делегирование корректно), state machine записи статусов (чисто), Module Boundaries Admin→Game (чисто, только публичные методы), host-transfer комментарий в handleKickUser (соответствует уже задокументированному KNOWN GAP EPIC-9.3, новых расхождений нет). Полный регресс по 23 файлам tests/Manual/*.php (добавлен test_timer_integrity.php) — 0 failed.
 - 2026-07-03 — Второй раунд аудита (протокол/edge cases): обнаружены и удалены docs/ANCHOR_PROJECT_STATUS.md (устарел с начала проекта, вводил в заблуждение будущие сессии). Обнаружены docs/prompt.md (исходное ТЗ v4.0) и docs/GAME_RULES.md — оба тоже не обновлялись с начала проекта; из prompt.md извлечены два незадокументированных требования (rate limiting, invalid-JSON policy) — см. KNOWN GAPS, решение отложено до EPIC-10.1 по решению пользователя. Также обнаружены два протокольных долга низкого приоритета: afk_warning (не задекларирован) и admin_stats_data (задекларирован, не реализован, без Epic). Кодовых багов в этом раунде не найдено — все находки документационные/процессные.
 - 2026-07-03 — EPIC-10.0 Protocol router завершён: server.php (Workerman bootstrap, onWorkerStart/onWebSocketConnected/onMessage/onClose) без auth/lobby/game/admin-логики (Rule 11 Epic Isolation — ReconnectService требует LobbyService+GameService одновременно, подключение onClose к реальной бизнес-логике отложено до EPIC-10.4/10.5). Верифицирован полностью автоматически через реальный WebSocket-клиент (без внешних библиотек) поверх настоящего TCP-сокета — 8/8 PASSED. Rate limiting и invalid-JSON policy подтверждены как открытые вопросы EPIC-10.1 (не реализованы намеренно).
+- 2026-07-21 — EPIC-10.1 Packet validation завершён: ADR-003 формализует rate limiting (>15 пакетов/сек/соединение → закрытие без error-пакета, считает ВСЕ входящие сообщения) и invalid-JSON policy (error.invalid_json, без разрыва — решено в пользу ANCHOR_PROTOCOL.md, подкреплено прецедентом error.server_full). ANCHOR_CORE.md/ANCHOR_PROTOCOL.md обновлены (Connection Runtime Fields, Global Constants, семантика error.invalid_json). Оба KNOWN GAP из аудита протокола (2026-07-03) закрыты как RESOLVED. Попутно обнаружены и исправлены случайно закоммиченные рантайм-артефакты (game.db-shm/game.db-wal/workerman.*.pid) — добавлен .gitignore. Верифицировано 11/11 PASSED через реальный WebSocket-клиент, 5 граничных сценариев (ровно на лимите, превышение на 1, ping считается наравне, сброс окна, единичный невалидный пакет). Полный регресс — 25/25 tests/Manual/*.php.
 ---
 
 ## KNOWN GAPS / NOT VERIFIED
@@ -816,17 +867,16 @@ Result:
   будущим моделям читать его как обязательный контекст. Риск катастрофической
   путаницы для новой сессии. ANCHOR_RULES.md Part 19 (Context Recovery Rule)
   уже корректно определяет 5 авторитетных документов без него.
-- ⚠️ OPEN (обнаружено при аудите протокола/edge cases, 2026-07-03, к решению
-  в рамках EPIC-10.1 Packet validation): docs/prompt.md (исходное ТЗ v4.0,
-  тоже не обновлялось с начала проекта) содержит два требования, отсутствующие
-  во ВСЕХ ANCHOR_CORE.md/ANCHOR_PROTOCOL.md/ANCHOR_RULES.md и в ROADMAP.md:
-  (a) Rate limiting: "более 15 пакетов/сек от одного соединения — немедленный
-  разрыв соединения" — нигде не задокументировано как правило;
-  (b) Обработка невалидного JSON — prompt.md требует "закрыть соединение",
-  тогда как ANCHOR_PROTOCOL.md уже объявляет код ошибки error.invalid_json
-  (подразумевая отправку error-пакета, а не разрыв) — прямое противоречие
-  между исходным ТЗ и текущим протокольным контрактом, требует явного решения
-  до/во время EPIC-10.1, иначе оба сценария поведения останутся undefined.
+- ✅ RESOLVED (ADR-003, EPIC-10.1, 2026-07-21): docs/prompt.md содержал два
+  требования, отсутствующие во всех ANCHOR-документах — (a) rate limiting
+  ">15 пакетов/сек — разрыв" и (b) противоречие по обработке невалидного
+  JSON (prompt.md "закрыть соединение" vs ANCHOR_PROTOCOL.md error.invalid_json).
+  Формализовано в docs/ADR/003-rate-limiting-and-invalid-json-policy.md:
+  rate limiting реализован как есть (server.php, Constants::
+  RATE_LIMIT_PACKETS_PER_WINDOW/RATE_LIMIT_WINDOW_SECONDS); invalid-JSON
+  policy решена в пользу ANCHOR_PROTOCOL.md (error-пакет, без разрыва) —
+  подкреплено уже реализованным прецедентом error.server_full. Детали —
+  см. запись [DONE] EPIC-10.1 в начале файла.
 - ⚠️ OPEN (низкий приоритет, документационный долг): пакет afk_warning
   (src/Game/ReconnectService.php, EPIC-8.3 Game AFK protection) используется
   и покрыт тестами, но не задекларирован ни в ANCHOR_PROTOCOL.md, ни в
@@ -883,6 +933,7 @@ Integration tests:
 20 / 20 PASSED (admin integration)
 5 / 5 PASSED (timer integrity)
 8 / 8 PASSED (server bootstrap — real WS client, EPIC-10.0)
+11 / 11 PASSED (packet validation — real WS client, EPIC-10.1)
 `
 
 Current branch:
@@ -894,13 +945,13 @@ main
 Current stable commit:
 
 `text
-EPIC-10.0 protocol-router (server.php создан, 24/24 tests/Manual/*.php зелёные)
+EPIC-10.1 packet-validation (ADR-003, rate limiting + invalid-JSON policy,
+25/25 tests/Manual/*.php зелёные)
 `
 
 Next planned Epic:
 
 `text
-EPIC-10.1 Packet validation (rate limiting + invalid-JSON policy — открытые
-вопросы из docs/prompt.md, требуют решения в рамках этого Epic)
+EPIC-10.2 Protocol error handling
 `
-PHASE 10 — WEBSOCKET PROTOCOL: IN PROGRESS (10.0 done). Известных дефектов нет.
+PHASE 10 — WEBSOCKET PROTOCOL: IN PROGRESS (10.0, 10.1 done). Известных дефектов нет.

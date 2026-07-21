@@ -24,4 +24,8 @@ class Constants
     public const AUTHORIZED_TIMEOUT = 120;
 
     public const PROTOCOL_VERSION = 1;
+
+    // ADR-003: Rate Limiting
+    public const RATE_LIMIT_PACKETS_PER_WINDOW = 15;
+    public const RATE_LIMIT_WINDOW_SECONDS = 1;
 }

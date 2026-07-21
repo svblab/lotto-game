@@ -20,6 +20,8 @@ RECONNECT_TIMEOUT = 15;
 LOBBY_HOST_TIMEOUT = 120;
 UNAUTHORIZED_TIMEOUT = 60;
 AUTHORIZED_TIMEOUT = 120;
+RATE_LIMIT_PACKETS_PER_WINDOW = 15;  // ADR-003
+RATE_LIMIT_WINDOW_SECONDS = 1;       // ADR-003
 ```
 
 ## Runtime Memory Layout
@@ -85,8 +87,10 @@ $connection->username;
 $connection->isAdmin;
 $connection->sessionToken;
 $connection->lastPing;
+$connection->packetCount;       // ADR-003: rate limiting, окно 1s
+$connection->packetWindowStart; // ADR-003: rate limiting, окно 1s
 ```
-No additional business fields allowed.
+No additional business fields allowed beyond those listed here (see ADR-003 for the rate-limiting pair).
 
 ## Room States
 Allowed: `waiting | playing | apartment | finished`. No others.
@@ -488,11 +492,12 @@ Fields: `id, username, password_hash, coins, is_admin, banned_until, last_daily_
 ## Global Constants (names)
 ```
 MAX_ROOMS, MAX_TOTAL_PLAYERS, BET_PER_CARD, DAILY_BONUS, RECONNECT_TIMEOUT,
-LOBBY_HOST_TIMEOUT, UNAUTHORIZED_TIMEOUT, AUTHORIZED_TIMEOUT, PROTOCOL_VERSION
+LOBBY_HOST_TIMEOUT, UNAUTHORIZED_TIMEOUT, AUTHORIZED_TIMEOUT, PROTOCOL_VERSION,
+RATE_LIMIT_PACKETS_PER_WINDOW, RATE_LIMIT_WINDOW_SECONDS
 ```
 
 ## Connection Properties
-`$connection->userId, ->username, ->isAdmin, ->sessionToken, ->lastPing`. No additional business fields.
+`$connection->userId, ->username, ->isAdmin, ->sessionToken, ->lastPing, ->packetCount, ->packetWindowStart` (последние два — ADR-003, rate limiting). No additional business fields.
 
 ## Worker Storage
 `$worker->rooms`, `$worker->userConnections` (key=`userId`, value=`$connection`).
