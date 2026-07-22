@@ -1,0 +1,11 @@
+# Vendor & Dependencies
+/vendor/
+# Database & Storage
+*.db *.sqlite /storage/*.db
+# Logs & Workerman Status
+*.log workerman.log workerman.pid
+# Environment & Configs
+.env .env.local
+# IDE & OS Files
+.idea/ .vscode/
+.DS_Store
