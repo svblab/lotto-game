@@ -44,6 +44,35 @@ function sendError(object $connection, string $code, string $message = ''): void
 }
 
 /**
+ * Закрывает WS-соединение с явным WebSocket close-статус-кодом
+ * (RFC 6455 §5.5.1). Используемая версия Workerman не предоставляет
+ * built-in API для отправки close-фрейма с произвольным статус-кодом —
+ * TcpConnection::close($data, true) отправляет $data как raw-байты перед
+ * закрытием сокета, поэтому фрейм собирается вручную здесь (см. ADR-005).
+ *
+ * @param object $connection Экземпляр соединения Workerman
+ * @param int $code WebSocket close-статус-код. Диапазон 4000-4999 —
+ *                   private use (RFC 6455 §7.4.2), в этом проекте
+ *                   зарезервирован под application-specific коды
+ *                   (реестр — ANCHOR_PROTOCOL.md § WebSocket Close Codes).
+ * @param string $reason Необязательная короткая UTF-8 причина
+ * @return void
+ */
+function closeWithCode(object $connection, int $code, string $reason = ''): void
+{
+    // Payload = 2-byte big-endian статус-код + опциональная причина.
+    // Однобайтовое поле длины во фрейме валидно только для 0-125 байт
+    // (RFC 6455 §5.2) — причина обрезается защитно, на практике не
+    // ожидается длиннее пары слов.
+    $payload = pack('n', $code) . $reason;
+    if (strlen($payload) > 125) {
+        $payload = substr($payload, 0, 125);
+    }
+    $frame = "\x88" . chr(strlen($payload)) . $payload;
+    $connection->close($frame, true);
+}
+
+/**
  * Вещание пакета на всю комнату только для активных игроков.
  * Игроки со статусом 'disconnected' игнорируются.
  *

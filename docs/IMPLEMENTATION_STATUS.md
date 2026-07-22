@@ -639,6 +639,68 @@ Notes:
 
 ## PATCHES
 
+## EPIC-10.2 — Protocol error handling (partial: connection-level capacity gate)
+Status: Partially completed (by user decision — scope explicitly narrowed)
+Date: 2026-07-22
+
+Files:
+- src/Core/Helpers.php (diff — new closeWithCode() helper)
+- server.php (diff — global connection-level MAX_TOTAL_PLAYERS gate in
+  onWebSocketConnected, before hello)
+- docs/ANCHOR_PROTOCOL.md (diff — new § WebSocket Close Codes, code 4001)
+- docs/ADR/005.md (новый файл)
+- tests/Manual/test_server_bootstrap.php (diff — TEST 7: 150 реальных
+  TCP+WS соединений + 151-е отклонённое, проверка close code 4001)
+
+Scope decision: user chose to implement ONLY the connection-level
+`error.server_full` + WS close 4001 gate (prompt.md Фаза 1, previously
+undocumented in any ANCHOR file) in this round. The generic
+`auth_required` router guard (also prompt.md Фаза 1, for actions outside
+{register, login, reconnect, ping}) was explicitly deferred — not
+implemented, tracked as open for a future round.
+
+Problem: `docs/prompt.md` line 41 specified "при превышении 150 —
+закрыть соединение с кодом 4001 и error.server_full", never formalized
+in ANCHOR_PROTOCOL.md and never implemented. Distinct from the
+room-join-time capacity check in LobbyService (FIX-7/ADR-004) — this one
+runs at the connection layer, before authentication, against ALL live
+sockets (`count($worker->connections)`), not just players seated in
+rooms.
+
+Technical finding: the installed Workerman version has no built-in API
+to close a WebSocket connection with an explicit close-frame status
+code — `closeWithCode()` builds the RFC 6455 §5.5.1 close frame by hand
+(opcode 0x8, 2-byte big-endian status code + reason) and sends it via
+`$connection->close($frame, true)`.
+
+Fix:
+- `closeWithCode()` helper added to Core/Helpers.php (general-purpose,
+  reusable for any future application-specific close code).
+- Gate added at the top of `onWebSocketConnected`: if
+  `count($worker->connections) > Constants::MAX_TOTAL_PLAYERS`, sends
+  `error.server_full` (JSON, normal protocol-encoded) then closes with
+  WS code 4001 — before any connection-field init, before `hello`.
+- Comparison uses `>` (not `>=`, unlike LobbyService's checks) because
+  Workerman registers the connection into `$worker->connections` at
+  TCP-accept time, before this callback runs — so the count already
+  includes the connection being evaluated. Effective capacity is
+  identical either way: exactly MAX_TOTAL_PLAYERS concurrent connections
+  allowed, the (N+1)-th rejected. Documented explicitly in ADR-005 to
+  avoid the kind of silent inconsistency FIX-7 had to fix.
+- New WS close-code registry section added to ANCHOR_PROTOCOL.md so
+  future application-specific codes have a documented home.
+
+Result:
+- tests/Manual/test_server_bootstrap.php: 14/14 PASSED (was 8; +6 new
+  checks in TEST 7 — opened exactly 150 real TCP+WS connections against
+  a live server.php subprocess, verified the 151st receives
+  error.server_full as a text frame followed by a close frame carrying
+  status code 4001, decoded from the raw close-frame payload).
+- Full regression across all tests/Manual/*.php files (25 files) — 0
+  failed.
+
+Diff: patches/EPIC-10.2-partial.patch
+
 ### FIX-7 — `error.server_full` reused for room-full condition + wrong check order
 Status: Completed
 Date: 2026-07-22
@@ -904,6 +966,13 @@ Result:
 - 2026-07-03 — Аудит на баги, аналогичные FIX-3 (по запросу перед Phase 10): найден и исправлен FIX-6 (утечка reconnect_timer при kick/ban удалении в Lobby/Apartment — Timer Integrity Rule). Проверены: экономические мутации (bank/total_paid/coins — чисто), reconnect/disconnect история (чисто), timer cleanup при destroyRoom (чисто, делегирование корректно), state machine записи статусов (чисто), Module Boundaries Admin→Game (чисто, только публичные методы), host-transfer комментарий в handleKickUser (соответствует уже задокументированному KNOWN GAP EPIC-9.3, новых расхождений нет). Полный регресс по 23 файлам tests/Manual/*.php (добавлен test_timer_integrity.php) — 0 failed.
 - 2026-07-03 — Второй раунд аудита (протокол/edge cases): обнаружены и удалены docs/ANCHOR_PROJECT_STATUS.md (устарел с начала проекта, вводил в заблуждение будущие сессии). Обнаружены docs/prompt.md (исходное ТЗ v4.0) и docs/GAME_RULES.md — оба тоже не обновлялись с начала проекта; из prompt.md извлечены два незадокументированных требования (rate limiting, invalid-JSON policy) — см. KNOWN GAPS, решение отложено до EPIC-10.1 по решению пользователя. Также обнаружены два протокольных долга низкого приоритета: afk_warning (не задекларирован) и admin_stats_data (задекларирован, не реализован, без Epic). Кодовых багов в этом раунде не найдено — все находки документационные/процессные.
 - 2026-07-03 — EPIC-10.0 Protocol router завершён: server.php (Workerman bootstrap, onWorkerStart/onWebSocketConnected/onMessage/onClose) без auth/lobby/game/admin-логики (Rule 11 Epic Isolation — ReconnectService требует LobbyService+GameService одновременно, подключение onClose к реальной бизнес-логике отложено до EPIC-10.4/10.5). Верифицирован полностью автоматически через реальный WebSocket-клиент (без внешних библиотек) поверх настоящего TCP-сокета — 8/8 PASSED. Rate limiting и invalid-JSON policy подтверждены как открытые вопросы EPIC-10.1 (не реализованы намеренно).
+- 2026-07-22 — EPIC-10.2 (частично, по решению пользователя): реализован
+  только connection-level MAX_TOTAL_PLAYERS gate — error.server_full + WS
+  close code 4001 в onWebSocketConnected (ADR-005, closeWithCode() helper,
+  ручная сборка close-фрейма — готового API в используемой версии Workerman
+  нет). Generic auth_required guard в router'е сознательно отложен.
+  14/14 test_server_bootstrap.php (было 8, +6 — TEST 7 через 150 реальных
+  TCP+WS соединений), полный регресс 0 failed.
 - 2026-07-22 — FIX-7 Accepted: устранено смешение error.server_full (глобальный
   лимит) и заполненности отдельной комнаты — введён отдельный код
   error.room_full (ADR-004), порядок проверок в handleJoinRoom() изменён на
@@ -985,7 +1054,7 @@ Integration tests:
 16 / 16 PASSED (admin logs)
 20 / 20 PASSED (admin integration)
 5 / 5 PASSED (timer integrity)
-8 / 8 PASSED (server bootstrap — real WS client, EPIC-10.0)
+14 / 14 PASSED (server bootstrap — real WS client, EPIC-10.0/10.2) [+6 vs заявленных 8 — TEST 7, connection-level MAX_TOTAL_PLAYERS gate]
 11 / 11 PASSED (packet validation — real WS client, EPIC-10.1)
 `
 
@@ -998,13 +1067,16 @@ main
 Current stable commit (pending commit — see Git Checkpoint below):
 
 `text
-FIX-7 room-full-error-code (ADR-004, error.room_full split from
-error.server_full + join-order fix, full regression 0 failed)
+EPIC-10.2-partial connection-level-server-full (ADR-005, error.server_full
++ WS close 4001 gate; auth_required guard deferred; full regression 0 failed)
 `
 
 Next planned Epic:
 
 `text
-EPIC-10.2 Protocol error handling
+EPIC-10.2 continuation: generic auth_required guard in router (deferred),
+затем EPIC-10.3 Auth packet routing
 `
-PHASE 10 — WEBSOCKET PROTOCOL: IN PROGRESS (10.0, 10.1 done). Известных дефектов нет.
+PHASE 10 — WEBSOCKET PROTOCOL: IN PROGRESS (10.0, 10.1 done; 10.2 partial —
+connection-level server_full/4001 done, auth_required guard open). Известных
+дефектов нет.

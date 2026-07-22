@@ -31,6 +31,13 @@
  * собственному конструктору зависит одновременно от LobbyService И
  * GameService — то есть подключение onClose к реальной бизнес-логике
  * возможно только после EPIC-10.4/10.5, не раньше.
+ *
+ * EPIC-10.2 (Protocol error handling): реализован ТОЛЬКО глобальный
+ * лимит соединений (ADR-005 — docs/ADR/005.md): при превышении
+ * Constants::MAX_TOTAL_PLAYERS соединение получает error.server_full и
+ * закрывается с WS close code 4001, до hello. Generic auth_required guard
+ * (prompt.md Фаза 1, для действий вне {register, login, reconnect, ping})
+ * СОЗНАТЕЛЬНО отложен — решение пользователя, будет реализован отдельно.
  */
 
 declare(strict_types=1);
@@ -46,6 +53,7 @@ use Lotto\Infrastructure\Database;
 
 use function Lotto\Core\sendJson;
 use function Lotto\Core\sendError;
+use function Lotto\Core\closeWithCode;
 
 // -----------------------------------------------------------------------
 // Worker bootstrap (ANCHOR_CORE.md Part 1 — single Workerman worker,
@@ -100,9 +108,29 @@ $worker->onWorkerStart = function (Worker $worker): void {
 // корректный момент отправки hello: до этого коллбэка handshake ещё не
 // завершён и произвольная запись в $connection->send() не будет
 // корректно оформлена как WS-фрейм).
+//
+// EPIC-10.2 (ADR-005): глобальный лимит соединений — первая проверка,
+// раньше инициализации полей и hello. $worker->connections уже включает
+// ТЕКУЩЕЕ соединение (Workerman регистрирует его в acceptTcpConnection()
+// на этапе TCP accept, до завершения WS handshake и вызова этого
+// коллбэка) — поэтому сравнение строгое `>`, а не `>=`: ровно
+// MAX_TOTAL_PLAYERS одновременных соединений допустимо, (N+1)-е получает
+// error.server_full + WS close code 4001 и не доходит до hello.
+//
+// Это ОТДЕЛЬНАЯ метрика от проверок в LobbyService (FIX-7 / ADR-004):
+// там считаются игроки, реально сидящие в комнатах
+// (RoomManager::getTotalPlayerCount()) — уже аутентифицированное
+// подмножество. Здесь — все живые сокеты сервера, включая ещё не
+// аутентифицированные, до registration/login.
 // -----------------------------------------------------------------------
 
-$worker->onWebSocketConnected = function ($connection): void {
+$worker->onWebSocketConnected = function ($connection) use ($worker): void {
+    if (count($worker->connections) > Constants::MAX_TOTAL_PLAYERS) {
+        sendError($connection, 'error.server_full', 'Server is full');
+        closeWithCode($connection, 4001, 'server_full');
+        return;
+    }
+
     // Инициализация свойств соединения (ANCHOR_CORE.md § Connection
     // Runtime Fields). Никаких дополнительных бизнес-полей — Rule запрещает.
     $connection->userId       = null;

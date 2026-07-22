@@ -33,15 +33,26 @@ declare(strict_types=1);
  *   - onMessage: неизвестный/ещё не подключённый action → error
  *   - onMessage: отсутствующее поле action → error
  *   - Соединение переживает штатный обмен (watchdog не рвёт активную сессию)
+ *   - EPIC-10.2 (ADR-005): (MAX_TOTAL_PLAYERS+1)-е соединение →
+ *     error.server_full + WS close code 4001, без hello
  *
- * НЕ покрывает (намеренно, вне scope EPIC-10.0): rate limiting,
- * маршрутизацию auth/lobby/game/admin-пакетов — эти проверки появятся
- * вместе с соответствующими EPIC-10.1/10.3-10.6.
+ * НЕ покрывает (намеренно, вне scope EPIC-10.0/10.2): rate limiting уже
+ * покрыт отдельно (test_packet_validation.php), маршрутизацию
+ * auth/lobby/game/admin-пакетов и generic auth_required guard — эти
+ * проверки появятся вместе с соответствующими EPIC-10.3-10.6.
  *
  * Запуск: php tests/Manual/test_server_bootstrap.php
  */
 
-const HARD_TIMEOUT_SECONDS = 20;
+// Импорт ТОЛЬКО значения константы (не бизнес-логики) — единый источник
+// истины для MAX_TOTAL_PLAYERS вместо дублирования числа 150 в тесте.
+// Не нарушает философию файла ("тест только через реальный сокет") —
+// никакой код приложения не вызывается, читается только public const.
+require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
+
+use Lotto\Core\Constants;
+
+const HARD_TIMEOUT_SECONDS = 40; // увеличено под TEST 7 (EPIC-10.2): до 150 реальных TCP+WS хендшейков
 
 // =============================================================================
 // Жёсткий watchdog: гарантирует, что скрипт никогда не зависнет насовсем,
@@ -129,11 +140,25 @@ final class MiniWSClient
     /** @return string|null Возвращает payload или null при таймауте/закрытии */
     public function recvOrNull(float $timeout = 2.0): ?string
     {
+        $frame = $this->recvFrameOrNull($timeout);
+        return $frame['payload'] ?? null;
+    }
+
+    /**
+     * Как recvOrNull(), но также возвращает WS-опкод фрейма — нужно,
+     * чтобы отличить close-фрейм (0x8, EPIC-10.2/ADR-005) от текстового
+     * (0x1). recvOrNull() остаётся для обратной совместимости с TEST 1-6.
+     *
+     * @return array{opcode: int, payload: string}|null
+     */
+    public function recvFrameOrNull(float $timeout = 2.0): ?array
+    {
         stream_set_timeout($this->sock, (int)$timeout, (int)(($timeout - (int)$timeout) * 1000000));
         $hdr = fread($this->sock, 2);
         if ($hdr === false || strlen($hdr) < 2) {
             return null;
         }
+        $opcode = ord($hdr[0]) & 0x0F;
         $b1 = ord($hdr[1]);
         $len = $b1 & 0x7F;
         if ($len === 126) {
@@ -157,12 +182,14 @@ final class MiniWSClient
             }
             $payload .= $chunk;
         }
-        return $payload;
+        return ['opcode' => $opcode, 'payload' => $payload];
     }
 
     public function close(): void
     {
-        fclose($this->sock);
+        if (is_resource($this->sock)) {
+            fclose($this->sock);
+        }
     }
 }
 
@@ -341,6 +368,43 @@ try {
     $c->send(json_encode(['action' => 'ping']));
     $msg6 = $c->recvOrNull(1.0);
     check($msg6 === null, 'соединение всё ещё живо после предыдущего обмена');
+
+    echo "\nTEST 7: глобальный лимит MAX_TOTAL_PLAYERS -> error.server_full + WS close code 4001 (EPIC-10.2/ADR-005)\n";
+    // $c — уже 1 живое соединение; добираем до Constants::MAX_TOTAL_PLAYERS
+    // реальными TCP+WS хендшейками.
+    $warmClients = [$c];
+    for ($i = 2; $i <= Constants::MAX_TOTAL_PLAYERS; $i++) {
+        $extra = new MiniWSClient('127.0.0.1', 8080);
+        $extra->recvOrNull(); // проглатываем hello
+        $warmClients[] = $extra;
+    }
+    check(
+        count($warmClients) === Constants::MAX_TOTAL_PLAYERS,
+        'ровно Constants::MAX_TOTAL_PLAYERS соединений установлено (' . Constants::MAX_TOTAL_PLAYERS . ')'
+    );
+
+    // (MAX_TOTAL_PLAYERS + 1)-е соединение — WS handshake на уровне
+    // протокола пройдёт (это делает сам Workerman до onWebSocketConnected),
+    // но приложение обязано отклонить его прежде hello.
+    $rejected = new MiniWSClient('127.0.0.1', 8080);
+
+    $frame1 = $rejected->recvFrameOrNull();
+    $data7  = json_decode($frame1['payload'] ?? '', true);
+    check(($frame1['opcode'] ?? null) === 0x1, 'первый фрейм текстовый (opcode 0x1) — JSON error, не close');
+    check(($data7['type'] ?? null) === 'error', 'type=error');
+    check(($data7['code'] ?? null) === 'error.server_full', 'code=error.server_full (ADR-004: глобальный код, не room_full)');
+
+    $frame2 = $rejected->recvFrameOrNull();
+    check(($frame2['opcode'] ?? null) === 0x8, 'второй фрейм — close (opcode 0x8)');
+    $closeCode = ($frame2 !== null && strlen($frame2['payload']) >= 2)
+        ? unpack('n', substr($frame2['payload'], 0, 2))[1]
+        : null;
+    check($closeCode === 4001, 'WS close status code = 4001 (получено: ' . var_export($closeCode, true) . ')');
+
+    foreach ($warmClients as $wc) {
+        $wc->close();
+    }
+    $rejected->close();
 
     $c->close();
 } catch (\Throwable $e) {

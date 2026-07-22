@@ -34,6 +34,26 @@ so `error.server_full` always takes precedence if both are true.
 
 ---
 
+## WebSocket Close Codes
+
+Beyond the standard RFC 6455 close codes, this project defines
+application-specific codes in the 4000-4999 private-use range
+(RFC 6455 §7.4.2):
+
+| Code | Meaning | Companion packet |
+|------|---------|-------------------|
+| 4001 | Global connection limit (`MAX_TOTAL_PLAYERS`) reached at connection time (ADR-005) | `error.server_full` (sent first, then the connection closes with this code) |
+
+A close code is delivered at the WebSocket protocol layer (visible via
+the client's `onclose` event, e.g. browser `WebSocket.onclose.code`) and
+is not a substitute for the JSON `error` packet — both are sent, in that
+order, so clients that only inspect one or the other still get the
+information. Do not reuse 4001 for any other condition; new
+application-specific close codes require an ADR and a new entry in this
+table.
+
+---
+
 ## Connection Phase
 
 ### hello
