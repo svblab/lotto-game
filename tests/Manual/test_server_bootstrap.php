@@ -35,11 +35,14 @@ declare(strict_types=1);
  *   - Соединение переживает штатный обмен (watchdog не рвёт активную сессию)
  *   - EPIC-10.2 (ADR-005): (MAX_TOTAL_PLAYERS+1)-е соединение →
  *     error.server_full + WS close code 4001, без hello
+ *   - EPIC-10.2 continuation (ADR-006): неаутентифицированный
+ *     неизвестный action → error.auth_required (не error.invalid_json);
+ *     register/login/reconnect не блокируются guard'ом
  *
  * НЕ покрывает (намеренно, вне scope EPIC-10.0/10.2): rate limiting уже
  * покрыт отдельно (test_packet_validation.php), маршрутизацию
- * auth/lobby/game/admin-пакетов и generic auth_required guard — эти
- * проверки появятся вместе с соответствующими EPIC-10.3-10.6.
+ * auth/lobby/game/admin-пакетов к реальным хендлерам — эти проверки
+ * появятся вместе с соответствующими EPIC-10.3-10.6.
  *
  * Запуск: php tests/Manual/test_server_bootstrap.php
  */
@@ -352,11 +355,12 @@ try {
     check(($data3['type'] ?? null) === 'error', 'type=error');
     check(($data3['code'] ?? null) === 'error.invalid_json', 'code=error.invalid_json');
 
-    echo "\nTEST 4: неизвестный/ещё не подключённый action -> error\n";
+    echo "\nTEST 4: неаутентифицированный неизвестный action -> error.auth_required (guard срабатывает раньше диспетчера, EPIC-10.2 continuation/ADR-006)\n";
     $c->send(json_encode(['action' => 'nonexistent_action_xyz']));
     $msg4 = $c->recvOrNull();
     $data4 = json_decode($msg4 ?? '', true);
     check(($data4['type'] ?? null) === 'error', 'type=error для неизвестного action');
+    check(($data4['code'] ?? null) === 'error.auth_required', 'code=error.auth_required (guard блокирует раньше диспетчера, не error.invalid_json)');
 
     echo "\nTEST 5: отсутствующее поле action -> error\n";
     $c->send(json_encode(['foo' => 'bar']));
@@ -405,6 +409,23 @@ try {
         $wc->close();
     }
     $rejected->close();
+
+    echo "\nTEST 8: register/login/reconnect НЕ блокируются auth_required guard'ом (EPIC-10.2 continuation/ADR-006)\n";
+    $c2 = new MiniWSClient('127.0.0.1', 8080);
+    $c2->recvOrNull(); // hello
+    foreach (['register', 'login', 'reconnect'] as $exemptAction) {
+        $c2->send(json_encode(['action' => $exemptAction]));
+        $msg8 = $c2->recvOrNull();
+        $data8 = json_decode($msg8 ?? '', true);
+        // Хендлеры ещё не подключены (EPIC-10.3) — ожидаем, что guard
+        // ПРОПУСТИЛ действие и запрос дошёл до пустого диспетчера
+        // (error.invalid_json "not-yet-wired"), а НЕ error.auth_required.
+        check(
+            ($data8['code'] ?? null) !== 'error.auth_required',
+            "action={$exemptAction}: не заблокирован guard'ом (code=" . ($data8['code'] ?? 'null') . ')'
+        );
+    }
+    $c2->close();
 
     $c->close();
 } catch (\Throwable $e) {

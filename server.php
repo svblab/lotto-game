@@ -208,6 +208,19 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
         return;
     }
 
+    // EPIC-10.2 continuation (ADR-006): generic auth_required guard.
+    // prompt.md Фаза 1: "проверка userId для всех кейсов кроме register,
+    // login, reconnect" — ping уже обработан выше (return до этой точки),
+    // поэтому в списке исключений не дублируется. Проверяется здесь ОДИН
+    // РАЗ для всех действий, а не в каждом будущем хендлере отдельно —
+    // не бизнес-логика конкретного модуля, а протокольное правило
+    // маршрутизации (Rule 15 разрешает такие проверки в server.php).
+    $authExemptActions = ['register', 'login', 'reconnect'];
+    if ($connection->userId === null && !in_array($action, $authExemptActions, true)) {
+        sendError($connection, 'error.auth_required', 'Authentication required');
+        return;
+    }
+
     // Диспетчер намеренно пуст — маршруты подключаются по мере готовности
     // соответствующих модулей:
     //   register/login/reconnect        → EPIC-10.3 (AuthHandler уже существует)

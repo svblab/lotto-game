@@ -639,6 +639,47 @@ Notes:
 
 ## PATCHES
 
+## EPIC-10.2 continuation — Generic auth_required guard
+Status: Completed
+Date: 2026-07-22
+
+Files:
+- server.php (diff — auth_required guard in onMessage, before dispatch)
+- docs/ANCHOR_PROTOCOL.md (diff — error.auth_required semantics documented)
+- docs/ADR/006.md (новый файл)
+- tests/Manual/test_server_bootstrap.php (diff — TEST 4 tightened to
+  assert the specific code; new TEST 8 for the exempt-actions set)
+
+Closes the second, previously-deferred half of EPIC-10.2 (first half —
+connection-level MAX_TOTAL_PLAYERS gate — completed separately, ADR-005).
+EPIC-10.2 is now fully complete.
+
+Implements prompt.md Фаза 1: "проверка userId для всех кейсов кроме
+register, login, reconnect" — checked once, generically, by the router
+in onMessage, before the (still empty) action dispatcher. Exempt set is
+exactly {register, login, reconnect}; `ping` isn't listed because it
+already short-circuits earlier in onMessage and never reaches this
+check.
+
+Side effect verified explicitly (not a defect, documented in ADR-006):
+the dispatcher's `default => error.invalid_json` fallback is now
+unreachable for an unauthenticated connection sending any non-exempt
+action — the guard intercepts first with error.auth_required. Remains
+reachable only for the exempt actions themselves (not yet wired to real
+handlers until EPIC-10.3).
+
+Result:
+- tests/Manual/test_server_bootstrap.php: 18/18 PASSED (was 14; +4 — TEST
+  4 tightened to assert code=error.auth_required specifically instead of
+  just type=error; new TEST 8 confirms register/login/reconnect are NOT
+  blocked by the guard, falling through to the empty dispatcher's
+  not-yet-wired response instead).
+- Full regression across all tests/Manual/*.php files (25 files) — 0
+  failed ([FAIL] marker searched explicitly, not just "failed" text
+  appearing in unrelated log messages).
+
+Diff: patches/EPIC-10.2-auth-guard.patch
+
 ## EPIC-10.2 — Protocol error handling (partial: connection-level capacity gate)
 Status: Partially completed (by user decision — scope explicitly narrowed)
 Date: 2026-07-22
@@ -966,6 +1007,12 @@ Result:
 - 2026-07-03 — Аудит на баги, аналогичные FIX-3 (по запросу перед Phase 10): найден и исправлен FIX-6 (утечка reconnect_timer при kick/ban удалении в Lobby/Apartment — Timer Integrity Rule). Проверены: экономические мутации (bank/total_paid/coins — чисто), reconnect/disconnect история (чисто), timer cleanup при destroyRoom (чисто, делегирование корректно), state machine записи статусов (чисто), Module Boundaries Admin→Game (чисто, только публичные методы), host-transfer комментарий в handleKickUser (соответствует уже задокументированному KNOWN GAP EPIC-9.3, новых расхождений нет). Полный регресс по 23 файлам tests/Manual/*.php (добавлен test_timer_integrity.php) — 0 failed.
 - 2026-07-03 — Второй раунд аудита (протокол/edge cases): обнаружены и удалены docs/ANCHOR_PROJECT_STATUS.md (устарел с начала проекта, вводил в заблуждение будущие сессии). Обнаружены docs/prompt.md (исходное ТЗ v4.0) и docs/GAME_RULES.md — оба тоже не обновлялись с начала проекта; из prompt.md извлечены два незадокументированных требования (rate limiting, invalid-JSON policy) — см. KNOWN GAPS, решение отложено до EPIC-10.1 по решению пользователя. Также обнаружены два протокольных долга низкого приоритета: afk_warning (не задекларирован) и admin_stats_data (задекларирован, не реализован, без Epic). Кодовых багов в этом раунде не найдено — все находки документационные/процессные.
 - 2026-07-03 — EPIC-10.0 Protocol router завершён: server.php (Workerman bootstrap, onWorkerStart/onWebSocketConnected/onMessage/onClose) без auth/lobby/game/admin-логики (Rule 11 Epic Isolation — ReconnectService требует LobbyService+GameService одновременно, подключение onClose к реальной бизнес-логике отложено до EPIC-10.4/10.5). Верифицирован полностью автоматически через реальный WebSocket-клиент (без внешних библиотек) поверх настоящего TCP-сокета — 8/8 PASSED. Rate limiting и invalid-JSON policy подтверждены как открытые вопросы EPIC-10.1 (не реализованы намеренно).
+- 2026-07-22 — EPIC-10.2 continuation: generic auth_required guard в
+  onMessage (ADR-006) — prompt.md "проверка userId для всех кейсов кроме
+  register, login, reconnect", реализовано один раз в router'е, не
+  дублируется по хендлерам. EPIC-10.2 теперь полностью завершён.
+  18/18 test_server_bootstrap.php (было 14, +4 — TEST 4 ужесточён,
+  новый TEST 8 на exempt-список), полный регресс 0 failed.
 - 2026-07-22 — EPIC-10.2 (частично, по решению пользователя): реализован
   только connection-level MAX_TOTAL_PLAYERS gate — error.server_full + WS
   close code 4001 в onWebSocketConnected (ADR-005, closeWithCode() helper,
@@ -1054,7 +1101,7 @@ Integration tests:
 16 / 16 PASSED (admin logs)
 20 / 20 PASSED (admin integration)
 5 / 5 PASSED (timer integrity)
-14 / 14 PASSED (server bootstrap — real WS client, EPIC-10.0/10.2) [+6 vs заявленных 8 — TEST 7, connection-level MAX_TOTAL_PLAYERS gate]
+18 / 18 PASSED (server bootstrap — real WS client, EPIC-10.0/10.2) [+10 vs заявленных 8 — TEST 7 (connection gate), TEST 8 (auth_required exemptions), TEST 4 ужесточён]
 11 / 11 PASSED (packet validation — real WS client, EPIC-10.1)
 `
 
@@ -1067,16 +1114,14 @@ main
 Current stable commit (pending commit — see Git Checkpoint below):
 
 `text
-EPIC-10.2-partial connection-level-server-full (ADR-005, error.server_full
-+ WS close 4001 gate; auth_required guard deferred; full regression 0 failed)
+EPIC-10.2-auth-guard (ADR-006, generic auth_required guard in router;
+EPIC-10.2 now fully complete; full regression 0 failed)
 `
 
 Next planned Epic:
 
 `text
-EPIC-10.2 continuation: generic auth_required guard in router (deferred),
-затем EPIC-10.3 Auth packet routing
+EPIC-10.3 Auth packet routing
 `
-PHASE 10 — WEBSOCKET PROTOCOL: IN PROGRESS (10.0, 10.1 done; 10.2 partial —
-connection-level server_full/4001 done, auth_required guard open). Известных
+PHASE 10 — WEBSOCKET PROTOCOL: IN PROGRESS (10.0, 10.1, 10.2 done). Известных
 дефектов нет.

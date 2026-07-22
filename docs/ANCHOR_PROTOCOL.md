@@ -32,6 +32,13 @@ different room" apart from "nothing to do right now". When joining a
 room, the server checks server-wide capacity before per-room capacity,
 so `error.server_full` always takes precedence if both are true.
 
+`error.auth_required` (ADR-006): sent once, generically, by the router —
+before action dispatch, not duplicated per-handler — for any `action`
+other than `register`, `login`, `reconnect`, or `ping` when the
+connection is not yet authenticated (`$connection->userId === null`).
+Those four actions are the only ones a client can send before
+authenticating; every other action requires an established session.
+
 ---
 
 ## WebSocket Close Codes
