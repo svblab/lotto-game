@@ -184,11 +184,12 @@ final class LobbyService
      *   → входящему игроку: room_joined (полный список игроков)
      *   → остальным игрокам в комнате: player_joined
      *
-     * Предусловия:
+     * Предусловия (порядок проверок важен — FIX-7 / ADR-004):
      *   1. Пользователь аутентифицирован
      *   2. Комната существует и в статусе 'waiting'
-     *   3. Комната не заполнена (players < max_players)
-     *   4. Общий лимит игроков не достигнут
+     *   3. Общий лимит игроков не достигнут (error.server_full)
+     *   4. Комната не заполнена (players < max_players) (error.room_full —
+     *      отдельный код, НЕ error.server_full)
      *   5. Пароль верный (если установлен)
      *   6. cards_count ∈ {1, 2}
      */
@@ -215,16 +216,16 @@ final class LobbyService
             return;
         }
 
-        // --- 4. Комната не заполнена ---
-        if (count($room['players']) >= $room['max_players']) {
-            sendError($connection, 'error.server_full', 'Room is full');
-            return;
-        }
-
-        // --- 5. Общий лимит игроков ---
+        // --- 4. Общий лимит игроков (сервер) — проверяется ПЕРВЫМ (FIX-7 / ADR-004) ---
         $totalPlayers = $this->roomManager->getTotalPlayerCount($worker);
         if ($totalPlayers >= Constants::MAX_TOTAL_PLAYERS) {
             sendError($connection, 'error.server_full', 'Server is full');
+            return;
+        }
+
+        // --- 5. Комната не заполнена (отдельный код от error.server_full, FIX-7 / ADR-004) ---
+        if (count($room['players']) >= $room['max_players']) {
+            sendError($connection, 'error.room_full', 'Room is full');
             return;
         }
 

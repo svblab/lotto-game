@@ -15,13 +15,22 @@ Server → Client
 ```json
 {"type": "error", "code": "error_code", "message": "optional text"}
 ```
-Codes: `error.invalid_json, error.auth_required, error.room_not_found, error.not_your_turn, error.server_full, error.room_limit, error.banned, error.cannot_moderate_admin, error.auth_invalid_username, error.auth_username_taken, error.auth_invalid_credentials, error.auth_invalid_token`
+Codes: `error.invalid_json, error.auth_required, error.room_not_found, error.not_your_turn, error.server_full, error.room_full, error.room_limit, error.banned, error.cannot_moderate_admin, error.auth_invalid_username, error.auth_username_taken, error.auth_invalid_credentials, error.auth_invalid_token`
 
 `error.invalid_json` (ADR-003): sent for malformed JSON or missing/invalid
 `action` field. The connection is NOT closed — the client remains
 connected and may send further packets. Abuse via repeated malformed
 packets is bounded separately by rate limiting (ANCHOR_CORE.md Part 1 §
 Connection Runtime Fields), not by closing on the first offense.
+
+`error.server_full` vs `error.room_full` (ADR-004): `error.server_full`
+is reserved exclusively for the global `MAX_TOTAL_PLAYERS` limit (whole
+server at capacity). `error.room_full` is used when a specific, otherwise
+valid room has reached its own `max_players`. The two conditions are
+distinct and must never share a code — a client needs to tell "try a
+different room" apart from "nothing to do right now". When joining a
+room, the server checks server-wide capacity before per-room capacity,
+so `error.server_full` always takes precedence if both are true.
 
 ---
 

@@ -279,8 +279,28 @@ $joiner2    = new MockConnection(11, 'j2');
 $ls2->handleJoinRoom(['room_id' => $fullRoomId, 'password' => '', 'cards_count' => 1], $joiner2, $w2);
 $joiner3    = new MockConnection(12, 'j3');
 $ls2->handleJoinRoom(['room_id' => $fullRoomId, 'password' => '', 'cards_count' => 1], $joiner3, $w2);
-ok('joinRoom: error.server_full when room is full',
-    ($joiner3->lastPacket()['code'] ?? '') === 'error.server_full');
+ok('joinRoom: error.room_full when room is full (FIX-7/ADR-004)',
+    ($joiner3->lastPacket()['code'] ?? '') === 'error.room_full');
+
+// FIX-7/ADR-004 regression: when BOTH the room and the server are full,
+// error.server_full must win (server-wide check runs first).
+[$ls2b] = makeServices();
+$w2b       = new MockWorker();
+$hostFull2 = new MockConnection(13, 'hfull2');
+$ls2b->handleCreateRoom(['max_players' => 2, 'password' => '', 'cards_count' => 1], $hostFull2, $w2b);
+$fullRoomId2 = $hostFull2->lastPacket()['room_id'];
+// Делаем целевую комнату уже заполненной (max_players=2, +1 синтетический игрок).
+$w2b->rooms[$fullRoomId2]['players'][999] = ['user_id' => 999, 'total_paid' => 0];
+// Отдельно поднимаем ОБЩЕЕ число игроков на сервере выше MAX_TOTAL_PLAYERS через
+// вторую синтетическую комнату — используем реальный RoomManager::getTotalPlayerCount().
+$w2b->rooms[9001] = ['room_id' => 9001, 'players' => []];
+for ($extraConnId = 100; $extraConnId < 100 + Constants::MAX_TOTAL_PLAYERS; $extraConnId++) {
+    $w2b->rooms[9001]['players'][$extraConnId] = ['user_id' => $extraConnId, 'total_paid' => 0];
+}
+$joinerBoth = new MockConnection(14, 'jboth');
+$ls2b->handleJoinRoom(['room_id' => $fullRoomId2, 'password' => '', 'cards_count' => 1], $joinerBoth, $w2b);
+ok('joinRoom: error.server_full wins over room_full when both apply (FIX-7/ADR-004)',
+    ($joinerBoth->lastPacket()['code'] ?? '') === 'error.server_full');
 
 [$ls3] = makeServices();
 $w3      = new MockWorker();

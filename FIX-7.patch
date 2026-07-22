@@ -1,0 +1,206 @@
+diff --git a/docs/ANCHOR_PROTOCOL.md b/docs/ANCHOR_PROTOCOL.md
+index 2b74407..8d9cd09 100644
+--- a/docs/ANCHOR_PROTOCOL.md
++++ b/docs/ANCHOR_PROTOCOL.md
+@@ -15,7 +15,7 @@ Server → Client
+ ```json
+ {"type": "error", "code": "error_code", "message": "optional text"}
+ ```
+-Codes: `error.invalid_json, error.auth_required, error.room_not_found, error.not_your_turn, error.server_full, error.room_limit, error.banned, error.cannot_moderate_admin, error.auth_invalid_username, error.auth_username_taken, error.auth_invalid_credentials, error.auth_invalid_token`
++Codes: `error.invalid_json, error.auth_required, error.room_not_found, error.not_your_turn, error.server_full, error.room_full, error.room_limit, error.banned, error.cannot_moderate_admin, error.auth_invalid_username, error.auth_username_taken, error.auth_invalid_credentials, error.auth_invalid_token`
+ 
+ `error.invalid_json` (ADR-003): sent for malformed JSON or missing/invalid
+ `action` field. The connection is NOT closed — the client remains
+@@ -23,6 +23,15 @@ connected and may send further packets. Abuse via repeated malformed
+ packets is bounded separately by rate limiting (ANCHOR_CORE.md Part 1 §
+ Connection Runtime Fields), not by closing on the first offense.
+ 
++`error.server_full` vs `error.room_full` (ADR-004): `error.server_full`
++is reserved exclusively for the global `MAX_TOTAL_PLAYERS` limit (whole
++server at capacity). `error.room_full` is used when a specific, otherwise
++valid room has reached its own `max_players`. The two conditions are
++distinct and must never share a code — a client needs to tell "try a
++different room" apart from "nothing to do right now". When joining a
++room, the server checks server-wide capacity before per-room capacity,
++so `error.server_full` always takes precedence if both are true.
++
+ ---
+ 
+ ## Connection Phase
+diff --git a/docs/IMPLEMENTATION_STATUS.md b/docs/IMPLEMENTATION_STATUS.md
+index e493acd..0ebfe92 100644
+--- a/docs/IMPLEMENTATION_STATUS.md
++++ b/docs/IMPLEMENTATION_STATUS.md
+@@ -639,6 +639,54 @@ Notes:
+ 
+ ## PATCHES
+ 
++### FIX-7 — `error.server_full` reused for room-full condition + wrong check order
++Status: Completed
++Date: 2026-07-22
++
++Files:
++- src/Lobby/LobbyService.php (diff — reorder checks in handleJoinRoom(),
++  new error.room_full code)
++- docs/ANCHOR_PROTOCOL.md (diff — error.room_full added to registry,
++  note distinguishing it from error.server_full and documenting
++  join-order precedence)
++- docs/ADR/004.md (новый файл)
++- tests/Manual/test_lobby_integration.php (diff — обновлена ассерция под
++  новый код, добавлен regression-тест на порядок проверок)
++
++Found during: user-reported review (not an audit round) — user flagged
++that a full room and a full server must not share an error code, and
++that server capacity must be checked before room capacity.
++
++Problem:
++- LobbyService::handleJoinRoom() reused `error.server_full` for two
++  distinct conditions: the genuine global MAX_TOTAL_PLAYERS limit, and a
++  single room reaching its own max_players. ANCHOR_PROTOCOL.md had no
++  dedicated code for the room-full case.
++- Check order was room-capacity-first, server-capacity-second — so if
++  both conditions were true simultaneously, the client would receive the
++  less accurate/less actionable of the two.
++
++Fix:
++- New protocol error code `error.room_full`, reserved exclusively for a
++  single room being at its own max_players. `error.server_full` now
++  reserved exclusively for the global MAX_TOTAL_PLAYERS limit.
++- Check order in handleJoinRoom() swapped: global server-capacity check
++  now runs BEFORE the per-room capacity check, so error.server_full
++  always wins when both apply.
++- handleCreateRoom() required no change (only ever had the global check).
++- Formalized as ADR-004 (protocol addition, no rename/removal — permitted
++  under ANCHOR_PROTOCOL.md's Compatibility Rule without a version bump).
++
++Result:
++- tests/Manual/test_lobby_integration.php: 91/91 PASSED (was 90; +1 new
++  regression test verifying error.server_full wins when both room and
++  server are full simultaneously — verified by manually seeding both
++  conditions via direct room-state manipulation and RoomManager::
++  getTotalPlayerCount()).
++- Full regression across all tests/Manual/*.php files — 0 failed.
++
++Diff: patches/FIX-7.patch
++
+ ### FIX-6 — Reconnect timer leak on kick/ban removal (Timer Integrity)
+ Status: Completed
+ Date: 2026-07-03
+@@ -856,6 +904,11 @@ Result:
+ - 2026-07-03 — Аудит на баги, аналогичные FIX-3 (по запросу перед Phase 10): найден и исправлен FIX-6 (утечка reconnect_timer при kick/ban удалении в Lobby/Apartment — Timer Integrity Rule). Проверены: экономические мутации (bank/total_paid/coins — чисто), reconnect/disconnect история (чисто), timer cleanup при destroyRoom (чисто, делегирование корректно), state machine записи статусов (чисто), Module Boundaries Admin→Game (чисто, только публичные методы), host-transfer комментарий в handleKickUser (соответствует уже задокументированному KNOWN GAP EPIC-9.3, новых расхождений нет). Полный регресс по 23 файлам tests/Manual/*.php (добавлен test_timer_integrity.php) — 0 failed.
+ - 2026-07-03 — Второй раунд аудита (протокол/edge cases): обнаружены и удалены docs/ANCHOR_PROJECT_STATUS.md (устарел с начала проекта, вводил в заблуждение будущие сессии). Обнаружены docs/prompt.md (исходное ТЗ v4.0) и docs/GAME_RULES.md — оба тоже не обновлялись с начала проекта; из prompt.md извлечены два незадокументированных требования (rate limiting, invalid-JSON policy) — см. KNOWN GAPS, решение отложено до EPIC-10.1 по решению пользователя. Также обнаружены два протокольных долга низкого приоритета: afk_warning (не задекларирован) и admin_stats_data (задекларирован, не реализован, без Epic). Кодовых багов в этом раунде не найдено — все находки документационные/процессные.
+ - 2026-07-03 — EPIC-10.0 Protocol router завершён: server.php (Workerman bootstrap, onWorkerStart/onWebSocketConnected/onMessage/onClose) без auth/lobby/game/admin-логики (Rule 11 Epic Isolation — ReconnectService требует LobbyService+GameService одновременно, подключение onClose к реальной бизнес-логике отложено до EPIC-10.4/10.5). Верифицирован полностью автоматически через реальный WebSocket-клиент (без внешних библиотек) поверх настоящего TCP-сокета — 8/8 PASSED. Rate limiting и invalid-JSON policy подтверждены как открытые вопросы EPIC-10.1 (не реализованы намеренно).
++- 2026-07-22 — FIX-7 Accepted: устранено смешение error.server_full (глобальный
++  лимит) и заполненности отдельной комнаты — введён отдельный код
++  error.room_full (ADR-004), порядок проверок в handleJoinRoom() изменён на
++  server-capacity-first. 91/91 lobby тестов (было 90, +1 regression-тест на
++  порядок), полный регресс по всем tests/Manual/*.php — 0 failed.
+ - 2026-07-21 — EPIC-10.1 Packet validation завершён: ADR-003 формализует rate limiting (>15 пакетов/сек/соединение → закрытие без error-пакета, считает ВСЕ входящие сообщения) и invalid-JSON policy (error.invalid_json, без разрыва — решено в пользу ANCHOR_PROTOCOL.md, подкреплено прецедентом error.server_full). ANCHOR_CORE.md/ANCHOR_PROTOCOL.md обновлены (Connection Runtime Fields, Global Constants, семантика error.invalid_json). Оба KNOWN GAP из аудита протокола (2026-07-03) закрыты как RESOLVED. Попутно обнаружены и исправлены случайно закоммиченные рантайм-артефакты (game.db-shm/game.db-wal/workerman.*.pid) — добавлен .gitignore. Верифицировано 11/11 PASSED через реальный WebSocket-клиент, 5 граничных сценариев (ровно на лимите, превышение на 1, ping считается наравне, сброс окна, единичный невалидный пакет). Полный регресс — 25/25 tests/Manual/*.php.
+ ---
+ 
+@@ -917,7 +970,7 @@ Integration tests:
+ 
+ `text
+ 48 / 48 PASSED (auth)
+-90 / 90 PASSED (lobby)
++91 / 91 PASSED (lobby)                   [+1 vs заявленных 90 — FIX-7 regression-тест]
+ 164 / 164 PASSED (lotto engine)
+ 44 / 44 PASSED (game start)
+ 37 / 37 PASSED (turn system)
+@@ -942,11 +995,11 @@ Current branch:
+ main
+ `
+ 
+-Current stable commit:
++Current stable commit (pending commit — see Git Checkpoint below):
+ 
+ `text
+-EPIC-10.1 packet-validation (ADR-003, rate limiting + invalid-JSON policy,
+-25/25 tests/Manual/*.php зелёные)
++FIX-7 room-full-error-code (ADR-004, error.room_full split from
++error.server_full + join-order fix, full regression 0 failed)
+ `
+ 
+ Next planned Epic:
+diff --git a/src/Lobby/LobbyService.php b/src/Lobby/LobbyService.php
+index a9cbd2b..3b65830 100644
+--- a/src/Lobby/LobbyService.php
++++ b/src/Lobby/LobbyService.php
+@@ -184,11 +184,12 @@ final class LobbyService
+      *   → входящему игроку: room_joined (полный список игроков)
+      *   → остальным игрокам в комнате: player_joined
+      *
+-     * Предусловия:
++     * Предусловия (порядок проверок важен — FIX-7 / ADR-004):
+      *   1. Пользователь аутентифицирован
+      *   2. Комната существует и в статусе 'waiting'
+-     *   3. Комната не заполнена (players < max_players)
+-     *   4. Общий лимит игроков не достигнут
++     *   3. Общий лимит игроков не достигнут (error.server_full)
++     *   4. Комната не заполнена (players < max_players) (error.room_full —
++     *      отдельный код, НЕ error.server_full)
+      *   5. Пароль верный (если установлен)
+      *   6. cards_count ∈ {1, 2}
+      */
+@@ -215,19 +216,19 @@ final class LobbyService
+             return;
+         }
+ 
+-        // --- 4. Комната не заполнена ---
+-        if (count($room['players']) >= $room['max_players']) {
+-            sendError($connection, 'error.server_full', 'Room is full');
+-            return;
+-        }
+-
+-        // --- 5. Общий лимит игроков ---
++        // --- 4. Общий лимит игроков (сервер) — проверяется ПЕРВЫМ (FIX-7 / ADR-004) ---
+         $totalPlayers = $this->roomManager->getTotalPlayerCount($worker);
+         if ($totalPlayers >= Constants::MAX_TOTAL_PLAYERS) {
+             sendError($connection, 'error.server_full', 'Server is full');
+             return;
+         }
+ 
++        // --- 5. Комната не заполнена (отдельный код от error.server_full, FIX-7 / ADR-004) ---
++        if (count($room['players']) >= $room['max_players']) {
++            sendError($connection, 'error.room_full', 'Room is full');
++            return;
++        }
++
+         // --- 6. Пароль ---
+         if ($room['password_hash'] !== null) {
+             $passwordRaw = $data['password'] ?? '';
+diff --git a/tests/Manual/test_lobby_integration.php b/tests/Manual/test_lobby_integration.php
+index 9130562..a464ee6 100644
+--- a/tests/Manual/test_lobby_integration.php
++++ b/tests/Manual/test_lobby_integration.php
+@@ -279,8 +279,28 @@ $joiner2    = new MockConnection(11, 'j2');
+ $ls2->handleJoinRoom(['room_id' => $fullRoomId, 'password' => '', 'cards_count' => 1], $joiner2, $w2);
+ $joiner3    = new MockConnection(12, 'j3');
+ $ls2->handleJoinRoom(['room_id' => $fullRoomId, 'password' => '', 'cards_count' => 1], $joiner3, $w2);
+-ok('joinRoom: error.server_full when room is full',
+-    ($joiner3->lastPacket()['code'] ?? '') === 'error.server_full');
++ok('joinRoom: error.room_full when room is full (FIX-7/ADR-004)',
++    ($joiner3->lastPacket()['code'] ?? '') === 'error.room_full');
++
++// FIX-7/ADR-004 regression: when BOTH the room and the server are full,
++// error.server_full must win (server-wide check runs first).
++[$ls2b] = makeServices();
++$w2b       = new MockWorker();
++$hostFull2 = new MockConnection(13, 'hfull2');
++$ls2b->handleCreateRoom(['max_players' => 2, 'password' => '', 'cards_count' => 1], $hostFull2, $w2b);
++$fullRoomId2 = $hostFull2->lastPacket()['room_id'];
++// Делаем целевую комнату уже заполненной (max_players=2, +1 синтетический игрок).
++$w2b->rooms[$fullRoomId2]['players'][999] = ['user_id' => 999, 'total_paid' => 0];
++// Отдельно поднимаем ОБЩЕЕ число игроков на сервере выше MAX_TOTAL_PLAYERS через
++// вторую синтетическую комнату — используем реальный RoomManager::getTotalPlayerCount().
++$w2b->rooms[9001] = ['room_id' => 9001, 'players' => []];
++for ($extraConnId = 100; $extraConnId < 100 + Constants::MAX_TOTAL_PLAYERS; $extraConnId++) {
++    $w2b->rooms[9001]['players'][$extraConnId] = ['user_id' => $extraConnId, 'total_paid' => 0];
++}
++$joinerBoth = new MockConnection(14, 'jboth');
++$ls2b->handleJoinRoom(['room_id' => $fullRoomId2, 'password' => '', 'cards_count' => 1], $joinerBoth, $w2b);
++ok('joinRoom: error.server_full wins over room_full when both apply (FIX-7/ADR-004)',
++    ($joinerBoth->lastPacket()['code'] ?? '') === 'error.server_full');
+ 
+ [$ls3] = makeServices();
+ $w3      = new MockWorker();
