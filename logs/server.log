@@ -1901,3 +1901,1297 @@
 [2026-07-23 04:20:28] [INFO] Room 1 created by user_id=10 username=h2 cards_count=1 max_players=4
 [2026-07-23 04:20:28] [INFO] User user_id=11 username=jj joined room_id=1 cards_count=1
 [2026-07-23 04:20:28] [INFO] Room destroyed: room_id=1
+[2026-07-23 19:48:19] [INFO] Admin user_id=1 kicked user_id=9 refunded=0
+[2026-07-23 19:48:19] [INFO] integration-marker-6a6270035fbaf
+[2026-07-23 19:48:19] [INFO] Admin user_id=1 requested system logs
+[2026-07-23 19:48:19] [INFO] test_admin_logs marker line
+[2026-07-23 19:48:19] [INFO] User registered: player1
+[2026-07-23 19:48:19] [WARNING] Registration failed: Username already exists
+[2026-07-23 19:48:19] [WARNING] Registration failed: Invalid username format
+[2026-07-23 19:48:19] [WARNING] Registration failed: Password must be between 6 and 64 characters
+[2026-07-23 19:48:19] [INFO] User registered: loginuser
+[2026-07-23 19:48:20] [INFO] User login: loginuser
+[2026-07-23 19:48:20] [WARNING] Login failed: Invalid username or password
+[2026-07-23 19:48:20] [WARNING] Login failed: Invalid username or password
+[2026-07-23 19:48:20] [WARNING] Login failed: User is banned
+[2026-07-23 19:48:20] [INFO] User registered: bonususer
+[2026-07-23 19:48:20] [INFO] User login: bonususer
+[2026-07-23 19:48:21] [INFO] User registered: doubleuser
+[2026-07-23 19:48:21] [INFO] User login: doubleuser
+[2026-07-23 19:48:21] [WARNING] Login failed: User already logged in
+[2026-07-23 19:48:21] [INFO] User registered: huser1
+[2026-07-23 19:48:22] [INFO] User login: huser1
+[2026-07-23 19:48:22] [WARNING] Registration failed: Invalid username format
+[2026-07-23 19:48:22] [WARNING] Registration failed: Username already exists
+[2026-07-23 19:48:22] [INFO] User registered: luser1
+[2026-07-23 19:48:22] [INFO] User login: luser1
+[2026-07-23 19:48:22] [INFO] User login: luser1
+[2026-07-23 19:48:22] [WARNING] Login failed: Invalid username or password
+[2026-07-23 19:48:23] [WARNING] Login failed: User is banned
+[2026-07-23 19:48:23] [INFO] User registered: reconn_user
+[2026-07-23 19:48:23] [INFO] User login: reconn_user
+[2026-07-23 19:48:23] [INFO] Reconnect validated: user_id=1
+[2026-07-23 19:48:24] [INFO] LottoGameServer started (protocol_version=1)
+[2026-07-23 19:48:24] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:24] [INFO] User registered: e103_reguser
+[2026-07-23 19:48:24] [INFO] User login: e103_reguser
+[2026-07-23 19:48:24] [INFO] Room created: room_id=1 host_conn_id=2 max_players=4
+[2026-07-23 19:48:24] [INFO] Room 1 created by user_id=67 username=e103_reguser cards_count=1 max_players=4
+[2026-07-23 19:48:24] [INFO] Connection closed (userId=67)
+[2026-07-23 19:48:24] [WARNING] Registration failed: Username already exists
+[2026-07-23 19:48:24] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:24] [WARNING] Registration failed: Invalid username format
+[2026-07-23 19:48:24] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:24] [INFO] User login: e103_loginuser
+[2026-07-23 19:48:24] [INFO] Connection closed (userId=66)
+[2026-07-23 19:48:25] [WARNING] Login failed: Invalid username or password
+[2026-07-23 19:48:25] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:25] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:25] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:26] [INFO] LottoGameServer started (protocol_version=1)
+[2026-07-23 19:48:26] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:26] [INFO] User registered: e105_host
+[2026-07-23 19:48:26] [INFO] User login: e105_host
+[2026-07-23 19:48:26] [INFO] Room created: room_id=1 host_conn_id=2 max_players=2
+[2026-07-23 19:48:26] [INFO] Room 1 created by user_id=68 username=e105_host cards_count=1 max_players=2
+[2026-07-23 19:48:27] [INFO] User registered: e105_p2
+[2026-07-23 19:48:27] [INFO] User login: e105_p2
+[2026-07-23 19:48:27] [INFO] User user_id=69 username=e105_p2 joined room_id=1 cards_count=1
+[2026-07-23 19:48:27] [INFO] Game started in room 1. Players: 2, Bank: 20
+[2026-07-23 19:48:27] [INFO] Room 1: barrel 37 drawn. Remaining: 89
+[2026-07-23 19:48:27] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:27] [INFO] Connection closed (userId=69)
+[2026-07-23 19:48:27] [INFO] Reconnect validated: user_id=69
+[2026-07-23 19:48:27] [INFO] Room 1: barrel 22 drawn. Remaining: 88
+[2026-07-23 19:48:27] [INFO] Connection closed (userId=68)
+[2026-07-23 19:48:27] [INFO] Connection closed (userId=69)
+[2026-07-23 19:48:28] [INFO] Testing serverLog wrapper functionality at 1784836108
+[2026-07-23 19:48:28] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 19:48:28] [INFO] Room destroyed: room_id=1
+[2026-07-23 19:48:28] [INFO] Room created: room_id=1 host_conn_id=99 max_players=4
+[2026-07-23 19:48:28] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 19:48:28] [INFO] Room created: room_id=2 host_conn_id=2 max_players=4
+[2026-07-23 19:48:28] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 19:48:28] [INFO] Room 1 created by user_id=1 username=host cards_count=1 max_players=4
+[2026-07-23 19:48:29] [INFO] Room created: room_id=1 host_conn_id=7 max_players=4
+[2026-07-23 19:48:29] [INFO] Room 1 created by user_id=9 username=u9 cards_count=1 max_players=4
+[2026-07-23 19:48:29] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 19:48:29] [INFO] Room 1 created by user_id=1 username=host cards_count=1 max_players=4
+[2026-07-23 19:48:29] [INFO] User user_id=2 username=joiner joined room_id=1 cards_count=2
+[2026-07-23 19:48:29] [INFO] Room created: room_id=1 host_conn_id=4 max_players=2
+[2026-07-23 19:48:29] [INFO] Room 1 created by user_id=10 username=hfull cards_count=1 max_players=2
+[2026-07-23 19:48:29] [INFO] User user_id=11 username=j2 joined room_id=1 cards_count=1
+[2026-07-23 19:48:29] [INFO] Room created: room_id=1 host_conn_id=7 max_players=2
+[2026-07-23 19:48:29] [INFO] Room 1 created by user_id=13 username=hfull2 cards_count=1 max_players=2
+[2026-07-23 19:48:29] [INFO] Room created: room_id=1 host_conn_id=9 max_players=4
+[2026-07-23 19:48:29] [INFO] Room 1 created by user_id=20 username=hpwd cards_count=1 max_players=4
+[2026-07-23 19:48:29] [INFO] User user_id=22 username=goodpwd joined room_id=1 cards_count=1
+[2026-07-23 19:48:29] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 19:48:29] [INFO] Room 1 created by user_id=1 username=host cards_count=1 max_players=4
+[2026-07-23 19:48:29] [INFO] User user_id=2 username=joiner joined room_id=1 cards_count=1
+[2026-07-23 19:48:29] [INFO] Player username=joiner removed from lobby room_id=1 reason=leave
+[2026-07-23 19:48:29] [INFO] Room created: room_id=1 host_conn_id=3 max_players=4
+[2026-07-23 19:48:29] [INFO] Room 1 created by user_id=10 username=solo cards_count=1 max_players=4
+[2026-07-23 19:48:29] [INFO] Player username=solo removed from lobby room_id=1 reason=leave
+[2026-07-23 19:48:29] [INFO] Room destroyed: room_id=1
+[2026-07-23 19:48:29] [INFO] Room created: room_id=1 host_conn_id=4 max_players=4
+[2026-07-23 19:48:29] [INFO] Room 1 created by user_id=20 username=hplaying cards_count=1 max_players=4
+[2026-07-23 19:48:29] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 19:48:29] [INFO] Room 1 created by user_id=1 username=host cards_count=1 max_players=4
+[2026-07-23 19:48:29] [INFO] User user_id=2 username=j1 joined room_id=1 cards_count=1
+[2026-07-23 19:48:29] [INFO] User user_id=3 username=j2 joined room_id=1 cards_count=1
+[2026-07-23 19:48:29] [INFO] Player username=host removed from lobby room_id=1 reason=leave
+[2026-07-23 19:48:29] [INFO] Host transferred in room_id=1 new_host=j1
+[2026-07-23 19:48:29] [INFO] Player username=j1 removed from lobby room_id=1 reason=leave
+[2026-07-23 19:48:29] [INFO] Host transferred in room_id=1 new_host=j2
+[2026-07-23 19:48:29] [INFO] Player username=j2 removed from lobby room_id=1 reason=leave
+[2026-07-23 19:48:29] [INFO] Room destroyed: room_id=1
+[2026-07-23 19:48:29] [INFO] Room created: room_id=1 host_conn_id=2 max_players=4
+[2026-07-23 19:48:29] [INFO] Room 1 created by user_id=2 username=h1 cards_count=1 max_players=4
+[2026-07-23 19:48:30] [INFO] Room created: room_id=2 host_conn_id=3 max_players=6
+[2026-07-23 19:48:30] [INFO] Room 2 created by user_id=3 username=h2 cards_count=2 max_players=6
+[2026-07-23 19:48:30] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 19:48:30] [INFO] Room 1 created by user_id=1 username=host cards_count=1 max_players=4
+[2026-07-23 19:48:30] [INFO] User user_id=2 username=j1 joined room_id=1 cards_count=1
+[2026-07-23 19:48:30] [INFO] User user_id=3 username=j2 joined room_id=1 cards_count=1
+[2026-07-23 19:48:30] [INFO] Player username=j2 removed from lobby room_id=1 reason=leave
+[2026-07-23 19:48:30] [INFO] Player username=j1 removed from lobby room_id=1 reason=leave
+[2026-07-23 19:48:30] [INFO] Room created: room_id=1 host_conn_id=4 max_players=4
+[2026-07-23 19:48:30] [INFO] Room 1 created by user_id=10 username=h2 cards_count=1 max_players=4
+[2026-07-23 19:48:30] [INFO] User user_id=11 username=jj joined room_id=1 cards_count=1
+[2026-07-23 19:48:30] [INFO] Room destroyed: room_id=1
+[2026-07-23 19:48:30] [INFO] LottoGameServer started (protocol_version=1)
+[2026-07-23 19:48:30] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:30] [INFO] User registered: e104_host
+[2026-07-23 19:48:30] [INFO] User login: e104_host
+[2026-07-23 19:48:30] [INFO] Room created: room_id=1 host_conn_id=2 max_players=4
+[2026-07-23 19:48:30] [INFO] Room 1 created by user_id=70 username=e104_host cards_count=1 max_players=4
+[2026-07-23 19:48:30] [INFO] User registered: e104_joiner
+[2026-07-23 19:48:31] [INFO] User login: e104_joiner
+[2026-07-23 19:48:31] [INFO] User user_id=71 username=e104_joiner joined room_id=1 cards_count=2
+[2026-07-23 19:48:31] [INFO] User registered: e104_outsider
+[2026-07-23 19:48:31] [INFO] User login: e104_outsider
+[2026-07-23 19:48:31] [INFO] Player username=e104_joiner removed from lobby room_id=1 reason=leave
+[2026-07-23 19:48:31] [INFO] Connection closed (userId=72)
+[2026-07-23 19:48:31] [INFO] Connection closed (userId=71)
+[2026-07-23 19:48:31] [INFO] Connection closed (userId=70)
+[2026-07-23 19:48:31] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:32] [INFO] test 1
+[2026-07-23 19:48:32] [WARNING] test 2
+[2026-07-23 19:48:32] [ERROR] test 3
+[2026-07-23 19:48:33] [INFO] User login: login_valid
+[2026-07-23 19:48:33] [WARNING] Login failed: Invalid username or password
+[2026-07-23 19:48:33] [WARNING] Login failed: Invalid username or password
+[2026-07-23 19:48:33] [WARNING] Login failed: User is banned
+[2026-07-23 19:48:33] [INFO] User login: login_bonus
+[2026-07-23 19:48:33] [INFO] User login: login_bonus
+[2026-07-23 19:48:34] [INFO] LottoGameServer started (protocol_version=1)
+[2026-07-23 19:48:34] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:34] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:34] [INFO] Rate limit exceeded, closing connection (userId=null, count=16)
+[2026-07-23 19:48:34] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:34] [INFO] Rate limit exceeded, closing connection (userId=null, count=16)
+[2026-07-23 19:48:34] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:36] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:36] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:38] [INFO] User registered: test_user_1
+[2026-07-23 19:48:38] [WARNING] Registration failed: Username already exists
+[2026-07-23 19:48:38] [WARNING] Registration failed: Invalid username format
+[2026-07-23 19:48:38] [WARNING] Registration failed: Password must be between 6 and 64 characters
+[2026-07-23 19:48:38] [INFO] LottoGameServer started (protocol_version=1)
+[2026-07-23 19:48:38] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:48:42] [INFO] User login: session_user
+[2026-07-23 19:48:42] [INFO] User login: session_user
+[2026-07-23 19:48:43] [INFO] User login: single_user
+[2026-07-23 19:48:43] [WARNING] Login failed: User already logged in
+[2026-07-23 19:48:43] [INFO] User login: single_user
+[2026-07-23 19:48:43] [INFO] Room 1: game over successfully processed. Winner: host, reason: victory
+[2026-07-23 19:48:43] [ERROR] Room 1: finishGame Сбой транзакции начисления: SQLSTATE[23000]: Integrity constraint violation: 19 CHECK constraint failed: coins <= 200
+[2026-07-23 19:48:43] [INFO] Room 1: game over successfully processed. Winner: host, reason: victory
+[2026-07-23 19:49:34] [INFO] LottoGameServer started (protocol_version=1)
+[2026-07-23 19:49:34] [INFO] Connection closed (userId=null)
+[2026-07-23 19:49:34] [INFO] User registered: e103_reguser
+[2026-07-23 19:49:35] [INFO] User login: e103_reguser
+[2026-07-23 19:49:35] [INFO] Room created: room_id=1 host_conn_id=2 max_players=4
+[2026-07-23 19:49:35] [INFO] Room 1 created by user_id=80 username=e103_reguser cards_count=1 max_players=4
+[2026-07-23 19:49:35] [INFO] Connection closed (userId=80)
+[2026-07-23 19:49:35] [WARNING] Registration failed: Username already exists
+[2026-07-23 19:49:35] [INFO] Connection closed (userId=null)
+[2026-07-23 19:49:35] [WARNING] Registration failed: Invalid username format
+[2026-07-23 19:49:35] [INFO] Connection closed (userId=null)
+[2026-07-23 19:49:35] [INFO] User login: e103_loginuser
+[2026-07-23 19:49:35] [INFO] Connection closed (userId=79)
+[2026-07-23 19:49:35] [WARNING] Login failed: Invalid username or password
+[2026-07-23 19:49:35] [INFO] Connection closed (userId=null)
+[2026-07-23 19:49:35] [INFO] Connection closed (userId=null)
+[2026-07-23 19:49:35] [INFO] Connection closed (userId=null)
+[2026-07-23 19:50:42] [INFO] Admin user_id=1 kicked user_id=9 refunded=0
+[2026-07-23 19:50:42] [INFO] integration-marker-6a627092db49b
+[2026-07-23 19:50:42] [INFO] Admin user_id=1 requested system logs
+[2026-07-23 19:50:42] [INFO] test_admin_logs marker line
+[2026-07-23 19:50:43] [INFO] User registered: player1
+[2026-07-23 19:50:43] [WARNING] Registration failed: Username already exists
+[2026-07-23 19:50:43] [WARNING] Registration failed: Invalid username format
+[2026-07-23 19:50:43] [WARNING] Registration failed: Password must be between 6 and 64 characters
+[2026-07-23 19:50:43] [INFO] User registered: loginuser
+[2026-07-23 19:50:43] [INFO] User login: loginuser
+[2026-07-23 19:50:43] [WARNING] Login failed: Invalid username or password
+[2026-07-23 19:50:43] [WARNING] Login failed: Invalid username or password
+[2026-07-23 19:50:44] [WARNING] Login failed: User is banned
+[2026-07-23 19:50:44] [INFO] User registered: bonususer
+[2026-07-23 19:50:44] [INFO] User login: bonususer
+[2026-07-23 19:50:44] [INFO] User registered: doubleuser
+[2026-07-23 19:50:44] [INFO] User login: doubleuser
+[2026-07-23 19:50:45] [WARNING] Login failed: User already logged in
+[2026-07-23 19:50:45] [INFO] User registered: huser1
+[2026-07-23 19:50:45] [INFO] User login: huser1
+[2026-07-23 19:50:45] [WARNING] Registration failed: Invalid username format
+[2026-07-23 19:50:45] [WARNING] Registration failed: Username already exists
+[2026-07-23 19:50:45] [INFO] User registered: luser1
+[2026-07-23 19:50:45] [INFO] User login: luser1
+[2026-07-23 19:50:46] [INFO] User login: luser1
+[2026-07-23 19:50:46] [WARNING] Login failed: Invalid username or password
+[2026-07-23 19:50:46] [WARNING] Login failed: User is banned
+[2026-07-23 19:50:46] [INFO] User registered: reconn_user
+[2026-07-23 19:50:46] [INFO] User login: reconn_user
+[2026-07-23 19:50:46] [INFO] Reconnect validated: user_id=1
+[2026-07-23 19:50:48] [INFO] LottoGameServer started (protocol_version=1)
+[2026-07-23 19:50:48] [INFO] Connection closed (userId=null)
+[2026-07-23 19:50:48] [INFO] User registered: e103_reguser
+[2026-07-23 19:50:48] [INFO] User login: e103_reguser
+[2026-07-23 19:50:48] [INFO] Room created: room_id=1 host_conn_id=2 max_players=4
+[2026-07-23 19:50:48] [INFO] Room 1 created by user_id=82 username=e103_reguser cards_count=1 max_players=4
+[2026-07-23 19:50:48] [INFO] Connection closed (userId=82)
+[2026-07-23 19:50:48] [WARNING] Registration failed: Username already exists
+[2026-07-23 19:50:48] [INFO] Connection closed (userId=null)
+[2026-07-23 19:50:48] [WARNING] Registration failed: Invalid username format
+[2026-07-23 19:50:48] [INFO] Connection closed (userId=null)
+[2026-07-23 19:50:49] [INFO] User login: e103_loginuser
+[2026-07-23 19:50:49] [INFO] Connection closed (userId=81)
+[2026-07-23 19:50:49] [WARNING] Login failed: Invalid username or password
+[2026-07-23 19:50:49] [INFO] Connection closed (userId=null)
+[2026-07-23 19:50:49] [INFO] Connection closed (userId=null)
+[2026-07-23 19:50:49] [INFO] Connection closed (userId=null)
+[2026-07-23 19:50:50] [INFO] LottoGameServer started (protocol_version=1)
+[2026-07-23 19:50:50] [INFO] Connection closed (userId=null)
+[2026-07-23 19:50:51] [INFO] User registered: e105_host
+[2026-07-23 19:50:51] [INFO] User login: e105_host
+[2026-07-23 19:50:51] [INFO] Room created: room_id=1 host_conn_id=2 max_players=2
+[2026-07-23 19:50:51] [INFO] Room 1 created by user_id=83 username=e105_host cards_count=1 max_players=2
+[2026-07-23 19:50:51] [INFO] User registered: e105_p2
+[2026-07-23 19:50:51] [INFO] User login: e105_p2
+[2026-07-23 19:50:51] [INFO] User user_id=84 username=e105_p2 joined room_id=1 cards_count=1
+[2026-07-23 19:50:51] [INFO] Game started in room 1. Players: 2, Bank: 20
+[2026-07-23 19:50:51] [INFO] Room 1: barrel 67 drawn. Remaining: 89
+[2026-07-23 19:50:51] [INFO] Connection closed (userId=null)
+[2026-07-23 19:50:51] [INFO] Connection closed (userId=84)
+[2026-07-23 19:50:52] [INFO] Reconnect validated: user_id=84
+[2026-07-23 19:50:52] [INFO] Room 1: barrel 30 drawn. Remaining: 88
+[2026-07-23 19:50:52] [INFO] Connection closed (userId=83)
+[2026-07-23 19:50:52] [INFO] Connection closed (userId=84)
+[2026-07-23 19:50:53] [INFO] Testing serverLog wrapper functionality at 1784836253
+[2026-07-23 19:50:53] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 19:50:53] [INFO] Room destroyed: room_id=1
+[2026-07-23 19:50:53] [INFO] Room created: room_id=1 host_conn_id=99 max_players=4
+[2026-07-23 19:50:53] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 19:50:53] [INFO] Room created: room_id=2 host_conn_id=2 max_players=4
+[2026-07-23 19:50:53] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 19:50:53] [INFO] Room 1 created by user_id=1 username=host cards_count=1 max_players=4
+[2026-07-23 19:50:53] [INFO] Room created: room_id=1 host_conn_id=7 max_players=4
+[2026-07-23 19:50:53] [INFO] Room 1 created by user_id=9 username=u9 cards_count=1 max_players=4
+[2026-07-23 19:50:53] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 19:50:53] [INFO] Room 1 created by user_id=1 username=host cards_count=1 max_players=4
+[2026-07-23 19:50:53] [INFO] User user_id=2 username=joiner joined room_id=1 cards_count=2
+[2026-07-23 19:50:53] [INFO] Room created: room_id=1 host_conn_id=4 max_players=2
+[2026-07-23 19:50:53] [INFO] Room 1 created by user_id=10 username=hfull cards_count=1 max_players=2
+[2026-07-23 19:50:53] [INFO] User user_id=11 username=j2 joined room_id=1 cards_count=1
+[2026-07-23 19:50:53] [INFO] Room created: room_id=1 host_conn_id=7 max_players=2
+[2026-07-23 19:50:53] [INFO] Room 1 created by user_id=13 username=hfull2 cards_count=1 max_players=2
+[2026-07-23 19:50:53] [INFO] Room created: room_id=1 host_conn_id=9 max_players=4
+[2026-07-23 19:50:53] [INFO] Room 1 created by user_id=20 username=hpwd cards_count=1 max_players=4
+[2026-07-23 19:50:54] [INFO] User user_id=22 username=goodpwd joined room_id=1 cards_count=1
+[2026-07-23 19:50:54] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 19:50:54] [INFO] Room 1 created by user_id=1 username=host cards_count=1 max_players=4
+[2026-07-23 19:50:54] [INFO] User user_id=2 username=joiner joined room_id=1 cards_count=1
+[2026-07-23 19:50:54] [INFO] Player username=joiner removed from lobby room_id=1 reason=leave
+[2026-07-23 19:50:54] [INFO] Room created: room_id=1 host_conn_id=3 max_players=4
+[2026-07-23 19:50:54] [INFO] Room 1 created by user_id=10 username=solo cards_count=1 max_players=4
+[2026-07-23 19:50:54] [INFO] Player username=solo removed from lobby room_id=1 reason=leave
+[2026-07-23 19:50:54] [INFO] Room destroyed: room_id=1
+[2026-07-23 19:50:54] [INFO] Room created: room_id=1 host_conn_id=4 max_players=4
+[2026-07-23 19:50:54] [INFO] Room 1 created by user_id=20 username=hplaying cards_count=1 max_players=4
+[2026-07-23 19:50:54] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 19:50:54] [INFO] Room 1 created by user_id=1 username=host cards_count=1 max_players=4
+[2026-07-23 19:50:54] [INFO] User user_id=2 username=j1 joined room_id=1 cards_count=1
+[2026-07-23 19:50:54] [INFO] User user_id=3 username=j2 joined room_id=1 cards_count=1
+[2026-07-23 19:50:54] [INFO] Player username=host removed from lobby room_id=1 reason=leave
+[2026-07-23 19:50:54] [INFO] Host transferred in room_id=1 new_host=j1
+[2026-07-23 19:50:54] [INFO] Player username=j1 removed from lobby room_id=1 reason=leave
+[2026-07-23 19:50:54] [INFO] Host transferred in room_id=1 new_host=j2
+[2026-07-23 19:50:54] [INFO] Player username=j2 removed from lobby room_id=1 reason=leave
+[2026-07-23 19:50:54] [INFO] Room destroyed: room_id=1
+[2026-07-23 19:50:54] [INFO] Room created: room_id=1 host_conn_id=2 max_players=4
+[2026-07-23 19:50:54] [INFO] Room 1 created by user_id=2 username=h1 cards_count=1 max_players=4
+[2026-07-23 19:50:54] [INFO] Room created: room_id=2 host_conn_id=3 max_players=6
+[2026-07-23 19:50:54] [INFO] Room 2 created by user_id=3 username=h2 cards_count=2 max_players=6
+[2026-07-23 19:50:54] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 19:50:54] [INFO] Room 1 created by user_id=1 username=host cards_count=1 max_players=4
+[2026-07-23 19:50:54] [INFO] User user_id=2 username=j1 joined room_id=1 cards_count=1
+[2026-07-23 19:50:54] [INFO] User user_id=3 username=j2 joined room_id=1 cards_count=1
+[2026-07-23 19:50:54] [INFO] Player username=j2 removed from lobby room_id=1 reason=leave
+[2026-07-23 19:50:54] [INFO] Player username=j1 removed from lobby room_id=1 reason=leave
+[2026-07-23 19:50:54] [INFO] Room created: room_id=1 host_conn_id=4 max_players=4
+[2026-07-23 19:50:54] [INFO] Room 1 created by user_id=10 username=h2 cards_count=1 max_players=4
+[2026-07-23 19:50:54] [INFO] User user_id=11 username=jj joined room_id=1 cards_count=1
+[2026-07-23 19:50:54] [INFO] Room destroyed: room_id=1
+[2026-07-23 19:50:55] [INFO] LottoGameServer started (protocol_version=1)
+[2026-07-23 19:50:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:50:55] [INFO] User registered: e104_host
+[2026-07-23 19:50:56] [INFO] User login: e104_host
+[2026-07-23 19:50:56] [INFO] Room created: room_id=1 host_conn_id=2 max_players=4
+[2026-07-23 19:50:56] [INFO] Room 1 created by user_id=85 username=e104_host cards_count=1 max_players=4
+[2026-07-23 19:50:56] [INFO] User registered: e104_joiner
+[2026-07-23 19:50:56] [INFO] User login: e104_joiner
+[2026-07-23 19:50:56] [INFO] User user_id=86 username=e104_joiner joined room_id=1 cards_count=2
+[2026-07-23 19:50:56] [INFO] User registered: e104_outsider
+[2026-07-23 19:50:56] [INFO] User login: e104_outsider
+[2026-07-23 19:50:56] [INFO] Connection closed (userId=87)
+[2026-07-23 19:50:56] [INFO] Player username=e104_joiner removed from lobby room_id=1 reason=leave
+[2026-07-23 19:50:56] [INFO] Connection closed (userId=86)
+[2026-07-23 19:50:56] [INFO] Connection closed (userId=null)
+[2026-07-23 19:50:56] [INFO] Connection closed (userId=85)
+[2026-07-23 19:50:57] [INFO] test 1
+[2026-07-23 19:50:57] [WARNING] test 2
+[2026-07-23 19:50:57] [ERROR] test 3
+[2026-07-23 19:50:58] [INFO] User login: login_valid
+[2026-07-23 19:50:58] [WARNING] Login failed: Invalid username or password
+[2026-07-23 19:50:58] [WARNING] Login failed: Invalid username or password
+[2026-07-23 19:50:58] [WARNING] Login failed: User is banned
+[2026-07-23 19:50:59] [INFO] User login: login_bonus
+[2026-07-23 19:50:59] [INFO] User login: login_bonus
+[2026-07-23 19:50:59] [INFO] LottoGameServer started (protocol_version=1)
+[2026-07-23 19:50:59] [INFO] Connection closed (userId=null)
+[2026-07-23 19:50:59] [INFO] Connection closed (userId=null)
+[2026-07-23 19:50:59] [INFO] Rate limit exceeded, closing connection (userId=null, count=16)
+[2026-07-23 19:50:59] [INFO] Connection closed (userId=null)
+[2026-07-23 19:50:59] [INFO] Rate limit exceeded, closing connection (userId=null, count=16)
+[2026-07-23 19:50:59] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:02] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:02] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:03] [INFO] User registered: test_user_1
+[2026-07-23 19:51:03] [WARNING] Registration failed: Username already exists
+[2026-07-23 19:51:03] [WARNING] Registration failed: Invalid username format
+[2026-07-23 19:51:03] [WARNING] Registration failed: Password must be between 6 and 64 characters
+[2026-07-23 19:51:04] [INFO] LottoGameServer started (protocol_version=1)
+[2026-07-23 19:51:04] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:07] [INFO] User login: session_user
+[2026-07-23 19:51:07] [INFO] User login: session_user
+[2026-07-23 19:51:08] [INFO] User login: single_user
+[2026-07-23 19:51:08] [WARNING] Login failed: User already logged in
+[2026-07-23 19:51:08] [INFO] User login: single_user
+[2026-07-23 19:51:08] [INFO] Room 1: game over successfully processed. Winner: host, reason: victory
+[2026-07-23 19:51:08] [ERROR] Room 1: finishGame Сбой транзакции начисления: SQLSTATE[23000]: Integrity constraint violation: 19 CHECK constraint failed: coins <= 200
+[2026-07-23 19:51:08] [INFO] Room 1: game over successfully processed. Winner: host, reason: victory
+[2026-07-23 19:51:50] [INFO] Admin user_id=1 kicked user_id=9 refunded=0
+[2026-07-23 19:51:50] [INFO] integration-marker-6a6270d60ffaa
+[2026-07-23 19:51:50] [INFO] Admin user_id=1 requested system logs
+[2026-07-23 19:51:50] [INFO] test_admin_logs marker line
+[2026-07-23 19:51:50] [INFO] User registered: player1
+[2026-07-23 19:51:50] [WARNING] Registration failed: Username already exists
+[2026-07-23 19:51:50] [WARNING] Registration failed: Invalid username format
+[2026-07-23 19:51:50] [WARNING] Registration failed: Password must be between 6 and 64 characters
+[2026-07-23 19:51:50] [INFO] User registered: loginuser
+[2026-07-23 19:51:50] [INFO] User login: loginuser
+[2026-07-23 19:51:51] [WARNING] Login failed: Invalid username or password
+[2026-07-23 19:51:51] [WARNING] Login failed: Invalid username or password
+[2026-07-23 19:51:51] [WARNING] Login failed: User is banned
+[2026-07-23 19:51:51] [INFO] User registered: bonususer
+[2026-07-23 19:51:51] [INFO] User login: bonususer
+[2026-07-23 19:51:51] [INFO] User registered: doubleuser
+[2026-07-23 19:51:52] [INFO] User login: doubleuser
+[2026-07-23 19:51:52] [WARNING] Login failed: User already logged in
+[2026-07-23 19:51:52] [INFO] User registered: huser1
+[2026-07-23 19:51:52] [INFO] User login: huser1
+[2026-07-23 19:51:52] [WARNING] Registration failed: Invalid username format
+[2026-07-23 19:51:52] [WARNING] Registration failed: Username already exists
+[2026-07-23 19:51:52] [INFO] User registered: luser1
+[2026-07-23 19:51:53] [INFO] User login: luser1
+[2026-07-23 19:51:53] [INFO] User login: luser1
+[2026-07-23 19:51:53] [WARNING] Login failed: Invalid username or password
+[2026-07-23 19:51:53] [WARNING] Login failed: User is banned
+[2026-07-23 19:51:53] [INFO] User registered: reconn_user
+[2026-07-23 19:51:54] [INFO] User login: reconn_user
+[2026-07-23 19:51:54] [INFO] Reconnect validated: user_id=1
+[2026-07-23 19:51:55] [INFO] LottoGameServer started (protocol_version=1)
+[2026-07-23 19:51:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:55] [INFO] User registered: e103_reguser
+[2026-07-23 19:51:56] [INFO] User login: e103_reguser
+[2026-07-23 19:51:56] [INFO] Room created: room_id=1 host_conn_id=2 max_players=4
+[2026-07-23 19:51:56] [INFO] Room 1 created by user_id=95 username=e103_reguser cards_count=1 max_players=4
+[2026-07-23 19:51:56] [INFO] Connection closed (userId=95)
+[2026-07-23 19:51:56] [WARNING] Registration failed: Username already exists
+[2026-07-23 19:51:56] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:56] [WARNING] Registration failed: Invalid username format
+[2026-07-23 19:51:56] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:56] [INFO] User login: e103_loginuser
+[2026-07-23 19:51:56] [INFO] Connection closed (userId=94)
+[2026-07-23 19:51:56] [WARNING] Login failed: Invalid username or password
+[2026-07-23 19:51:56] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:56] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:56] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:57] [INFO] LottoGameServer started (protocol_version=1)
+[2026-07-23 19:51:57] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:57] [INFO] User registered: e105_host
+[2026-07-23 19:51:58] [INFO] User login: e105_host
+[2026-07-23 19:51:58] [INFO] Room created: room_id=1 host_conn_id=2 max_players=2
+[2026-07-23 19:51:58] [INFO] Room 1 created by user_id=96 username=e105_host cards_count=1 max_players=2
+[2026-07-23 19:51:58] [INFO] User registered: e105_p2
+[2026-07-23 19:51:58] [INFO] User login: e105_p2
+[2026-07-23 19:51:58] [INFO] User user_id=97 username=e105_p2 joined room_id=1 cards_count=1
+[2026-07-23 19:51:58] [INFO] Game started in room 1. Players: 2, Bank: 20
+[2026-07-23 19:51:58] [INFO] Room 1: barrel 59 drawn. Remaining: 89
+[2026-07-23 19:51:58] [INFO] Connection closed (userId=null)
+[2026-07-23 19:51:58] [INFO] Connection closed (userId=97)
+[2026-07-23 19:51:58] [INFO] Reconnect validated: user_id=97
+[2026-07-23 19:51:58] [INFO] Room 1: barrel 45 drawn. Remaining: 88
+[2026-07-23 19:51:58] [INFO] Connection closed (userId=96)
+[2026-07-23 19:51:58] [INFO] Connection closed (userId=97)
+[2026-07-23 19:52:00] [INFO] Testing serverLog wrapper functionality at 1784836320
+[2026-07-23 19:52:00] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 19:52:00] [INFO] Room destroyed: room_id=1
+[2026-07-23 19:52:00] [INFO] Room created: room_id=1 host_conn_id=99 max_players=4
+[2026-07-23 19:52:00] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 19:52:00] [INFO] Room created: room_id=2 host_conn_id=2 max_players=4
+[2026-07-23 19:52:00] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 19:52:00] [INFO] Room 1 created by user_id=1 username=host cards_count=1 max_players=4
+[2026-07-23 19:52:00] [INFO] Room created: room_id=1 host_conn_id=7 max_players=4
+[2026-07-23 19:52:00] [INFO] Room 1 created by user_id=9 username=u9 cards_count=1 max_players=4
+[2026-07-23 19:52:00] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 19:52:00] [INFO] Room 1 created by user_id=1 username=host cards_count=1 max_players=4
+[2026-07-23 19:52:00] [INFO] User user_id=2 username=joiner joined room_id=1 cards_count=2
+[2026-07-23 19:52:00] [INFO] Room created: room_id=1 host_conn_id=4 max_players=2
+[2026-07-23 19:52:00] [INFO] Room 1 created by user_id=10 username=hfull cards_count=1 max_players=2
+[2026-07-23 19:52:00] [INFO] User user_id=11 username=j2 joined room_id=1 cards_count=1
+[2026-07-23 19:52:00] [INFO] Room created: room_id=1 host_conn_id=7 max_players=2
+[2026-07-23 19:52:00] [INFO] Room 1 created by user_id=13 username=hfull2 cards_count=1 max_players=2
+[2026-07-23 19:52:00] [INFO] Room created: room_id=1 host_conn_id=9 max_players=4
+[2026-07-23 19:52:00] [INFO] Room 1 created by user_id=20 username=hpwd cards_count=1 max_players=4
+[2026-07-23 19:52:01] [INFO] User user_id=22 username=goodpwd joined room_id=1 cards_count=1
+[2026-07-23 19:52:01] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 19:52:01] [INFO] Room 1 created by user_id=1 username=host cards_count=1 max_players=4
+[2026-07-23 19:52:01] [INFO] User user_id=2 username=joiner joined room_id=1 cards_count=1
+[2026-07-23 19:52:01] [INFO] Player username=joiner removed from lobby room_id=1 reason=leave
+[2026-07-23 19:52:01] [INFO] Room created: room_id=1 host_conn_id=3 max_players=4
+[2026-07-23 19:52:01] [INFO] Room 1 created by user_id=10 username=solo cards_count=1 max_players=4
+[2026-07-23 19:52:01] [INFO] Player username=solo removed from lobby room_id=1 reason=leave
+[2026-07-23 19:52:01] [INFO] Room destroyed: room_id=1
+[2026-07-23 19:52:01] [INFO] Room created: room_id=1 host_conn_id=4 max_players=4
+[2026-07-23 19:52:01] [INFO] Room 1 created by user_id=20 username=hplaying cards_count=1 max_players=4
+[2026-07-23 19:52:01] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 19:52:01] [INFO] Room 1 created by user_id=1 username=host cards_count=1 max_players=4
+[2026-07-23 19:52:01] [INFO] User user_id=2 username=j1 joined room_id=1 cards_count=1
+[2026-07-23 19:52:01] [INFO] User user_id=3 username=j2 joined room_id=1 cards_count=1
+[2026-07-23 19:52:01] [INFO] Player username=host removed from lobby room_id=1 reason=leave
+[2026-07-23 19:52:01] [INFO] Host transferred in room_id=1 new_host=j1
+[2026-07-23 19:52:01] [INFO] Player username=j1 removed from lobby room_id=1 reason=leave
+[2026-07-23 19:52:01] [INFO] Host transferred in room_id=1 new_host=j2
+[2026-07-23 19:52:01] [INFO] Player username=j2 removed from lobby room_id=1 reason=leave
+[2026-07-23 19:52:01] [INFO] Room destroyed: room_id=1
+[2026-07-23 19:52:01] [INFO] Room created: room_id=1 host_conn_id=2 max_players=4
+[2026-07-23 19:52:01] [INFO] Room 1 created by user_id=2 username=h1 cards_count=1 max_players=4
+[2026-07-23 19:52:01] [INFO] Room created: room_id=2 host_conn_id=3 max_players=6
+[2026-07-23 19:52:01] [INFO] Room 2 created by user_id=3 username=h2 cards_count=2 max_players=6
+[2026-07-23 19:52:01] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 19:52:01] [INFO] Room 1 created by user_id=1 username=host cards_count=1 max_players=4
+[2026-07-23 19:52:01] [INFO] User user_id=2 username=j1 joined room_id=1 cards_count=1
+[2026-07-23 19:52:01] [INFO] User user_id=3 username=j2 joined room_id=1 cards_count=1
+[2026-07-23 19:52:01] [INFO] Player username=j2 removed from lobby room_id=1 reason=leave
+[2026-07-23 19:52:01] [INFO] Player username=j1 removed from lobby room_id=1 reason=leave
+[2026-07-23 19:52:01] [INFO] Room created: room_id=1 host_conn_id=4 max_players=4
+[2026-07-23 19:52:01] [INFO] Room 1 created by user_id=10 username=h2 cards_count=1 max_players=4
+[2026-07-23 19:52:01] [INFO] User user_id=11 username=jj joined room_id=1 cards_count=1
+[2026-07-23 19:52:01] [INFO] Room destroyed: room_id=1
+[2026-07-23 19:52:02] [INFO] LottoGameServer started (protocol_version=1)
+[2026-07-23 19:52:02] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:02] [INFO] User registered: e104_host
+[2026-07-23 19:52:02] [INFO] User login: e104_host
+[2026-07-23 19:52:02] [INFO] Room created: room_id=1 host_conn_id=2 max_players=4
+[2026-07-23 19:52:02] [INFO] Room 1 created by user_id=98 username=e104_host cards_count=1 max_players=4
+[2026-07-23 19:52:03] [INFO] User registered: e104_joiner
+[2026-07-23 19:52:03] [INFO] User login: e104_joiner
+[2026-07-23 19:52:03] [INFO] User user_id=99 username=e104_joiner joined room_id=1 cards_count=2
+[2026-07-23 19:52:03] [INFO] User registered: e104_outsider
+[2026-07-23 19:52:03] [INFO] User login: e104_outsider
+[2026-07-23 19:52:03] [INFO] Player username=e104_joiner removed from lobby room_id=1 reason=leave
+[2026-07-23 19:52:03] [INFO] Connection closed (userId=100)
+[2026-07-23 19:52:03] [INFO] Connection closed (userId=99)
+[2026-07-23 19:52:03] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:03] [INFO] Connection closed (userId=98)
+[2026-07-23 19:52:04] [INFO] test 1
+[2026-07-23 19:52:04] [WARNING] test 2
+[2026-07-23 19:52:04] [ERROR] test 3
+[2026-07-23 19:52:05] [INFO] User login: login_valid
+[2026-07-23 19:52:05] [WARNING] Login failed: Invalid username or password
+[2026-07-23 19:52:05] [WARNING] Login failed: Invalid username or password
+[2026-07-23 19:52:05] [WARNING] Login failed: User is banned
+[2026-07-23 19:52:06] [INFO] User login: login_bonus
+[2026-07-23 19:52:06] [INFO] User login: login_bonus
+[2026-07-23 19:52:06] [INFO] LottoGameServer started (protocol_version=1)
+[2026-07-23 19:52:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:06] [INFO] Rate limit exceeded, closing connection (userId=null, count=16)
+[2026-07-23 19:52:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:06] [INFO] Rate limit exceeded, closing connection (userId=null, count=16)
+[2026-07-23 19:52:06] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:09] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:09] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:10] [INFO] User registered: test_user_1
+[2026-07-23 19:52:10] [WARNING] Registration failed: Username already exists
+[2026-07-23 19:52:10] [WARNING] Registration failed: Invalid username format
+[2026-07-23 19:52:10] [WARNING] Registration failed: Password must be between 6 and 64 characters
+[2026-07-23 19:52:11] [INFO] LottoGameServer started (protocol_version=1)
+[2026-07-23 19:52:11] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:13] [INFO] Connection closed (userId=null)
+[2026-07-23 19:52:14] [INFO] User login: session_user
+[2026-07-23 19:52:14] [INFO] User login: session_user
+[2026-07-23 19:52:15] [INFO] User login: single_user
+[2026-07-23 19:52:15] [WARNING] Login failed: User already logged in
+[2026-07-23 19:52:15] [INFO] User login: single_user
+[2026-07-23 19:52:15] [INFO] Room 1: game over successfully processed. Winner: host, reason: victory
+[2026-07-23 19:52:15] [ERROR] Room 1: finishGame Сбой транзакции начисления: SQLSTATE[23000]: Integrity constraint violation: 19 CHECK constraint failed: coins <= 200
+[2026-07-23 19:52:15] [INFO] Room 1: game over successfully processed. Winner: host, reason: victory
+[2026-07-23 19:57:33] [INFO] Admin user_id=1 kicked user_id=9 refunded=0
+[2026-07-23 19:57:33] [INFO] integration-marker-6a62722d5de82
+[2026-07-23 19:57:33] [INFO] Admin user_id=1 requested system logs
+[2026-07-23 19:57:33] [INFO] test_admin_logs marker line
+[2026-07-23 19:57:33] [INFO] User registered: player1
+[2026-07-23 19:57:33] [WARNING] Registration failed: Username already exists
+[2026-07-23 19:57:33] [WARNING] Registration failed: Invalid username format
+[2026-07-23 19:57:33] [WARNING] Registration failed: Password must be between 6 and 64 characters
+[2026-07-23 19:57:33] [INFO] User registered: loginuser
+[2026-07-23 19:57:34] [INFO] User login: loginuser
+[2026-07-23 19:57:34] [WARNING] Login failed: Invalid username or password
+[2026-07-23 19:57:34] [WARNING] Login failed: Invalid username or password
+[2026-07-23 19:57:34] [WARNING] Login failed: User is banned
+[2026-07-23 19:57:34] [INFO] User registered: bonususer
+[2026-07-23 19:57:35] [INFO] User login: bonususer
+[2026-07-23 19:57:35] [INFO] User registered: doubleuser
+[2026-07-23 19:57:35] [INFO] User login: doubleuser
+[2026-07-23 19:57:35] [WARNING] Login failed: User already logged in
+[2026-07-23 19:57:35] [INFO] User registered: huser1
+[2026-07-23 19:57:36] [INFO] User login: huser1
+[2026-07-23 19:57:36] [WARNING] Registration failed: Invalid username format
+[2026-07-23 19:57:36] [WARNING] Registration failed: Username already exists
+[2026-07-23 19:57:36] [INFO] User registered: luser1
+[2026-07-23 19:57:36] [INFO] User login: luser1
+[2026-07-23 19:57:36] [INFO] User login: luser1
+[2026-07-23 19:57:36] [WARNING] Login failed: Invalid username or password
+[2026-07-23 19:57:37] [WARNING] Login failed: User is banned
+[2026-07-23 19:57:37] [INFO] User registered: reconn_user
+[2026-07-23 19:57:37] [INFO] User login: reconn_user
+[2026-07-23 19:57:37] [INFO] Reconnect validated: user_id=1
+[2026-07-23 19:57:39] [INFO] LottoGameServer started (protocol_version=1)
+[2026-07-23 19:57:39] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:39] [INFO] User registered: e103_reguser
+[2026-07-23 19:57:39] [INFO] User login: e103_reguser
+[2026-07-23 19:57:39] [INFO] Room created: room_id=1 host_conn_id=2 max_players=4
+[2026-07-23 19:57:39] [INFO] Room 1 created by user_id=108 username=e103_reguser cards_count=1 max_players=4
+[2026-07-23 19:57:39] [INFO] Connection closed (userId=108)
+[2026-07-23 19:57:39] [WARNING] Registration failed: Username already exists
+[2026-07-23 19:57:39] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:39] [WARNING] Registration failed: Invalid username format
+[2026-07-23 19:57:39] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:39] [INFO] User login: e103_loginuser
+[2026-07-23 19:57:39] [INFO] Connection closed (userId=107)
+[2026-07-23 19:57:40] [WARNING] Login failed: Invalid username or password
+[2026-07-23 19:57:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:40] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:41] [INFO] LottoGameServer started (protocol_version=1)
+[2026-07-23 19:57:41] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:41] [INFO] User registered: e105_host
+[2026-07-23 19:57:41] [INFO] User login: e105_host
+[2026-07-23 19:57:41] [INFO] Room created: room_id=1 host_conn_id=2 max_players=2
+[2026-07-23 19:57:41] [INFO] Room 1 created by user_id=109 username=e105_host cards_count=1 max_players=2
+[2026-07-23 19:57:41] [INFO] User registered: e105_p2
+[2026-07-23 19:57:42] [INFO] User login: e105_p2
+[2026-07-23 19:57:42] [INFO] User user_id=110 username=e105_p2 joined room_id=1 cards_count=1
+[2026-07-23 19:57:42] [INFO] Game started in room 1. Players: 2, Bank: 20
+[2026-07-23 19:57:42] [INFO] Room 1: barrel 78 drawn. Remaining: 89
+[2026-07-23 19:57:42] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:42] [INFO] Connection closed (userId=110)
+[2026-07-23 19:57:42] [INFO] Reconnect validated: user_id=110
+[2026-07-23 19:57:42] [INFO] Room 1: barrel 21 drawn. Remaining: 88
+[2026-07-23 19:57:42] [INFO] Connection closed (userId=109)
+[2026-07-23 19:57:42] [INFO] Connection closed (userId=110)
+[2026-07-23 19:57:43] [INFO] Testing serverLog wrapper functionality at 1784836663
+[2026-07-23 19:57:43] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 19:57:43] [INFO] Room destroyed: room_id=1
+[2026-07-23 19:57:43] [INFO] Room created: room_id=1 host_conn_id=99 max_players=4
+[2026-07-23 19:57:43] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 19:57:43] [INFO] Room created: room_id=2 host_conn_id=2 max_players=4
+[2026-07-23 19:57:43] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 19:57:43] [INFO] Room 1 created by user_id=1 username=host cards_count=1 max_players=4
+[2026-07-23 19:57:43] [INFO] Room created: room_id=1 host_conn_id=7 max_players=4
+[2026-07-23 19:57:43] [INFO] Room 1 created by user_id=9 username=u9 cards_count=1 max_players=4
+[2026-07-23 19:57:44] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 19:57:44] [INFO] Room 1 created by user_id=1 username=host cards_count=1 max_players=4
+[2026-07-23 19:57:44] [INFO] User user_id=2 username=joiner joined room_id=1 cards_count=2
+[2026-07-23 19:57:44] [INFO] Room created: room_id=1 host_conn_id=4 max_players=2
+[2026-07-23 19:57:44] [INFO] Room 1 created by user_id=10 username=hfull cards_count=1 max_players=2
+[2026-07-23 19:57:44] [INFO] User user_id=11 username=j2 joined room_id=1 cards_count=1
+[2026-07-23 19:57:44] [INFO] Room created: room_id=1 host_conn_id=7 max_players=2
+[2026-07-23 19:57:44] [INFO] Room 1 created by user_id=13 username=hfull2 cards_count=1 max_players=2
+[2026-07-23 19:57:44] [INFO] Room created: room_id=1 host_conn_id=9 max_players=4
+[2026-07-23 19:57:44] [INFO] Room 1 created by user_id=20 username=hpwd cards_count=1 max_players=4
+[2026-07-23 19:57:44] [INFO] User user_id=22 username=goodpwd joined room_id=1 cards_count=1
+[2026-07-23 19:57:44] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 19:57:44] [INFO] Room 1 created by user_id=1 username=host cards_count=1 max_players=4
+[2026-07-23 19:57:44] [INFO] User user_id=2 username=joiner joined room_id=1 cards_count=1
+[2026-07-23 19:57:44] [INFO] Player username=joiner removed from lobby room_id=1 reason=leave
+[2026-07-23 19:57:44] [INFO] Room created: room_id=1 host_conn_id=3 max_players=4
+[2026-07-23 19:57:44] [INFO] Room 1 created by user_id=10 username=solo cards_count=1 max_players=4
+[2026-07-23 19:57:44] [INFO] Player username=solo removed from lobby room_id=1 reason=leave
+[2026-07-23 19:57:44] [INFO] Room destroyed: room_id=1
+[2026-07-23 19:57:44] [INFO] Room created: room_id=1 host_conn_id=4 max_players=4
+[2026-07-23 19:57:44] [INFO] Room 1 created by user_id=20 username=hplaying cards_count=1 max_players=4
+[2026-07-23 19:57:44] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 19:57:44] [INFO] Room 1 created by user_id=1 username=host cards_count=1 max_players=4
+[2026-07-23 19:57:44] [INFO] User user_id=2 username=j1 joined room_id=1 cards_count=1
+[2026-07-23 19:57:44] [INFO] User user_id=3 username=j2 joined room_id=1 cards_count=1
+[2026-07-23 19:57:44] [INFO] Player username=host removed from lobby room_id=1 reason=leave
+[2026-07-23 19:57:44] [INFO] Host transferred in room_id=1 new_host=j1
+[2026-07-23 19:57:44] [INFO] Player username=j1 removed from lobby room_id=1 reason=leave
+[2026-07-23 19:57:44] [INFO] Host transferred in room_id=1 new_host=j2
+[2026-07-23 19:57:44] [INFO] Player username=j2 removed from lobby room_id=1 reason=leave
+[2026-07-23 19:57:44] [INFO] Room destroyed: room_id=1
+[2026-07-23 19:57:44] [INFO] Room created: room_id=1 host_conn_id=2 max_players=4
+[2026-07-23 19:57:44] [INFO] Room 1 created by user_id=2 username=h1 cards_count=1 max_players=4
+[2026-07-23 19:57:44] [INFO] Room created: room_id=2 host_conn_id=3 max_players=6
+[2026-07-23 19:57:44] [INFO] Room 2 created by user_id=3 username=h2 cards_count=2 max_players=6
+[2026-07-23 19:57:44] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 19:57:44] [INFO] Room 1 created by user_id=1 username=host cards_count=1 max_players=4
+[2026-07-23 19:57:44] [INFO] User user_id=2 username=j1 joined room_id=1 cards_count=1
+[2026-07-23 19:57:44] [INFO] User user_id=3 username=j2 joined room_id=1 cards_count=1
+[2026-07-23 19:57:44] [INFO] Player username=j2 removed from lobby room_id=1 reason=leave
+[2026-07-23 19:57:44] [INFO] Player username=j1 removed from lobby room_id=1 reason=leave
+[2026-07-23 19:57:44] [INFO] Room created: room_id=1 host_conn_id=4 max_players=4
+[2026-07-23 19:57:44] [INFO] Room 1 created by user_id=10 username=h2 cards_count=1 max_players=4
+[2026-07-23 19:57:44] [INFO] User user_id=11 username=jj joined room_id=1 cards_count=1
+[2026-07-23 19:57:44] [INFO] Room destroyed: room_id=1
+[2026-07-23 19:57:45] [INFO] LottoGameServer started (protocol_version=1)
+[2026-07-23 19:57:45] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:45] [INFO] User registered: e104_host
+[2026-07-23 19:57:45] [INFO] User login: e104_host
+[2026-07-23 19:57:45] [INFO] Room created: room_id=1 host_conn_id=2 max_players=4
+[2026-07-23 19:57:45] [INFO] Room 1 created by user_id=111 username=e104_host cards_count=1 max_players=4
+[2026-07-23 19:57:45] [INFO] User registered: e104_joiner
+[2026-07-23 19:57:46] [INFO] User login: e104_joiner
+[2026-07-23 19:57:46] [INFO] User user_id=112 username=e104_joiner joined room_id=1 cards_count=2
+[2026-07-23 19:57:46] [INFO] User registered: e104_outsider
+[2026-07-23 19:57:46] [INFO] User login: e104_outsider
+[2026-07-23 19:57:46] [INFO] Connection closed (userId=113)
+[2026-07-23 19:57:46] [INFO] Player username=e104_joiner removed from lobby room_id=1 reason=leave
+[2026-07-23 19:57:46] [INFO] Connection closed (userId=112)
+[2026-07-23 19:57:46] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:46] [INFO] Connection closed (userId=111)
+[2026-07-23 19:57:47] [INFO] test 1
+[2026-07-23 19:57:47] [WARNING] test 2
+[2026-07-23 19:57:47] [ERROR] test 3
+[2026-07-23 19:57:48] [INFO] User login: login_valid
+[2026-07-23 19:57:48] [WARNING] Login failed: Invalid username or password
+[2026-07-23 19:57:48] [WARNING] Login failed: Invalid username or password
+[2026-07-23 19:57:48] [WARNING] Login failed: User is banned
+[2026-07-23 19:57:48] [INFO] User login: login_bonus
+[2026-07-23 19:57:48] [INFO] User login: login_bonus
+[2026-07-23 19:57:49] [INFO] LottoGameServer started (protocol_version=1)
+[2026-07-23 19:57:49] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:49] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:49] [INFO] Rate limit exceeded, closing connection (userId=null, count=16)
+[2026-07-23 19:57:49] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:49] [INFO] Rate limit exceeded, closing connection (userId=null, count=16)
+[2026-07-23 19:57:49] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:51] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:51] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:53] [INFO] User registered: test_user_1
+[2026-07-23 19:57:53] [WARNING] Registration failed: Username already exists
+[2026-07-23 19:57:53] [WARNING] Registration failed: Invalid username format
+[2026-07-23 19:57:53] [WARNING] Registration failed: Password must be between 6 and 64 characters
+[2026-07-23 19:57:53] [INFO] LottoGameServer started (protocol_version=1)
+[2026-07-23 19:57:53] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:55] [INFO] Connection closed (userId=null)
+[2026-07-23 19:57:57] [INFO] User login: session_user
+[2026-07-23 19:57:57] [INFO] User login: session_user
+[2026-07-23 19:57:58] [INFO] User login: single_user
+[2026-07-23 19:57:58] [WARNING] Login failed: User already logged in
+[2026-07-23 19:57:58] [INFO] User login: single_user
+[2026-07-23 19:57:58] [INFO] Room 1: game over successfully processed. Winner: host, reason: victory
+[2026-07-23 19:57:58] [ERROR] Room 1: finishGame Сбой транзакции начисления: SQLSTATE[23000]: Integrity constraint violation: 19 CHECK constraint failed: coins <= 200
+[2026-07-23 19:57:58] [INFO] Room 1: game over successfully processed. Winner: host, reason: victory

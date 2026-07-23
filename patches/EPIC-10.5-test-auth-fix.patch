@@ -1,0 +1,13 @@
+--- pristine/lotto-game-main/tests/Manual/test_auth_packet_routing.php	2026-07-23 05:15:14.000000000 +0000
++++ lotto-game-main/tests/Manual/test_auth_packet_routing.php	2026-07-23 09:25:02.769083124 +0000
+@@ -296,8 +296,8 @@
+         'code != error.auth_required (получено: ' . ($data2['code'] ?? 'null') . ') — FIX-8 подтверждён end-to-end'
+     );
+     check(
+-        ($data2['code'] ?? null) === 'error.invalid_json',
+-        'code=error.invalid_json (lobby-действия ещё не подключены — ожидаемо, EPIC-10.4)'
++        ($data2['type'] ?? null) === 'room_joined',
++        'type=room_joined (create_room после register реально создаёт комнату — EPIC-10.4 подключён)'
+     );
+     $c1->close();
+ 

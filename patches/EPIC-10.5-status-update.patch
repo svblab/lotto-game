@@ -1,0 +1,207 @@
+--- pristine/lotto-game-main/docs/IMPLEMENTATION_STATUS.md	2026-07-23 05:15:14.000000000 +0000
++++ lotto-game-main/docs/IMPLEMENTATION_STATUS.md	2026-07-23 19:26:54.762445272 +0000
+@@ -639,6 +639,129 @@
+ 
+ ## PATCHES
+ 
++## EPIC-10.5 — Game packet routing (+ FIX-9, found during wiring)
++Status: Completed
++Date: 2026-07-23
++
++Files:
++- src/Game/GameHandler.php (новый файл — thin wrapper над GameService,
++  тот же паттерн что LobbyHandler/AuthHandler)
++- server.php (diff — LottoEngine/VictoryService/ApartmentService/
++  GameFinishService/GameService/GameHandler dependency wiring in
++  onWorkerStart, идентичный порядок конструктора уже принятому в
++  tests/Manual/test_game_start.php; start_game/draw_barrel/
++  apartment_choice wired in onMessage dispatch; ReconnectService теперь
++  тоже собран — оба его зависимых сервиса, LobbyService (EPIC-10.4) и
++  GameService (этот Epic), наконец готовы одновременно; onClose делегирует
++  ReconnectService::handleDisconnect(); action 'reconnect' дополнительно
++  вызывает ReconnectService::handleReconnect() после AuthHandler для
++  восстановления игрового состояния/reconnect_state)
++- src/Game/ReconnectService.php (diff — FIX-9, см. ниже)
++- tests/Manual/test_reconnect.php (diff — GROUP 3 assertions обновлены под
++  FIX-9: запись переезжает на новый conn_id, а не остаётся на старом; +3
++  новых assertion на host_conn_id/active_drawer_conn_id/drawer_order)
++- tests/Manual/test_game_packet_routing.php (новый файл — 21 assertions,
++  real WS client against live server.php, `e105_` username prefix)
++
++GameService/VictoryService/ApartmentService/GameFinishService already
++existed (Phase 4-7) and required no new business logic for the packet-
++routing part itself — matching every other EPIC-10.x so far, this is pure
++dependency wiring + routing. The one router-level addition is in
++GameHandler::handleApartmentChoice(): validates that `choice` is a
++non-empty string before delegating (error.invalid_json otherwise) —
++GameService/ApartmentService already validate the actual value
++('agree'/'refuse') internally.
++
++Reconnect wiring was deliberately bundled into this Epic rather than left
++pending further, because ReconnectService's constructor is the literal
++reason onClose and 'reconnect' were stubbed out since EPIC-10.0 — both of
++its dependencies (LobbyService, GameService) are only both available as of
++this Epic. This is not a new/separate feature so much as completing what
++EPIC-10.0's own code comments already earmarked for "EPIC-10.4/10.5".
++
++Found and fixed during wiring (FIX-9, see PATCHES-style note below —
++kept inline here since it's this Epic's direct blocker, not a standalone
++older-code audit finding):
++- ReconnectService::handleReconnect() restored player state and sent
++  reconnect_state, but left the `$room['players']` array entry keyed
++  under the OLD (disconnected) connection id. A new WS connection created
++  by the client on reconnect gets a brand-new Workerman connection->id —
++  every downstream handler (draw_barrel, leave_room, apartment_choice, ...)
++  looks the player up by the CURRENT connection's id, so none of them
++  could find the reconnected player. Reconnect looked successful
++  (reconnect_state packet received, status flipped to 'active') but was
++  functionally dead for anything after it.
++- Root cause of why this was never caught: tests/Manual/test_reconnect.php
++  (EPIC-8.6) only unit-tests handleReconnect() in isolation with
++  MockConnection and asserts state at the OLD key — it never simulates a
++  subsequent action arriving from the NEW connection through real routing,
++  because until this Epic there was no real routing to go through.
++- Fix: handleReconnect() now re-keys the players array entry from the old
++  conn_id to the new one, and updates every other room-level field that
++  can point at a conn_id: `host_conn_id`, `active_drawer_conn_id`, and
++  every matching entry in `drawer_order`. Timer, connection object, and
++  session_token handling unchanged.
++- Verified non-false-positive: reverted the fix locally, re-ran
++  tests/Manual/test_game_packet_routing.php TEST 8 — draw_barrel after
++  reconnect failed with error.room_not_found as predicted (new conn_id not
++  found in `$room['players']`); restored the fix — 21/21 PASSED again.
++
++No ADR required — no protocol packet, error code, or ANCHOR document
++changed. Room/Player structure keys are unchanged (Rule 7 No Hidden
++Features) — FIX-9 only changes which array key an existing structure is
++stored under, at the moment of reconnect.
++
++Also fixed in this Epic (stale pre-existing test assertion, not a FIX-N —
++Rule 22 Test Philosophy: fix the test, not the implementation, since the
++implementation was already correct): tests/Manual/test_auth_packet_routing.php
++TEST 2 still asserted `error.invalid_json` for create_room after register,
++a leftover from before EPIC-10.4 wired lobby routing — despite this
++project's own IMPLEMENTATION_STATUS.md EPIC-10.4 entry already claiming
++this assertion was updated. It had not been, in the actual committed file.
++Corrected to assert `room_joined`.
++
++Housekeeping (found during this Epic's audit, unrelated to game routing
++itself): the repository had two case-variant test directories,
++`tests/Manual/` and `tests/manual/`, byte-identical except that
++`tests/manual/test_lobby_packet_routing.php` (EPIC-10.4) existed only in
++the lowercase copy — almost certainly a case-insensitive-filesystem
++artifact from a local dev machine, invisible on that machine but tracked
++as two separate directories in git. Consequence: `run_ALL_tests.sh` (globs
++`tests/Manual/test_*.php` only) was silently never running
++test_lobby_packet_routing.php at all. Fixed: file moved into
++`tests/Manual/` (confirmed identical before the move, `php -l` clean,
++re-run 23/23 PASSED post-move), the stray `tests/manual/` directory
++removed entirely.
++
++Result:
++- tests/Manual/test_game_packet_routing.php (new): 21/21 PASSED — full
++  flow verified end-to-end through a real WS client against a live
++  server.php subprocess: non-host start_game guard, game_started
++  broadcast (bank/drawer_order), turn-order draw_barrel guard,
++  barrels_drawn + your_turn rotation, apartment_choice with no apartment
++  active, apartment_choice missing `choice` field, unauth draw_barrel,
++  and — critically — a real TCP disconnect mid-game followed by
++  reconnect on a brand-new connection, then a successful draw_barrel from
++  that new connection (this last step is the FIX-9 regression check).
++- tests/Manual/test_reconnect.php: 20/20 PASSED (was 15 — +5 new FIX-9
++  assertions in GROUP 3).
++- tests/Manual/test_auth_packet_routing.php: 18/18 PASSED (TEST 2 fixed).
++- tests/Manual/test_lobby_packet_routing.php: 23/23 PASSED (moved,
++  unchanged otherwise).
++- Full regression across every tests/Manual/*.php file — 0 failed.
++
++⚠️ KNOWN GAP (found during this Epic, not fixed — narrow edge case, out
++of scope per Rule 11 Epic Isolation): if a client sends `{"action":
++"reconnect", "token": ...}` with a token AuthHandler considers valid, but
++ReconnectService::handleReconnect() finds no matching disconnected player
++in any room (i.e. the user was never in a room-level session, or it was
++already cleaned up), `$connection->userId` is never set — AuthHandler::
++handleReconnect() itself never sets it, only ReconnectService does, only
++on a match. Symmetric in spirit to FIX-8 (EPIC-10.3) but a distinct fix,
++deliberately left for a follow-up rather than folded into this Epic.
++
++Diff: patches/EPIC-10.5-game-routing.patch
++
+ ## EPIC-10.4 — Lobby packet routing
+ Status: Completed
+ Date: 2026-07-23
+@@ -1107,6 +1230,27 @@
+ - 2026-07-03 — Аудит на баги, аналогичные FIX-3 (по запросу перед Phase 10): найден и исправлен FIX-6 (утечка reconnect_timer при kick/ban удалении в Lobby/Apartment — Timer Integrity Rule). Проверены: экономические мутации (bank/total_paid/coins — чисто), reconnect/disconnect история (чисто), timer cleanup при destroyRoom (чисто, делегирование корректно), state machine записи статусов (чисто), Module Boundaries Admin→Game (чисто, только публичные методы), host-transfer комментарий в handleKickUser (соответствует уже задокументированному KNOWN GAP EPIC-9.3, новых расхождений нет). Полный регресс по 23 файлам tests/Manual/*.php (добавлен test_timer_integrity.php) — 0 failed.
+ - 2026-07-03 — Второй раунд аудита (протокол/edge cases): обнаружены и удалены docs/ANCHOR_PROJECT_STATUS.md (устарел с начала проекта, вводил в заблуждение будущие сессии). Обнаружены docs/prompt.md (исходное ТЗ v4.0) и docs/GAME_RULES.md — оба тоже не обновлялись с начала проекта; из prompt.md извлечены два незадокументированных требования (rate limiting, invalid-JSON policy) — см. KNOWN GAPS, решение отложено до EPIC-10.1 по решению пользователя. Также обнаружены два протокольных долга низкого приоритета: afk_warning (не задекларирован) и admin_stats_data (задекларирован, не реализован, без Epic). Кодовых багов в этом раунде не найдено — все находки документационные/процессные.
+ - 2026-07-03 — EPIC-10.0 Protocol router завершён: server.php (Workerman bootstrap, onWorkerStart/onWebSocketConnected/onMessage/onClose) без auth/lobby/game/admin-логики (Rule 11 Epic Isolation — ReconnectService требует LobbyService+GameService одновременно, подключение onClose к реальной бизнес-логике отложено до EPIC-10.4/10.5). Верифицирован полностью автоматически через реальный WebSocket-клиент (без внешних библиотек) поверх настоящего TCP-сокета — 8/8 PASSED. Rate limiting и invalid-JSON policy подтверждены как открытые вопросы EPIC-10.1 (не реализованы намеренно).
++- 2026-07-23 — EPIC-10.5 Accepted + FIX-9: start_game/draw_barrel/
++  apartment_choice подключены к новому GameHandler (GameService Phase 4-7
++  уже существовал — dependency wiring + routing). ReconnectService также
++  подключён (onClose -> handleDisconnect(), 'reconnect' action ->
++  handleReconnect() поверх AuthHandler) — оба его зависимых сервиса,
++  LobbyService (EPIC-10.4) и GameService (этот Epic), наконец собраны
++  одновременно. Найден и исправлен FIX-9 в процессе: handleReconnect() не
++  переиндексировал $room['players'] на новый conn_id нового WS-соединения
++  — reconnect_state отправлялся, но любое дальнейшее действие с нового
++  соединения не находило игрока (room_not_found). Исправлено: re-key
++  players + host_conn_id/active_drawer_conn_id/drawer_order. Попутно
++  исправлена стухшая assertion в test_auth_packet_routing.php TEST 2
++  (ожидала error.invalid_json там, где EPIC-10.4 уже давно возвращает
++  room_joined — расхождение между этим файлом и фактически закоммиченным
++  тестом). Housekeeping: удалён паразитный `tests/manual/` (нижний
++  регистр) каталог-дубликат — `test_lobby_packet_routing.php` существовал
++  только в нём и никогда не запускался run_ALL_tests.sh; перенесён в
++  `tests/Manual/`. Новый test_game_packet_routing.php 21/21 (реальный WS
++  против живого server.php, включая сквозную проверку FIX-9: disconnect →
++  reconnect с нового соединения → успешный draw_barrel). test_reconnect.php
++  20/20 (было 15, +5 assertions под FIX-9). Полный регресс 0 failed.
+ - 2026-07-23 — EPIC-10.4 Accepted: room_list/create_room/join_room/
+   leave_room подключены к LobbyHandler (LobbyService EPIC-2.x уже
+   существовал — dependency wiring + routing). Новый LobbyHandler.php
+@@ -1211,7 +1355,6 @@
+ 37 / 37 PASSED (turn system)
+ 40 / 40 PASSED (victory system)          [+2 vs заявленных 38 — усилены проверки FIX-4]
+ 32 / 32 PASSED (apartment)
+-15 / 15 PASSED (reconnect)
+ 8 / 8 PASSED (admin auth)
+ 9 / 9 PASSED (admin ban)
+ 8 / 8 PASSED (admin unban)
+@@ -1222,8 +1365,10 @@
+ 5 / 5 PASSED (timer integrity)
+ 18 / 18 PASSED (server bootstrap — real WS client, EPIC-10.0/10.2) [+10 vs заявленных 8 — TEST 7 (connection gate), TEST 8 (auth_required exemptions), TEST 4 ужесточён]
+ 11 / 11 PASSED (packet validation — real WS client, EPIC-10.1)
+-18 / 18 PASSED (auth packet routing — real WS client, EPIC-10.3, новый файл)
+-22 / 22 PASSED (lobby packet routing — real WS client, EPIC-10.4, новый файл)
++18 / 18 PASSED (auth packet routing — real WS client, EPIC-10.3, TEST 2 обновлён в EPIC-10.5)
++23 / 23 PASSED (lobby packet routing — real WS client, EPIC-10.4, перенесён из паразитного tests/manual/ в EPIC-10.5)
++20 / 20 PASSED (reconnect — было 15, +5 assertions FIX-9, EPIC-10.5)
++21 / 21 PASSED (game packet routing — real WS client, EPIC-10.5, новый файл)
+ `
+ 
+ Current branch:
+@@ -1235,14 +1380,18 @@
+ Current stable commit (pending commit — see Git Checkpoint below):
+ 
+ `text
+-EPIC-10.4-lobby-routing (LobbyHandler wiring + «Already in a room»
+-guard; full regression 0 failed)
++EPIC-10.5-game-routing (GameHandler wiring + ReconnectService wiring +
++FIX-9 conn_id re-key on reconnect; full regression 0 failed)
+ `
+ 
+ Next planned Epic:
+ 
+ `text
+-EPIC-10.5 Game packet routing
++EPIC-10.6 Admin packet integration
+ `
+-PHASE 10 — WEBSOCKET PROTOCOL: IN PROGRESS (10.0, 10.1, 10.2, 10.3, 10.4 done).
+-Известных дефектов нет.
+\ No newline at end of file
++PHASE 10 — WEBSOCKET PROTOCOL: IN PROGRESS (10.0, 10.1, 10.2, 10.3, 10.4,
++10.5 done).
++Known open items (not defects blocking progress, see EPIC-10.5 KNOWN GAP
++above): AuthHandler::handleReconnect() doesn't bind $connection->userId
++when the token is valid but no matching disconnected room player is
++found — narrow edge case outside ANCHOR_CORE.md § Reconnect Rules.
+\ No newline at end of file

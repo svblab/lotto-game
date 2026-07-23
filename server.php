@@ -11,8 +11,19 @@
  *
  * СОЗНАТЕЛЬНО НЕ РЕАЛИЗОВАНО (Rule 11 Epic Isolation —
  * "Auth+Lobby, Lobby+Game, Game+Admin... в одном Epic запрещены"):
- *   - Маршрутизация game-пакетов (draw_barrel/apartment_choice) → EPIC-10.5
- *   - Маршрутизация admin-пакетов (admin_*)                   → EPIC-10.6
+ *   - Маршрутизация admin-пакетов (admin_*) → EPIC-10.6
+ *
+ * EPIC-10.5 (Game packet routing): start_game/draw_barrel/apartment_choice
+ * подключены к GameHandler (GameService уже существовал, Phase 4-7 —
+ * здесь только dependency wiring и routing, никакой новой игровой логики).
+ * ReconnectService (EPIC-8.0) теперь тоже подключён — его конструктор
+ * требует LobbyService И GameService одновременно (см. его собственный
+ * __construct), поэтому подключение стало возможно только сейчас, когда
+ * оба зависимых сервиса уже собраны (EPIC-10.4 + EPIC-10.5). onClose
+ * делегирует ReconnectService::handleDisconnect(); action 'reconnect' —
+ * после валидации токена AuthHandler'ом (EPIC-10.3) — дополнительно
+ * пытается восстановить игровое состояние через
+ * ReconnectService::handleReconnect() и разослать reconnect_state.
  *
  * EPIC-10.4 (Lobby packet routing): room_list/create_room/join_room/
  * leave_room подключены к LobbyHandler (LobbyService уже существовал —
@@ -21,12 +32,22 @@
  *
  * EPIC-10.3 (Auth packet routing): register/login/reconnect подключены к
  * AuthHandler (EPIC-1.3, уже существовал — здесь только dependency wiring
- * и routing, никакой новой auth-логики). reconnect ВАЛИДИРУЕТ токен и
- * восстанавливает $worker->userConnections, но пакет reconnect_state НЕ
- * отправляется — это ответственность ReconnectService (EPIC-8.0), чья
- * маршрутизация в onMessage наступит только вместе с EPIC-10.4/10.5
- * (см. ReconnectService конструктор — зависит от LobbyService И
- * GameService одновременно, ниже в этом файле § onClose).
+ * и routing, никакой новой auth-логики). AuthHandler::handleReconnect()
+ * валидирует токен и восстанавливает $worker->userConnections, но НЕ
+ * устанавливает $connection->userId и не отправляет reconnect_state — это
+ * теперь делает ReconnectService::handleReconnect() (EPIC-10.5, см. выше),
+ * когда находит игрока с совпадающим session_token в состоянии
+ * 'disconnected' внутри какой-либо комнаты.
+ *
+ * ⚠️ KNOWN GAP (обнаружено при подключении EPIC-10.5, не устранено в этом
+ * Epic'е — узкий edge-case вне основного сценария, см.
+ * IMPLEMENTATION_STATUS.md): если токен валиден (AuthHandler подтвердил
+ * сессию), но ReconnectService::handleReconnect() не находит подходящего
+ * disconnected-игрока ни в одной комнате (т.е. пользователь не был в
+ * игровой комнате на момент разрыва — сценарий вне ANCHOR_CORE.md §
+ * Reconnect Rules, где reconnect определён только для 'waiting'/'playing'
+ * комнаты), $connection->userId остаётся null. Требует отдельного фикса
+ * в AuthHandler (симметрично FIX-8), но не в scope EPIC-10.5 (Rule 11).
  *
  * EPIC-10.1 (Packet validation): rate limiting и invalid-JSON policy
  * теперь реализованы и формализованы в ADR-003
@@ -38,11 +59,10 @@
  *     немедленное закрытие БЕЗ error-пакета (это защита от злоупотребления,
  *     а не сообщение об ошибке клиенту).
  *
- * $worker->onClose ниже — намеренная заглушка с TODO: полноценная
- * обработка disconnect требует ReconnectService, который согласно его
- * собственному конструктору зависит одновременно от LobbyService И
- * GameService — то есть подключение onClose к реальной бизнес-логике
- * возможно только после EPIC-10.4/10.5, не раньше.
+ * $worker->onClose теперь делегирует ReconnectService::handleDisconnect()
+ * (EPIC-10.5) — заглушка снята, т.к. LobbyService (EPIC-10.4) и
+ * GameService (EPIC-10.5), обе зависимости конструктора ReconnectService,
+ * теперь собраны.
  *
  * EPIC-10.2 (Protocol error handling): реализован ТОЛЬКО глобальный
  * лимит соединений (ADR-005 — docs/ADR/005.md): при превышении
@@ -69,6 +89,13 @@ use Lotto\Auth\AuthHandler;
 use Lotto\Core\RoomManager;
 use Lotto\Lobby\LobbyService;
 use Lotto\Lobby\LobbyHandler;
+use Lotto\Game\LottoEngine;
+use Lotto\Game\VictoryService;
+use Lotto\Game\ApartmentService;
+use Lotto\Game\GameFinishService;
+use Lotto\Game\GameService;
+use Lotto\Game\GameHandler;
+use Lotto\Game\ReconnectService;
 
 use function Lotto\Core\sendJson;
 use function Lotto\Core\sendError;
@@ -102,6 +129,36 @@ $worker->onWorkerStart = function (Worker $worker): void {
     $worker->roomManager  = new RoomManager($worker->logger);
     $worker->lobbyService = new LobbyService($worker->roomManager, $worker->logger);
     $worker->lobbyHandler = new LobbyHandler($worker->lobbyService);
+
+    // EPIC-10.5 (Game packet routing): GameService/VictoryService/
+    // ApartmentService/GameFinishService уже реализованы (Phase 4-7) —
+    // здесь только сборка зависимостей и подключение к router'у, никакой
+    // новой игровой логики. Порядок аргументов конструктора GameService
+    // идентичен уже принятому в tests/Manual/test_game_start.php.
+    $lottoEngine    = new LottoEngine();
+    $victoryService = new VictoryService();
+    $apartmentService  = new ApartmentService($worker->db, $statements, $worker->logger);
+    $gameFinishService = new GameFinishService($worker->db, $statements, $worker->logger);
+    $worker->gameService = new GameService(
+        $worker->db,
+        $statements,
+        $lottoEngine,
+        $worker->logger,
+        $victoryService,
+        $apartmentService,
+        $gameFinishService
+    );
+    $worker->gameHandler = new GameHandler($worker->gameService);
+
+    // ReconnectService (EPIC-8.0) — конструктор требует LobbyService И
+    // GameService одновременно; оба теперь собраны (EPIC-10.4 + EPIC-10.5
+    // выше), поэтому подключение стало возможно только сейчас, не раньше
+    // (см. комментарий у $worker->onClose и Rule 11 Epic Isolation).
+    $worker->reconnectService = new ReconnectService(
+        $worker->lobbyService,
+        $worker->gameService,
+        $worker->logger
+    );
 
     // Runtime-память (ANCHOR_CORE.md § Runtime Memory Layout / Worker Storage)
     $worker->rooms           = [];
@@ -267,36 +324,56 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
         }
     }
 
-    // Диспетчер: auth (EPIC-10.3) и lobby (EPIC-10.4) подключены.
-    // Остальные группы действий подключаются по мере готовности
-    // соответствующих модулей:
-    //   draw_barrel/apartment_choice    → EPIC-10.5 (GameHandler — создать)
-    //   admin_*                         → EPIC-10.6 (AdminHandler — создать)
+    // EPIC-10.5: 'reconnect' обрабатывается отдельно от match()-диспетчера
+    // ниже (не в одном arm) — требует ДВУХ последовательных шагов, а не
+    // одного вызова: (1) AuthHandler::handleReconnect() валидирует токен
+    // формально и восстанавливает $worker->userConnections (EPIC-10.3);
+    // (2) если токен синтаксически валиден, ReconnectService::
+    // handleReconnect() (теперь собран — оба его зависимых сервиса,
+    // LobbyService и GameService, готовы) довершает восстановление:
+    // находит игрока с совпадающим session_token в состоянии
+    // 'disconnected' внутри комнаты, устанавливает $connection->userId и
+    // рассылает reconnect_state. Если совпадения нет — см. KNOWN GAP в
+    // шапке файла, ничего дополнительно не отправляется.
+    if ($action === 'reconnect') {
+        $worker->authHandler->handleReconnect($data, $connection, $worker);
+
+        $token = $data['token'] ?? null;
+        if (is_string($token) && $token !== '') {
+            $worker->reconnectService->handleReconnect($token, $connection, $worker);
+        }
+        return;
+    }
+
+    // Диспетчер: auth (EPIC-10.3), lobby (EPIC-10.4) и game (EPIC-10.5)
+    // подключены. reconnect обработан отдельно выше. Остаётся:
+    //   admin_*   → EPIC-10.6 (AdminHandler — создать)
     match ($action) {
-        'register'    => $worker->authHandler->handleRegister($data, $connection, $worker),
-        'login'       => $worker->authHandler->handleLogin($data, $connection, $worker),
-        'reconnect'   => $worker->authHandler->handleReconnect($data, $connection, $worker),
-        'room_list'   => $worker->lobbyHandler->handleRoomList($connection, $worker),
-        'create_room' => $worker->lobbyHandler->handleCreateRoom($data, $connection, $worker),
-        'join_room'   => $worker->lobbyHandler->handleJoinRoom($data, $connection, $worker),
-        'leave_room'  => $worker->lobbyHandler->handleLeaveRoom($connection, $worker),
-        default       => sendError($connection, 'error.invalid_json', "Unknown or not-yet-wired action: {$action}"),
+        'register'         => $worker->authHandler->handleRegister($data, $connection, $worker),
+        'login'            => $worker->authHandler->handleLogin($data, $connection, $worker),
+        'room_list'        => $worker->lobbyHandler->handleRoomList($connection, $worker),
+        'create_room'      => $worker->lobbyHandler->handleCreateRoom($data, $connection, $worker),
+        'join_room'        => $worker->lobbyHandler->handleJoinRoom($data, $connection, $worker),
+        'leave_room'       => $worker->lobbyHandler->handleLeaveRoom($connection, $worker),
+        'start_game'       => $worker->gameHandler->handleStartGame($connection, $worker),
+        'draw_barrel'      => $worker->gameHandler->handleDrawBarrel($connection, $worker),
+        'apartment_choice' => $worker->gameHandler->handleApartmentChoice($data, $connection, $worker),
+        default            => sendError($connection, 'error.invalid_json', "Unknown or not-yet-wired action: {$action}"),
     };
 };
 
 // -----------------------------------------------------------------------
-// onClose — TODO(EPIC-10.4/10.5): делегировать ReconnectService::
-// handleDisconnect($connection, $worker) после того, как LobbyService и
-// GameService (зависимости ReconnectService) будут подключены. До тех
-// пор — только диагностическое логирование, без бизнес-логики
-// (Rule 15: reconnect-логика запрещена в server.php напрямую).
+// onClose — EPIC-10.5: делегирует ReconnectService::handleDisconnect().
+// Оба зависимых сервиса ReconnectService (LobbyService, GameService)
+// теперь собраны в onWorkerStart, поэтому подключение реальной бизнес-
+// логики (вместо диагностической заглушки) стало возможным.
 // -----------------------------------------------------------------------
 
 $worker->onClose = function ($connection) use ($worker): void {
     $worker->logger->info(
         'Connection closed (userId=' . ($connection->userId ?? 'null') . ')'
     );
-    // TODO(EPIC-10.4/10.5): ReconnectService::handleDisconnect($connection, $worker);
+    $worker->reconnectService->handleDisconnect($connection, $worker);
 };
 
 Worker::runAll();

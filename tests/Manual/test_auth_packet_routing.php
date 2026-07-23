@@ -288,7 +288,7 @@ try {
     // auth_result выше.
     // =========================================================================
     echo "\nTEST 2 (FIX-8): после register не-exempt action НЕ блокируется auth_required guard'ом\n";
-    $c1->send(json_encode(['action' => 'create_room']));
+    $c1->send(json_encode(['action' => 'create_room', 'max_players' => 4, 'password' => '', 'cards_count' => 1]));
     $msg2 = $c1->recvOrNull();
     $data2 = json_decode($msg2 ?? '', true);
     check(
@@ -296,8 +296,8 @@ try {
         'code != error.auth_required (получено: ' . ($data2['code'] ?? 'null') . ') — FIX-8 подтверждён end-to-end'
     );
     check(
-        ($data2['code'] ?? null) === 'error.invalid_json',
-        'code=error.invalid_json (lobby-действия ещё не подключены — ожидаемо, EPIC-10.4)'
+        ($data2['type'] ?? null) === 'room_joined',
+        'type=room_joined (lobby routing подключён, EPIC-10.4)'
     );
     $c1->close();
 

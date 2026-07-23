@@ -1,0 +1,112 @@
+--- pristine/lotto-game-main/src/Game/ReconnectService.php	2026-07-23 05:15:14.000000000 +0000
++++ lotto-game-main/src/Game/ReconnectService.php	2026-07-23 09:27:57.156420635 +0000
+@@ -96,6 +96,20 @@
+ 
+     /**
+      * EPIC-8.2: восстановление disconnected игрока по session token.
++     *
++     * FIX-9 (обнаружено при подключении EPIC-10.5, т.е. при первом реальном
++     * end-to-end прогоне через живой router, а не через MockConnection):
++     * $room['players'] keyed по conn_id (ANCHOR_CORE.md § Room Structure).
++     * Новое WS-соединение после reconnect получает от Workerman НОВЫЙ
++     * connection->id, отличный от старого (disconnected) ключа. Без
++     * переиндексации записи все последующие хендлеры (draw_barrel/
++     * leave_room/apartment_choice/...), ищущие игрока по $connection->id,
++     * не находят его — reconnect выглядел бы успешным (reconnect_state
++     * отправлен, статус='active'), но был бы функционально мёртвым для
++     * любого дальнейшего действия с новой физической связи. Юнит-тест
++     * GROUP 3 (tests/Manual/test_reconnect.php) не ловил это, т.к. проверяет
++     * только сам вызов handleReconnect() в изоляции, не последующий вызов
++     * от нового соединения через реальный router.
+      */
+     public function handleReconnect(string $token, object $connection, object $worker): bool
+     {
+@@ -109,37 +123,66 @@
+                 continue;
+             }
+ 
+-            foreach ($room['players'] as $connId => &$player) {
+-                if (($player['session_token'] ?? '') !== $token) {
++            $oldConnId = null;
++            foreach ($room['players'] as $connId => $candidate) {
++                if (($candidate['session_token'] ?? '') !== $token) {
+                     continue;
+                 }
+-                if (($player['status'] ?? null) !== 'disconnected') {
++                if (($candidate['status'] ?? null) !== 'disconnected') {
+                     continue;
+                 }
++                $oldConnId = $connId;
++                break;
++            }
+ 
+-                if (!empty($player['reconnect_timer'])) {
+-                    Timer::del($player['reconnect_timer']);
+-                }
++            if ($oldConnId === null) {
++                continue;
++            }
+ 
+-                $player['reconnect_timer'] = null;
+-                $player['status']          = 'active';
+-                $player['connection']      = $connection;
+-                $player['last_action']     = time();
+-                $player['afk_start']       = null;
+-                $player['strikes']         = 0;
+-
+-                $connection->userId       = $player['user_id'];
+-                $connection->username     = $player['username'];
+-                $connection->sessionToken = $token;
++            $player = $room['players'][$oldConnId];
+ 
+-                if (!isset($worker->userConnections)) {
+-                    $worker->userConnections = [];
+-                }
+-                $worker->userConnections[(int)$player['user_id']] = $connection;
++            if (!empty($player['reconnect_timer'])) {
++                Timer::del($player['reconnect_timer']);
++            }
++
++            $newConnId = (int)$connection->id;
+ 
+-                sendJson($connection, $this->buildReconnectState($room, (int)$connId));
+-                return true;
++            $player['reconnect_timer'] = null;
++            $player['status']          = 'active';
++            $player['connection']      = $connection;
++            $player['last_action']     = time();
++            $player['afk_start']       = null;
++            $player['strikes']         = 0;
++
++            // FIX-9: перенос записи на новый ключ + обновление всех ссылок
++            // на старый conn_id в структуре комнаты.
++            unset($room['players'][$oldConnId]);
++            $room['players'][$newConnId] = $player;
++
++            if (($room['host_conn_id'] ?? null) === $oldConnId) {
++                $room['host_conn_id'] = $newConnId;
++            }
++            if (($room['active_drawer_conn_id'] ?? null) === $oldConnId) {
++                $room['active_drawer_conn_id'] = $newConnId;
+             }
++            if (!empty($room['drawer_order'])) {
++                $room['drawer_order'] = array_map(
++                    fn($cid) => $cid === $oldConnId ? $newConnId : $cid,
++                    $room['drawer_order']
++                );
++            }
++
++            $connection->userId       = $player['user_id'];
++            $connection->username     = $player['username'];
++            $connection->sessionToken = $token;
++
++            if (!isset($worker->userConnections)) {
++                $worker->userConnections = [];
++            }
++            $worker->userConnections[(int)$player['user_id']] = $connection;
++
++            sendJson($connection, $this->buildReconnectState($room, $newConnId));
++            return true;
+         }
+ 
+         return false;
