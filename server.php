@@ -11,10 +11,18 @@
  *
  * СОЗНАТЕЛЬНО НЕ РЕАЛИЗОВАНО В ЭТОМ EPIC (Rule 11 Epic Isolation —
  * "Auth+Lobby, Lobby+Game, Game+Admin... в одном Epic запрещены"):
- *   - Маршрутизация auth-пакетов (register/login/reconnect)  → EPIC-10.3
  *   - Маршрутизация lobby-пакетов (create_room/join_room/...) → EPIC-10.4
  *   - Маршрутизация game-пакетов (draw_barrel/apartment_choice) → EPIC-10.5
  *   - Маршрутизация admin-пакетов (admin_*)                   → EPIC-10.6
+ *
+ * EPIC-10.3 (Auth packet routing): register/login/reconnect подключены к
+ * AuthHandler (EPIC-1.3, уже существовал — здесь только dependency wiring
+ * и routing, никакой новой auth-логики). reconnect ВАЛИДИРУЕТ токен и
+ * восстанавливает $worker->userConnections, но пакет reconnect_state НЕ
+ * отправляется — это ответственность ReconnectService (EPIC-8.0), чья
+ * маршрутизация в onMessage наступит только вместе с EPIC-10.4/10.5
+ * (см. ReconnectService конструктор — зависит от LobbyService И
+ * GameService одновременно, ниже в этом файле § onClose).
  *
  * EPIC-10.1 (Packet validation): rate limiting и invalid-JSON policy
  * теперь реализованы и формализованы в ADR-003
@@ -50,6 +58,10 @@ use Workerman\Timer;
 use Lotto\Core\Constants;
 use Lotto\Core\Logger;
 use Lotto\Infrastructure\Database;
+use Lotto\Infrastructure\PreparedStatements;
+use Lotto\Auth\SessionService;
+use Lotto\Auth\AuthService;
+use Lotto\Auth\AuthHandler;
 
 use function Lotto\Core\sendJson;
 use function Lotto\Core\sendError;
@@ -68,6 +80,14 @@ $worker->onWorkerStart = function (Worker $worker): void {
     // Инфраструктура (Rule 15: dependency wiring разрешён в server.php)
     $worker->db     = new Database();
     $worker->logger = new Logger();
+
+    // EPIC-10.3 (Auth packet routing): AuthHandler уже реализован
+    // (EPIC-1.3) — здесь только сборка зависимостей и подключение к
+    // router'у, никакой новой бизнес-логики.
+    $statements     = new PreparedStatements($worker->db->getPdo());
+    $sessionService = new SessionService();
+    $authService    = new AuthService($worker->db, $statements, $worker->logger, $sessionService);
+    $worker->authHandler = new AuthHandler($authService, $sessionService, $worker->logger);
 
     // Runtime-память (ANCHOR_CORE.md § Runtime Memory Layout / Worker Storage)
     $worker->rooms           = [];
@@ -221,14 +241,17 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
         return;
     }
 
-    // Диспетчер намеренно пуст — маршруты подключаются по мере готовности
+    // Диспетчер: register/login/reconnect подключены (EPIC-10.3).
+    // Остальные группы действий подключаются по мере готовности
     // соответствующих модулей:
-    //   register/login/reconnect        → EPIC-10.3 (AuthHandler уже существует)
     //   create_room/join_room/...       → EPIC-10.4 (LobbyHandler — создать)
     //   draw_barrel/apartment_choice    → EPIC-10.5 (GameHandler — создать)
     //   admin_*                         → EPIC-10.6 (AdminHandler — создать)
     match ($action) {
-        default => sendError($connection, 'error.invalid_json', "Unknown or not-yet-wired action: {$action}"),
+        'register'  => $worker->authHandler->handleRegister($data, $connection, $worker),
+        'login'     => $worker->authHandler->handleLogin($data, $connection, $worker),
+        'reconnect' => $worker->authHandler->handleReconnect($data, $connection, $worker),
+        default     => sendError($connection, 'error.invalid_json', "Unknown or not-yet-wired action: {$action}"),
     };
 };
 

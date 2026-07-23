@@ -639,6 +639,67 @@ Notes:
 
 ## PATCHES
 
+## EPIC-10.3 — Auth packet routing (+ FIX-8, found during wiring)
+Status: Completed
+Date: 2026-07-22
+
+Files:
+- server.php (diff — AuthHandler dependency wiring in onWorkerStart;
+  register/login/reconnect wired to AuthHandler in onMessage dispatch)
+- src/Auth/AuthHandler.php (diff — FIX-8: new bindConnection() private
+  helper, called from handleRegister()/handleLogin())
+- tests/Manual/test_auth_integration.php (diff — 7 new FIX-8 assertions
+  via MockConnection)
+- tests/Manual/test_auth_packet_routing.php (новый файл — 18 assertions,
+  real WS client against live server.php)
+
+AuthHandler already existed (EPIC-1.3) and required no new business
+logic — EPIC-10.3 itself is pure dependency wiring + routing, matching
+every other EPIC-10.x so far.
+
+FIX-8 found while wiring (not a pre-existing regression — the bug was
+latent until this Epic connected AuthHandler to the newly-added
+auth_required guard, ADR-006, in the same code path): `AuthService::
+login()` only ever set `$worker->userConnections[$userId]` — it never
+set `$connection->userId` itself. Confirmed by grep: the ONLY place in
+the entire codebase that set `$connection->userId` was
+`ReconnectService::attemptReconnect()`, for its own, unrelated scenario.
+Without a fix, a client could register/login successfully, receive a
+valid `auth_result`, and then have EVERY subsequent action rejected with
+`error.auth_required` forever — the auth_required guard checks exactly
+`$connection->userId === null`, which never became false.
+
+Fix: new `AuthHandler::bindConnection(object $connection, array $user,
+string $token): void` private helper, mirroring the exact field set
+`ReconnectService` already uses for its own scenario (`$connection->
+userId`, `->username`, `->sessionToken`) plus `->isAdmin` (available in
+AuthHandler's login result, unlike in ReconnectService's context). Called
+from both `handleRegister()` (after its internal auto-login) and
+`handleLogin()`, right before `sendAuthResult()`.
+
+No ADR required — this is a code-correctness fix within the existing,
+already-documented `ANCHOR_CORE.md` § Connection Runtime Fields registry
+(all four fields were already declared there); no protocol packet, error
+code, or ANCHOR document changed.
+
+Result:
+- tests/Manual/test_auth_integration.php: 55/55 PASSED (was 48; +7 —
+  FIX-8 assertions verifying `$connection->userId/username/isAdmin/
+  sessionToken` are correctly bound after both handleRegister() and
+  handleLogin() via MockConnection).
+- tests/Manual/test_auth_packet_routing.php (new): 18/18 PASSED —
+  register/login/reconnect verified end-to-end through a real WS client
+  against a live server.php subprocess (real game.db, `e103_` username
+  prefix, cleaned up before/after). Critically includes two FIX-8
+  end-to-end checks (TEST 2, TEST 6): after a real register/login over
+  the real protocol, a subsequent non-exempt action no longer receives
+  `error.auth_required` — confirming the fix works through the actual
+  router, not only in the MockConnection unit test.
+- Full regression across all tests/Manual/*.php files (28 files,
+  including the new one) — 0 failed ([FAIL] marker searched explicitly).
+
+Diff: patches/EPIC-10.3-auth-routing.patch
+
 ## EPIC-10.2 continuation — Generic auth_required guard
 Status: Completed
 Date: 2026-07-22
@@ -1007,6 +1068,17 @@ Result:
 - 2026-07-03 — Аудит на баги, аналогичные FIX-3 (по запросу перед Phase 10): найден и исправлен FIX-6 (утечка reconnect_timer при kick/ban удалении в Lobby/Apartment — Timer Integrity Rule). Проверены: экономические мутации (bank/total_paid/coins — чисто), reconnect/disconnect история (чисто), timer cleanup при destroyRoom (чисто, делегирование корректно), state machine записи статусов (чисто), Module Boundaries Admin→Game (чисто, только публичные методы), host-transfer комментарий в handleKickUser (соответствует уже задокументированному KNOWN GAP EPIC-9.3, новых расхождений нет). Полный регресс по 23 файлам tests/Manual/*.php (добавлен test_timer_integrity.php) — 0 failed.
 - 2026-07-03 — Второй раунд аудита (протокол/edge cases): обнаружены и удалены docs/ANCHOR_PROJECT_STATUS.md (устарел с начала проекта, вводил в заблуждение будущие сессии). Обнаружены docs/prompt.md (исходное ТЗ v4.0) и docs/GAME_RULES.md — оба тоже не обновлялись с начала проекта; из prompt.md извлечены два незадокументированных требования (rate limiting, invalid-JSON policy) — см. KNOWN GAPS, решение отложено до EPIC-10.1 по решению пользователя. Также обнаружены два протокольных долга низкого приоритета: afk_warning (не задекларирован) и admin_stats_data (задекларирован, не реализован, без Epic). Кодовых багов в этом раунде не найдено — все находки документационные/процессные.
 - 2026-07-03 — EPIC-10.0 Protocol router завершён: server.php (Workerman bootstrap, onWorkerStart/onWebSocketConnected/onMessage/onClose) без auth/lobby/game/admin-логики (Rule 11 Epic Isolation — ReconnectService требует LobbyService+GameService одновременно, подключение onClose к реальной бизнес-логике отложено до EPIC-10.4/10.5). Верифицирован полностью автоматически через реальный WebSocket-клиент (без внешних библиотек) поверх настоящего TCP-сокета — 8/8 PASSED. Rate limiting и invalid-JSON policy подтверждены как открытые вопросы EPIC-10.1 (не реализованы намеренно).
+- 2026-07-22 — EPIC-10.3 Accepted + FIX-8: register/login/reconnect
+  подключены к AuthHandler (dependency wiring в onWorkerStart, routing в
+  onMessage). Найден и исправлен FIX-8 в процессе: AuthService::login()
+  никогда не устанавливал $connection->userId (только $worker->
+  userConnections) — без фикса auth_required guard (ADR-006) навсегда
+  блокировал бы любое действие после успешного логина. Новый
+  AuthHandler::bindConnection() helper, вызывается из handleRegister()/
+  handleLogin(). 55/55 test_auth_integration.php (было 48, +7), новый
+  test_auth_packet_routing.php 18/18 (реальный WS против живого
+  server.php, включая сквозную проверку FIX-8 через настоящий router).
+  Полный регресс 0 failed.
 - 2026-07-22 — EPIC-10.2 continuation: generic auth_required guard в
   onMessage (ADR-006) — prompt.md "проверка userId для всех кейсов кроме
   register, login, reconnect", реализовано один раз в router'е, не
@@ -1085,7 +1157,7 @@ PHASE 9 — ADMIN: COMPLETE
 Integration tests:
 
 `text
-48 / 48 PASSED (auth)
+55 / 55 PASSED (auth)                    [+7 vs заявленных 48 — FIX-8 regression-тесты]
 91 / 91 PASSED (lobby)                   [+1 vs заявленных 90 — FIX-7 regression-тест]
 164 / 164 PASSED (lotto engine)
 44 / 44 PASSED (game start)
@@ -1103,6 +1175,7 @@ Integration tests:
 5 / 5 PASSED (timer integrity)
 18 / 18 PASSED (server bootstrap — real WS client, EPIC-10.0/10.2) [+10 vs заявленных 8 — TEST 7 (connection gate), TEST 8 (auth_required exemptions), TEST 4 ужесточён]
 11 / 11 PASSED (packet validation — real WS client, EPIC-10.1)
+18 / 18 PASSED (auth packet routing — real WS client, EPIC-10.3, новый файл)
 `
 
 Current branch:
@@ -1114,14 +1187,14 @@ main
 Current stable commit (pending commit — see Git Checkpoint below):
 
 `text
-EPIC-10.2-auth-guard (ADR-006, generic auth_required guard in router;
-EPIC-10.2 now fully complete; full regression 0 failed)
+EPIC-10.3-auth-routing (+ FIX-8: AuthHandler::bindConnection() —
+$connection->userId/username/isAdmin/sessionToken; full regression 0 failed)
 `
 
 Next planned Epic:
 
 `text
-EPIC-10.3 Auth packet routing
+EPIC-10.4 Lobby packet routing
 `
-PHASE 10 — WEBSOCKET PROTOCOL: IN PROGRESS (10.0, 10.1, 10.2 done). Известных
-дефектов нет.
+PHASE 10 — WEBSOCKET PROTOCOL: IN PROGRESS (10.0, 10.1, 10.2, 10.3 done).
+Известных дефектов нет.

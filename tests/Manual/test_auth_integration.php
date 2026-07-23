@@ -309,6 +309,13 @@ ok('handleRegister: auth_result contains session_token', isset($pkt['session_tok
 ok('handleRegister: auth_result username matches',    ($pkt['username'] ?? '') === 'huser1');
 ok('handleRegister: auth_result coins = 500',         ($pkt['coins'] ?? -1) === 500);
 ok('handleRegister: session stored in worker',        count($worker5->sessionTokens) === 1);
+// FIX-8: до фикса $connReg->userId/username/isAdmin/sessionToken оставались
+// null/false/false/null навсегда — auth_required guard (ADR-006) блокировал
+// бы каждое следующее действие только что зарегистрированного пользователя.
+ok('FIX-8: handleRegister binds $connection->userId',       $connReg->userId === (int)$pkt['user_id']);
+ok('FIX-8: handleRegister binds $connection->username',     $connReg->username === 'huser1');
+ok('FIX-8: handleRegister binds $connection->isAdmin',      $connReg->isAdmin === false);
+ok('FIX-8: handleRegister binds $connection->sessionToken', $connReg->sessionToken === $pkt['session_token']);
 
 // 4b. handleRegister — невалидное имя: error-пакет с error.auth_invalid_username
 $connRegErr = new MockConnection();
@@ -344,6 +351,10 @@ $connLogin2 = new MockConnection();
 $handler6->handleLogin(['username' => 'luser1', 'password' => 'lpass123'], $connLogin2, $worker6);
 $pktLogin = $connLogin2->lastPacket();
 ok('handleLogin: sends auth_result on success', ($pktLogin['type'] ?? '') === 'auth_result');
+// FIX-8: тот же фикс, для handleLogin (не только handleRegister/auto-login).
+ok('FIX-8: handleLogin binds $connection->userId',       $connLogin2->userId === (int)$pktLogin['user_id']);
+ok('FIX-8: handleLogin binds $connection->username',     $connLogin2->username === 'luser1');
+ok('FIX-8: handleLogin binds $connection->sessionToken', $connLogin2->sessionToken === $pktLogin['session_token']);
 
 // 4f. handleLogin — неверный пароль
 $connLoginBad = new MockConnection();
