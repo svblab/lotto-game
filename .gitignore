@@ -1,11 +1,23 @@
 # Vendor & Dependencies
 /vendor/
+
 # Database & Storage
-*.db *.sqlite /storage/*.db
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+/storage/*.db
+
 # Logs & Workerman Status
-*.log workerman.log workerman.pid
+*.log
+workerman.log
+workerman.*.pid
+
 # Environment & Configs
-.env .env.local
+.env
+.env.local
+
 # IDE & OS Files
-.idea/ .vscode/
+.idea/
+.vscode/
 .DS_Store
