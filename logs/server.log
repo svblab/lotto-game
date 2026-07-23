@@ -1832,3 +1832,18 @@
 [2026-07-23 03:33:03] [INFO] Connection closed (userId=null)
 [2026-07-23 03:33:03] [INFO] Connection closed (userId=null)
 [2026-07-23 03:33:03] [INFO] Connection closed (userId=null)
+[2026-07-23 03:43:23] [INFO] LottoGameServer started (protocol_version=1)
+[2026-07-23 03:43:23] [INFO] Connection closed (userId=null)
+[2026-07-23 03:43:23] [INFO] User registered: e103_reguser
+[2026-07-23 03:43:23] [INFO] User login: e103_reguser
+[2026-07-23 03:43:23] [INFO] Connection closed (userId=63)
+[2026-07-23 03:43:23] [WARNING] Registration failed: Username already exists
+[2026-07-23 03:43:23] [INFO] Connection closed (userId=null)
+[2026-07-23 03:43:23] [WARNING] Registration failed: Invalid username format
+[2026-07-23 03:43:23] [INFO] Connection closed (userId=null)
+[2026-07-23 03:43:24] [INFO] User login: e103_loginuser
+[2026-07-23 03:43:24] [INFO] Connection closed (userId=62)
+[2026-07-23 03:43:24] [WARNING] Login failed: Invalid username or password
+[2026-07-23 03:43:24] [INFO] Connection closed (userId=null)
+[2026-07-23 03:43:24] [INFO] Connection closed (userId=null)
+[2026-07-23 03:43:24] [INFO] Connection closed (userId=null)
