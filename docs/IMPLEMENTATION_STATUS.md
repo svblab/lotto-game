@@ -1377,7 +1377,7 @@ Current branch:
 main
 `
 
-Current stable commit (pending commit — see Git Checkpoint below):
+Current stable commit:
 
 `text
 EPIC-10.5-game-routing (GameHandler wiring + ReconnectService wiring +
