@@ -1847,3 +1847,57 @@
 [2026-07-23 03:43:24] [INFO] Connection closed (userId=null)
 [2026-07-23 03:43:24] [INFO] Connection closed (userId=null)
 [2026-07-23 03:43:24] [INFO] Connection closed (userId=null)
+[2026-07-23 04:20:27] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 04:20:27] [INFO] Room destroyed: room_id=1
+[2026-07-23 04:20:27] [INFO] Room created: room_id=1 host_conn_id=99 max_players=4
+[2026-07-23 04:20:27] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 04:20:27] [INFO] Room created: room_id=2 host_conn_id=2 max_players=4
+[2026-07-23 04:20:27] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 04:20:27] [INFO] Room 1 created by user_id=1 username=host cards_count=1 max_players=4
+[2026-07-23 04:20:27] [INFO] Room created: room_id=1 host_conn_id=7 max_players=4
+[2026-07-23 04:20:27] [INFO] Room 1 created by user_id=9 username=u9 cards_count=1 max_players=4
+[2026-07-23 04:20:27] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 04:20:27] [INFO] Room 1 created by user_id=1 username=host cards_count=1 max_players=4
+[2026-07-23 04:20:27] [INFO] User user_id=2 username=joiner joined room_id=1 cards_count=2
+[2026-07-23 04:20:27] [INFO] Room created: room_id=1 host_conn_id=4 max_players=2
+[2026-07-23 04:20:27] [INFO] Room 1 created by user_id=10 username=hfull cards_count=1 max_players=2
+[2026-07-23 04:20:27] [INFO] User user_id=11 username=j2 joined room_id=1 cards_count=1
+[2026-07-23 04:20:27] [INFO] Room created: room_id=1 host_conn_id=7 max_players=2
+[2026-07-23 04:20:27] [INFO] Room 1 created by user_id=13 username=hfull2 cards_count=1 max_players=2
+[2026-07-23 04:20:27] [INFO] Room created: room_id=1 host_conn_id=9 max_players=4
+[2026-07-23 04:20:27] [INFO] Room 1 created by user_id=20 username=hpwd cards_count=1 max_players=4
+[2026-07-23 04:20:28] [INFO] User user_id=22 username=goodpwd joined room_id=1 cards_count=1
+[2026-07-23 04:20:28] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 04:20:28] [INFO] Room 1 created by user_id=1 username=host cards_count=1 max_players=4
+[2026-07-23 04:20:28] [INFO] User user_id=2 username=joiner joined room_id=1 cards_count=1
+[2026-07-23 04:20:28] [INFO] Player username=joiner removed from lobby room_id=1 reason=leave
+[2026-07-23 04:20:28] [INFO] Room created: room_id=1 host_conn_id=3 max_players=4
+[2026-07-23 04:20:28] [INFO] Room 1 created by user_id=10 username=solo cards_count=1 max_players=4
+[2026-07-23 04:20:28] [INFO] Player username=solo removed from lobby room_id=1 reason=leave
+[2026-07-23 04:20:28] [INFO] Room destroyed: room_id=1
+[2026-07-23 04:20:28] [INFO] Room created: room_id=1 host_conn_id=4 max_players=4
+[2026-07-23 04:20:28] [INFO] Room 1 created by user_id=20 username=hplaying cards_count=1 max_players=4
+[2026-07-23 04:20:28] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 04:20:28] [INFO] Room 1 created by user_id=1 username=host cards_count=1 max_players=4
+[2026-07-23 04:20:28] [INFO] User user_id=2 username=j1 joined room_id=1 cards_count=1
+[2026-07-23 04:20:28] [INFO] User user_id=3 username=j2 joined room_id=1 cards_count=1
+[2026-07-23 04:20:28] [INFO] Player username=host removed from lobby room_id=1 reason=leave
+[2026-07-23 04:20:28] [INFO] Host transferred in room_id=1 new_host=j1
+[2026-07-23 04:20:28] [INFO] Player username=j1 removed from lobby room_id=1 reason=leave
+[2026-07-23 04:20:28] [INFO] Host transferred in room_id=1 new_host=j2
+[2026-07-23 04:20:28] [INFO] Player username=j2 removed from lobby room_id=1 reason=leave
+[2026-07-23 04:20:28] [INFO] Room destroyed: room_id=1
+[2026-07-23 04:20:28] [INFO] Room created: room_id=1 host_conn_id=2 max_players=4
+[2026-07-23 04:20:28] [INFO] Room 1 created by user_id=2 username=h1 cards_count=1 max_players=4
+[2026-07-23 04:20:28] [INFO] Room created: room_id=2 host_conn_id=3 max_players=6
+[2026-07-23 04:20:28] [INFO] Room 2 created by user_id=3 username=h2 cards_count=2 max_players=6
+[2026-07-23 04:20:28] [INFO] Room created: room_id=1 host_conn_id=1 max_players=4
+[2026-07-23 04:20:28] [INFO] Room 1 created by user_id=1 username=host cards_count=1 max_players=4
+[2026-07-23 04:20:28] [INFO] User user_id=2 username=j1 joined room_id=1 cards_count=1
+[2026-07-23 04:20:28] [INFO] User user_id=3 username=j2 joined room_id=1 cards_count=1
+[2026-07-23 04:20:28] [INFO] Player username=j2 removed from lobby room_id=1 reason=leave
+[2026-07-23 04:20:28] [INFO] Player username=j1 removed from lobby room_id=1 reason=leave
+[2026-07-23 04:20:28] [INFO] Room created: room_id=1 host_conn_id=4 max_players=4
+[2026-07-23 04:20:28] [INFO] Room 1 created by user_id=10 username=h2 cards_count=1 max_players=4
+[2026-07-23 04:20:28] [INFO] User user_id=11 username=jj joined room_id=1 cards_count=1
+[2026-07-23 04:20:28] [INFO] Room destroyed: room_id=1

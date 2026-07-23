@@ -9,11 +9,15 @@
  * action routing, timer registration, module loading. Бизнес-логика
  * auth/room/economy/victory/apartment/reconnect/admin — запрещена.
  *
- * СОЗНАТЕЛЬНО НЕ РЕАЛИЗОВАНО В ЭТОМ EPIC (Rule 11 Epic Isolation —
+ * СОЗНАТЕЛЬНО НЕ РЕАЛИЗОВАНО (Rule 11 Epic Isolation —
  * "Auth+Lobby, Lobby+Game, Game+Admin... в одном Epic запрещены"):
- *   - Маршрутизация lobby-пакетов (create_room/join_room/...) → EPIC-10.4
  *   - Маршрутизация game-пакетов (draw_barrel/apartment_choice) → EPIC-10.5
  *   - Маршрутизация admin-пакетов (admin_*)                   → EPIC-10.6
+ *
+ * EPIC-10.4 (Lobby packet routing): room_list/create_room/join_room/
+ * leave_room подключены к LobbyHandler (LobbyService уже существовал —
+ * здесь только dependency wiring, routing и guard «уже в комнате» для
+ * create_room/join_room, делегированный из LobbyService::handleCreateRoom()).
  *
  * EPIC-10.3 (Auth packet routing): register/login/reconnect подключены к
  * AuthHandler (EPIC-1.3, уже существовал — здесь только dependency wiring
@@ -62,6 +66,9 @@ use Lotto\Infrastructure\PreparedStatements;
 use Lotto\Auth\SessionService;
 use Lotto\Auth\AuthService;
 use Lotto\Auth\AuthHandler;
+use Lotto\Core\RoomManager;
+use Lotto\Lobby\LobbyService;
+use Lotto\Lobby\LobbyHandler;
 
 use function Lotto\Core\sendJson;
 use function Lotto\Core\sendError;
@@ -88,6 +95,13 @@ $worker->onWorkerStart = function (Worker $worker): void {
     $sessionService = new SessionService();
     $authService    = new AuthService($worker->db, $statements, $worker->logger, $sessionService);
     $worker->authHandler = new AuthHandler($authService, $sessionService, $worker->logger);
+
+    // EPIC-10.4 (Lobby packet routing): LobbyService уже реализован
+    // (EPIC-2.x) — здесь только сборка зависимостей и подключение к
+    // router'у, никакой новой lobby-логики.
+    $worker->roomManager  = new RoomManager($worker->logger);
+    $worker->lobbyService = new LobbyService($worker->roomManager, $worker->logger);
+    $worker->lobbyHandler = new LobbyHandler($worker->lobbyService);
 
     // Runtime-память (ANCHOR_CORE.md § Runtime Memory Layout / Worker Storage)
     $worker->rooms           = [];
@@ -241,17 +255,32 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
         return;
     }
 
-    // Диспетчер: register/login/reconnect подключены (EPIC-10.3).
+    // EPIC-10.4: guard «уже в комнате» для create_room/join_room.
+    // LobbyService::handleCreateRoom() документирует эту проверку как
+    // ответственность router'а — один раз здесь, не в каждом хендлере.
+    $lobbyMembershipActions = ['create_room', 'join_room'];
+    if (in_array($action, $lobbyMembershipActions, true)) {
+        $existingRoomId = $worker->roomManager->findRoomIdByConnId($worker, $connection->id);
+        if ($existingRoomId !== null) {
+            sendError($connection, 'error.invalid_json', 'Already in a room');
+            return;
+        }
+    }
+
+    // Диспетчер: auth (EPIC-10.3) и lobby (EPIC-10.4) подключены.
     // Остальные группы действий подключаются по мере готовности
     // соответствующих модулей:
-    //   create_room/join_room/...       → EPIC-10.4 (LobbyHandler — создать)
     //   draw_barrel/apartment_choice    → EPIC-10.5 (GameHandler — создать)
     //   admin_*                         → EPIC-10.6 (AdminHandler — создать)
     match ($action) {
-        'register'  => $worker->authHandler->handleRegister($data, $connection, $worker),
-        'login'     => $worker->authHandler->handleLogin($data, $connection, $worker),
-        'reconnect' => $worker->authHandler->handleReconnect($data, $connection, $worker),
-        default     => sendError($connection, 'error.invalid_json', "Unknown or not-yet-wired action: {$action}"),
+        'register'    => $worker->authHandler->handleRegister($data, $connection, $worker),
+        'login'       => $worker->authHandler->handleLogin($data, $connection, $worker),
+        'reconnect'   => $worker->authHandler->handleReconnect($data, $connection, $worker),
+        'room_list'   => $worker->lobbyHandler->handleRoomList($connection, $worker),
+        'create_room' => $worker->lobbyHandler->handleCreateRoom($data, $connection, $worker),
+        'join_room'   => $worker->lobbyHandler->handleJoinRoom($data, $connection, $worker),
+        'leave_room'  => $worker->lobbyHandler->handleLeaveRoom($connection, $worker),
+        default       => sendError($connection, 'error.invalid_json', "Unknown or not-yet-wired action: {$action}"),
     };
 };
 

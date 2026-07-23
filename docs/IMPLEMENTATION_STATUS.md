@@ -639,6 +639,45 @@ Notes:
 
 ## PATCHES
 
+## EPIC-10.4 — Lobby packet routing
+Status: Completed
+Date: 2026-07-23
+
+Files:
+- src/Lobby/LobbyHandler.php (новый файл — thin wrapper над LobbyService)
+- server.php (diff — RoomManager/LobbyService/LobbyHandler dependency wiring
+  in onWorkerStart; room_list/create_room/join_room/leave_room wired in
+  onMessage dispatch; «Already in a room» guard for create_room/join_room)
+- tests/Manual/test_lobby_packet_routing.php (новый файл — 22 assertions,
+  real WS client against live server.php)
+- tests/Manual/test_auth_packet_routing.php (diff — TEST 2 updated: после
+  register create_room теперь возвращает room_joined, не error.invalid_json)
+
+LobbyService already existed (EPIC-2.x) and required no new business
+logic — EPIC-10.4 itself is pure dependency wiring + routing + one router-
+level guard, matching every other EPIC-10.x so far.
+
+«Already in a room» guard: LobbyService::handleCreateRoom() документирует,
+что пользователь не должен уже находиться в другой комнате — проверка
+делегирована router'у (server.php), один раз для create_room и join_room,
+через RoomManager::findRoomIdByConnId(). Код ошибки: error.invalid_json
+(отдельного кода в ANCHOR_PROTOCOL.md нет).
+
+No ADR required — no protocol packet, error code, or ANCHOR document changed.
+
+Result:
+- tests/Manual/test_lobby_packet_routing.php (new): 22/22 PASSED —
+  create_room/room_list/join_room/leave_room verified end-to-end through
+  a real WS client against a live server.php subprocess (real game.db,
+  `e104_` username prefix, cleaned up before/after). Includes router-level
+  «Already in a room» guard checks (TEST 4, TEST 5).
+- tests/Manual/test_auth_packet_routing.php: TEST 2 updated for EPIC-10.4
+  (create_room after register → room_joined).
+- tests/Manual/test_lobby_integration.php: 91/91 PASSED (unchanged).
+- Full regression across all tests/Manual/*.php files — 0 failed.
+
+Diff: patches/EPIC-10.4-lobby-routing.patch
+
 ## EPIC-10.3 — Auth packet routing (+ FIX-8, found during wiring)
 Status: Completed
 Date: 2026-07-22
@@ -1068,6 +1107,14 @@ Result:
 - 2026-07-03 — Аудит на баги, аналогичные FIX-3 (по запросу перед Phase 10): найден и исправлен FIX-6 (утечка reconnect_timer при kick/ban удалении в Lobby/Apartment — Timer Integrity Rule). Проверены: экономические мутации (bank/total_paid/coins — чисто), reconnect/disconnect история (чисто), timer cleanup при destroyRoom (чисто, делегирование корректно), state machine записи статусов (чисто), Module Boundaries Admin→Game (чисто, только публичные методы), host-transfer комментарий в handleKickUser (соответствует уже задокументированному KNOWN GAP EPIC-9.3, новых расхождений нет). Полный регресс по 23 файлам tests/Manual/*.php (добавлен test_timer_integrity.php) — 0 failed.
 - 2026-07-03 — Второй раунд аудита (протокол/edge cases): обнаружены и удалены docs/ANCHOR_PROJECT_STATUS.md (устарел с начала проекта, вводил в заблуждение будущие сессии). Обнаружены docs/prompt.md (исходное ТЗ v4.0) и docs/GAME_RULES.md — оба тоже не обновлялись с начала проекта; из prompt.md извлечены два незадокументированных требования (rate limiting, invalid-JSON policy) — см. KNOWN GAPS, решение отложено до EPIC-10.1 по решению пользователя. Также обнаружены два протокольных долга низкого приоритета: afk_warning (не задекларирован) и admin_stats_data (задекларирован, не реализован, без Epic). Кодовых багов в этом раунде не найдено — все находки документационные/процессные.
 - 2026-07-03 — EPIC-10.0 Protocol router завершён: server.php (Workerman bootstrap, onWorkerStart/onWebSocketConnected/onMessage/onClose) без auth/lobby/game/admin-логики (Rule 11 Epic Isolation — ReconnectService требует LobbyService+GameService одновременно, подключение onClose к реальной бизнес-логике отложено до EPIC-10.4/10.5). Верифицирован полностью автоматически через реальный WebSocket-клиент (без внешних библиотек) поверх настоящего TCP-сокета — 8/8 PASSED. Rate limiting и invalid-JSON policy подтверждены как открытые вопросы EPIC-10.1 (не реализованы намеренно).
+- 2026-07-23 — EPIC-10.4 Accepted: room_list/create_room/join_room/
+  leave_room подключены к LobbyHandler (LobbyService EPIC-2.x уже
+  существовал — dependency wiring + routing). Новый LobbyHandler.php
+  (thin wrapper). Router-level guard «Already in a room» для
+  create_room/join_room через RoomManager::findRoomIdByConnId().
+  Новый test_lobby_packet_routing.php 22/22 (реальный WS против живого
+  server.php). test_auth_packet_routing.php TEST 2 обновлён под
+  room_joined. Полный регресс 0 failed.
 - 2026-07-22 — EPIC-10.3 Accepted + FIX-8: register/login/reconnect
   подключены к AuthHandler (dependency wiring в onWorkerStart, routing в
   onMessage). Найден и исправлен FIX-8 в процессе: AuthService::login()
@@ -1176,6 +1223,7 @@ Integration tests:
 18 / 18 PASSED (server bootstrap — real WS client, EPIC-10.0/10.2) [+10 vs заявленных 8 — TEST 7 (connection gate), TEST 8 (auth_required exemptions), TEST 4 ужесточён]
 11 / 11 PASSED (packet validation — real WS client, EPIC-10.1)
 18 / 18 PASSED (auth packet routing — real WS client, EPIC-10.3, новый файл)
+22 / 22 PASSED (lobby packet routing — real WS client, EPIC-10.4, новый файл)
 `
 
 Current branch:
@@ -1187,14 +1235,14 @@ main
 Current stable commit (pending commit — see Git Checkpoint below):
 
 `text
-EPIC-10.3-auth-routing (+ FIX-8: AuthHandler::bindConnection() —
-$connection->userId/username/isAdmin/sessionToken; full regression 0 failed)
+EPIC-10.4-lobby-routing (LobbyHandler wiring + «Already in a room»
+guard; full regression 0 failed)
 `
 
 Next planned Epic:
 
 `text
-EPIC-10.4 Lobby packet routing
+EPIC-10.5 Game packet routing
 `
-PHASE 10 — WEBSOCKET PROTOCOL: IN PROGRESS (10.0, 10.1, 10.2, 10.3 done).
+PHASE 10 — WEBSOCKET PROTOCOL: IN PROGRESS (10.0, 10.1, 10.2, 10.3, 10.4 done).
 Известных дефектов нет.
