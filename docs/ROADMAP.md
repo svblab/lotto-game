@@ -7,7 +7,7 @@ Authoritative source for Epic numbering, implementation order, dependency order,
 
 # PHASE 0 — FOUNDATION
 Goal: Create the entire technical foundation before any gameplay implementation.
-Status: In progress.
+Status: Complete.
 
 - EPIC-0.1 Project skeleton — Completed
 - EPIC-0.2 Composer configuration — Completed
@@ -23,9 +23,9 @@ Status: In progress.
 
 # PHASE 1 — AUTHENTICATION
 Goal: Complete user identity lifecycle.
-Status: Current phase.
+Status: Complete.
 
-- EPIC-1.0 AuthService registration (AuthService.php) — Files completed, status: Requires review
+- EPIC-1.0 AuthService registration (AuthService.php) — Completed
 - EPIC-1.1 AuthService login — username lookup, password verification, ban validation, daily bonus
 - EPIC-1.2 Session validation flow — session restore, session verification
 - EPIC-1.3 AuthHandler — register action, login action, reconnect action
@@ -135,6 +135,7 @@ Goal: Administrative control.
 
 # PHASE 10 — WEBSOCKET PROTOCOL
 Goal: Connect services to protocol.
+Status: Current phase (10.0-10.5 done, 10.6 next — see docs/IMPLEMENTATION_STATUS.md for authoritative detail).
 
 - EPIC-10.0 Protocol router
 - EPIC-10.1 Packet validation
