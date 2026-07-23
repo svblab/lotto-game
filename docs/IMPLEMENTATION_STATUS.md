@@ -1380,9 +1380,10 @@ main
 Current stable commit:
 
 `text
-EPIC-10.5-game-routing (GameHandler wiring + ReconnectService wiring +
-FIX-9 conn_id re-key on reconnect; full regression 0 failed)
-`
+f1139b1 — docs: fix stale PHASE 0/1 status markers in ROADMAP.md
+(on top of eb8dd9d EPIC-10.5 + 61d15f0 FIX-9 test_reconnect.php sync)
+full regression 0 failed
+
 
 Next planned Epic:
 
