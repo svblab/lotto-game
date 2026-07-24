@@ -1,0 +1,23 @@
+--- a/test_admin_integration.php	2026-07-24 21:28:03.638497665 +0000
++++ b/test_admin_integration.php	2026-07-24 21:28:03.654810839 +0000
+@@ -89,12 +89,20 @@
+     public mixed $username = null;
+     public mixed $isAdmin = false;
+     public array $sent = [];
++    public bool $closed = false;
+ 
+     public function send(string $json): void
+     {
+         $this->sent[] = json_decode($json, true);
+     }
+ 
++    // FIX-11: AdminService::handleBanUser() now closes a banned online
++    // target's connection — see IMPLEMENTATION_STATUS.md FIX-11.
++    public function close(): void
++    {
++        $this->closed = true;
++    }
++
+     public function lastSent(): ?array
+     {
+         return $this->sent[array_key_last($this->sent)] ?? null;

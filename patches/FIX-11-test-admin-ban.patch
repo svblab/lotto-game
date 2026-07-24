@@ -1,0 +1,27 @@
+--- a/test_admin_ban.php	2026-07-24 21:28:03.636523529 +0000
++++ b/test_admin_ban.php	2026-07-24 21:28:03.653320451 +0000
+@@ -25,6 +25,7 @@
+     public ?int $userId;
+     public bool $isAdmin;
+     public array $sent = [];
++    public bool $closed = false;
+ 
+     public function __construct(int $id, ?int $userId, bool $isAdmin)
+     {
+@@ -38,6 +39,16 @@
+         $this->sent[] = json_decode($data, true);
+     }
+ 
++    // FIX-11: AdminService::handleBanUser() now closes a banned online
++    // target's connection (see IMPLEMENTATION_STATUS.md FIX-11) so a
++    // stale-but-authenticated session can't keep acting after being
++    // banned. Real Workerman\Connection\TcpConnection always has close();
++    // this mock needs it too now that the method is actually invoked.
++    public function close(): void
++    {
++        $this->closed = true;
++    }
++
+     public function lastPacket(): ?array
+     {
+         return end($this->sent) ?: null;
