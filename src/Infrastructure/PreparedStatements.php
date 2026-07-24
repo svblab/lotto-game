@@ -31,6 +31,11 @@ class PreparedStatements
 
         'user_admin_by_id' => "SELECT id, is_admin FROM users WHERE id = ? LIMIT 1",
 
+        // FIX-10: полный набор полей для bindConnection() на reconnect —
+        // ни 'user_by_id' (id, coins), ни 'user_admin_by_id' (id, is_admin)
+        // не дают username, необходимый AuthHandler::bindConnection().
+        'user_auth_fields_by_id' => "SELECT id, username, is_admin FROM users WHERE id = ? LIMIT 1",
+
         'create_user' => "INSERT INTO users (username, password_hash, coins, is_admin, banned_until, last_daily_bonus) VALUES (?, ?, 500, 0, 0, strftime('%s','now'))",
         
         'update_daily_bonus' => "UPDATE users SET coins = ?, last_daily_bonus = ? WHERE id = ?",

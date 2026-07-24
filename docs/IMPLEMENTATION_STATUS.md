@@ -639,6 +639,145 @@ Notes:
 
 ## PATCHES
 
+## FIX-10 — Permanent session lockout after any disconnect outside room membership
+Status: Completed
+Date: 2026-07-24
+
+Found during: proactive audit before starting EPIC-10.6, specifically
+looking for another FIX-9-class issue (a bug only reachable once real
+end-to-end routing exists) before adding more admin-side removal paths
+that would have inherited the same defect.
+
+Files:
+- src/Infrastructure/PreparedStatements.php (diff — new query
+  `user_auth_fields_by_id`: id/username/is_admin by id; neither existing
+  `user_by_id` (id, coins) nor `user_admin_by_id` (id, is_admin) return
+  username, which AuthHandler::bindConnection() requires)
+- src/Auth/AuthService.php (diff — new `getUserById(int $userId): ?array`,
+  using the statement above; returns null on missing user, which the
+  caller treats as an invalid session rather than throwing)
+- src/Auth/AuthHandler.php (diff — `handleReconnect()` now calls
+  `getUserById()` and `bindConnection()`, mirroring what register()/
+  login() already do; previously only `$worker->userConnections[$userId]`
+  was restored and `$connection->userId` was never set)
+- server.php (diff — `onClose` now unsets
+  `$worker->userConnections[$connection->userId]` when the closing
+  connection had one)
+- tests/Manual/test_session_lifecycle.php (new file — real WS client
+  against a live server.php, 6 assertions, no MockConnection)
+
+Problem:
+- `$worker->userConnections[$userId]` (ADR-001 § Single Active Session)
+  is written by register/login/reconnect but was **never unset by any
+  code path whatsoever** — not in `onClose`, not in
+  `removePlayerFromLobby()/removePlayerFromGame()/removePlayerFromApartment()`,
+  not on reconnect-timer expiry, not in `admin_close_room`. Once set, an
+  account's slot in that map is permanent for the life of the worker
+  process.
+- `AuthService::login()`'s single-session guard is a plain `isset()`
+  check against that map — so once a user disconnects, EVERY subsequent
+  `login` attempt with correct credentials fails with the generic
+  `error.auth_invalid_credentials` (message text: "User already logged
+  in", though the client has no reliable way to distinguish this from a
+  wrong password since the error *code* is deliberately generic — see
+  `AuthHandler::mapLoginError()`).
+- The only theoretical way back in is the `reconnect` action, per
+  ADR-001 §5-6 ("reconnect is the only supported method for restoring
+  access"). But `AuthHandler::handleReconnect()` only ever restored
+  `$worker->userConnections[$userId]` — it never set
+  `$connection->userId` itself (a second, related gap: this is the same
+  class of omission flagged as a KNOWN GAP in EPIC-10.5, just with a much
+  larger blast radius than originally scoped there). For a user with an
+  active room, `ReconnectService::handleReconnect()` (wired in EPIC-10.5)
+  closes that gap by binding `$connection->userId` when it finds a
+  matching disconnected room player. **For a user who was never in a
+  room — or whose room session already ended — nothing ever binds
+  `$connection->userId`,** so the `error.auth_required` guard in
+  `server.php` blocks every subsequent action, including `create_room`/
+  `join_room`.
+- Net effect: any account that disconnects while not currently seated in
+  a room (idling in the lobby, between games, after `leave_room`, after
+  a finished game's room was destroyed, or simply a network blip before
+  ever joining a room) is **permanently locked out** — neither `login`
+  nor `reconnect` can recover it. Only a full server restart clears
+  `$worker->userConnections`.
+- Why this was undetected until now: unreachable through any real code
+  path before EPIC-10.5, since `onClose` was a stub that never called
+  `ReconnectService::handleDisconnect()` at all prior to that Epic — no
+  disconnect ever triggered any downstream state change. The one test
+  that exercises the single-session concept,
+  `tests/Manual/test_single_session.php` (Phase 1), manually performs
+  `unset($worker->userConnections[$userId])` inside the test itself
+  before asserting a second login succeeds — simulating the cleanup step
+  that production code never actually implements, rather than exercising
+  a real code path. Textbook instance of ANCHOR_RULES.md Part 22 ("Tests
+  must not compensate for missing contracts") — except the missing
+  contract was on the implementation side, not the test's own logic, and
+  had gone unnoticed because nothing forced the two to be compared until
+  real routing existed.
+- Verified empirically end-to-end (not simulated) before writing any fix:
+  registered a user, closed the connection via a raw TCP close without
+  ever joining a room, then confirmed both `login` (rejected,
+  "already logged in") and `reconnect` (silently "succeeded" at the
+  protocol level but left the connection unauthenticated —
+  `room_list`/`create_room` afterward returned `error.auth_required`)
+  failed to restore access.
+
+Fix:
+- `AuthHandler::handleReconnect()`: after validating the token format and
+  confirming `$worker->sessionTokens[$token]` exists, now looks up the
+  user via the new `AuthService::getUserById()` and, on success, calls
+  the same private `bindConnection()` helper register()/login() already
+  use — setting `$connection->userId`/`username`/`isAdmin`/`sessionToken`.
+  If the user row is somehow gone (defensive — a session token pointing
+  at a deleted account), responds `error.auth_invalid_token` rather than
+  proceeding with a half-bound connection.
+- `server.php`'s `onClose`: unsets
+  `$worker->userConnections[$connection->userId]` whenever the closing
+  connection had a bound `userId`, after `ReconnectService::handleDisconnect()`
+  runs. This does not interfere with the intended reconnect path (ADR-001
+  §5-6): `reconnect` never depended on `userConnections` still being
+  occupied — it works off `$worker->sessionTokens` plus a session_token
+  match against room player state, both independent of this map. The
+  only behavioral change is that a user who disconnects can now also
+  fall back to a fresh `login` instead of being force-funneled through
+  `reconnect` — which was previously not just "not preferred" but
+  completely broken for any player outside a room.
+- Regression guard preserved on purpose: `onClose` only fires on an
+  actual connection close, so ADR-001's core guarantee — rejecting a
+  *concurrent* second login while the first connection is still open —
+  is untouched. Verified explicitly (TEST 3 below).
+
+Verified non-false-positive (each half of the fix independently):
+- Reverted only the `onClose` change → `tests/Manual/test_session_lifecycle.php`
+  TEST 1 failed exactly as predicted (login still permanently blocked);
+  TEST 2/3 unaffected. Restored → 6/6 again.
+- Reverted only the `AuthHandler::handleReconnect()` change → TEST 2
+  failed exactly as predicted (create_room after reconnect-only still
+  `error.auth_required`); TEST 1/3 unaffected. Restored → 6/6 again.
+
+Result:
+- tests/Manual/test_session_lifecycle.php (new): 6/6 PASSED — real WS
+  client against a live server.php subprocess, no MockConnection. Covers:
+  disconnect-then-login (no room), disconnect-then-reconnect-only (no
+  room, no login fallback), and a regression guard confirming concurrent
+  double-login is still rejected while the original connection stays
+  open.
+- tests/Manual/test_single_session.php: unchanged, still 3/3 scenarios
+  PASSED (Phase-1-era unit test against AuthService in isolation; left
+  as-is since it tests a real contract, just not the one this FIX closes
+  — no false claims to correct here, unlike the EPIC-10.5 test_auth_packet_routing.php
+  fix).
+- Full regression across every tests/Manual/*.php file (29 files,
+  including the new one) — 0 failed.
+
+No ADR required — no protocol packet, error code, room/player structure
+key, or timer changed. `error.auth_invalid_token`/`error.auth_invalid_credentials`
+are pre-existing codes, used exactly as already documented.
+
+Diff: patches/FIX-10-server.patch, patches/FIX-10-AuthHandler.patch,
+patches/FIX-10-AuthService.patch, patches/FIX-10-PreparedStatements.patch
+
 ## EPIC-10.5 — Game packet routing (+ FIX-9, found during wiring)
 Status: Completed
 Date: 2026-07-23
@@ -1215,6 +1354,25 @@ Result:
 
 ## DECISION LOG
 
+- 2026-07-24 — FIX-10 Accepted: proactive audit before EPIC-10.6 (requested
+  by user, same spirit as the FIX-6 audit before Phase 10 and the FIX-9
+  discovery during EPIC-10.5) found that $worker->userConnections is never
+  unset by ANY code path — permanent single-session lockout for any
+  account that disconnects without being seated in a room, since neither
+  login (blocked by the stale isset() check) nor reconnect (never bound
+  $connection->userId for room-less sessions) could recover access.
+  Undetected until now because onClose never called
+  ReconnectService::handleDisconnect() before EPIC-10.5 — no disconnect
+  ever reached this code at all — and the one relevant test
+  (test_single_session.php, Phase 1) manually fakes the missing cleanup
+  step rather than exercising it. Fixed in AuthHandler::handleReconnect()
+  (now binds the connection via the same bindConnection() login/register
+  use, backed by a new AuthService::getUserById()) and server.php's
+  onClose (releases the userConnections slot on genuine disconnect,
+  verified not to weaken ADR-001's concurrent-session rejection). Both
+  halves independently verified non-false-positive. New
+  tests/Manual/test_session_lifecycle.php: 6/6 PASSED, real WS client,
+  no MockConnection. Full regression 0 failed. EPIC-10.6 not yet started.
 - 2026-06-21 — ROADMAP.md признан источником истины по нумерации Epic.
 - 2026-06-21 — Reconnect Token Infrastructure вынесен в PRE-BUILT COMPONENTS.
 - 2026-06-22 — PHASE 1 официально завершена после прохождения интеграционных тестов.
@@ -1369,6 +1527,7 @@ Integration tests:
 23 / 23 PASSED (lobby packet routing — real WS client, EPIC-10.4, перенесён из паразитного tests/manual/ в EPIC-10.5)
 20 / 20 PASSED (reconnect — было 15, +5 assertions FIX-9, EPIC-10.5)
 21 / 21 PASSED (game packet routing — real WS client, EPIC-10.5, новый файл)
+6 / 6 PASSED (session lifecycle — real WS client, FIX-10, новый файл)
 `
 
 Current branch:

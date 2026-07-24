@@ -167,4 +167,34 @@ class AuthService
             throw $e;
         }
     }
+
+    /**
+     * FIX-10: возвращает минимальный набор полей (id, username, is_admin),
+     * необходимый AuthHandler::bindConnection() при восстановлении
+     * соединения по reconnect-токену — до этого фикса не существовало
+     * способа получить username/is_admin по одному только user_id,
+     * из-за чего reconnect не мог полноценно аутентифицировать соединение
+     * (см. FIX-10 в IMPLEMENTATION_STATUS.md).
+     *
+     * Не бросает исключений на "не найдено" — вызывающая сторона
+     * (AuthHandler::handleReconnect()) трактует null как невалидную сессию.
+     *
+     * @return array{id:int, username:string, is_admin:bool}|null
+     */
+    public function getUserById(int $userId): ?array
+    {
+        $stmt = $this->statements->get('user_auth_fields_by_id');
+        $stmt->execute([$userId]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        if ($row === false) {
+            return null;
+        }
+
+        return [
+            'id' => (int)$row['id'],
+            'username' => (string)$row['username'],
+            'is_admin' => (bool)$row['is_admin'],
+        ];
+    }
 }

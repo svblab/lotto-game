@@ -131,8 +131,15 @@ final class AuthHandler
    /**
     * Обрабатывает пакет {"action": "reconnect"}.
     *
-    * Успех  → восстанавливает $worker->userConnections[$userId]
-    *          Пакет reconnect_state отправляет ReconnectService (EPIC-8.0)
+    * Успех  → восстанавливает $worker->userConnections[$userId] И
+    *          связывает Connection Runtime Fields через bindConnection()
+    *          (FIX-10 — до этого фикса $connection->userId никогда не
+    *          устанавливался здесь, что оставляло реконнекчённое
+    *          соединение фактически неаутентифицированным для guard'а
+    *          error.auth_required в server.php, см. IMPLEMENTATION_STATUS.md
+    *          FIX-10).
+    *          Пакет reconnect_state отправляет ReconnectService (EPIC-8.0/
+    *          EPIC-10.5), если у пользователя есть активная комната.
     * Ошибка → error (error.auth_invalid_token)
     *
     * Формат токена (32-символьный hex) валидируется через SessionService::isValidToken().
@@ -154,13 +161,28 @@ final class AuthHandler
 
        $userId = (int)$worker->sessionTokens[$token];
 
+       // FIX-10: без этой проверки удалённый (или иным образом более не
+       // существующий) пользователь мог бы пройти reconnect с валидным по
+       // формату токеном, но без реальной учётной записи — bindConnection()
+       // ниже требует username/is_admin, которых тогда просто нет.
+       $user = $this->authService->getUserById($userId);
+       if ($user === null) {
+           sendError($connection, 'error.auth_invalid_token', 'Session not found or expired');
+           return;
+       }
+
        // Восстанавливаем маппинг соединения в worker-памяти
        $worker->userConnections[$userId] = $connection;
 
+       // FIX-10: реальная аутентификация соединения — идентично тому, что
+       // register()/login() уже делают через bindConnection().
+       $this->bindConnection($connection, $user, $token);
+
        $this->logger->write('INFO', "Reconnect validated: user_id={$userId}");
 
-       // Пакет reconnect_state формирует ReconnectService (EPIC-8.0).
-       // Маршрутизация из server.php подключается в EPIC-10.3.
+       // Пакет reconnect_state формирует ReconnectService (EPIC-8.0), если
+       // у пользователя есть активная комната (server.php вызывает его
+       // сразу после этого метода, EPIC-10.5).
    }
 
    // -------------------------------------------------------------------------
