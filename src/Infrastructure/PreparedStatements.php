@@ -31,10 +31,12 @@ class PreparedStatements
 
         'user_admin_by_id' => "SELECT id, is_admin FROM users WHERE id = ? LIMIT 1",
 
-        // FIX-10: полный набор полей для bindConnection() на reconnect —
-        // ни 'user_by_id' (id, coins), ни 'user_admin_by_id' (id, is_admin)
-        // не дают username, необходимый AuthHandler::bindConnection().
-        'user_auth_fields_by_id' => "SELECT id, username, is_admin FROM users WHERE id = ? LIMIT 1",
+        // FIX-10/FIX-11: полный набор полей для bindConnection() на reconnect
+        // и для проверки бана в том же потоке — ни 'user_by_id' (id, coins),
+        // ни 'user_admin_by_id' (id, is_admin) не дают username, а исходная
+        // версия этого запроса (FIX-10) не включала banned_until, из-за чего
+        // reconnect мог обойти бан (см. FIX-11 в IMPLEMENTATION_STATUS.md).
+        'user_auth_fields_by_id' => "SELECT id, username, is_admin, banned_until FROM users WHERE id = ? LIMIT 1",
 
         'create_user' => "INSERT INTO users (username, password_hash, coins, is_admin, banned_until, last_daily_bonus) VALUES (?, ?, 500, 0, 0, strftime('%s','now'))",
         

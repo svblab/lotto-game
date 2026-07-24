@@ -89,10 +89,18 @@ final class SpyConnection
     public mixed $username = null;
     public mixed $isAdmin = false;
     public array $sent = [];
+    public bool $closed = false;
 
     public function send(string $json): void
     {
         $this->sent[] = json_decode($json, true);
+    }
+
+    // FIX-11: AdminService::handleBanUser() now closes a banned online
+    // target's connection — see IMPLEMENTATION_STATUS.md FIX-11.
+    public function close(): void
+    {
+        $this->closed = true;
     }
 
     public function lastSent(): ?array

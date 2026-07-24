@@ -169,17 +169,18 @@ class AuthService
     }
 
     /**
-     * FIX-10: возвращает минимальный набор полей (id, username, is_admin),
-     * необходимый AuthHandler::bindConnection() при восстановлении
-     * соединения по reconnect-токену — до этого фикса не существовало
-     * способа получить username/is_admin по одному только user_id,
-     * из-за чего reconnect не мог полноценно аутентифицировать соединение
-     * (см. FIX-10 в IMPLEMENTATION_STATUS.md).
+     * FIX-10/FIX-11: возвращает минимальный набор полей (id, username,
+     * is_admin, banned_until), необходимый AuthHandler::bindConnection()
+     * при восстановлении соединения по reconnect-токену, И достаточный
+     * для проверки бана в том же потоке (FIX-11 — reconnect изначально не
+     * проверял banned_until вообще, в отличие от login(), что позволяло
+     * забаненному пользователю обходить бан, просто используя старый
+     * session_token вместо повторного login()).
      *
      * Не бросает исключений на "не найдено" — вызывающая сторона
      * (AuthHandler::handleReconnect()) трактует null как невалидную сессию.
      *
-     * @return array{id:int, username:string, is_admin:bool}|null
+     * @return array{id:int, username:string, is_admin:bool, banned_until:int}|null
      */
     public function getUserById(int $userId): ?array
     {
@@ -195,6 +196,7 @@ class AuthService
             'id' => (int)$row['id'],
             'username' => (string)$row['username'],
             'is_admin' => (bool)$row['is_admin'],
+            'banned_until' => (int)$row['banned_until'],
         ];
     }
 }

@@ -110,34 +110,59 @@ final class AdminService
         $banStmt = $this->stmts->get('ban_user');
         $banStmt->execute([$bannedUntil, $targetUserId]);
 
-        // Если пользователь онлайн — отправляем banned и удаляем из комнаты без возврата ставок.
+        // FIX-11: структурное удаление из комнаты выполняется БЕЗУСЛОВНО,
+        // независимо от того, онлайн ли цель прямо сейчас — идентично уже
+        // корректному паттерну handleKickUser() (ниже). До этого фикса
+        // removal был вложен внутрь `if (isset($worker->userConnections[...]))`:
+        // это работало только "случайно", пока $worker->userConnections
+        // никогда не очищался (баг, закрытый FIX-10). После FIX-10 эта
+        // проверка стала означать буквально "соединение сейчас живо" — а
+        // забаненный игрок, отключившийся секундами ранее и всё ещё
+        // сидящий в 15-секундном reconnect-окне (ANCHOR_CORE § Reconnect
+        // Timer), для этой проверки уже не "онлайн", хотя всё ещё занимает
+        // место в комнате с активным reconnect_timer. Без этого фикса такой
+        // игрок мог полноценно reconnect'иться и продолжить игру, несмотря
+        // на бан, поставленный секундами ранее (см. IMPLEMENTATION_STATUS.md
+        // FIX-11 — воспроизведено сквозным сценарием до фикса).
+        $membership = $this->findPlayerMembership($worker, $targetUserId);
+        if ($membership !== null) {
+            ['room_id' => $roomId, 'conn_id' => $connId] = $membership;
+            $roomStatus = $worker->rooms[$roomId]['status'] ?? 'waiting';
+
+            if ($roomStatus === 'waiting' && $this->lobbyService !== null) {
+                $this->lobbyService->removePlayerFromLobby($worker, $roomId, $connId, 'banned');
+            } elseif ($roomStatus === 'playing' && $this->reconnectService !== null) {
+                $this->reconnectService->removePlayerFromGame($worker, $roomId, $connId, 'banned');
+            } elseif ($roomStatus === 'apartment' && $this->apartmentService !== null) {
+                $room = &$worker->rooms[$roomId];
+                $this->apartmentService->removePlayerFromApartment(
+                    $room,
+                    $roomId,
+                    $connId,
+                    'banned',
+                    $worker
+                );
+            }
+        }
+
+        // FIX-11: если цель прямо сейчас онлайн — уведомляем и ЗАКРЫВАЕМ её
+        // соединение. До этого фикса `banned` отправлялся, но соединение
+        // оставалось открытым и полностью аутентифицированным
+        // ($connection->userId/isAdmin не сбрасывались) — забаненный,
+        // но ещё не отключившийся игрок мог продолжать отправлять любые
+        // не связанные с уже-удалённой комнатой действия (room_list,
+        // create_room и т.д.) до тех пор, пока сам не отключится. Room-
+        // removal (выше) уже выполнен до закрытия соединения — порядок
+        // важен: onClose -> ReconnectService::handleDisconnect() ниже
+        // корректно становится no-op, т.к. игрок уже не значится в
+        // $room['players'] (без двойного удаления/рефанда).
         if (isset($worker->userConnections[$targetUserId])) {
             $targetConnection = $worker->userConnections[$targetUserId];
             sendJson($targetConnection, [
                 'type'  => 'banned',
                 'until' => $bannedUntil,
             ]);
-
-            $membership = $this->findPlayerMembership($worker, $targetUserId);
-            if ($membership !== null) {
-                ['room_id' => $roomId, 'conn_id' => $connId] = $membership;
-                $roomStatus = $worker->rooms[$roomId]['status'] ?? 'waiting';
-
-                if ($roomStatus === 'waiting' && $this->lobbyService !== null) {
-                    $this->lobbyService->removePlayerFromLobby($worker, $roomId, $connId, 'banned');
-                } elseif ($roomStatus === 'playing' && $this->reconnectService !== null) {
-                    $this->reconnectService->removePlayerFromGame($worker, $roomId, $connId, 'banned');
-                } elseif ($roomStatus === 'apartment' && $this->apartmentService !== null) {
-                    $room = &$worker->rooms[$roomId];
-                    $this->apartmentService->removePlayerFromApartment(
-                        $room,
-                        $roomId,
-                        $connId,
-                        'banned',
-                        $worker
-                    );
-                }
-            }
+            $targetConnection->close();
         }
 
         if ($this->logger !== null) {

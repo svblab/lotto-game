@@ -171,6 +171,23 @@ final class AuthHandler
            return;
        }
 
+       // FIX-11: login() уже отказывает забаненным пользователям
+       // (AuthService::login(), banned_until > time()) — reconnect должен
+       // делать то же самое. До этого фикса reconnect вообще не проверял
+       // banned_until: игрок, забаненный админом, мог просто отправить
+       // {"action":"reconnect","token":<старый session_token>} вместо
+       // login() и полностью восстановить аутентифицированную сессию в
+       // обход бана — см. IMPLEMENTATION_STATUS.md FIX-11 (воспроизведено
+       // сквозным сценарием: бан во время reconnect-окна -> reconnect
+       // всё равно проходил). Пакет идентичен уже принятому контракту
+       // login()'а (ANCHOR_PROTOCOL.md § Authentication → banned) — не
+       // новый код ошибки, просто тот же banned-путь, доступный из
+       // второго места, где он был пропущен.
+       if ($user['banned_until'] > time()) {
+           sendJson($connection, ['type' => 'banned', 'until' => $user['banned_until']]);
+           return;
+       }
+
        // Восстанавливаем маппинг соединения в worker-памяти
        $worker->userConnections[$userId] = $connection;
 

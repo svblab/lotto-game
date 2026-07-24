@@ -639,6 +639,143 @@ Notes:
 
 ## PATCHES
 
+## EPIC-10.6 — Admin packet routing (+ FIX-11, found during dependency-wiring audit)
+Status: Completed
+Date: 2026-07-24
+
+Files:
+- src/Admin/AdminHandler.php (новый файл — thin wrapper над AdminService,
+  тот же паттерн что GameHandler/LobbyHandler)
+- server.php (diff — AdminService/AdminHandler dependency wiring in
+  onWorkerStart, все 5 admin_* actions добавлены в dispatcher; см. FIX-11
+  ниже — часть этого же diff)
+- src/Admin/AdminService.php (diff — FIX-11, см. ниже)
+- src/Auth/AuthHandler.php (diff — FIX-11, ban check in handleReconnect())
+- src/Auth/AuthService.php (diff — FIX-11, getUserById() returns
+  banned_until now too)
+- src/Infrastructure/PreparedStatements.php (diff — FIX-11, extended
+  user_auth_fields_by_id to include banned_until)
+- tests/Manual/test_admin_ban.php (diff — FIX-11, MockConnection needs a
+  close() method now that handleBanUser() actually calls it)
+- tests/Manual/test_admin_integration.php (diff — FIX-11, same fix for
+  SpyConnection)
+- tests/Manual/test_admin_packet_routing.php (новый файл — 15 assertions,
+  real WS client, covers both EPIC-10.6 routing and FIX-11 regression
+  scenarios together since FIX-11 was found while probing this Epic's own
+  wiring — same pattern as EPIC-10.5/FIX-9)
+
+AdminService already existed and was fully tested (Phase 9) — the routing
+part of this Epic is, like every other EPIC-10.x, pure dependency wiring.
+The one thing that made this wiring non-trivial: AdminService's
+constructor takes 7 nullable dependencies (stmts, logger, lobbyService,
+reconnectService, apartmentService, db, roomManager), and several of them
+degrade silently rather than erroring if omitted — missing
+lobbyService/reconnectService/apartmentService means a banned/kicked
+online player is never actually removed from their room (money still
+moves correctly, but a "ghost" player entry lingers); missing roomManager
+means admin_close_room falls back to a raw unset() that skips ALL timer
+cleanup, the exact class of bug FIX-6 fixed elsewhere. All seven are now
+wired. $apartmentService is deliberately the same local variable already
+in scope from the EPIC-10.5 block (never stored as a $worker property,
+since only GameService needed it there) rather than retroactively
+touching completed EPIC-10.5 code — captured by closure scope instead.
+
+Found and fixed during this Epic's audit (FIX-11) — proactively looking
+for another FIX-9/FIX-10-class interaction bug before shipping, per user
+request:
+
+Problem (three compounding gaps, all in the ban path specifically —
+handleKickUser() was already correct):
+1. AdminService::handleBanUser()'s structural room-removal
+   (findPlayerMembership() + removePlayerFromLobby/Game/Apartment) was
+   nested INSIDE `if (isset($worker->userConnections[$targetUserId]))`.
+   Before FIX-10, that map entry was never cleared on disconnect, so this
+   accidentally always ran for anyone who'd ever been online. After
+   FIX-10 correctly started clearing it on genuine disconnect, a banned
+   player who happened to be mid-reconnect-window (disconnected, not yet
+   timed out) at ban time no longer had a userConnections entry — so the
+   entire removal branch was skipped. They kept their room seat and
+   active reconnect_timer, and reconnecting before it expired let them
+   fully resume playing seconds after being banned.
+2. Banning a currently-*online* target never closed their WebSocket
+   connection — only sent them a `banned` packet. $connection->userId/
+   isAdmin/sessionToken stayed bound; they could keep issuing any action
+   not tied to the now-removed room indefinitely, until they happened to
+   disconnect on their own.
+3. The most severe: AuthHandler::handleReconnect() never checked
+   banned_until at all, unlike AuthService::login() which does. A banned
+   user could bypass the ban indefinitely simply by sending
+   {"action":"reconnect","token":<their existing session_token>} instead
+   of logging in fresh — reconnect was a complete, permanent end-run
+   around moderation, independent of anything room-related.
+- Verified empirically end-to-end (not simulated) before writing any fix,
+  same discipline as FIX-10: reproduced all three independently with a
+  live server and real WS clients.
+
+Fix:
+1. handleBanUser()'s removal logic un-nested from the userConnections
+   check — now runs unconditionally based on findPlayerMembership(),
+   identical in shape to handleKickUser()'s already-correct pattern. The
+   "notify + close" part remains conditional on the target being
+   currently online (that part is correctly conditional).
+2. If the target is online, after sending `banned`, their connection is
+   now explicitly closed ($targetConnection->close()). Order matters:
+   room removal happens first, so onClose's own
+   ReconnectService::handleDisconnect() correctly no-ops afterward (the
+   player is already gone from $room['players'] by the time it runs) —
+   no double-removal/double-refund risk (the FIX-3 class of bug).
+3. AuthService::getUserById() (added in FIX-10) now also returns
+   banned_until (new column in the user_auth_fields_by_id query).
+   AuthHandler::handleReconnect() checks it immediately after fetching
+   the user and, if currently banned, responds with the exact same
+   {"type":"banned","until":...} packet login() already sends — reusing
+   the existing contract, not introducing a new one.
+
+Verified non-false-positive (each of the three independently, by
+reverting only that piece and re-running the relevant scenario):
+- Reverted only the handleBanUser() un-nesting -> disconnected-at-ban-time
+  player kept their room seat and successfully reconnected; restored ->
+  fixed again.
+- Reverted only the connection-close call -> N/A as a standalone revert
+  (bundled with #1 in the same nested block); covered together in the
+  online-ban scenario, confirmed working as one unit.
+- Reverted only the AuthHandler ban check -> banned user's reconnect
+  succeeded and subsequent room_list worked (full bypass reproduced
+  exactly as before the fix); restored -> fixed again.
+
+Result:
+- tests/Manual/test_admin_packet_routing.php (new): 15/15 PASSED —
+  real WS client against a live server.php. Covers admin_get_logs/
+  admin_ban_user/admin_unban_user/admin_kick_user/admin_close_room
+  routing, the assertAdmin guard (both auth_required and not_your_turn
+  paths), cannot_moderate_admin, and three FIX-11 scenarios: online-ban
+  (banned packet + connection closed), mid-disconnect-ban (reconnect
+  correctly blocked, room structurally cleaned up despite the target
+  being offline at ban time), and unban-then-relogin.
+- tests/Manual/test_admin_ban.php: 9/9 PASSED after adding close() to
+  MockConnection (fixture update, not a business-logic change — Rule 22).
+- tests/Manual/test_admin_integration.php: 20/20 PASSED after the same
+  fixture update to SpyConnection.
+- Full regression across every tests/Manual/*.php file (30 files,
+  including the new one) — 0 failed.
+
+Also fixed in this Epic (trivial, unrelated to FIX-11's substance): a
+pre-existing PHP warning ("Undefined property: ...TcpConnection::$userId")
+in onClose when a raw TCP connection closes before ever completing the
+WebSocket handshake (so onWebSocketConnected's field initialization never
+ran) — direct property access changed to null-coalescing, matching the
+adjacent log line's existing style.
+
+No ADR required for the routing wiring (no protocol change). FIX-11 also
+requires no ADR: no protocol packet, error code, room/player structure
+key, or timer changed — `banned` is the same existing packet login()
+already sends, reused from a second call site where it had been missing.
+
+Diff: patches/EPIC-10.6-server.patch, patches/FIX-11-AdminService.patch,
+patches/FIX-11-AuthHandler.patch, patches/FIX-11-AuthService.patch,
+patches/FIX-11-PreparedStatements.patch,
+patches/FIX-11-test-admin-ban.patch, patches/FIX-11-test-admin-integration.patch
+
 ## FIX-10 — Permanent session lockout after any disconnect outside room membership
 Status: Completed
 Date: 2026-07-24
@@ -889,8 +1026,7 @@ Result:
   unchanged otherwise).
 - Full regression across every tests/Manual/*.php file — 0 failed.
 
-⚠️ KNOWN GAP (found during this Epic, not fixed — narrow edge case, out
-of scope per Rule 11 Epic Isolation): if a client sends `{"action":
+✅ RESOLVED (FIX-10, 2026-07-24): if a client sends `{"action":
 "reconnect", "token": ...}` with a token AuthHandler considers valid, but
 ReconnectService::handleReconnect() finds no matching disconnected player
 in any room (i.e. the user was never in a room-level session, or it was
@@ -898,6 +1034,10 @@ already cleaned up), `$connection->userId` is never set — AuthHandler::
 handleReconnect() itself never sets it, only ReconnectService does, only
 on a match. Symmetric in spirit to FIX-8 (EPIC-10.3) but a distinct fix,
 deliberately left for a follow-up rather than folded into this Epic.
+Turned out to be far more severe than "narrow" once actually audited —
+see FIX-10: AuthHandler::handleReconnect() now unconditionally binds the
+connection via bindConnection() once the token/user is validated,
+regardless of room membership.
 
 Diff: patches/EPIC-10.5-game-routing.patch
 
@@ -1354,6 +1494,29 @@ Result:
 
 ## DECISION LOG
 
+- 2026-07-24 — EPIC-10.6 Accepted + FIX-11: admin_ban_user/admin_unban_user/
+  admin_kick_user/admin_close_room/admin_get_logs wired to new
+  AdminHandler (AdminService Phase 9 already existed — dependency wiring
+  + routing, all 7 of its nullable dependencies wired this time, unlike a
+  partial wiring which would have silently degraded kick/ban removal or
+  admin_close_room's timer cleanup). Proactive audit (again requested by
+  user, same pattern as FIX-9/FIX-10) found FIX-11: banned users could
+  fully bypass their ban. Three compounding gaps in the ban path only
+  (kick was already correct) — handleBanUser()'s room-removal was
+  incorrectly gated behind isset($worker->userConnections[...]), which
+  FIX-10 (same day) had just made behave correctly, exposing that a
+  disconnected-but-reconnect-pending banned player was never removed;
+  banning an online player never closed their connection, leaving a
+  stale-but-authenticated session able to keep acting; and — the most
+  severe — AuthHandler::handleReconnect() never checked banned_until at
+  all, unlike login(), so reconnect was a total, permanent bypass of any
+  ban regardless of room state. All three fixed and independently
+  verified non-false-positive. Two existing unit tests' mock connection
+  classes needed a close() method added (fixture update, not a logic
+  change) now that handleBanUser() actually calls it. New
+  tests/Manual/test_admin_packet_routing.php: 15/15 PASSED, real WS
+  client, covering both the Epic's routing and FIX-11 together. Full
+  regression 0 failed (30 files).
 - 2026-07-24 — FIX-10 Accepted: proactive audit before EPIC-10.6 (requested
   by user, same spirit as the FIX-6 audit before Phase 10 and the FIX-9
   discovery during EPIC-10.5) found that $worker->userConnections is never
@@ -1502,6 +1665,7 @@ PHASE 6 — VICTORY SYSTEM: COMPLETE
 PHASE 7 — APARTMENT: COMPLETE
 PHASE 8 — RECONNECT & AFK: COMPLETE
 PHASE 9 — ADMIN: COMPLETE
+PHASE 10 — WEBSOCKET PROTOCOL: IN PROGRESS (10.0-10.6 done)
 
 Integration tests:
 
@@ -1514,12 +1678,12 @@ Integration tests:
 40 / 40 PASSED (victory system)          [+2 vs заявленных 38 — усилены проверки FIX-4]
 32 / 32 PASSED (apartment)
 8 / 8 PASSED (admin auth)
-9 / 9 PASSED (admin ban)
+9 / 9 PASSED (admin ban)                 [close() добавлен в MockConnection, FIX-11]
 8 / 8 PASSED (admin unban)
 37 / 37 PASSED (admin kick)
 28 / 28 PASSED (admin close room)
 16 / 16 PASSED (admin logs)
-20 / 20 PASSED (admin integration)
+20 / 20 PASSED (admin integration)       [close() добавлен в SpyConnection, FIX-11]
 5 / 5 PASSED (timer integrity)
 18 / 18 PASSED (server bootstrap — real WS client, EPIC-10.0/10.2) [+10 vs заявленных 8 — TEST 7 (connection gate), TEST 8 (auth_required exemptions), TEST 4 ужесточён]
 11 / 11 PASSED (packet validation — real WS client, EPIC-10.1)
@@ -1528,6 +1692,7 @@ Integration tests:
 20 / 20 PASSED (reconnect — было 15, +5 assertions FIX-9, EPIC-10.5)
 21 / 21 PASSED (game packet routing — real WS client, EPIC-10.5, новый файл)
 6 / 6 PASSED (session lifecycle — real WS client, FIX-10, новый файл)
+15 / 15 PASSED (admin packet routing — real WS client, EPIC-10.6 + FIX-11, новый файл)
 `
 
 Current branch:
@@ -1536,22 +1701,22 @@ Current branch:
 main
 `
 
-Current stable commit:
+Current stable commit (pending push — see Git Checkpoint below):
 
 `text
-f1139b1 — docs: fix stale PHASE 0/1 status markers in ROADMAP.md
-(on top of eb8dd9d EPIC-10.5 + 61d15f0 FIX-9 test_reconnect.php sync)
-full regression 0 failed
+EPIC-10.6-admin-routing (AdminHandler wiring, all 7 AdminService
+dependencies wired + FIX-11 ban-bypass fix; full regression 0 failed)
 `
 
 Next planned Epic:
 
 `text
-EPIC-10.6 Admin packet integration
+EPIC-10.7 Protocol integration tests
 `
-PHASE 10 — WEBSOCKET PROTOCOL: IN PROGRESS (10.0, 10.1, 10.2, 10.3, 10.4,
-10.5 done).
-Known open items (not defects blocking progress, see EPIC-10.5 KNOWN GAP
-above): AuthHandler::handleReconnect() doesn't bind $connection->userId
-when the token is valid but no matching disconnected room player is
-found — narrow edge case outside ANCHOR_CORE.md § Reconnect Rules.
+PHASE 10 — WEBSOCKET PROTOCOL: IN PROGRESS (10.0-10.6 done).
+Known open items: none blocking. The EPIC-10.5 KNOWN GAP
+(AuthHandler::handleReconnect() not binding $connection->userId when no
+matching disconnected room player is found) is RESOLVED as of FIX-10 —
+handleReconnect() now unconditionally binds the connection via
+bindConnection() once the token/user is validated, regardless of room
+membership.

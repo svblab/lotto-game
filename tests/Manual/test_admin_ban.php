@@ -25,6 +25,7 @@ class MockConnection
     public ?int $userId;
     public bool $isAdmin;
     public array $sent = [];
+    public bool $closed = false;
 
     public function __construct(int $id, ?int $userId, bool $isAdmin)
     {
@@ -36,6 +37,16 @@ class MockConnection
     public function send(string $data): void
     {
         $this->sent[] = json_decode($data, true);
+    }
+
+    // FIX-11: AdminService::handleBanUser() now closes a banned online
+    // target's connection (see IMPLEMENTATION_STATUS.md FIX-11) so a
+    // stale-but-authenticated session can't keep acting after being
+    // banned. Real Workerman\Connection\TcpConnection always has close();
+    // this mock needs it too now that the method is actually invoked.
+    public function close(): void
+    {
+        $this->closed = true;
     }
 
     public function lastPacket(): ?array

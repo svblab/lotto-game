@@ -9,9 +9,20 @@
  * action routing, timer registration, module loading. Бизнес-логика
  * auth/room/economy/victory/apartment/reconnect/admin — запрещена.
  *
- * СОЗНАТЕЛЬНО НЕ РЕАЛИЗОВАНО (Rule 11 Epic Isolation —
- * "Auth+Lobby, Lobby+Game, Game+Admin... в одном Epic запрещены"):
- *   - Маршрутизация admin-пакетов (admin_*) → EPIC-10.6
+ * СОЗНАТЕЛЬНО НЕ РЕАЛИЗОВАНО: ничего — все группы действий, определённые
+ * ANCHOR_PROTOCOL.md на текущий момент (auth/lobby/game/admin),
+ * подключены (EPIC-10.3/10.4/10.5/10.6). Phase 10 wiring завершён по
+ * всем модулям.
+ *
+ * EPIC-10.6 (Admin packet routing): admin_ban_user/admin_unban_user/
+ * admin_kick_user/admin_close_room/admin_get_logs подключены к
+ * AdminHandler (AdminService уже существовал, Phase 9 — здесь только
+ * dependency wiring и routing, никакой новой admin-логики). AdminService
+ * принимает 7 nullable-зависимостей — все семь подключены здесь (см.
+ * комментарий у конструкции $adminService ниже в onWorkerStart);
+ * пропуск любой из них тихо деградировал бы часть функциональности
+ * (см. тот же комментарий) без явной ошибки, поэтому проверено отдельно
+ * end-to-end, не только по сигнатуре конструктора.
  *
  * EPIC-10.5 (Game packet routing): start_game/draw_barrel/apartment_choice
  * подключены к GameHandler (GameService уже существовал, Phase 4-7 —
@@ -96,6 +107,8 @@ use Lotto\Game\GameFinishService;
 use Lotto\Game\GameService;
 use Lotto\Game\GameHandler;
 use Lotto\Game\ReconnectService;
+use Lotto\Admin\AdminService;
+use Lotto\Admin\AdminHandler;
 
 use function Lotto\Core\sendJson;
 use function Lotto\Core\sendError;
@@ -159,6 +172,36 @@ $worker->onWorkerStart = function (Worker $worker): void {
         $worker->gameService,
         $worker->logger
     );
+
+    // EPIC-10.6 (Admin packet routing): AdminService уже реализован
+    // (Phase 9) — здесь только сборка зависимостей и подключение к
+    // router'у, никакой новой admin-логики. Конструктор AdminService
+    // принимает 7 nullable-зависимостей (stmts, logger, lobbyService,
+    // reconnectService, apartmentService, db, roomManager) в этом
+    // порядке — см. tests/Manual/test_admin_kick.php/test_admin_ban.php
+    // для уже принятого паттерна вызова. КРИТИЧНО передать ВСЕ семь:
+    // отсутствие lobbyService/reconnectService/apartmentService means an
+    // online banned/kicked player is never actually removed from the
+    // room (money still moves correctly, but a "ghost" player entry
+    // lingers); отсутствие roomManager means admin_close_room falls back
+    // to a raw unset($worker->rooms[$roomId]) that skips ALL timer
+    // cleanup — the exact class of bug FIX-6 fixed elsewhere (Timer
+    // Integrity Rule violation). $apartmentService is intentionally the
+    // local variable from the EPIC-10.5 block above, not a $worker
+    // property — EPIC-10.5 never stored it on $worker (only GameService
+    // needed it, via constructor injection), so it's captured here by
+    // closure scope instead of retroactively touching already-completed
+    // EPIC-10.5 code (Rule 11 Epic Isolation).
+    $adminService = new AdminService(
+        $statements,
+        $worker->logger,
+        $worker->lobbyService,
+        $worker->reconnectService,
+        $apartmentService,
+        $worker->db,
+        $worker->roomManager
+    );
+    $worker->adminHandler = new AdminHandler($adminService);
 
     // Runtime-память (ANCHOR_CORE.md § Runtime Memory Layout / Worker Storage)
     $worker->rooms           = [];
@@ -345,9 +388,8 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
         return;
     }
 
-    // Диспетчер: auth (EPIC-10.3), lobby (EPIC-10.4) и game (EPIC-10.5)
-    // подключены. reconnect обработан отдельно выше. Остаётся:
-    //   admin_*   → EPIC-10.6 (AdminHandler — создать)
+    // Диспетчер: auth (EPIC-10.3), lobby (EPIC-10.4), game (EPIC-10.5) и
+    // admin (EPIC-10.6) подключены. reconnect обработан отдельно выше.
     match ($action) {
         'register'         => $worker->authHandler->handleRegister($data, $connection, $worker),
         'login'            => $worker->authHandler->handleLogin($data, $connection, $worker),
@@ -358,6 +400,11 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
         'start_game'       => $worker->gameHandler->handleStartGame($connection, $worker),
         'draw_barrel'      => $worker->gameHandler->handleDrawBarrel($connection, $worker),
         'apartment_choice' => $worker->gameHandler->handleApartmentChoice($data, $connection, $worker),
+        'admin_ban_user'   => $worker->adminHandler->handleBanUser($data, $connection, $worker),
+        'admin_unban_user' => $worker->adminHandler->handleUnbanUser($data, $connection),
+        'admin_kick_user'  => $worker->adminHandler->handleKickUser($data, $connection, $worker),
+        'admin_close_room' => $worker->adminHandler->handleCloseRoom($data, $connection, $worker),
+        'admin_get_logs'   => $worker->adminHandler->handleGetLogs($data, $connection),
         default            => sendError($connection, 'error.invalid_json', "Unknown or not-yet-wired action: {$action}"),
     };
 };
@@ -390,7 +437,7 @@ $worker->onClose = function ($connection) use ($worker): void {
     // по $worker->sessionTokens + совпадению session_token внутри комнаты
     // (см. AuthHandler::handleReconnect()/ReconnectService::handleReconnect(),
     // FIX-10).
-    if ($connection->userId !== null) {
+    if (($connection->userId ?? null) !== null) {
         unset($worker->userConnections[$connection->userId]);
     }
 };
