@@ -198,8 +198,16 @@ assertEquals('line-150', $resp5['lines'][99] ?? null, 'newest returned line is t
 
 echo "\nTEST 6: Real Logger::getLastLines() against a missing/empty file\n";
 
-$realLogger = new \Lotto\Core\Logger();
-// Свежий Logger создаёт logs/server.log при первой записи; до записи
+$realLogger = new \Lotto\Core\Logger(sys_get_temp_dir() . '/lotto_test_admin_logs_' . getmypid() . '.log');
+register_shutdown_function(function () {
+    @unlink(sys_get_temp_dir() . '/lotto_test_admin_logs_' . getmypid() . '.log');
+});
+// FIX-12: изолированный путь — этот тест проверяет реальное файловое
+// поведение getLastLines() (создание файла, чтение строк), не то, что
+// именно logs/server.log используется по умолчанию (эту специфичную
+// проверку default-пути уже покрывает Scenario 4 в
+// tests/Manual/test_helpers_runner.php, которую я оставил как есть).
+// Свежий Logger создаёт файл при первой записи; до записи
 // getLastLines() не должен падать, только вернуть то, что реально есть.
 $before = $realLogger->getLastLines(5);
 assertTrue(is_array($before), 'getLastLines() always returns an array, never throws');

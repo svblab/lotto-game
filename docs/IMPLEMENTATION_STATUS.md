@@ -639,6 +639,131 @@ Notes:
 
 ## PATCHES
 
+## FIX-12 — Test loggers writing into the production log file
+Status: Completed
+Date: 2026-07-25
+
+Found during: a live operational incident, not a proactive audit this
+time. A permission-ownership mismatch (`game.db`/`workerman.log`/
+`logs/server.log` left root-owned after test runs executed as root
+against the live VPS, while the production `lotto-server.service` runs
+as `www-data`) caused a real crash-loop on the production service.
+While diagnosing that, a confusing `[ERROR] ... CHECK constraint failed:
+coins <= 200` line was found in `logs/server.log` — alarming at first
+glance, since no such constraint exists in the real schema
+(`docs/... .schema users` confirmed no CHECK clause). Traced to its
+actual source rather than assumed.
+
+Files:
+- src/Core/Logger.php (diff — optional `?string $logFilePath = null`
+  constructor parameter, mirroring the FIX-4 precedent for
+  `Database::__construct(?PDO $pdo = null)`. Default (no argument)
+  preserves exact prior behavior — server.php's own `new Logger()` needs
+  no change at all.)
+- tests/Manual/test_login.php (diff)
+- tests/Manual/test_register.php (diff)
+- tests/Manual/test_session_service.php (diff)
+- tests/Manual/test_single_session.php (diff)
+- tests/Manual/test_victory.php (diff — the actual source of the
+  incident's confusing ERROR line)
+- tests/Manual/test_admin_logs.php (diff)
+- tests/Manual/test_admin_integration.php (diff)
+- tests/Manual/test_logger.php (DELETED — see below)
+
+Problem:
+- `Logger::__construct()` hardcoded the log path to `logs/server.log`
+  with no way to inject a different one. Any test constructing a real
+  `Logger` (not a `MockLogger`) — which several do purely incidentally,
+  as a required dependency of `AuthService`/`GameFinishService`/
+  `AdminService`, with no interest in testing logging itself — wrote
+  straight into the shared production log on every run.
+- `tests/Manual/test_victory.php`'s `makeSvc()` (added in FIX-4) builds a
+  real `GameFinishService` over an isolated **in-memory** SQLite database
+  specifically to test transaction rollback via a deliberately-rigged
+  `CHECK(coins <= 200)` constraint — genuinely correct DB isolation. But
+  it paired that with a real, default-path `Logger`, so the rigged
+  failure's error message still landed in the real `logs/server.log`,
+  indistinguishable from an actual production incident. The existing
+  code comment at that exact line already said "побочный эффект — запись
+  в logs/server.log" (side effect — writes to logs/server.log) —
+  correctly identified by whoever wrote FIX-4, but never fixed, and this
+  is exactly what it eventually caused.
+- Two more genuine instances found by a full sweep of every `new
+  Logger(...)` call site project-wide (not just the one that caused the
+  incident): `test_admin_logs.php` TEST 6 and `test_admin_integration.php`
+  TEST 4 both wrote real marker/action lines into the shared log purely
+  as a side effect of exercising `Logger::getLastLines()`/
+  `AdminService`, with no reason to specifically target the production
+  path.
+- A latent, interesting side-discovery: `test_lobby_integration.php` and
+  `test_auth_integration.php` already called `new Logger('/dev/null')` —
+  an earlier session's own attempt to solve exactly this problem. It
+  never worked: PHP does not error when extra arguments are passed to a
+  zero-parameter constructor (unlike stricter-arity languages), so the
+  `'/dev/null'` argument was silently discarded and the call was
+  equivalent to `new Logger()` the whole time. This fix makes that
+  existing, previously-non-functional intent actually work, at zero
+  additional cost — no code change needed in either file.
+- `tests/Manual/test_logger.php` (distinct from the project-root copy
+  already deleted in a much earlier session, per the 2026-07-03 decision
+  log entry) was a leftover duplicate: a print_r()-based smoke script
+  with zero assertions, explicitly documented by this project's own
+  EPIC-9.6 entry and by `test_admin_logs.php`'s own header comment as
+  superseded. It ran on every `run_ALL_tests.sh` pass, wrote generic
+  "test 1"/"test 2"/"test 3" lines into the real log, and contributed
+  nothing (no pass/fail signal at all) — deleted.
+
+Deliberately NOT changed: `tests/Manual/test_helpers_runner.php`
+Scenario 4 and `server.php` itself. Scenario 4's entire purpose is
+verifying that the *default* `Logger` path is genuinely
+`logs/server.log` — redirecting it would break the one thing it's
+testing. `server.php`'s own `new Logger()` is correct production code by
+definition.
+
+Known, explicitly out-of-scope for this fix (lower severity, different
+category — see decision log): the real-WS-client subprocess tests
+(`test_auth_packet_routing.php`, `test_lobby_packet_routing.php`,
+`test_game_packet_routing.php`, `test_admin_packet_routing.php`,
+`test_session_lifecycle.php`, `test_packet_validation.php`,
+`test_server_bootstrap.php`) each spawn a genuine `php server.php start`
+subprocess to exercise real end-to-end routing — that subprocess's
+`Logger` is unmodified production code, correctly writing to the real
+log path, because it *is* the real server. This still leaves
+test-generated `INFO`/`WARNING` lines with test-like usernames
+(`fix10_user1`, `e106_admin`, etc.) in the production log — clearly
+identifiable as test noise, not the confusing false-`ERROR` class of
+problem this fix targets. Properly isolating it would require making
+`server.php`'s own log path configurable (an env var, defaulting to the
+current path) and updating all seven harnesses to set it — a larger,
+separate change touching production code, left for an explicit future
+decision rather than folded in here silently.
+
+Verified:
+- All 5 originally-affected tests re-run individually with an MD5 hash
+  of `logs/server.log` captured before and after each — byte-identical
+  in every case (confirmed no write occurred).
+- Full `run_ALL_tests.sh` re-run with the same before/after hash check
+  across the *entire* suite — the only lines that appear afterward
+  originate from the real-WS-subprocess tests described above (expected,
+  out of scope), not from any of the fixed files.
+- `test_helpers_runner.php` re-run in isolation — still correctly writes
+  to and reads back from the real default path, confirming `Logger`'s
+  default behavior is byte-for-byte unchanged.
+- Every affected test's pass count matches its previously-documented
+  count exactly (40/40 victory, 91/91 lobby integration, 55/55 auth
+  integration, 20/20 admin integration, etc.) — no behavior change, only
+  the log destination.
+- Full regression across all 29 remaining `tests/Manual/*.php` files (30
+  minus the deleted `test_logger.php`) — 0 failed.
+
+No ADR required — no protocol, economy, timer, or room/player structure
+touched. Purely a test-isolation and logging-infrastructure fix.
+
+Diff: patches/FIX-12-Logger.patch, patches/FIX-12-test-login.patch,
+patches/FIX-12-test-register.patch, patches/FIX-12-test-session-service.patch,
+patches/FIX-12-test-single-session.patch, patches/FIX-12-test-victory.patch,
+patches/FIX-12-test-admin-logs.patch, patches/FIX-12-test-admin-integration.patch
+
 ## EPIC-10.7 — Protocol integration tests
 Status: Completed
 Date: 2026-07-24
@@ -1554,6 +1679,37 @@ Result:
 
 ## DECISION LOG
 
+- 2026-07-25 — FIX-12 Accepted: found during a live operational incident
+  (not a proactive audit) — test runs executed as root against the live
+  VPS left game.db/workerman.log/logs/server.log root-owned while the
+  production systemd service runs as www-data, causing a real crash-loop
+  (Permission denied on every log write, worker respawning repeatedly).
+  Fixed operationally via chown (see incident thread). While diagnosing
+  it, a confusing [ERROR] "CHECK constraint failed: coins <= 200" line
+  was found in the production log — traced to tests/Manual/
+  test_victory.php's makeSvc(), which correctly isolates its DATABASE via
+  an in-memory PDO (FIX-4) but paired it with a real, default-path
+  Logger, so a deliberately-rigged rollback test's error message still
+  landed in the real log, indistinguishable from an actual incident. The
+  existing code comment had already flagged this exact side effect
+  without fixing it. Root cause: Logger::__construct() had no way to
+  redirect its output at all. Fixed with an optional constructor
+  parameter (mirroring the FIX-4 Database DI-seam precedent), then swept
+  every real-Logger call site project-wide: 6 test files fixed, 2 more
+  (test_admin_logs.php, test_admin_integration.php) found bleeding the
+  same way via the same sweep, one stale already-superseded test file
+  (test_logger.php) deleted, and — as a side benefit — confirmed that
+  test_lobby_integration.php/test_auth_integration.php's existing (but
+  silently non-functional, since PHP doesn't error on extra constructor
+  arguments) attempt to redirect to '/dev/null' now actually works.
+  Explicitly left out of scope: real-WS-subprocess tests (EPIC-10.3-10.7)
+  spawn genuine server.php instances whose Logger is correct production
+  code by definition — a different, lower-severity category of test
+  noise than the false-ERROR incident this fix targets; making
+  server.php's log path itself configurable is a separate, larger
+  decision left for later. Verified via MD5 hash of logs/server.log
+  before/after each affected test, individually and across the full
+  suite. Full regression 0 failed (29 files, one deleted).
 - 2026-07-24 — EPIC-10.7 Accepted: per explicit user scoping, this Epic is
   a completeness/coverage audit (does the server side have everything
   ANCHOR_CORE.md/ANCHOR_PROTOCOL.md declare?), not a re-test of business
@@ -1688,6 +1844,22 @@ Result:
 
 ## KNOWN GAPS / NOT VERIFIED
 
+- ⚠️ OPEN (низкий приоритет, найдено при FIX-12): real-WS-client
+  subprocess-тесты (test_auth_packet_routing.php, test_lobby_packet_routing.php,
+  test_game_packet_routing.php, test_admin_packet_routing.php,
+  test_session_lifecycle.php, test_packet_validation.php,
+  test_server_bootstrap.php) запускают настоящий `php server.php start` —
+  его Logger корректно пишет в реальный logs/server.log, т.к. это и есть
+  настоящий сервер. Это оставляет в продакшн-логе тестовые INFO/WARNING
+  строки с тестовыми именами пользователей (fix10_user1, e106_admin и
+  т.п.) — безвредный шум, отличимый на глаз от реальных событий, не та
+  категория проблемы, что вызвала инцидент FIX-12 (ложный ERROR). Полная
+  изоляция потребовала бы сделать путь логирования server.php
+  конфигурируемым (переменная окружения, по умолчанию — текущий путь) и
+  обновить все семь тестов-раннеров — более крупное изменение,
+  затрагивающее продакшн-код сервера, оставлено на явное решение
+  пользователя.
+
 - ✅ RESOLVED (2026-07-03): docs/ANCHOR_PROJECT_STATUS.md удалён — файл не
   обновлялся с самого начала проекта (заморожен на состоянии "EPIC-1.1,
   Lobby/WebSocket/Economy: Not implemented"), при этом сам файл предписывал
@@ -1766,8 +1938,8 @@ Integration tests:
 8 / 8 PASSED (admin unban)
 37 / 37 PASSED (admin kick)
 28 / 28 PASSED (admin close room)
-16 / 16 PASSED (admin logs)
-20 / 20 PASSED (admin integration)       [close() добавлен в SpyConnection, FIX-11]
+16 / 16 PASSED (admin logs)               [isolated log path, FIX-12]
+20 / 20 PASSED (admin integration)       [close() добавлен в SpyConnection, FIX-11; isolated log path, FIX-12]
 5 / 5 PASSED (timer integrity)
 18 / 18 PASSED (server bootstrap — real WS client, EPIC-10.0/10.2) [+10 vs заявленных 8 — TEST 7 (connection gate), TEST 8 (auth_required exemptions), TEST 4 ужесточён]
 11 / 11 PASSED (packet validation — real WS client, EPIC-10.1)
@@ -1780,6 +1952,17 @@ Integration tests:
 50 / 50 PASSED, 3 warnings (protocol completeness — static doc-cross-reference, EPIC-10.7, новый файл)
 `
 
+FIX-12 also touched (counts unchanged, only log destination isolated):
+victory system (40/40, above), lobby integration (91/91, above), auth
+integration (55/55, above), plus admin logs/admin integration (both
+annotated above).
+
+tests/Manual/test_logger.php REMOVED (FIX-12) — stale duplicate of an
+already-superseded print_r() smoke script (root-level copy already
+deleted 2026-07-03), zero assertions, was writing raw noise into
+production logs/server.log on every full-suite run. File count: 29
+(was 30).
+
 Current branch:
 
 `text
@@ -1789,21 +1972,25 @@ main
 Current stable commit (pending push — see Git Checkpoint below):
 
 `text
-EPIC-10.7-protocol-completeness (static completeness audit against
-ANCHOR_CORE.md/ANCHOR_PROTOCOL.md registries; 50/50 passed, 3 warnings
-all matching pre-existing KNOWN GAPS; full regression 0 failed)
+FIX-12-logger-isolation (Logger DI-seam + 6 test files redirected +
+2 more found via full sweep + stale test_logger.php removed; incident
+root-caused and resolved; full regression 0 failed)
 `
 
-Next planned Epic:
+Next planned:
 
 `text
-PHASE 11 — FRONTEND (EPIC-11.0 ws.js)
+Pending user confirmation: ROADMAP.md Phase 11/12 swap (audits before
+frontend) — proposed split not yet applied to ROADMAP.md itself, to
+avoid this doc and ROADMAP.md disagreeing before the decision is final.
+Once confirmed: new Phase 11 (was Phase 12.0-12.6 audits) first.
 `
 PHASE 10 — WEBSOCKET PROTOCOL: COMPLETE (10.0-10.7 all done). Server-side
 protocol surface confirmed complete against ANCHOR_CORE.md/
-ANCHOR_PROTOCOL.md's own declared registries (EPIC-10.7). Three low-
+ANCHOR_PROTOCOL.md's own declared registries (EPIC-10.7). Four low-
 priority documentation-debt items remain open (admin_stats_data,
-afk_warning, error.banned — see KNOWN GAPS) but none block Phase 11.
+afk_warning, error.banned, real-WS-subprocess test log noise — see
+KNOWN GAPS) but none block the next phase.
 Known open items: none blocking. The EPIC-10.5 KNOWN GAP
 (AuthHandler::handleReconnect() not binding $connection->userId when no
 matching disconnected room player is found) is RESOLVED as of FIX-10 —

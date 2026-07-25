@@ -32,7 +32,13 @@ try {
 
     // Инициализация сервисов и внедрение зависимостей
     $statements = new PreparedStatements($pdo);
-    $logger = new Logger();
+    // FIX-12: изолированный путь — этот тест использует Logger только как
+    // зависимость AuthService, не тестирует само логирование, поэтому не
+    // должен писать в общий production logs/server.log.
+    $logger = new Logger(sys_get_temp_dir() . '/lotto_test_login_' . getmypid() . '.log');
+    register_shutdown_function(function () {
+        @unlink(sys_get_temp_dir() . '/lotto_test_login_' . getmypid() . '.log');
+    });
     $sessionService = new SessionService();
     $authService = new AuthService($db, $statements, $logger, $sessionService);
 

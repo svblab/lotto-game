@@ -418,7 +418,10 @@ assertEquals(60, $refunded3, 'Economic Integrity Rule: 3-participant total refun
 
 echo "\nTEST 4: Real Logger + AdminService::handleGetLogs() after real actions\n";
 
-$realLogger = new \Lotto\Core\Logger();
+$realLogger = new \Lotto\Core\Logger(sys_get_temp_dir() . '/lotto_test_admin_integration_' . getmypid() . '.log');
+register_shutdown_function(function () {
+    @unlink(sys_get_temp_dir() . '/lotto_test_admin_integration_' . getmypid() . '.log');
+});
 $q1 = insertUser($pdo, 'log_target', 500, false);
 
 $worker4 = makeWorker();

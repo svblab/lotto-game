@@ -26,7 +26,12 @@ try {
     $userId = (int)$stmt->fetchColumn();
 
     $statements = new PreparedStatements($pdo);
-    $logger = new Logger();
+    // FIX-12: изолированный путь — Logger здесь только зависимость
+    // AuthService, не тестируется само логирование.
+    $logger = new Logger(sys_get_temp_dir() . '/lotto_test_single_session_' . getmypid() . '.log');
+    register_shutdown_function(function () {
+        @unlink(sys_get_temp_dir() . '/lotto_test_single_session_' . getmypid() . '.log');
+    });
     $sessionService = new SessionService();
     $authService = new AuthService($db, $statements, $logger, $sessionService);
 

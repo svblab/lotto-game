@@ -21,7 +21,12 @@ try {
     $pdo->exec("DELETE FROM users WHERE username IN ('test_user_1', 'ab')");
     
     $statements = new PreparedStatements($pdo);
-    $logger = new Logger();
+    // FIX-12: изолированный путь — Logger здесь только зависимость
+    // AuthService, не тестируется само логирование.
+    $logger = new Logger(sys_get_temp_dir() . '/lotto_test_register_' . getmypid() . '.log');
+    register_shutdown_function(function () {
+        @unlink(sys_get_temp_dir() . '/lotto_test_register_' . getmypid() . '.log');
+    });
     $sessionService = new SessionService();
     
     $authService = new AuthService($db, $statements, $logger, $sessionService);

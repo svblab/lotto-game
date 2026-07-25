@@ -172,12 +172,24 @@ function makeSvc(array $users = [], ?MockPDO $pdo = null, ?\PDO $realPdo = null)
     // зависимостей (ADR-002). Анонимный класс не проходит проверку типа
     // конструктора GameService, поэтому используется РЕАЛЬНЫЙ
     // GameFinishService с реальными Database/PreparedStatements поверх
-    // in-memory SQLite ($realPdo, готовится вызывающим кодом — GROUP 4/5),
-    // и реальным Core\Logger (побочный эффект — запись в logs/server.log,
-    // как и в остальных интеграционных тестах проекта).
+    // in-memory SQLite ($realPdo, готовится вызывающим кодом — GROUP 4/5).
+    //
+    // FIX-12: реальный Core\Logger теперь строится с изолированным путём
+    // (sys_get_temp_dir()), а не с путём по умолчанию logs/server.log.
+    // До этого фикса комментарий здесь честно предупреждал о "побочном
+    // эффекте — запись в logs/server.log", но проблема так и не была
+    // устранена — на практике это привело к реальному инциденту: рядовой
+    // (намеренно смоделированный) сбой транзакции из этого изолированного
+    // in-memory теста ("CHECK constraint failed: coins <= 200") попал в
+    // ПРОДАКШН logs/server.log неотличимо от настоящего игрового события,
+    // что заняло время на диагностику при разборе несвязанной проблемы с
+    // правами доступа. См. FIX-12 в IMPLEMENTATION_STATUS.md.
     $realDb    = new Database($realPdo);
     $realStmts = new PreparedStatements($realPdo);
-    $realLog   = new \Lotto\Core\Logger();
+    $realLog   = new \Lotto\Core\Logger(sys_get_temp_dir() . '/lotto_test_victory_' . getmypid() . '.log');
+    register_shutdown_function(function () {
+        @unlink(sys_get_temp_dir() . '/lotto_test_victory_' . getmypid() . '.log');
+    });
     $fin       = new \Lotto\Game\GameFinishService($realDb, $realStmts, $realLog);
 
     $svc  = new GameService($db, $st, $eng, $log, $vic, $apt, $fin);
