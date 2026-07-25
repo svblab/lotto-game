@@ -1,0 +1,14 @@
+--- a/test_admin_integration.php	2026-07-25 21:18:05.492859065 +0000
++++ b/test_admin_integration.php	2026-07-25 21:18:05.495022375 +0000
+@@ -418,7 +418,10 @@
+ 
+ echo "\nTEST 4: Real Logger + AdminService::handleGetLogs() after real actions\n";
+ 
+-$realLogger = new \Lotto\Core\Logger();
++$realLogger = new \Lotto\Core\Logger(sys_get_temp_dir() . '/lotto_test_admin_integration_' . getmypid() . '.log');
++register_shutdown_function(function () {
++    @unlink(sys_get_temp_dir() . '/lotto_test_admin_integration_' . getmypid() . '.log');
++});
+ $q1 = insertUser($pdo, 'log_target', 500, false);
+ 
+ $worker4 = makeWorker();

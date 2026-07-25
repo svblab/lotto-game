@@ -1,0 +1,43 @@
+--- a/README.md	2026-07-25 10:03:14.280526506 +0000
++++ b/README.md	2026-07-25 10:03:14.282339771 +0000
+@@ -87,3 +87,40 @@
+ php -r "echo password_hash('новый_пароль', PASSWORD_BCRYPT);"
+ sqlite3 game.db "UPDATE users SET password_hash='хеш' WHERE username='admin';"
+ 
++## 8. Аварийная остановка/перезапуск (admin_emergency_control.sh)
++Однокомандный инструмент для админа на случай зависшего/неотвечающего
++сервера. Специально защищён от уже встречавшихся на практике проблем:
++`php server.php stop` иногда отчитывается об успехе, пока осиротевший
++дочерний worker-процесс Workerman всё ещё держит порт (Workerman
++переименовывает cmdline воркера в "WorkerMan: worker process ...", из-за
++чего наивный `pgrep -f server.php` его не находит — учтено); а также
++устаревшие `workerman.*.pid`/`server.php.pid`, мешающие следующему старту.
++
++Использование (требует root/sudo):
++```
++sudo bash admin_emergency_control.sh status          # что сейчас происходит
++sudo bash admin_emergency_control.sh stop             # штатная остановка, с ожиданием и проверкой
++sudo bash admin_emergency_control.sh force-stop       # немедленный SIGKILL по всем найденным процессам
++sudo bash admin_emergency_control.sh start
++sudo bash admin_emergency_control.sh restart          # stop -> start
++sudo bash admin_emergency_control.sh force-restart    # ЭКСТРЕННЫЙ вариант: force-stop -> start
++```
++Без аргументов по умолчанию выполняется `force-restart` — единственная
++команда на случай "сервер завис, разбираться некогда, просто подними
++заново чисто":
++```
++sudo bash admin_emergency_control.sh
++```
++
++Автоматически предпочитает `systemctl` (юнит `lotto-server.service`),
++если он установлен на сервере (штатный путь по разделу 2 выше); иначе
++управляет процессом напрямую через `php server.php`. Все действия
++пишутся в `logs/admin_control.log` с таймстампами.
++
++⚠️ Это операционный (CLI) инструмент для системного администратора
++сервера — не игровая admin-функция. Модерация игроков (бан/кик/закрытие
++комнаты) выполняется через существующие WebSocket-пакеты
++`admin_ban_user`/`admin_kick_user`/`admin_close_room` (см.
++ANCHOR_PROTOCOL.md), это отдельный, уже реализованный механизм (Phase 9 +
++EPIC-10.6) и данный скрипт его не заменяет и не дублирует.
++

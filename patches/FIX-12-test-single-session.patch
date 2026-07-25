@@ -1,0 +1,16 @@
+--- a/test_single_session.php	2026-07-25 21:18:05.307241631 +0000
++++ b/test_single_session.php	2026-07-25 21:18:05.309626696 +0000
+@@ -26,7 +26,12 @@
+     $userId = (int)$stmt->fetchColumn();
+ 
+     $statements = new PreparedStatements($pdo);
+-    $logger = new Logger();
++    // FIX-12: изолированный путь — Logger здесь только зависимость
++    // AuthService, не тестируется само логирование.
++    $logger = new Logger(sys_get_temp_dir() . '/lotto_test_single_session_' . getmypid() . '.log');
++    register_shutdown_function(function () {
++        @unlink(sys_get_temp_dir() . '/lotto_test_single_session_' . getmypid() . '.log');
++    });
+     $sessionService = new SessionService();
+     $authService = new AuthService($db, $statements, $logger, $sessionService);
+ 

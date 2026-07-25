@@ -1,0 +1,37 @@
+--- a/Logger.php	2026-07-25 21:18:05.234403281 +0000
++++ b/Logger.php	2026-07-25 21:18:05.238553468 +0000
+@@ -14,8 +14,33 @@
+ 
+     private string $logFile;
+ 
+-    public function __construct()
++    /**
++     * FIX-12: optional $logFilePath injection point, mirroring the FIX-4
++     * precedent for Database::__construct(?PDO $pdo = null). Before this
++     * fix, every `new Logger()` call — including ones made deep inside
++     * test fixtures that otherwise correctly isolate themselves via
++     * in-memory SQLite (e.g. tests/Manual/test_victory.php's makeSvc(),
++     * which builds a real GameFinishService for GROUP 4/5/6) — wrote
++     * straight into the production logs/server.log path with zero way to
++     * redirect it. This caused real operational confusion on a live
++     * deployment: a deliberately-rigged CHECK-constraint failure from an
++     * isolated in-memory test database ended up logged into the actual
++     * production log file, indistinguishable from a real game event.
++     * Default (no argument) preserves the exact prior behavior — this is
++     * purely additive, server.php's own `new Logger()` call needs no
++     * change at all.
++     */
++    public function __construct(?string $logFilePath = null)
+     {
++        if ($logFilePath !== null) {
++            $logDir = dirname($logFilePath);
++            if (!is_dir($logDir)) {
++                mkdir($logDir, 0755, true);
++            }
++            $this->logFile = $logFilePath;
++            return;
++        }
++
+         $logDir = dirname(__DIR__, 2) . '/logs';
+ 
+         if (!is_dir($logDir)) {
