@@ -135,7 +135,7 @@ Goal: Administrative control.
 
 # PHASE 10 — WEBSOCKET PROTOCOL
 Goal: Connect services to protocol.
-Status: Current phase (10.0-10.5 done, 10.6 next — see docs/IMPLEMENTATION_STATUS.md for authoritative detail).
+Status: Complete (10.0-10.7 all done — see docs/IMPLEMENTATION_STATUS.md for authoritative detail).
 
 - EPIC-10.0 Protocol router
 - EPIC-10.1 Packet validation
