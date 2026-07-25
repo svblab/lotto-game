@@ -1679,6 +1679,20 @@ Result:
 
 ## DECISION LOG
 
+- 2026-07-26 — ROADMAP.md Phase 11/12/13/14 reorder Accepted (user
+  decision, following up on a concern raised after EPIC-10.7): Frontend
+  depends entirely on the server implementation, so auditing the server
+  first avoids redoing client work if an audit surfaces a protocol
+  change. New Phase 11 (was Phase 12.0-12.6): Full integration testing,
+  memory/timer/economy/state-machine/protocol audits, load testing. New
+  Phase 12 (was Phase 11): Frontend. Phase 13 intentionally skipped
+  entirely, by explicit project decision (not a numbering error). New
+  Phase 14 (was EPIC-12.7/12.8): Release Candidate -> v1.0 Release, given
+  its own phase number since Phase 12 was reassigned to Frontend.
+  docs/ROADMAP.md updated with the new structure plus an explanatory
+  note mapping old->new numbering. No code, protocol, or test changes —
+  none of the affected epics were implemented yet, so this is pure
+  documentation with zero migration risk.
 - 2026-07-25 — FIX-12 Accepted: found during a live operational incident
   (not a proactive audit) — test runs executed as root against the live
   VPS left game.db/workerman.log/logs/server.log root-owned while the
@@ -1977,13 +1991,13 @@ FIX-12-logger-isolation (Logger DI-seam + 6 test files redirected +
 root-caused and resolved; full regression 0 failed)
 `
 
-Next planned:
+Next planned Epic:
 
 `text
-Pending user confirmation: ROADMAP.md Phase 11/12 swap (audits before
-frontend) — proposed split not yet applied to ROADMAP.md itself, to
-avoid this doc and ROADMAP.md disagreeing before the decision is final.
-Once confirmed: new Phase 11 (was Phase 12.0-12.6 audits) first.
+EPIC-11.0 Full integration testing (new PHASE 11 — Audits & Load
+Testing, per approved 2026-07-26 reorder — see docs/ROADMAP.md's own
+"Note on Phase 11/12/14 reordering" for the full rationale and mapping
+to the old numbering)
 `
 PHASE 10 — WEBSOCKET PROTOCOL: COMPLETE (10.0-10.7 all done). Server-side
 protocol surface confirmed complete against ANCHOR_CORE.md/

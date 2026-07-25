@@ -148,28 +148,62 @@ Status: Complete (10.0-10.7 all done — see docs/IMPLEMENTATION_STATUS.md for a
 
 ---
 
-# PHASE 11 — FRONTEND
-Goal: Minimal playable client.
+# PHASE 11 — AUDITS & LOAD TESTING
+Goal: Verify the completed server (Phases 0-10) end to end before building
+a client against it — memory, timers, economy, state machine, protocol,
+and load, all audited while the protocol is still cheap to change if an
+audit surfaces something. Previously numbered Phase 12.0-12.6; reordered
+ahead of Frontend (see note below).
+Status: Next phase.
 
-- EPIC-11.0 ws.js
-- EPIC-11.1 app.js
-- EPIC-11.2 Lobby UI
-- EPIC-11.3 Game UI
-- EPIC-11.4 Reconnect UI
-- EPIC-11.5 Localization
-- EPIC-11.6 Frontend integration tests
+- EPIC-11.0 Full integration testing
+- EPIC-11.1 Memory audit
+- EPIC-11.2 Timer audit
+- EPIC-11.3 Economy audit
+- EPIC-11.4 State machine audit
+- EPIC-11.5 Protocol audit
+- EPIC-11.6 Load testing
 
 ---
 
-# PHASE 12 — RELEASE
-Goal: Production readiness.
+# PHASE 12 — FRONTEND
+Goal: Minimal playable client, built against a server already audited in
+Phase 11. Previously numbered Phase 11; reordered after Audits & Load
+Testing (see note below).
 
-- EPIC-12.0 Full integration testing
-- EPIC-12.1 Memory audit
-- EPIC-12.2 Timer audit
-- EPIC-12.3 Economy audit
-- EPIC-12.4 State machine audit
-- EPIC-12.5 Protocol audit
-- EPIC-12.6 Load testing
-- EPIC-12.7 Release Candidate
-- EPIC-12.8 Version 1.0 Release — Status: Project Complete
+- EPIC-12.0 ws.js
+- EPIC-12.1 app.js
+- EPIC-12.2 Lobby UI
+- EPIC-12.3 Game UI
+- EPIC-12.4 Reconnect UI
+- EPIC-12.5 Localization
+- EPIC-12.6 Frontend integration tests
+
+---
+
+# PHASE 14 — RELEASE
+Goal: Production readiness — release candidate through v1.0. Previously
+numbered EPIC-12.7/12.8 (Phase 12's own final two epics); given its own
+phase number once Phase 12 was reassigned to Frontend (see note below).
+Phase 13 is intentionally not used — skipped by explicit project
+decision, not a gap or numbering error.
+
+- EPIC-14.0 Release Candidate
+- EPIC-14.1 Version 1.0 Release — Status: Project Complete
+
+---
+
+## Note on Phase 11/12/14 reordering (2026-07-26)
+Phases 11 and 12 were swapped from their original assignment (Frontend
+was 11, Release-readiness audits were 12.0-12.6 of a combined "Release"
+phase) — approved decision: audit the server thoroughly before building
+a client against it, so a protocol change surfaced by an audit doesn't
+mean redoing frontend work. The former Phase 12's last two epics
+(Release Candidate, v1.0 Release) were promoted to their own phase
+(14) once Phase 12 itself was reassigned to Frontend, rather than
+awkwardly living inside the Frontend phase. Phase 13 is deliberately
+skipped entirely — an explicit project decision, not an oversight.
+None of the epics in these three phases were implemented before this
+reorder, so no existing code, test, or commit message references the
+old numbering — this renumbering is documentation-only and carries no
+migration risk.
