@@ -1,0 +1,152 @@
+--- a/IMPLEMENTATION_STATUS.md	2026-07-25 05:06:26.681878966 +0000
++++ b/IMPLEMENTATION_STATUS.md	2026-07-25 05:06:26.685846868 +0000
+@@ -639,7 +639,67 @@
+ 
+ ## PATCHES
+ 
+-## EPIC-10.6 — Admin packet routing (+ FIX-11, found during dependency-wiring audit)
++## EPIC-10.7 — Protocol integration tests
++Status: Completed
++Date: 2026-07-24
++
++Files:
++- tests/Manual/test_protocol_completeness.php (новый файл — 50 assertions)
++
++Scope, per explicit user direction: this Epic checks that everything
++ANCHOR_CORE.md/ANCHOR_PROTOCOL.md *declare* is actually *present* on the
++server side — a completeness/coverage audit, not a re-test of business
++logic. Business logic is already exhaustively covered: every module has
++its own real-WS-client routing test (test_auth_packet_routing.php,
++test_lobby_packet_routing.php, test_game_packet_routing.php,
++test_admin_packet_routing.php) plus dozens of Phase-specific unit tests.
++Re-testing that logic here would be redundant, not thorough.
++
++Deliberately a static source-cross-reference test, not a live-server one
++— it parses the actual registries out of docs/ANCHOR_CORE.md and
++docs/ANCHOR_PROTOCOL.md at run time (not a hardcoded copy of them), so it
++stays honest against drift in either direction: it would catch a future
++session adding a new packet/action to the docs without implementing it,
++*or* implementing something without documenting it (Rule 27 Naming
++Authority). Checks:
++1. Every declared Protocol Action reachable in server.php's dispatcher.
++2. Every declared Protocol Packet Type emitted somewhere in src/ or
++   server.php.
++3. Every declared Error Code used somewhere.
++4. Reverse check: packet types emitted in code but not declared anywhere.
++5. All four protocol handlers (AuthHandler/LobbyHandler/GameHandler/
++   AdminHandler) actually instantiated in server.php's onWorkerStart.
++
++Result: 50/50 PASSED, 0 failed, 3 warnings — all three warnings match
++already-documented KNOWN GAPS, no new surprises:
++- `admin_stats_data` (packet type): declared, zero emission sites —
++  already flagged (2026-07-03 audit) as unimplemented/no Epic assigned.
++- `afk_warning` (packet type): emitted (ReconnectService, EPIC-8.3), not
++  declared in the registry — already flagged as documentation debt.
++- `error.banned` (error code): declared, zero usage sites — **new
++  finding this Epic**. Not a functional gap: the dedicated `banned`
++  packet type (`{"type":"banned","until":...}`) already covers every
++  ban-rejection path (login, reconnect since FIX-11, admin notification)
++  — `error.banned` appears to be a redundant/unused declaration in the
++  Error Packet Codes registry, never actually needed once the dedicated
++  packet type existed. Logged as a new KNOWN GAP (low priority,
++  documentation-only) rather than touched: ANCHOR_PROTOCOL.md states it
++  "Never changes," and removing a declared code — even an unused one —
++  is arguably a change to that document; left for an explicit user
++  decision (same treatment as the admin_stats_data gap: either assign it
++  a purpose or formally deprecate it).
++
++No code defects found by this Epic — confirms the wiring built across
++EPIC-10.0-10.6 is genuinely complete against the declared protocol
++surface, not just working for the specific scenarios the routing tests
++happened to cover.
++
++PHASE 10 — WEBSOCKET PROTOCOL: COMPLETE (10.0-10.7 all done).
++
++Diff: patches/EPIC-10.7-test-protocol-completeness.patch (new file, full
++content — see also tests/Manual/test_protocol_completeness.php directly)
++
++
+ Status: Completed
+ Date: 2026-07-24
+ 
+@@ -1494,6 +1554,20 @@
+ 
+ ## DECISION LOG
+ 
++- 2026-07-24 — EPIC-10.7 Accepted: per explicit user scoping, this Epic is
++  a completeness/coverage audit (does the server side have everything
++  ANCHOR_CORE.md/ANCHOR_PROTOCOL.md declare?), not a re-test of business
++  logic already covered by the per-module routing tests and Phase-
++  specific unit tests. New tests/Manual/test_protocol_completeness.php
++  parses the actual declared registries out of the ANCHOR docs at run
++  time (not a hardcoded copy) and cross-references against server.php/
++  src/ — 50/50 PASSED, 3 warnings, all matching already-documented KNOWN
++  GAPS (admin_stats_data unimplemented, afk_warning undeclared) plus one
++  new low-priority finding (error.banned declared but unused — superseded
++  by the dedicated `banned` packet type, not a functional gap). No code
++  defects found — confirms EPIC-10.0-10.6's wiring is genuinely complete
++  against the full declared protocol surface. PHASE 10 — WEBSOCKET
++  PROTOCOL: COMPLETE.
+ - 2026-07-24 — EPIC-10.6 Accepted + FIX-11: admin_ban_user/admin_unban_user/
+   admin_kick_user/admin_close_room/admin_get_logs wired to new
+   AdminHandler (AdminService Phase 9 already existed — dependency wiring
+@@ -1640,6 +1714,16 @@
+   и не назначен ни одному Epic в ROADMAP.md (EPIC-9.x покрыл только
+   admin_logs_data). Нужно либо завести Epic, либо формально исключить из
+   протокола.
++- ⚠️ OPEN (низкий приоритет, документационный долг, найдено EPIC-10.7):
++  код ошибки `error.banned` объявлен в реестре Error Packet Codes
++  (ANCHOR_PROTOCOL.md) но нигде не используется — ноль usage sites по
++  всему src/ и server.php. Не функциональный пробел: выделенный пакет
++  `banned` (`{"type":"banned","until":...}`) уже покрывает каждый путь
++  отказа по бану (login, reconnect — с FIX-11, admin-уведомление). Похоже,
++  этот код ошибки стал избыточным ещё до того, как понадобился, once
++  выделенный пакет уже существовал. Требует либо явного назначения
++  использования, либо формального исключения из реестра (тот же выбор,
++  что уже стоит перед admin_stats_data).
+ 
+ - ✅ RESOLVED (FIX-4, 2026-07-03): test_game_start.php/test_victory.php падали из-за
+   устаревших фикстур после ADR-002. Устранено — см. секцию PATCHES § FIX-4.
+@@ -1665,7 +1749,7 @@
+ PHASE 7 — APARTMENT: COMPLETE
+ PHASE 8 — RECONNECT & AFK: COMPLETE
+ PHASE 9 — ADMIN: COMPLETE
+-PHASE 10 — WEBSOCKET PROTOCOL: IN PROGRESS (10.0-10.6 done)
++PHASE 10 — WEBSOCKET PROTOCOL: COMPLETE (10.0-10.7 all done)
+ 
+ Integration tests:
+ 
+@@ -1693,6 +1777,7 @@
+ 21 / 21 PASSED (game packet routing — real WS client, EPIC-10.5, новый файл)
+ 6 / 6 PASSED (session lifecycle — real WS client, FIX-10, новый файл)
+ 15 / 15 PASSED (admin packet routing — real WS client, EPIC-10.6 + FIX-11, новый файл)
++50 / 50 PASSED, 3 warnings (protocol completeness — static doc-cross-reference, EPIC-10.7, новый файл)
+ `
+ 
+ Current branch:
+@@ -1704,16 +1789,21 @@
+ Current stable commit (pending push — see Git Checkpoint below):
+ 
+ `text
+-EPIC-10.6-admin-routing (AdminHandler wiring, all 7 AdminService
+-dependencies wired + FIX-11 ban-bypass fix; full regression 0 failed)
++EPIC-10.7-protocol-completeness (static completeness audit against
++ANCHOR_CORE.md/ANCHOR_PROTOCOL.md registries; 50/50 passed, 3 warnings
++all matching pre-existing KNOWN GAPS; full regression 0 failed)
+ `
+ 
+ Next planned Epic:
+ 
+ `text
+-EPIC-10.7 Protocol integration tests
++PHASE 11 — FRONTEND (EPIC-11.0 ws.js)
+ `
+-PHASE 10 — WEBSOCKET PROTOCOL: IN PROGRESS (10.0-10.6 done).
++PHASE 10 — WEBSOCKET PROTOCOL: COMPLETE (10.0-10.7 all done). Server-side
++protocol surface confirmed complete against ANCHOR_CORE.md/
++ANCHOR_PROTOCOL.md's own declared registries (EPIC-10.7). Three low-
++priority documentation-debt items remain open (admin_stats_data,
++afk_warning, error.banned — see KNOWN GAPS) but none block Phase 11.
+ Known open items: none blocking. The EPIC-10.5 KNOWN GAP
+ (AuthHandler::handleReconnect() not binding $connection->userId when no
+ matching disconnected room player is found) is RESOLVED as of FIX-10 —
