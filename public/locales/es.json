@@ -1,0 +1,112 @@
+{
+  "app": { "title": "Loto Ruso" },
+  "common": { "cancel": "Cancelar", "close": "Cerrar" },
+  "auth": {
+    "login": "Entrar",
+    "register": "Registro",
+    "logout": "Salir",
+    "username": "Usuario",
+    "password": "Contraseña",
+    "banned": "Estás baneado hasta {until}"
+  },
+  "lobby": {
+    "createRoom": "Crear sala",
+    "quickStart": "Inicio rápido",
+    "refresh": "Actualizar",
+    "join": "Unirse",
+    "maxPlayers": "Máx. jugadores",
+    "password": "Contraseña",
+    "cardsCount": "Cartones",
+    "roomId": "Sala",
+    "players": "Jugadores",
+    "status": "Estado",
+    "inRoom": "En sala",
+    "host": "Anfitrión",
+    "bank": "Banco",
+    "leaveRoom": "Salir",
+    "backToLobby": "Al lobby",
+    "joined": "Unido a sala #{id}",
+    "enterPassword": "Contraseña de la sala:",
+    "cardsPrompt": "Cartones (1 o 2):",
+    "cards": "cart.",
+    "leftReason": "Saliste de la sala ({reason})"
+  },
+  "game": {
+    "startGame": "Iniciar",
+    "drawBarrel": "Sacar barril",
+    "players": "Jugadores",
+    "winChance": "Probabilidad",
+    "currentDrawer": "Turno",
+    "remaining": "Restantes",
+    "online": "En línea",
+    "disconnected": "Ausente",
+    "afkWarning": "Aviso AFK ({strike}/2) — ¡juega pronto!",
+    "gameOver": "Fin del juego",
+    "victory": "Victoria",
+    "lastSurvivor": "Último superviviente",
+    "winnerLine": "{winner} gana {prize} monedas ({reason})",
+    "player": "Jugador",
+    "paid": "Pagado",
+    "received": "Recibido"
+  },
+  "apartment": {
+    "title": "¡Apartamento!",
+    "required": "¡Fila completa! Paga 10 monedas o rechaza.",
+    "immune": "Esperando decisiones de otros…",
+    "agree": "Aceptar (+10)",
+    "refuse": "Rechazar"
+  },
+  "reconnect": {
+    "message": "Reconectando…",
+    "restored": "Sesión restaurada"
+  },
+  "admin": {
+    "title": "Administración",
+    "statsHint": "Estadísticas en vivo no disponibles hasta admin_stats_data.",
+    "moderation": "Moderación",
+    "permanent": "Permanente",
+    "ban": "Ban",
+    "unban": "Desban",
+    "kick": "Expulsar",
+    "rooms": "Salas activas",
+    "closeRoom": "Cerrar",
+    "logs": "Logs (24h)"
+  },
+  "rules": {
+    "title": "Reglas",
+    "introTitle": "Bienvenido",
+    "introBody": "Loto ruso clásico en tiempo real. Cierra 15 números para ganar.",
+    "economyTitle": "Economía",
+    "economyBody": "500 monedas iniciales. Cartón: 10 monedas. Bono diario +100.",
+    "cardsTitle": "Cartones",
+    "cardsBody": "Cuadrícula 3×9, 15 números. Elige 1 o 2 cartones.",
+    "apartmentTitle": "Apartamento",
+    "apartmentBody": "Al completar una fila, pausa. Paga 10 o sales.",
+    "victoryTitle": "Victoria",
+    "victoryBody": "El primero en cerrar 15 números gana. El resto del banco se quema.",
+    "reconnectTitle": "Reconexión",
+    "reconnectBody": "15 segundos para reconectar. Prohibido en Apartamento."
+  },
+  "status": {
+    "waiting": "Espera",
+    "playing": "Jugando",
+    "apartment": "Apartamento",
+    "finished": "Terminada"
+  },
+  "lang": { "choose": "Elegir idioma" },
+  "errors": {
+    "unknown": "Error desconocido",
+    "auth_required": "Inicia sesión primero",
+    "auth_invalid_credentials": "Credenciales inválidas",
+    "auth_username_taken": "Usuario ocupado",
+    "auth_invalid_username": "Formato inválido",
+    "auth_invalid_token": "Sesión expirada",
+    "room_not_found": "Sala no encontrada",
+    "not_your_turn": "No es tu turno",
+    "server_full": "Servidor lleno",
+    "room_full": "Sala llena",
+    "room_limit": "Límite de salas",
+    "cannot_moderate_admin": "No se puede moderar admin",
+    "invalid_json": "Solicitud inválida"
+  }
+}
