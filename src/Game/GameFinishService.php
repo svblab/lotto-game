@@ -7,8 +7,9 @@ namespace Lotto\Game;
 use Lotto\Infrastructure\Database;
 use Lotto\Infrastructure\PreparedStatements;
 use Lotto\Core\Logger;
-use Workerman\Timer;
 use Throwable;
+
+use function Lotto\Core\lottoTimerDel;
 
 /**
  * GameFinishService — Выделенный сервис финализации игры (ADR-002).
@@ -167,18 +168,23 @@ final class GameFinishService
 
         // --- Замечание 4. УПРАВЛЕНИЕ ТАЙМЕРАМИ (Полная очистка утечек памяти) ---
         if (!empty($room['lobby_afk_timer_id'])) {
-            try { Timer::del($room['lobby_afk_timer_id']); } catch (Throwable $t) {}
+            try { lottoTimerDel((int) $room['lobby_afk_timer_id'], 'lobby_afk', ['room_id' => $roomId]); } catch (Throwable $t) {}
         }
         if (!empty($room['game_afk_timer_id'])) {
-            try { Timer::del($room['game_afk_timer_id']); } catch (Throwable $t) {}
+            try { lottoTimerDel((int) $room['game_afk_timer_id'], 'game_afk', ['room_id' => $roomId]); } catch (Throwable $t) {}
         }
         if (!empty($room['apartment_timer_id'])) {
-            try { Timer::del($room['apartment_timer_id']); } catch (Throwable $t) {}
+            try { lottoTimerDel((int) $room['apartment_timer_id'], 'apartment', ['room_id' => $roomId]); } catch (Throwable $t) {}
         }
         if (isset($room['players']) && is_array($room['players'])) {
-            foreach ($room['players'] as $player) {
+            foreach ($room['players'] as $connId => $player) {
                 if (!empty($player['reconnect_timer'])) {
-                    try { Timer::del($player['reconnect_timer']); } catch (Throwable $t) {}
+                    try {
+                        lottoTimerDel((int) $player['reconnect_timer'], 'reconnect', [
+                            'room_id' => $roomId,
+                            'conn_id' => $connId,
+                        ]);
+                    } catch (Throwable $t) {}
                 }
             }
         }

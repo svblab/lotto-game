@@ -5,11 +5,12 @@ namespace Lotto\Lobby;
 use Lotto\Core\Constants;
 use Lotto\Core\Logger;
 use Lotto\Core\RoomManager;
-use Workerman\Timer;
 
 use function Lotto\Core\sendJson;
 use function Lotto\Core\sendError;
 use function Lotto\Core\broadcastToRoom;
+use function Lotto\Core\lottoTimerAdd;
+use function Lotto\Core\lottoTimerDel;
 
 /**
  * LobbyService — EPIC-2.1 / EPIC-2.2 / EPIC-2.3 / EPIC-2.4 / EPIC-2.6
@@ -379,7 +380,7 @@ final class LobbyService
         // player removal"). Симметрично уже корректной
         // ReconnectService::removePlayerFromGame().
         if (!empty($playerEntry['reconnect_timer'])) {
-            Timer::del($playerEntry['reconnect_timer']);
+            lottoTimerDel((int) $playerEntry['reconnect_timer'], 'reconnect', ['room_id' => $roomId, 'conn_id' => $connId]);
         }
 
         // Сохраняем в историю до удаления (ANCHOR_CORE.md Part 4 § Removal Rules,
@@ -488,11 +489,11 @@ final class LobbyService
 
         // Отменяем предыдущий таймер (max 1/room)
         if (!empty($room['lobby_afk_timer_id'])) {
-            Timer::del($room['lobby_afk_timer_id']);
+            lottoTimerDel((int) $room['lobby_afk_timer_id'], 'lobby_afk', ['room_id' => $roomId]);
             $room['lobby_afk_timer_id'] = null;
         }
 
-        $timerId = Timer::add(1, function () use ($worker, $roomId): void {
+        $timerId = lottoTimerAdd(Constants::afkTickInterval(), function () use ($worker, $roomId): void {
             if (!isset($worker->rooms[$roomId])) {
                 return;
             }
@@ -512,13 +513,13 @@ final class LobbyService
 
             $hostLastAction = $room['players'][$hostConnId]['last_action'];
 
-            if ((time() - $hostLastAction) >= Constants::LOBBY_HOST_TIMEOUT) {
+            if ((time() - $hostLastAction) >= Constants::lobbyHostTimeout()) {
                 $this->logger->info(
                     "Lobby AFK: host timed out in room_id={$roomId}, transferring host"
                 );
                 $this->transferHost($worker, $roomId);
             }
-        });
+        }, [], true, 'lobby_afk', ['room_id' => $roomId]);
 
         $room['lobby_afk_timer_id'] = $timerId;
     }
@@ -542,7 +543,7 @@ final class LobbyService
         $room = &$worker->rooms[$roomId];
 
         if (!empty($room['lobby_afk_timer_id'])) {
-            Timer::del($room['lobby_afk_timer_id']);
+            lottoTimerDel((int) $room['lobby_afk_timer_id'], 'lobby_afk', ['room_id' => $roomId]);
             $room['lobby_afk_timer_id'] = null;
         }
     }

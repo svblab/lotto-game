@@ -108,10 +108,10 @@ use function Lotto\Core\lottoRuntimeEnv;
 lottoApplyTestConfig();
 
 use Workerman\Worker;
-use Workerman\Timer;
 use Lotto\Core\Constants;
 use Lotto\Core\Logger;
 use Lotto\Core\MemoryAudit;
+use Lotto\Core\TimerAudit;
 use Lotto\Infrastructure\Database;
 use Lotto\Infrastructure\PreparedStatements;
 use Lotto\Auth\SessionService;
@@ -133,6 +133,7 @@ use Lotto\Admin\AdminHandler;
 use function Lotto\Core\sendJson;
 use function Lotto\Core\sendError;
 use function Lotto\Core\closeWithCode;
+use function Lotto\Core\lottoTimerAdd;
 
 // -----------------------------------------------------------------------
 // Worker bootstrap (ANCHOR_CORE.md Part 1 — single Workerman worker,
@@ -246,23 +247,25 @@ $worker->onWorkerStart = function (Worker $worker): void {
     $worker->sessionTokens   = [];
 
     $worker->memoryAudit = new MemoryAudit($worker->logger);
+    $worker->timerAudit = new TimerAudit($worker->logger);
+    $GLOBALS['__lotto_timer_audit'] = $worker->timerAudit;
 
     $worker->logger->info('LottoGameServer started (protocol_version=' . Constants::PROTOCOL_VERSION . ')');
     $worker->memoryAudit->snapshot('worker_start', $worker);
 
     // EPIC-11.1: periodic memory snapshots every 30 minutes when audit is on.
     if (MemoryAudit::isEnabled()) {
-        Timer::add(1800, function () use ($worker): void {
+        lottoTimerAdd(1800, function () use ($worker): void {
             $worker->memoryAudit->snapshot('periodic_snapshot', $worker);
-        });
+        }, [], true, 'memory_audit_periodic');
     }
 
     // Global Watchdog Timer (ANCHOR_CORE.md Part 5 § Global Watchdog Timer)
-    // Owner: server. Count: 1 для всего процесса. Interval: 60s.
+    // Owner: server. Count: 1 для всего процесса. Interval: WATCHDOG_INTERVAL.
     // Закрывает мёртвые соединения по порогам AUTHORIZED/UNAUTHORIZED_TIMEOUT.
     // Создан в onWorkerStart, уничтожается вместе с процессом воркера —
     // отдельного Timer::del() не требуется (Worker shutdown = timer stop).
-    Timer::add(60, function () use ($worker): void {
+    lottoTimerAdd((float) Constants::watchdogInterval(), function () use ($worker): void {
         $now = time();
 
         foreach ($worker->connections as $connection) {
@@ -270,8 +273,8 @@ $worker->onWorkerStart = function (Worker $worker): void {
             $isAuthorized = !empty($connection->userId);
 
             $threshold = $isAuthorized
-                ? Constants::AUTHORIZED_TIMEOUT
-                : Constants::UNAUTHORIZED_TIMEOUT;
+                ? Constants::authorizedTimeout()
+                : Constants::unauthorizedTimeout();
 
             if (($now - $lastPing) > $threshold) {
                 $worker->logger->info(
@@ -281,7 +284,7 @@ $worker->onWorkerStart = function (Worker $worker): void {
                 $connection->close();
             }
         }
-    });
+    }, [], true, 'global_watchdog');
 };
 
 // -----------------------------------------------------------------------

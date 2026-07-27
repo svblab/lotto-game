@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-27  
 **Repository:** https://github.com/svblab/lotto-game  
-**Auditor session:** EPIC-11.0 complete; EPIC-11.1 instrumentation complete (VPS 6h run pending); EPIC-11.2–11.6 pending on VPS
+**Auditor session:** EPIC-11.0 complete; EPIC-11.1/11.2 instrumentation complete (VPS runs pending); EPIC-11.3–11.6 pending on VPS
 
 ---
 
@@ -98,22 +98,36 @@ php scripts/analyze_memory_log.php
 
 ---
 
-## EPIC-11.2 — Timer Audit (Pending)
+## EPIC-11.2 — Timer Audit (Instrumentation Complete)
 
-**Status:** Static inventory complete; accelerated live tests pending.
+**Status:** Instrumentation + mock tests complete; VPS accelerated run pending.
 
-| Timer | Location | Constant |
-|-------|----------|----------|
-| Global watchdog | `server.php` | 60s interval |
-| Unauthorized timeout | `server.php` | `UNAUTHORIZED_TIMEOUT = 60` |
-| Authorized timeout | `server.php` | `AUTHORIZED_TIMEOUT = 120` |
-| Lobby AFK | `LobbyService.php` | `lobby_afk_timer_id` |
-| Game AFK | `ReconnectService.php` | `game_afk_timer_id` |
-| Apartment voting | `ApartmentService.php` | `apartment_timer_id` |
-| Reconnect grace | `ReconnectService.php` | `RECONNECT_TIMEOUT = 15` |
+| Timer | Location | Constant / Env override |
+|-------|----------|-------------------------|
+| Global watchdog | `server.php` | `WATCHDOG_INTERVAL` / `LOTTO_WATCHDOG_INTERVAL` |
+| Unauthorized timeout | `server.php` | `UNAUTHORIZED_TIMEOUT` / `LOTTO_UNAUTHORIZED_TIMEOUT` |
+| Authorized timeout | `server.php` | `AUTHORIZED_TIMEOUT` / `LOTTO_AUTHORIZED_TIMEOUT` |
+| Lobby AFK | `LobbyService.php` | `LOBBY_HOST_TIMEOUT` / `LOTTO_LOBBY_HOST_TIMEOUT` |
+| Game AFK | `ReconnectService.php` | `GAME_AFK_WARN1/2/AUTO` / `LOTTO_GAME_AFK_*` |
+| Apartment voting | `ApartmentService.php` | `APARTMENT_TIMEOUT` / `LOTTO_APARTMENT_TIMEOUT` |
+| Reconnect grace | `ReconnectService.php` | `RECONNECT_TIMEOUT` / `LOTTO_RECONNECT_TIMEOUT` |
 | Rate limit window | `server.php` | `RATE_LIMIT_WINDOW_SECONDS = 1` |
 
-`test_timer_integrity.php`: **5/5 PASS** (mock-based cleanup verification).
+### Instrumentation (EPIC-11.2)
+
+| File | Purpose |
+|------|---------|
+| `src/Core/TimerAudit.php` | Opt-in add/del/fire logging (`LOTTO_TIMER_AUDIT=1`) → `logs/timer_audit.log` |
+| `src/Core/Helpers.php` | `lottoTimerAdd` / `lottoTimerDel` wrappers |
+| `scripts/timer_accelerated_runner.php` | VPS accelerated scenarios (5s timeouts) |
+| `scripts/analyze_timer_log.php` | Drift ±200ms + orphan timer check |
+
+### Preliminary static + mock results
+
+- `test_timer_audit.php`: **20/20 PASS** (utility, env overrides, cleanup, reconnect cancel)
+- `test_timer_integrity.php`: **5/5 PASS** (FIX-6 reconnect timer cleanup regression)
+
+**Remaining:** Run `timer_accelerated_runner.php` on Ubuntu VPS for live drift acceptance.
 
 ---
 
@@ -190,7 +204,7 @@ See `docs/IMPLEMENTATION_STATUS.md` § KNOWN GAPS:
 | All protocol actions wired | ✅ Fixed (P11-001) |
 | Unit/integration tests pass | ✅ 25/25 on Windows |
 | Live WS tests pass | ⏳ Run on VPS |
-| Memory/timer/load audits | ⏳ EPIC-11.1 instrumented (VPS 6h pending); 11.2–11.6 pending |
+| Memory/timer/load audits | ⏳ EPIC-11.1/11.2 instrumented (VPS runs pending); 11.3–11.6 pending |
 | Protocol docs synced | ⚠️ 3 low-priority gaps |
 
 **Verdict:** Proceed with Phase 12 frontend development in parallel with completing EPIC-11.1–11.6 on VPS, **provided** the 8 live-server tests pass on Ubuntu after deploying P11-001 fix. Frontend should not depend on admin_stats_data or error.banned until those gaps are resolved.
@@ -207,4 +221,8 @@ See `docs/IMPLEMENTATION_STATUS.md` § KNOWN GAPS:
 - `tests/Manual/test_memory_audit.php` — EPIC-11.1 mock regression tests
 - `scripts/memory_stability_runner.php` — EPIC-11.1 VPS long-duration test
 - `scripts/analyze_memory_log.php` — EPIC-11.1 log analyzer
+- `src/Core/TimerAudit.php` — EPIC-11.2 timer instrumentation
+- `tests/Manual/test_timer_audit.php` — EPIC-11.2 mock regression tests
+- `scripts/timer_accelerated_runner.php` — EPIC-11.2 VPS accelerated test
+- `scripts/analyze_timer_log.php` — EPIC-11.2 drift analyzer
 - `run_ALL_tests.php` — cross-platform runner with Windows SQLite + skip list

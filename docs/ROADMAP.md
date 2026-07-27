@@ -158,7 +158,7 @@ Status: In progress (EPIC-11.0 started 2026-07-27; see docs/PHASE_11_REPORT.md).
 
 - EPIC-11.0 Full integration testing — DONE
 - EPIC-11.1 Memory audit — IN PROGRESS (instrumentation done; VPS 6h run pending)
-- EPIC-11.2 Timer audit
+- EPIC-11.2 Timer audit — IN PROGRESS (instrumentation done; VPS accelerated run pending)
 - EPIC-11.3 Economy audit
 - EPIC-11.4 State machine audit
 - EPIC-11.5 Protocol audit

@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace Lotto\Game;
 
 use Lotto\Core\Constants;
-use Workerman\Timer;
 
 use function Lotto\Core\sendJson;
+use function Lotto\Core\lottoTimerAdd;
+use function Lotto\Core\lottoTimerDel;
 
 /**
  * ReconnectService — EPIC-8.0 / 8.1 / 8.2 / 8.3 / 8.4 / 8.5
@@ -65,11 +66,14 @@ final class ReconnectService
         $room['players'][$connId]['connection'] = $connection;
 
         if (!empty($room['players'][$connId]['reconnect_timer'])) {
-            Timer::del($room['players'][$connId]['reconnect_timer']);
+            lottoTimerDel((int) $room['players'][$connId]['reconnect_timer'], 'reconnect', [
+                'room_id' => $roomId,
+                'conn_id' => $connId,
+            ]);
         }
 
-        $timerId = Timer::add(
-            Constants::RECONNECT_TIMEOUT,
+        $timerId = lottoTimerAdd(
+            (float) Constants::reconnectTimeout(),
             function () use ($worker, $roomId, $connId): void {
                 if (!isset($worker->rooms[$roomId]['players'][$connId])) {
                     return;
@@ -88,7 +92,9 @@ final class ReconnectService
                 $this->removePlayerFromGame($worker, $roomId, $connId, 'disconnect');
             },
             [],
-            false
+            false,
+            'reconnect',
+            ['room_id' => $roomId, 'conn_id' => $connId]
         );
 
         $room['players'][$connId]['reconnect_timer'] = $timerId;
@@ -142,7 +148,10 @@ final class ReconnectService
             $player = $room['players'][$oldConnId];
 
             if (!empty($player['reconnect_timer'])) {
-                Timer::del($player['reconnect_timer']);
+                lottoTimerDel((int) $player['reconnect_timer'], 'reconnect', [
+                    'room_id' => $roomId,
+                    'conn_id' => $oldConnId,
+                ]);
             }
 
             $newConnId = (int)$connection->id;
@@ -236,9 +245,9 @@ final class ReconnectService
             return;
         }
 
-        $room['game_afk_timer_id'] = Timer::add(1, function () use ($worker, $roomId): void {
+        $room['game_afk_timer_id'] = lottoTimerAdd(Constants::afkTickInterval(), function () use ($worker, $roomId): void {
             $this->tickGameAfk($worker, $roomId);
-        });
+        }, [], true, 'game_afk', ['room_id' => $roomId]);
     }
 
     public function stopGameAfkTimer(object $worker, int $roomId): void
@@ -248,7 +257,7 @@ final class ReconnectService
         }
         $room = &$worker->rooms[$roomId];
         if (!empty($room['game_afk_timer_id'])) {
-            Timer::del($room['game_afk_timer_id']);
+            lottoTimerDel((int) $room['game_afk_timer_id'], 'game_afk', ['room_id' => $roomId]);
             $room['game_afk_timer_id'] = null;
         }
     }
@@ -283,12 +292,12 @@ final class ReconnectService
         }
 
         $elapsed = time() - (int)$drawer['afk_start'];
-        if ($elapsed >= 30) {
+        if ($elapsed >= Constants::gameAfkAutoSeconds()) {
             $this->performAutoDraw($worker, $roomId, (int)$drawerConnId);
             return;
         }
 
-        if ($elapsed >= 25 && (int)$drawer['strikes'] < 2) {
+        if ($elapsed >= Constants::gameAfkWarn2Seconds() && (int)$drawer['strikes'] < 2) {
             $drawer['strikes'] = 2;
             $drawer['connection']->send(json_encode([
                 'type'   => 'afk_warning',
@@ -297,7 +306,7 @@ final class ReconnectService
             return;
         }
 
-        if ($elapsed >= 15 && (int)$drawer['strikes'] < 1) {
+        if ($elapsed >= Constants::gameAfkWarn1Seconds() && (int)$drawer['strikes'] < 1) {
             $drawer['strikes'] = 1;
             $drawer['connection']->send(json_encode([
                 'type'   => 'afk_warning',
@@ -356,7 +365,10 @@ final class ReconnectService
         $wasDrawer = ($room['active_drawer_conn_id'] ?? null) === $connId;
 
         if (!empty($player['reconnect_timer'])) {
-            Timer::del($player['reconnect_timer']);
+            lottoTimerDel((int) $player['reconnect_timer'], 'reconnect', [
+                'room_id' => $roomId,
+                'conn_id' => $connId,
+            ]);
         }
 
         $room['all_players_history'][$connId] = [
@@ -435,18 +447,21 @@ final class ReconnectService
 
         $room = $worker->rooms[$roomId];
         if (!empty($room['lobby_afk_timer_id'])) {
-            Timer::del($room['lobby_afk_timer_id']);
+            lottoTimerDel((int) $room['lobby_afk_timer_id'], 'lobby_afk', ['room_id' => $roomId]);
         }
         if (!empty($room['game_afk_timer_id'])) {
-            Timer::del($room['game_afk_timer_id']);
+            lottoTimerDel((int) $room['game_afk_timer_id'], 'game_afk', ['room_id' => $roomId]);
         }
         if (!empty($room['apartment_timer_id'])) {
-            Timer::del($room['apartment_timer_id']);
+            lottoTimerDel((int) $room['apartment_timer_id'], 'apartment', ['room_id' => $roomId]);
         }
 
-        foreach (($room['players'] ?? []) as $p) {
+        foreach (($room['players'] ?? []) as $connId => $p) {
             if (!empty($p['reconnect_timer'])) {
-                Timer::del($p['reconnect_timer']);
+                lottoTimerDel((int) $p['reconnect_timer'], 'reconnect', [
+                    'room_id' => $roomId,
+                    'conn_id' => $connId,
+                ]);
             }
         }
         unset($worker->rooms[$roomId]);

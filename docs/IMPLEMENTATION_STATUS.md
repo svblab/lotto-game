@@ -1,5 +1,44 @@
 # Implementation Status — Lotto Game Project
 
+- [IN PROGRESS] EPIC-11.2 Timer audit (Phase 11 — instrumentation complete 2026-07-27; VPS accelerated run pending)
+Files:
+- src/Core/TimerAudit.php (новый файл — opt-in timer lifecycle logging → logs/timer_audit.log)
+- src/Core/Constants.php (diff — env-resolved timeout accessors + AFK/APARTMENT constants)
+- src/Core/Helpers.php (diff — lottoTimerAdd/lottoTimerDel wrappers with audit hooks)
+- server.php (diff — TimerAudit wiring, watchdog uses env-resolved timeouts)
+- src/Lobby/LobbyService.php, src/Game/ReconnectService.php, src/Game/ApartmentService.php,
+  src/Game/GameService.php, src/Game/GameFinishService.php, src/Core/RoomManager.php
+  (diff — all Timer::add/del migrated to lottoTimer* wrappers)
+- tests/Manual/test_timer_audit.php (новый файл — 20 mock regression tests)
+- tests/Manual/mock_timer.php (diff — fire()/fireAll() for accelerated mock tests)
+- scripts/timer_accelerated_runner.php (новый файл — VPS accelerated timer scenarios)
+- scripts/analyze_timer_log.php (новый файл — drift ±200ms + orphan check)
+- tests/Manual/ws_test_harness.php (diff — LOTTO_TIMER_AUDIT_LOG isolation)
+- docs/PHASE_11_REPORT.md (diff — EPIC-11.2 section updated)
+
+Implemented:
+- TimerAudit utility: LOTTO_TIMER_AUDIT=1 logs add/del/fire with microsecond timestamps.
+- Env overrides for accelerated VPS testing: LOTTO_RECONNECT_TIMEOUT,
+  LOTTO_LOBBY_HOST_TIMEOUT, LOTTO_UNAUTHORIZED_TIMEOUT, LOTTO_AUTHORIZED_TIMEOUT,
+  LOTTO_APARTMENT_TIMEOUT, LOTTO_GAME_AFK_WARN1/WARN2/AUTO, LOTTO_WATCHDOG_INTERVAL,
+  LOTTO_AFK_TICK_INTERVAL.
+- lottoTimerAdd/lottoTimerDel: single instrumentation seam for all production timers.
+- test_timer_audit.php: TimerAudit utility, env overrides, RoomManager cleanup,
+  reconnect schedule/cancel, lobby AFK start/stop, single-shot fire semantics.
+- VPS tooling: timer_accelerated_runner.php (5s reconnect default) +
+  analyze_timer_log.php (acceptance: no orphans, drift ≤200ms).
+
+Verification (Windows dev host):
+- test_timer_audit.php: 20/20 PASS
+- test_timer_integrity.php: 5/5 PASS (FIX-6 regression, unchanged)
+- Full suite: php run_ALL_tests.php — 26/26 test files passed
+
+Remaining: Run timer_accelerated_runner.php on Ubuntu VPS for live drift
+acceptance sign-off per EPIC-11.2 acceptance criteria.
+
+Next in Phase 11: EPIC-11.3 Economy audit, then 11.4–11.6 per
+docs/prompt phase 11 detail.md and docs/PHASE_11_REPORT.md.
+
 - [IN PROGRESS] EPIC-11.1 Memory audit (Phase 11 — instrumentation complete 2026-07-27; VPS 6h run pending)
 Files:
 - src/Core/MemoryAudit.php (новый файл — opt-in memory snapshots → logs/memory_audit.log)
@@ -41,7 +80,7 @@ test_logger.php removed (superseded by FIX-12). server.php accepts
 LOTTO_WS_PORT, LOTTO_SERVER_LOG, LOTTO_WORKERMAN_LOG_FILE,
 LOTTO_WORKERMAN_PID_FILE env vars for test subprocess isolation.
 
-Next in Phase 11: EPIC-11.2 Timer audit, then 11.3–11.6 per
+Next in Phase 11: EPIC-11.3 Economy audit, then 11.4–11.6 per
 docs/prompt phase 11 detail.md and docs/PHASE_11_REPORT.md.
 
 - [DONE] EPIC-11.0 Full integration testing (Phase 11 audit — 2026-07-27)
@@ -2069,8 +2108,8 @@ root-caused and resolved; full regression 0 failed)
 Next planned Epic:
 
 `text
-EPIC-11.2 Timer audit (Phase 11 — see docs/PHASE_11_REPORT.md;
-EPIC-11.1 instrumentation complete, VPS 6h stability run pending)
+EPIC-11.3 Economy audit (Phase 11 — see docs/PHASE_11_REPORT.md;
+EPIC-11.1/11.2 instrumentation complete, VPS runs pending)
 `
 PHASE 10 — WEBSOCKET PROTOCOL: COMPLETE (10.0-10.7 all done). Server-side
 protocol surface confirmed complete against ANCHOR_CORE.md/

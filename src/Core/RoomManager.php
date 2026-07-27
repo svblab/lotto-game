@@ -2,7 +2,7 @@
 
 namespace Lotto\Core;
 
-use Workerman\Timer;
+use function Lotto\Core\lottoTimerDel;
 
 /**
  * RoomManager — EPIC-2.0
@@ -118,19 +118,21 @@ final class RoomManager
 
         // Отменяем room-level таймеры
         if (!empty($room['lobby_afk_timer_id'])) {
-            Timer::del($room['lobby_afk_timer_id']);
+            lottoTimerDel((int) $room['lobby_afk_timer_id'], 'lobby_afk', ['room_id' => $roomId]);
         }
         if (!empty($room['game_afk_timer_id'])) {
-            Timer::del($room['game_afk_timer_id']);
+            lottoTimerDel((int) $room['game_afk_timer_id'], 'game_afk', ['room_id' => $roomId]);
         }
         if (!empty($room['apartment_timer_id'])) {
-            Timer::del($room['apartment_timer_id']);
+            lottoTimerDel((int) $room['apartment_timer_id'], 'apartment', ['room_id' => $roomId]);
         }
 
-        // Отменяем player-level reconnect таймеры
-        foreach ($room['players'] as $player) {
+        foreach ($room['players'] as $connId => $player) {
             if (!empty($player['reconnect_timer'])) {
-                Timer::del($player['reconnect_timer']);
+                lottoTimerDel((int) $player['reconnect_timer'], 'reconnect', [
+                    'room_id' => $roomId,
+                    'conn_id' => $connId,
+                ]);
             }
         }
 

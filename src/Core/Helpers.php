@@ -138,6 +138,58 @@ function lottoRuntimeEnv(string $key): ?string
     return null;
 }
 
+/**
+ * EPIC-11.2: register a Workerman timer with optional audit logging.
+ *
+ * @param array<string, scalar|null> $context
+ */
+function lottoTimerAdd(
+    float $interval,
+    callable $cb,
+    array $args = [],
+    bool $persistent = true,
+    string $label = '',
+    array $context = []
+): int {
+    $timerId = 0;
+    $wrapped = function (...$passedArgs) use ($cb, $label, &$timerId, $context, $args) {
+        $audit = $GLOBALS['__lotto_timer_audit'] ?? null;
+        if ($audit instanceof TimerAudit) {
+            $audit->recordFire($label !== '' ? $label : 'anonymous', $timerId, $context);
+        }
+
+        if (!empty($args)) {
+            return $cb(...$args);
+        }
+
+        return $cb(...$passedArgs);
+    };
+
+    $timerId = \Workerman\Timer::add($interval, $wrapped, [], $persistent);
+
+    $audit = $GLOBALS['__lotto_timer_audit'] ?? null;
+    if ($audit instanceof TimerAudit) {
+        $audit->recordAdd($label !== '' ? $label : 'anonymous', $timerId, $interval, $context);
+    }
+
+    return $timerId;
+}
+
+/**
+ * EPIC-11.2: cancel a Workerman timer with optional audit logging.
+ *
+ * @param array<string, scalar|null> $context
+ */
+function lottoTimerDel(int $timerId, string $label = '', array $context = []): bool
+{
+    $audit = $GLOBALS['__lotto_timer_audit'] ?? null;
+    if ($audit instanceof TimerAudit) {
+        $audit->recordDel($label !== '' ? $label : 'anonymous', $timerId, $context);
+    }
+
+    return \Workerman\Timer::del($timerId);
+}
+
 function lottoApplyTestConfig(): void
 {
     $configFile = lottoRuntimeEnv('LOTTO_TEST_CONFIG');

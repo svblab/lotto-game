@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace Lotto\Game;
 
+use Lotto\Core\Constants;
+
 use function Lotto\Core\sendError;
+use function Lotto\Core\lottoTimerAdd;
+use function Lotto\Core\lottoTimerDel;
 
 /**
  * ApartmentService — EPIC-7.0 / 7.1 / 7.2 / 7.3 / 7.4 / 7.5
@@ -231,20 +235,22 @@ final class ApartmentService
             $player['connection']->send(json_encode([
                 'type'      => 'apartment_alert',
                 'required'  => $required,
-                'time_left' => 10,
+                'time_left' => Constants::apartmentTimeout(),
             ]));
         }
 
         // Apartment timer — 10s single-shot (ANCHOR_CORE Part 5)
         $self = $this;
-        $room['apartment_timer_id'] = \Workerman\Timer::add(
-            10,
+        $room['apartment_timer_id'] = lottoTimerAdd(
+            (float) Constants::apartmentTimeout(),
             function() use (&$room, $roomId, $worker, $gameService, $self) {
                 if (!isset($worker->rooms[$roomId])) return;
                 $self->onApartmentTimeout($room, $roomId, $worker, $gameService);
             },
             [],
-            false
+            false,
+            'apartment',
+            ['room_id' => $roomId]
         );
     }
 
@@ -343,7 +349,7 @@ final class ApartmentService
     ): void {
         // Остановить таймер
         if (!empty($room['apartment_timer_id'])) {
-            \Workerman\Timer::del($room['apartment_timer_id']);
+            lottoTimerDel((int) $room['apartment_timer_id'], 'apartment', ['room_id' => $roomId]);
             $room['apartment_timer_id'] = null;
         }
 
@@ -477,7 +483,10 @@ final class ApartmentService
         // абсолютное ("A destroyed owner keeps no timers") — на случай
         // рассогласования состояния.
         if (!empty($player['reconnect_timer'])) {
-            \Workerman\Timer::del($player['reconnect_timer']);
+            lottoTimerDel((int) $player['reconnect_timer'], 'reconnect', [
+                'room_id' => $roomId,
+                'conn_id' => $connId,
+            ]);
         }
 
         // История должна содержать user_id для возвратов (ANCHOR_CORE Part 2 § No Survivors/Admin Close Room)
@@ -573,18 +582,21 @@ final class ApartmentService
         $room = $worker->rooms[$roomId];
 
         if (!empty($room['lobby_afk_timer_id'])) {
-            \Workerman\Timer::del($room['lobby_afk_timer_id']);
+            lottoTimerDel((int) $room['lobby_afk_timer_id'], 'lobby_afk', ['room_id' => $roomId]);
         }
         if (!empty($room['game_afk_timer_id'])) {
-            \Workerman\Timer::del($room['game_afk_timer_id']);
+            lottoTimerDel((int) $room['game_afk_timer_id'], 'game_afk', ['room_id' => $roomId]);
         }
         if (!empty($room['apartment_timer_id'])) {
-            \Workerman\Timer::del($room['apartment_timer_id']);
+            lottoTimerDel((int) $room['apartment_timer_id'], 'apartment', ['room_id' => $roomId]);
         }
 
-        foreach (($room['players'] ?? []) as $player) {
+        foreach (($room['players'] ?? []) as $playerConnId => $player) {
             if (!empty($player['reconnect_timer'])) {
-                \Workerman\Timer::del($player['reconnect_timer']);
+                lottoTimerDel((int) $player['reconnect_timer'], 'reconnect', [
+                    'room_id' => $roomId,
+                    'conn_id' => $playerConnId,
+                ]);
             }
         }
 

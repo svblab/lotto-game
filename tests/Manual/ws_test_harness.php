@@ -196,6 +196,7 @@ function wsTestPrepareLogFiles(array $env): void
         'LOTTO_WORKERMAN_PID_FILE',
         'LOTTO_SERVER_LOG',
         'LOTTO_MEMORY_AUDIT_LOG',
+        'LOTTO_TIMER_AUDIT_LOG',
     ] as $key) {
         if (empty($env[$key])) {
             continue;
@@ -235,6 +236,7 @@ function wsTestApplyServerEnv(string $projectRoot): array
         'LOTTO_WORKERMAN_PID_FILE' => "{$tmpdir}/lotto_wm_test_{$suffix}.pid",
         'LOTTO_SERVER_LOG'         => "{$tmpdir}/lotto_srv_test_{$suffix}.log",
         'LOTTO_MEMORY_AUDIT_LOG'   => "{$tmpdir}/lotto_mem_audit_test_{$suffix}.log",
+        'LOTTO_TIMER_AUDIT_LOG'    => "{$tmpdir}/lotto_timer_audit_test_{$suffix}.log",
     ];
 
     $configPath = "{$tmpdir}/lotto_test_config_{$suffix}.json";

@@ -9,6 +9,8 @@ use Lotto\Core\Logger;
 use Lotto\Infrastructure\Database;
 use Lotto\Infrastructure\PreparedStatements;
 
+use function Lotto\Core\lottoTimerDel;
+
 use function Lotto\Core\sendError;
 use function Lotto\Core\broadcastToRoom;
 use function Lotto\Core\sendJson;
@@ -234,7 +236,7 @@ final class GameService
 
         // Остановить lobby AFK таймер
         if (!empty($room['lobby_afk_timer_id'])) {
-            \Workerman\Timer::del($room['lobby_afk_timer_id']);
+            lottoTimerDel((int) $room['lobby_afk_timer_id'], 'lobby_afk', ['room_id' => $roomId]);
             $room['lobby_afk_timer_id'] = null;
         }
 
