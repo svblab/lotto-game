@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-27  
 **Repository:** https://github.com/svblab/lotto-game  
-**Auditor session:** EPIC-11.0 complete; EPIC-11.1/11.2 instrumentation complete (VPS runs pending); EPIC-11.3–11.6 pending on VPS
+**Auditor session:** EPIC-11.0 complete; EPIC-11.1/11.2/11.3 instrumentation complete (VPS runs pending); EPIC-11.4–11.6 pending on VPS
 
 ---
 
@@ -131,18 +131,35 @@ php scripts/analyze_memory_log.php
 
 ---
 
-## EPIC-11.3 — Economy Audit (Pending)
+## EPIC-11.3 — Economy Audit (Instrumentation Complete)
 
-**Status:** Partial — covered by existing unit tests; full integrity script pending.
+**Status:** Instrumentation + mock regression complete; VPS live-game log replay pending.
 
-Transaction sites identified in: `GameService`, `GameFinishService`, `ApartmentService`, `AdminService`.
+| File | Purpose |
+|------|---------|
+| `src/Core/EconomyAudit.php` | Opt-in financial logging (`LOTTO_ECONOMY_AUDIT=1`) → `logs/economy_audit.log` |
+| `src/Core/Helpers.php` | `lottoEconomyRecord()` helper |
+| `scripts/economy_integrity_runner.php` | Multi-scenario conservation check (stake/prize/burn/apartment/refund) |
+| `scripts/analyze_economy_log.php` | Log replay + duplicate tx_id check |
 
-Existing passing tests:
-- `test_victory.php` (40/40) — payout scenarios
-- `test_apartment.php` (32/32) — apartment deductions
-- `test_admin_integration.php` (20/20) — refund integrity, no double-refund
+### Transaction sites (all wrapped in SQLite transactions)
 
-**Remaining:** Script to sum all balances before/after multi-game simulation; log replay verification.
+| Service | Operation | Audit op |
+|---------|-----------|----------|
+| `GameService` | startGame stakes | `stake` |
+| `GameFinishService` | winner payout | `prize` |
+| `GameFinishService` | remainder destruction | `burn` |
+| `ApartmentService` | apartment payment | `apartment` |
+| `ApartmentService` | no-survivors refund | `refund` |
+| `AdminService` | kick/close room refund | `refund` |
+
+### Mock regression results
+
+- `test_economy_audit.php`: **32/32 PASS**
+- `economy_integrity_runner.php`: **PASS** (4 scenarios, conservation holds)
+- Existing: `test_victory.php` (40/40), `test_apartment.php` (32/32), `test_admin_integration.php` (20/20)
+
+**Remaining:** Run with `LOTTO_ECONOMY_AUDIT=1` on VPS during live games; verify via `analyze_economy_log.php --initial=...`.
 
 ---
 
@@ -204,7 +221,7 @@ See `docs/IMPLEMENTATION_STATUS.md` § KNOWN GAPS:
 | All protocol actions wired | ✅ Fixed (P11-001) |
 | Unit/integration tests pass | ✅ 25/25 on Windows |
 | Live WS tests pass | ⏳ Run on VPS |
-| Memory/timer/load audits | ⏳ EPIC-11.1/11.2 instrumented (VPS runs pending); 11.3–11.6 pending |
+| Memory/timer/load audits | ⏳ EPIC-11.1/11.2/11.3 instrumented (VPS runs pending); 11.4–11.6 pending |
 | Protocol docs synced | ⚠️ 3 low-priority gaps |
 
 **Verdict:** Proceed with Phase 12 frontend development in parallel with completing EPIC-11.1–11.6 on VPS, **provided** the 8 live-server tests pass on Ubuntu after deploying P11-001 fix. Frontend should not depend on admin_stats_data or error.banned until those gaps are resolved.

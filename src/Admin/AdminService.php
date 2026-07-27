@@ -6,6 +6,7 @@ namespace Lotto\Admin;
 
 use function Lotto\Core\sendJson;
 use function Lotto\Core\sendError;
+use function Lotto\Core\lottoEconomyRecord;
 
 /**
  * AdminService — EPIC-9.0
@@ -278,6 +279,11 @@ final class AdminService
                 $refundStmt = $this->stmts->get('add_user_coins');
                 $refundStmt->execute([$totalPaid, $targetUserId]);
                 $pdo->commit();
+
+                lottoEconomyRecord('refund', $targetUserId, $totalPaid, [
+                    'room_id' => $roomId,
+                    'reason'  => 'admin_kick',
+                ]);
             } catch (\Throwable $e) {
                 $pdo->rollBack();
                 if ($this->logger !== null) {
@@ -393,6 +399,11 @@ final class AdminService
                 }
                 $refundStmt = $this->stmts->get('add_user_coins');
                 $refundStmt->execute([$totalPaid, $userId]);
+
+                lottoEconomyRecord('refund', $userId, $totalPaid, [
+                    'room_id' => $roomId,
+                    'reason'  => 'admin_close',
+                ]);
             }
             $pdo->commit();
         } catch (\Throwable $e) {

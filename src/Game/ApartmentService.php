@@ -9,6 +9,7 @@ use Lotto\Core\Constants;
 use function Lotto\Core\sendError;
 use function Lotto\Core\lottoTimerAdd;
 use function Lotto\Core\lottoTimerDel;
+use function Lotto\Core\lottoEconomyRecord;
 
 /**
  * ApartmentService — EPIC-7.0 / 7.1 / 7.2 / 7.3 / 7.4 / 7.5
@@ -429,6 +430,10 @@ final class ApartmentService
                     $room['bank']                           += self::APARTMENT_PAYMENT;
                     $room['players'][$connId]['total_paid'] += self::APARTMENT_PAYMENT;
                     $room['players'][$connId]['immune']      = true;
+
+                    lottoEconomyRecord('apartment', $userId, -self::APARTMENT_PAYMENT, [
+                        'room_id' => $roomId,
+                    ]);
                 }
                 $pdo->commit();
             } catch (\Throwable $e) {
@@ -542,6 +547,14 @@ final class ApartmentService
                 if ($row === false) continue;
                 $upd = $this->stmts->get('update_user_coins');
                 $upd->execute([(int)$row['coins'] + $hist['total_paid'], $uid]);
+
+                $refundAmount = (int) $hist['total_paid'];
+                if ($refundAmount > 0) {
+                    lottoEconomyRecord('refund', $uid, $refundAmount, [
+                        'room_id' => $roomId,
+                        'reason'  => 'no_survivors',
+                    ]);
+                }
             }
             $pdo->commit();
         } catch (\Throwable $e) {

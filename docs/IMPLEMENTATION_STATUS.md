@@ -1,5 +1,39 @@
 # Implementation Status — Lotto Game Project
 
+- [IN PROGRESS] EPIC-11.3 Economy audit (Phase 11 — instrumentation complete 2026-07-27; VPS live-game run pending)
+Files:
+- src/Core/EconomyAudit.php (новый файл — opt-in financial event logging → logs/economy_audit.log)
+- src/Core/Helpers.php (diff — lottoEconomyRecord() helper)
+- server.php (diff — EconomyAudit wiring)
+- src/Game/GameService.php, src/Game/GameFinishService.php, src/Game/ApartmentService.php,
+  src/Admin/AdminService.php (diff — audit hooks on stake/prize/burn/apartment/refund)
+- tests/Manual/test_economy_audit.php (новый файл — 32 mock regression tests)
+- scripts/economy_integrity_runner.php (новый файл — multi-scenario conservation check)
+- scripts/analyze_economy_log.php (новый файл — log replay + duplicate tx_id check)
+- docs/PHASE_11_REPORT.md (diff — EPIC-11.3 section updated)
+
+Implemented:
+- EconomyAudit utility: LOTTO_ECONOMY_AUDIT=1 logs stake/prize/apartment/refund/burn
+  with tx_id, user_id, room_id, signed amount, microsecond timestamp.
+- Transaction sites instrumented: startGame stakes, finishGame prizes+burn,
+  apartment payments, admin kick/close refunds, no-survivors refunds.
+- Conservation invariant: sum(user coins) + room banks + burned = initial total.
+- test_economy_audit.php: utility, replay, VictoryService math, GameFinishService integration.
+- economy_integrity_runner.php: 4-scenario chain (stake → prize/burn → apartment → refund).
+- analyze_economy_log.php: parse log, optional --initial replay verification.
+
+Verification (Windows dev host):
+- test_economy_audit.php: 32/32 PASS
+- economy_integrity_runner.php: PASS
+- Existing economy tests unchanged: test_victory.php (40/40), test_apartment.php (32/32),
+  test_admin_integration.php (20/20)
+
+Remaining: Enable LOTTO_ECONOMY_AUDIT=1 on VPS during live multi-game sessions;
+run analyze_economy_log.php with --initial balances for full sign-off.
+
+Next in Phase 11: EPIC-11.4 State machine audit, then 11.5–11.6 per
+docs/prompt phase 11 detail.md and docs/PHASE_11_REPORT.md.
+
 - [IN PROGRESS] EPIC-11.2 Timer audit (Phase 11 — instrumentation complete 2026-07-27; VPS accelerated run pending)
 Files:
 - src/Core/TimerAudit.php (новый файл — opt-in timer lifecycle logging → logs/timer_audit.log)
@@ -36,7 +70,7 @@ Verification (Windows dev host):
 Remaining: Run timer_accelerated_runner.php on Ubuntu VPS for live drift
 acceptance sign-off per EPIC-11.2 acceptance criteria.
 
-Next in Phase 11: EPIC-11.3 Economy audit, then 11.4–11.6 per
+Next in Phase 11: EPIC-11.4 State machine audit, then 11.5–11.6 per
 docs/prompt phase 11 detail.md and docs/PHASE_11_REPORT.md.
 
 - [IN PROGRESS] EPIC-11.1 Memory audit (Phase 11 — instrumentation complete 2026-07-27; VPS 6h run pending)
@@ -80,7 +114,7 @@ test_logger.php removed (superseded by FIX-12). server.php accepts
 LOTTO_WS_PORT, LOTTO_SERVER_LOG, LOTTO_WORKERMAN_LOG_FILE,
 LOTTO_WORKERMAN_PID_FILE env vars for test subprocess isolation.
 
-Next in Phase 11: EPIC-11.3 Economy audit, then 11.4–11.6 per
+Next in Phase 11: EPIC-11.4 State machine audit, then 11.5–11.6 per
 docs/prompt phase 11 detail.md and docs/PHASE_11_REPORT.md.
 
 - [DONE] EPIC-11.0 Full integration testing (Phase 11 audit — 2026-07-27)
@@ -2108,8 +2142,8 @@ root-caused and resolved; full regression 0 failed)
 Next planned Epic:
 
 `text
-EPIC-11.3 Economy audit (Phase 11 — see docs/PHASE_11_REPORT.md;
-EPIC-11.1/11.2 instrumentation complete, VPS runs pending)
+EPIC-11.4 State machine audit (Phase 11 — see docs/PHASE_11_REPORT.md;
+EPIC-11.1/11.2/11.3 instrumentation complete, VPS runs pending)
 `
 PHASE 10 — WEBSOCKET PROTOCOL: COMPLETE (10.0-10.7 all done). Server-side
 protocol surface confirmed complete against ANCHOR_CORE.md/

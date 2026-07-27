@@ -9,6 +9,7 @@ use Lotto\Infrastructure\PreparedStatements;
 use Lotto\Core\Logger;
 use Throwable;
 
+use function Lotto\Core\lottoEconomyRecord;
 use function Lotto\Core\lottoTimerDel;
 
 /**
@@ -55,6 +56,8 @@ final class GameFinishService
         $pdo = $this->db->getPdo();
 
         // --- Замечание 1 & 2. АТОМАРНАЯ ТРАНЗАКЦИЯ НАЧИСЛЕНИЯ ВЫИГРЫШЕЙ ---
+        $bankBeforePayout = (int) ($room['bank'] ?? 0);
+
         if (!empty($prizes)) {
             try {
                 $pdo->beginTransaction();
@@ -79,9 +82,23 @@ final class GameFinishService
                     // Замечание 1: атомарный UPDATE через PreparedStatements (ANCHOR_RULES Part 7)
                     $stmt = $this->stmts->get('add_user_coins');
                     $stmt->execute([$prize, $userId]);
+
+                    lottoEconomyRecord('prize', $userId, $prize, [
+                        'room_id' => $roomId,
+                        'reason'  => $reason,
+                    ]);
                 }
 
                 $pdo->commit();
+
+                $distributed = array_sum($prizes);
+                $burned = max(0, $bankBeforePayout - $distributed);
+                if ($burned > 0) {
+                    lottoEconomyRecord('burn', 0, $burned, [
+                        'room_id' => $roomId,
+                        'reason'  => $reason,
+                    ]);
+                }
             } catch (Throwable $e) {
                 $pdo->rollBack();
                 $this->logger->error("Room {$roomId}: finishGame Сбой транзакции начисления: " . $e->getMessage());

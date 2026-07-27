@@ -45,6 +45,11 @@ Optional log path: `LOTTO_MEMORY_AUDIT_LOG=/path/to/file.log`.
 Long-duration VPS test: `php scripts/memory_stability_runner.php`.
 Analyze: `php scripts/analyze_memory_log.php`.
 
+**Economy audit (EPIC-11.3):** enable with `LOTTO_ECONOMY_AUDIT=1`.
+Optional log path: `LOTTO_ECONOMY_AUDIT_LOG=/path/to/file.log`.
+Multi-scenario integrity test: `php scripts/economy_integrity_runner.php`.
+Analyze/replay: `php scripts/analyze_economy_log.php [--initial=1:500,2:500]`.
+
 **Important:** Do not run tests as `root` on the VPS — root-owned
 `logs/*.log` files will block the `www-data` service user (see FIX-12/FIX-13).
 Run tests as the same user as `lotto-server.service`.

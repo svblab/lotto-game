@@ -190,6 +190,19 @@ function lottoTimerDel(int $timerId, string $label = '', array $context = []): b
     return \Workerman\Timer::del($timerId);
 }
 
+/**
+ * EPIC-11.3: record a financial event when economy audit is enabled.
+ *
+ * @param array<string, scalar|null> $context
+ */
+function lottoEconomyRecord(string $operation, int $userId, int $amount, array $context = []): void
+{
+    $audit = $GLOBALS['__lotto_economy_audit'] ?? null;
+    if ($audit instanceof EconomyAudit) {
+        $audit->record($operation, $userId, $amount, $context);
+    }
+}
+
 function lottoApplyTestConfig(): void
 {
     $configFile = lottoRuntimeEnv('LOTTO_TEST_CONFIG');

@@ -112,6 +112,7 @@ use Lotto\Core\Constants;
 use Lotto\Core\Logger;
 use Lotto\Core\MemoryAudit;
 use Lotto\Core\TimerAudit;
+use Lotto\Core\EconomyAudit;
 use Lotto\Infrastructure\Database;
 use Lotto\Infrastructure\PreparedStatements;
 use Lotto\Auth\SessionService;
@@ -248,7 +249,9 @@ $worker->onWorkerStart = function (Worker $worker): void {
 
     $worker->memoryAudit = new MemoryAudit($worker->logger);
     $worker->timerAudit = new TimerAudit($worker->logger);
+    $worker->economyAudit = new EconomyAudit($worker->logger);
     $GLOBALS['__lotto_timer_audit'] = $worker->timerAudit;
+    $GLOBALS['__lotto_economy_audit'] = $worker->economyAudit;
 
     $worker->logger->info('LottoGameServer started (protocol_version=' . Constants::PROTOCOL_VERSION . ')');
     $worker->memoryAudit->snapshot('worker_start', $worker);

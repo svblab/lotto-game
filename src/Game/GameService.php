@@ -11,6 +11,7 @@ use Lotto\Infrastructure\PreparedStatements;
 
 use function Lotto\Core\lottoTimerDel;
 
+use function Lotto\Core\lottoEconomyRecord;
 use function Lotto\Core\sendError;
 use function Lotto\Core\broadcastToRoom;
 use function Lotto\Core\sendJson;
@@ -192,6 +193,12 @@ final class GameService
             }
 
             $pdo->commit();
+
+            foreach ($playerPayments as $pConnId => $payment) {
+                lottoEconomyRecord('stake', $payment['user_id'], -$payment['total_paid'], [
+                    'room_id' => $roomId,
+                ]);
+            }
         } catch (\Throwable $e) {
             $pdo->rollBack();
             $this->logger->error('startGame: transaction failed: ' . $e->getMessage());
