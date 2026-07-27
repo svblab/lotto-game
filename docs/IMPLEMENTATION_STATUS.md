@@ -1,5 +1,37 @@
 # Implementation Status — Lotto Game Project
 
+- [IN PROGRESS] EPIC-11.6 Load testing (Phase 11 — instrumentation complete 2026-07-27; VPS load runs pending)
+Files:
+- src/Core/LoadAudit.php (новый файл — opt-in handler latency + snapshots → logs/load_audit.log)
+- server.php (diff — LoadAudit wiring, onMessage latency recording, periodic snapshots)
+- scripts/load_test_runner.php (новый файл — ramp/steady/storm/long VPS scenarios)
+- scripts/analyze_load_log.php (новый файл — p95/CPU/memory acceptance validator)
+- tests/Manual/test_load_audit.php (новый файл — 30 mock regression tests)
+- docs/PHASE_11_REPORT.md (diff — EPIC-11.6 section updated)
+
+Implemented:
+- LoadAudit utility: LOTTO_LOAD_AUDIT=1 logs per-action handler latency_ms and
+  periodic snapshots (mem, connections, rooms) for EPIC-11.6 targets.
+- load_test_runner.php: four scenarios (ramp, steady, storm, long) with
+  realistic register/room/game flows; client RTT → logs/load_client.log;
+  CPU/memory sampling → logs/load_resource.log.
+- analyze_load_log.php: validates p95 < 100ms (register/login/draw_barrel),
+  peak memory < 450 MB, peak CPU < 80%.
+- test_load_audit.php: utility, percentile math, client/resource log parsing.
+
+Verification (Windows dev host):
+- test_load_audit.php: 30/30 PASS
+- load_test_runner.php: requires Linux/VPS (Workerman)
+- analyze_load_log.php: runs after VPS load_test_runner completion
+
+Remaining: Run load scenarios on Ubuntu VPS (1 CPU / 512 MB target):
+  php scripts/load_test_runner.php --scenario=ramp --players=100 --games=10 --duration=300
+  php scripts/load_test_runner.php --scenario=steady --duration=1800
+  php scripts/load_test_runner.php --scenario=storm
+  php scripts/load_test_runner.php --scenario=long --duration=3600
+
+Next in Phase 11: Complete EPIC-11.1–11.6 VPS sign-off runs per docs/PHASE_11_REPORT.md.
+
 - [IN PROGRESS] EPIC-11.5 Protocol audit (Phase 11 — instrumentation complete 2026-07-27; VPS live replay pending)
 Files:
 - docs/ANCHOR_CORE.md (diff — afk_warning added to packet registry)
@@ -30,8 +62,6 @@ Verification (Windows dev host):
 
 Remaining: Run test_protocol_audit.php on Ubuntu VPS; use ws_emulator.php
 for session replay during live-game protocol sign-off.
-
-Next in Phase 11: EPIC-11.6 Load testing per docs/prompt phase 11 detail.md.
 
 - [IN PROGRESS] EPIC-11.4 State machine audit (Phase 11 — instrumentation complete 2026-07-27; VPS live-game run pending)
 Files:

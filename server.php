@@ -114,6 +114,7 @@ use Lotto\Core\MemoryAudit;
 use Lotto\Core\TimerAudit;
 use Lotto\Core\EconomyAudit;
 use Lotto\Core\StateMachineAudit;
+use Lotto\Core\LoadAudit;
 use Lotto\Infrastructure\Database;
 use Lotto\Infrastructure\PreparedStatements;
 use Lotto\Auth\SessionService;
@@ -252,12 +253,20 @@ $worker->onWorkerStart = function (Worker $worker): void {
     $worker->timerAudit = new TimerAudit($worker->logger);
     $worker->economyAudit = new EconomyAudit($worker->logger);
     $worker->stateAudit = new StateMachineAudit($worker->logger);
+    $worker->loadAudit = new LoadAudit($worker->logger);
     $GLOBALS['__lotto_timer_audit'] = $worker->timerAudit;
     $GLOBALS['__lotto_economy_audit'] = $worker->economyAudit;
     $GLOBALS['__lotto_state_audit'] = $worker->stateAudit;
 
     $worker->logger->info('LottoGameServer started (protocol_version=' . Constants::PROTOCOL_VERSION . ')');
     $worker->memoryAudit->snapshot('worker_start', $worker);
+
+    if (LoadAudit::isEnabled()) {
+        $worker->loadAudit->snapshot('worker_start', $worker);
+        lottoTimerAdd(60, function () use ($worker): void {
+            $worker->loadAudit->snapshot('periodic', $worker);
+        }, [], true, 'load_audit_periodic');
+    }
 
     // EPIC-11.1: periodic memory snapshots every 30 minutes when audit is on.
     if (MemoryAudit::isEnabled()) {
@@ -456,6 +465,7 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
 
     // Диспетчер: auth (EPIC-10.3), lobby (EPIC-10.4), game (EPIC-10.5) и
     // admin (EPIC-10.6) подключены. reconnect обработан отдельно выше.
+    $handlerStart = hrtime(true);
     match ($action) {
         'register'         => $worker->authHandler->handleRegister($data, $connection, $worker),
         'login'            => $worker->authHandler->handleLogin($data, $connection, $worker),
@@ -473,6 +483,11 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
         'admin_get_logs'   => $worker->adminHandler->handleGetLogs($data, $connection),
         default            => sendError($connection, 'error.invalid_json', "Unknown or not-yet-wired action: {$action}"),
     };
+
+    if (isset($worker->loadAudit)) {
+        $latencyMs = (hrtime(true) - $handlerStart) / 1_000_000;
+        $worker->loadAudit->recordLatency($action, $latencyMs, $worker);
+    }
 
     if (isset($worker->memoryAudit) && MemoryAudit::shouldLogAction($action)) {
         $worker->memoryAudit->snapshot('packet_processed', $worker, ['action' => $action]);

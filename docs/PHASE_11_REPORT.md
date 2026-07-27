@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-27  
 **Repository:** https://github.com/svblab/lotto-game  
-**Auditor session:** EPIC-11.0 complete; EPIC-11.1/11.2/11.3/11.4 instrumentation complete (VPS runs pending); EPIC-11.5 instrumentation complete (VPS live replay pending); EPIC-11.6 pending on VPS
+**Auditor session:** EPIC-11.0 complete; EPIC-11.1/11.2/11.3/11.4 instrumentation complete (VPS runs pending); EPIC-11.5 instrumentation complete (VPS replay pending); EPIC-11.6 instrumentation complete (VPS load runs pending)
 
 ---
 
@@ -218,15 +218,35 @@ php scripts/analyze_memory_log.php
 
 ---
 
-## EPIC-11.6 — Load Testing (Pending)
+## EPIC-11.6 — Load Testing (Instrumentation Complete)
 
-**Status:** Not started — requires VPS with 1 CPU / 512 MB RAM target environment.
+**Status:** Instrumentation complete 2026-07-27 — VPS load runs pending on 1 CPU / 512 MB target.
 
 **Targets (from spec):**
 - 100–150 concurrent connections
 - 10–20 simultaneous games
-- p95 response time < 100 ms
+- p95 response time < 100 ms (register, login, draw_barrel)
 - CPU < 80%, memory < 450 MB at peak
+
+**Tooling:**
+
+| File | Purpose |
+|------|---------|
+| `src/Core/LoadAudit.php` | Server-side handler latency + periodic snapshots (`LOTTO_LOAD_AUDIT=1`) |
+| `scripts/load_test_runner.php` | VPS scenarios: `ramp`, `steady`, `storm`, `long` |
+| `scripts/analyze_load_log.php` | Validates p95/CPU/memory acceptance criteria |
+| `tests/Manual/test_load_audit.php` | 30 mock regression tests (Windows) |
+
+**VPS commands:**
+
+```bash
+php scripts/load_test_runner.php --scenario=ramp --players=100 --games=10 --duration=300
+php scripts/load_test_runner.php --scenario=steady --duration=1800
+php scripts/load_test_runner.php --scenario=storm
+php scripts/load_test_runner.php --scenario=long --duration=3600
+```
+
+**Action:** Run all four scenarios on Ubuntu VPS; review `analyze_load_log.php` output for sign-off.
 
 ---
 
@@ -247,7 +267,7 @@ See `docs/IMPLEMENTATION_STATUS.md` § KNOWN GAPS:
 | All protocol actions wired | ✅ Fixed (P11-001) |
 | Unit/integration tests pass | ✅ 28/28 on Windows |
 | Live WS tests pass | ⏳ Run on VPS (9 live-server tests incl. test_protocol_audit.php) |
-| Memory/timer/load audits | ⏳ EPIC-11.1/11.2/11.3/11.4 instrumented (VPS runs pending); 11.5 instrumented (VPS replay pending); 11.6 pending |
+| Memory/timer/load audits | ⏳ EPIC-11.1/11.2/11.3/11.4 instrumented (VPS runs pending); 11.5 instrumented (VPS replay pending); 11.6 instrumented (VPS load runs pending) |
 | Protocol docs synced | ⚠️ 2 low-priority gaps (admin_stats_data, error.banned reserved) |
 
 **Verdict:** Proceed with Phase 12 frontend development in parallel with completing EPIC-11.1–11.6 on VPS, **provided** the 8 live-server tests pass on Ubuntu after deploying P11-001 fix. Frontend should not depend on admin_stats_data or error.banned until those gaps are resolved.
@@ -268,4 +288,8 @@ See `docs/IMPLEMENTATION_STATUS.md` § KNOWN GAPS:
 - `tests/Manual/test_timer_audit.php` — EPIC-11.2 mock regression tests
 - `scripts/timer_accelerated_runner.php` — EPIC-11.2 VPS accelerated test
 - `scripts/analyze_timer_log.php` — EPIC-11.2 drift analyzer
+- `src/Core/LoadAudit.php` — EPIC-11.6 load test instrumentation
+- `scripts/load_test_runner.php` — EPIC-11.6 VPS load scenarios
+- `scripts/analyze_load_log.php` — EPIC-11.6 acceptance validator
+- `tests/Manual/test_load_audit.php` — EPIC-11.6 mock regression tests
 - `run_ALL_tests.php` — cross-platform runner with Windows SQLite + skip list
