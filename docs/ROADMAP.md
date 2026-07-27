@@ -154,9 +154,9 @@ a client against it — memory, timers, economy, state machine, protocol,
 and load, all audited while the protocol is still cheap to change if an
 audit surfaces something. Previously numbered Phase 12.0-12.6; reordered
 ahead of Frontend (see note below).
-Status: Next phase.
+Status: In progress (EPIC-11.0 started 2026-07-27; see docs/PHASE_11_REPORT.md).
 
-- EPIC-11.0 Full integration testing
+- EPIC-11.0 Full integration testing — IN PROGRESS
 - EPIC-11.1 Memory audit
 - EPIC-11.2 Timer audit
 - EPIC-11.3 Economy audit

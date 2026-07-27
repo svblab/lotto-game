@@ -1,5 +1,39 @@
 # Implementation Status — Lotto Game Project
 
+- [IN PROGRESS] EPIC-11.0 Full integration testing (Phase 11 audit started 2026-07-27)
+Files:
+- server.php (diff — CRITICAL: applied missing EPIC-10.6 AdminHandler wiring +
+  FIX-10 onClose userConnections cleanup; documented as done but never landed)
+- tests/Manual/test_admin_ban.php (diff — FIX-11 MockConnection::close())
+- tests/Manual/test_admin_integration.php (diff — FIX-11 SpyConnection::close())
+- tests/Manual/test_phase11_core_flows.php (новый файл — chained auth→lobby→game flows)
+- run_ALL_tests.php (новый файл — cross-platform runner, SQLite on Windows)
+- docs/PHASE_11_REPORT.md (новый файл — consolidated Phase 11 audit report)
+
+Implemented:
+- Обнаружен и устранён критический пробел P11-001: все admin_* actions
+  (admin_ban_user/admin_unban_user/admin_kick_user/admin_close_room/
+  admin_get_logs) были задокументированы как подключённые в EPIC-10.6, но
+  фактически отсутствовали в server.php — любой admin-пакет получал
+  error.invalid_json. Применена полная wiring-конфигурация из
+  patches/EPIC-10.6-server.patch.
+- FIX-11 mock close() восстановлен в test_admin_ban.php и
+  test_admin_integration.php (AdminService::handleBanUser() закрывает
+  онлайн-цель — без close() тесты падали Fatal error).
+- Новый test_phase11_core_flows.php: register→login→create_room→join_room→
+  start_game, invalid state transitions, rate-limit constants — 17/17 PASSED.
+- docs/PHASE_11_REPORT.md: первый consolidated отчёт Phase 11; EPIC-11.1–
+  11.6 помечены pending (требуют VPS).
+
+Verification (Windows dev host, php run_ALL_tests.php):
+- 25/25 runnable test files PASSED (8 live-WS subprocess tests SKIP on
+  Windows — Workerman fork; must re-run on Ubuntu VPS per LOCAL_ENVIRONMENT.md)
+- test_protocol_completeness.php: 50/50 PASSED (adminHandler wiring confirmed)
+- test_phase11_core_flows.php: 17/17 PASSED
+
+Next in Phase 11: EPIC-11.1 Memory audit (VPS), then 11.2–11.6 per
+docs/prompt phase 11 detail.md and docs/PHASE_11_REPORT.md.
+
 - [DONE] EPIC-10.1 Packet validation
 Files:
 - docs/ADR/003-rate-limiting-and-invalid-json-policy.md (новый файл)
@@ -1994,10 +2028,8 @@ root-caused and resolved; full regression 0 failed)
 Next planned Epic:
 
 `text
-EPIC-11.0 Full integration testing (new PHASE 11 — Audits & Load
-Testing, per approved 2026-07-26 reorder — see docs/ROADMAP.md's own
-"Note on Phase 11/12/14 reordering" for the full rationale and mapping
-to the old numbering)
+EPIC-11.1 Memory audit (Phase 11 — see docs/PHASE_11_REPORT.md;
+EPIC-11.0 integration testing in progress, critical P11-001 admin wiring fix applied)
 `
 PHASE 10 — WEBSOCKET PROTOCOL: COMPLETE (10.0-10.7 all done). Server-side
 protocol surface confirmed complete against ANCHOR_CORE.md/
