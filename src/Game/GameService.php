@@ -12,6 +12,8 @@ use Lotto\Infrastructure\PreparedStatements;
 use function Lotto\Core\lottoTimerDel;
 
 use function Lotto\Core\lottoEconomyRecord;
+use function Lotto\Core\lottoStateTransition;
+use function Lotto\Core\lottoStateReject;
 use function Lotto\Core\sendError;
 use function Lotto\Core\broadcastToRoom;
 use function Lotto\Core\sendJson;
@@ -127,6 +129,7 @@ final class GameService
 
         // Комната должна быть в статусе waiting
         if ($room['status'] !== 'waiting') {
+            lottoStateReject($roomId, $room['status'], 'start_game', 'error.not_your_turn');
             sendError($connection, 'error.not_your_turn', 'Game already started');
             return;
         }
@@ -212,6 +215,7 @@ final class GameService
         $room['bag']          = $this->engine->generateBag();
         $room['drawn_numbers'] = [];
         $room['status']       = 'playing';
+        lottoStateTransition($roomId, 'waiting', 'playing', 'start_game');
 
         // Назначить карты каждому активному игроку
         foreach ($activePlayers as $pConnId => $player) {
@@ -445,6 +449,7 @@ final class GameService
         // --- 3. Проверки ---
 
         if ($room['status'] !== 'playing') {
+            lottoStateReject($roomId, $room['status'], 'draw_barrel', 'error.not_your_turn');
             sendError($connection, 'error.not_your_turn', 'Game is not in playing state');
             return;
         }

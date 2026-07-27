@@ -9,6 +9,7 @@ use Lotto\Core\Constants;
 use function Lotto\Core\sendJson;
 use function Lotto\Core\lottoTimerAdd;
 use function Lotto\Core\lottoTimerDel;
+use function Lotto\Core\lottoPlayerStateTransition;
 
 /**
  * ReconnectService — EPIC-8.0 / 8.1 / 8.2 / 8.3 / 8.4 / 8.5
@@ -63,6 +64,7 @@ final class ReconnectService
         }
 
         $room['players'][$connId]['status'] = 'disconnected';
+        lottoPlayerStateTransition($roomId, $connId, 'active', 'disconnected', 'connection_lost');
         $room['players'][$connId]['connection'] = $connection;
 
         if (!empty($room['players'][$connId]['reconnect_timer'])) {
@@ -158,6 +160,7 @@ final class ReconnectService
 
             $player['reconnect_timer'] = null;
             $player['status']          = 'active';
+            lottoPlayerStateTransition($roomId, $newConnId, 'disconnected', 'active', 'reconnect');
             $player['connection']      = $connection;
             $player['last_action']     = time();
             $player['afk_start']       = null;

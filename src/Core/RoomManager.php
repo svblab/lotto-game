@@ -3,6 +3,7 @@
 namespace Lotto\Core;
 
 use function Lotto\Core\lottoTimerDel;
+use function Lotto\Core\lottoStateTransition;
 
 /**
  * RoomManager — EPIC-2.0
@@ -15,7 +16,7 @@ use function Lotto\Core\lottoTimerDel;
  *
  * Публичный контракт (другие модули вызывают только эти методы):
  *   createRoom(object $worker, int $hostConnId, int $maxPlayers, ?string $passwordHash, int $cardsCount): int
- *   destroyRoom(object $worker, int $roomId): void
+ *   destroyRoom(object $worker, int $roomId, ?string $trigger = null): void
  *   findRoomIdByConnId(object $worker, int $connId): ?int
  *   findRoomIdByUserId(object $worker, int $userId): ?int
  *   getTotalPlayerCount(object $worker): int
@@ -85,6 +86,8 @@ final class RoomManager
 
         $this->logger->info("Room created: room_id={$roomId} host_conn_id={$hostConnId} max_players={$maxPlayers}");
 
+        lottoStateTransition($roomId, 'created', 'waiting', 'room_created');
+
         if (MemoryAudit::isEnabled() && isset($worker->memoryAudit)) {
             $worker->memoryAudit->snapshot('room_created', $worker, ['room_id' => $roomId]);
         }
@@ -108,7 +111,7 @@ final class RoomManager
      *
      * Вызов с несуществующим roomId — no-op (безопасно).
      */
-    public function destroyRoom(object $worker, int $roomId): void
+    public function destroyRoom(object $worker, int $roomId, ?string $trigger = null): void
     {
         if (!isset($worker->rooms[$roomId])) {
             return;
@@ -135,6 +138,18 @@ final class RoomManager
                 ]);
             }
         }
+
+        $fromStatus = $room['status'] ?? 'waiting';
+        if ($trigger === null) {
+            $trigger = match ($fromStatus) {
+                'waiting'   => 'no_players',
+                'playing'   => 'no_active_players',
+                'apartment' => 'admin_close',
+                'finished'  => 'game_over_cleanup',
+                default     => 'room_destroyed',
+            };
+        }
+        lottoStateTransition($roomId, $fromStatus, 'destroyed', $trigger);
 
         unset($worker->rooms[$roomId]);
 

@@ -11,6 +11,7 @@ use function Lotto\Core\sendError;
 use function Lotto\Core\broadcastToRoom;
 use function Lotto\Core\lottoTimerAdd;
 use function Lotto\Core\lottoTimerDel;
+use function Lotto\Core\lottoStateReject;
 
 /**
  * LobbyService — EPIC-2.1 / EPIC-2.2 / EPIC-2.3 / EPIC-2.4 / EPIC-2.6
@@ -213,6 +214,7 @@ final class LobbyService
 
         // --- 3. Статус комнаты — только 'waiting' ---
         if ($room['status'] !== 'waiting') {
+            lottoStateReject($roomId, $room['status'], 'join_room', 'error.room_not_found');
             sendError($connection, 'error.room_not_found', 'Room is not open for joining');
             return;
         }

@@ -10,6 +10,8 @@ use function Lotto\Core\sendError;
 use function Lotto\Core\lottoTimerAdd;
 use function Lotto\Core\lottoTimerDel;
 use function Lotto\Core\lottoEconomyRecord;
+use function Lotto\Core\lottoStateTransition;
+use function Lotto\Core\lottoStateReject;
 
 /**
  * ApartmentService — EPIC-7.0 / 7.1 / 7.2 / 7.3 / 7.4 / 7.5
@@ -94,6 +96,8 @@ final class ApartmentService
      */
     public function prepareApartment(array &$room): array
     {
+        $roomId = (int) ($room['room_id'] ?? 0);
+        lottoStateTransition($roomId, 'playing', 'apartment', 'apartment_detected');
         $room['status']              = 'apartment';
         $room['apartment_fired']     = true;
         $room['apartment_responses'] = [];
@@ -288,6 +292,7 @@ final class ApartmentService
         $room = &$worker->rooms[$roomId];
 
         if ($room['status'] !== 'apartment') {
+            lottoStateReject($roomId, $room['status'], 'apartment_choice', 'error.not_your_turn');
             sendError($connection, 'error.not_your_turn', 'No apartment in progress');
             return;
         }
@@ -332,7 +337,7 @@ final class ApartmentService
             if (!isset($worker->rooms[$roomId])) return;
         }
 
-        $this->finishApartment($room, $roomId, $worker, $gameService);
+        $this->finishApartment($room, $roomId, $worker, $gameService, 'apartment_timeout');
     }
 
     // -------------------------------------------------------------------------
@@ -346,7 +351,8 @@ final class ApartmentService
         array &$room,
         int $roomId,
         object $worker,
-        object $gameService
+        object $gameService,
+        string $resumeTrigger = 'apartment_complete'
     ): void {
         // Остановить таймер
         if (!empty($room['apartment_timer_id'])) {
@@ -462,6 +468,7 @@ final class ApartmentService
         }
 
         // Продолжаем игру
+        lottoStateTransition($roomId, 'apartment', 'playing', $resumeTrigger);
         $room['status'] = 'playing';
         $this->logger->info("Room {$roomId}: apartment finished, game resumes");
         $gameService->sendYourTurn($room);

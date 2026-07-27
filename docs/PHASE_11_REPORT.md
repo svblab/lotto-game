@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-27  
 **Repository:** https://github.com/svblab/lotto-game  
-**Auditor session:** EPIC-11.0 complete; EPIC-11.1/11.2/11.3 instrumentation complete (VPS runs pending); EPIC-11.4–11.6 pending on VPS
+**Auditor session:** EPIC-11.0 complete; EPIC-11.1/11.2/11.3/11.4 instrumentation complete (VPS runs pending); EPIC-11.5–11.6 pending on VPS
 
 ---
 
@@ -163,16 +163,28 @@ php scripts/analyze_memory_log.php
 
 ---
 
-## EPIC-11.4 — State Machine Audit (Pending)
+## EPIC-11.4 — State Machine Audit (Instrumentation Complete)
 
-**Status:** Partial — core transitions verified in `test_phase11_core_flows.php` and module tests.
+**Status:** Instrumentation complete 2026-07-27; VPS live-session validation pending.
 
-Verified transitions:
-- waiting → playing (start_game)
-- playing → error on duplicate start
-- waiting → error on draw_barrel
+**Implemented:**
+- `StateMachineAudit` utility (`LOTTO_STATE_AUDIT=1` → `logs/state_machine_audit.log`)
+- Transition graph per ANCHOR_CORE.md Part 4 (room + player states)
+- Hooks at: `RoomManager`, `GameService`, `GameFinishService`, `ApartmentService`,
+  `ReconnectService`, `LobbyService`, `AdminService`
+- `test_state_machine_audit.php`: **29/29 PASS**
+- `scripts/analyze_state_machine_log.php` — replay + sequence validation
 
-**Remaining:** apartment → finished, automatic timeout transitions, host disconnect recovery.
+**Verified transitions (mock tests):**
+- `created → waiting → playing` (start_game)
+- `playing → apartment → playing` (apartment_complete / apartment_timeout)
+- `playing/apartment → finished` (victory / last_survivor via GameFinishService)
+- `finished → destroyed` (game_over_cleanup)
+- Invalid: start_game while playing, draw_barrel in waiting, join_room in playing
+- Player: `active ↔ disconnected` (connection_lost / reconnect)
+- Host disconnect + reconnect preserves `host_conn_id`
+
+**Remaining:** Run with `LOTTO_STATE_AUDIT=1` on VPS during live games; verify via `analyze_state_machine_log.php`.
 
 ---
 
@@ -219,9 +231,9 @@ See `docs/IMPLEMENTATION_STATUS.md` § KNOWN GAPS:
 | Criterion | Status |
 |-----------|--------|
 | All protocol actions wired | ✅ Fixed (P11-001) |
-| Unit/integration tests pass | ✅ 25/25 on Windows |
+| Unit/integration tests pass | ✅ 28/28 on Windows |
 | Live WS tests pass | ⏳ Run on VPS |
-| Memory/timer/load audits | ⏳ EPIC-11.1/11.2/11.3 instrumented (VPS runs pending); 11.4–11.6 pending |
+| Memory/timer/load audits | ⏳ EPIC-11.1/11.2/11.3/11.4 instrumented (VPS runs pending); 11.5–11.6 pending |
 | Protocol docs synced | ⚠️ 3 low-priority gaps |
 
 **Verdict:** Proceed with Phase 12 frontend development in parallel with completing EPIC-11.1–11.6 on VPS, **provided** the 8 live-server tests pass on Ubuntu after deploying P11-001 fix. Frontend should not depend on admin_stats_data or error.banned until those gaps are resolved.
@@ -234,9 +246,9 @@ See `docs/IMPLEMENTATION_STATUS.md` § KNOWN GAPS:
 - `tests/Manual/test_admin_ban.php` — FIX-11 MockConnection::close()
 - `tests/Manual/test_admin_integration.php` — FIX-11 SpyConnection::close()
 - `tests/Manual/test_phase11_core_flows.php` — new EPIC-11.0 chained flow test
-- `src/Core/MemoryAudit.php` — EPIC-11.1 memory instrumentation
-- `tests/Manual/test_memory_audit.php` — EPIC-11.1 mock regression tests
-- `scripts/memory_stability_runner.php` — EPIC-11.1 VPS long-duration test
+- `src/Core/StateMachineAudit.php` — EPIC-11.4 state machine instrumentation
+- `tests/Manual/test_state_machine_audit.php` — EPIC-11.4 mock regression tests
+- `scripts/analyze_state_machine_log.php` — EPIC-11.4 log validator
 - `scripts/analyze_memory_log.php` — EPIC-11.1 log analyzer
 - `src/Core/TimerAudit.php` — EPIC-11.2 timer instrumentation
 - `tests/Manual/test_timer_audit.php` — EPIC-11.2 mock regression tests

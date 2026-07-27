@@ -11,6 +11,7 @@ use Throwable;
 
 use function Lotto\Core\lottoEconomyRecord;
 use function Lotto\Core\lottoTimerDel;
+use function Lotto\Core\lottoStateTransition;
 
 /**
  * GameFinishService — Выделенный сервис финализации игры (ADR-002).
@@ -109,6 +110,8 @@ final class GameFinishService
         }
 
         // --- Замечание 3 & 7. ФОРМИРОВАНИЕ СТАТИСТИКИ (Защищенный доступ) ---
+        $fromStatus = $room['status'] ?? 'playing';
+        lottoStateTransition($roomId, $fromStatus, 'finished', $reason);
         $room['status'] = 'finished';
         $room['bank']   = 0;
 

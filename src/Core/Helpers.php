@@ -203,6 +203,51 @@ function lottoEconomyRecord(string $operation, int $userId, int $amount, array $
     }
 }
 
+/**
+ * EPIC-11.4: record a room state transition when state audit is enabled.
+ *
+ * @param array<string, scalar|null> $context
+ */
+function lottoStateTransition(int $roomId, string $from, string $to, string $trigger, array $context = []): void
+{
+    $audit = $GLOBALS['__lotto_state_audit'] ?? null;
+    if ($audit instanceof StateMachineAudit) {
+        $audit->recordTransition($roomId, $from, $to, $trigger, $context);
+    }
+}
+
+/**
+ * EPIC-11.4: record a rejected action in the current room state.
+ *
+ * @param array<string, scalar|null> $context
+ */
+function lottoStateReject(int $roomId, string $state, string $action, string $code, array $context = []): void
+{
+    $audit = $GLOBALS['__lotto_state_audit'] ?? null;
+    if ($audit instanceof StateMachineAudit) {
+        $audit->recordRejection($roomId, $state, $action, $code, $context);
+    }
+}
+
+/**
+ * EPIC-11.4: record a player state transition when state audit is enabled.
+ *
+ * @param array<string, scalar|null> $context
+ */
+function lottoPlayerStateTransition(
+    int $roomId,
+    int $connId,
+    string $from,
+    string $to,
+    string $trigger,
+    array $context = []
+): void {
+    $audit = $GLOBALS['__lotto_state_audit'] ?? null;
+    if ($audit instanceof StateMachineAudit) {
+        $audit->recordPlayerTransition($roomId, $connId, $from, $to, $trigger, $context);
+    }
+}
+
 function lottoApplyTestConfig(): void
 {
     $configFile = lottoRuntimeEnv('LOTTO_TEST_CONFIG');

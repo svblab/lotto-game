@@ -439,7 +439,7 @@ final class AdminService
 
         // --- Уничтожение комнаты: полная очистка таймеров (RoomManager) ---
         if ($this->roomManager !== null) {
-            $this->roomManager->destroyRoom($worker, $roomId);
+            $this->roomManager->destroyRoom($worker, $roomId, 'admin_close');
         } else {
             unset($worker->rooms[$roomId]);
         }

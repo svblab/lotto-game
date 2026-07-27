@@ -1,5 +1,38 @@
 # Implementation Status — Lotto Game Project
 
+- [IN PROGRESS] EPIC-11.4 State machine audit (Phase 11 — instrumentation complete 2026-07-27; VPS live-game run pending)
+Files:
+- src/Core/StateMachineAudit.php (новый файл — opt-in state transition logging → logs/state_machine_audit.log)
+- src/Core/Helpers.php (diff — lottoStateTransition/lottoStateReject/lottoPlayerStateTransition)
+- server.php (diff — StateMachineAudit wiring)
+- src/Core/RoomManager.php, src/Game/GameService.php, src/Game/GameFinishService.php,
+  src/Game/ApartmentService.php, src/Game/ReconnectService.php, src/Lobby/LobbyService.php,
+  src/Admin/AdminService.php (diff — transition/rejection hooks)
+- tests/Manual/test_state_machine_audit.php (новый файл — 29 mock regression tests)
+- scripts/analyze_state_machine_log.php (новый файл — log replay + transition validation)
+- docs/PHASE_11_REPORT.md (diff — EPIC-11.4 section updated)
+
+Implemented:
+- StateMachineAudit utility: LOTTO_STATE_AUDIT=1 logs room transitions, player
+  transitions, and rejected actions per ANCHOR_CORE.md Part 4.
+- Transition graph encoded: waiting→playing→apartment→playing→finished→destroyed.
+- Instrumentation at all status mutation sites + key rejection guards.
+- test_state_machine_audit.php: utility, valid/invalid transitions, apartment
+  cycle, apartment timeout, host disconnect/reconnect, join_room guard.
+- analyze_state_machine_log.php: parse log, verify sequence against spec.
+
+Verification (Windows dev host):
+- test_state_machine_audit.php: 29/29 PASS
+- Full suite: php run_ALL_tests.php — 28/28 test files passed
+- Existing state tests unchanged: test_phase11_core_flows.php (17/17),
+  test_apartment.php (32/32), test_reconnect.php (20/20)
+
+Remaining: Enable LOTTO_STATE_AUDIT=1 on VPS during live multi-game sessions;
+run analyze_state_machine_log.php after sessions for full sign-off.
+
+Next in Phase 11: EPIC-11.5 Protocol audit, then 11.6 per
+docs/prompt phase 11 detail.md and docs/PHASE_11_REPORT.md.
+
 - [IN PROGRESS] EPIC-11.3 Economy audit (Phase 11 — instrumentation complete 2026-07-27; VPS live-game run pending)
 Files:
 - src/Core/EconomyAudit.php (новый файл — opt-in financial event logging → logs/economy_audit.log)
@@ -31,7 +64,7 @@ Verification (Windows dev host):
 Remaining: Enable LOTTO_ECONOMY_AUDIT=1 on VPS during live multi-game sessions;
 run analyze_economy_log.php with --initial balances for full sign-off.
 
-Next in Phase 11: EPIC-11.4 State machine audit, then 11.5–11.6 per
+Next in Phase 11: EPIC-11.5 Protocol audit, then 11.6 per
 docs/prompt phase 11 detail.md and docs/PHASE_11_REPORT.md.
 
 - [IN PROGRESS] EPIC-11.2 Timer audit (Phase 11 — instrumentation complete 2026-07-27; VPS accelerated run pending)
@@ -70,7 +103,7 @@ Verification (Windows dev host):
 Remaining: Run timer_accelerated_runner.php on Ubuntu VPS for live drift
 acceptance sign-off per EPIC-11.2 acceptance criteria.
 
-Next in Phase 11: EPIC-11.4 State machine audit, then 11.5–11.6 per
+Next in Phase 11: EPIC-11.5 Protocol audit, then 11.6 per
 docs/prompt phase 11 detail.md and docs/PHASE_11_REPORT.md.
 
 - [IN PROGRESS] EPIC-11.1 Memory audit (Phase 11 — instrumentation complete 2026-07-27; VPS 6h run pending)
@@ -114,7 +147,7 @@ test_logger.php removed (superseded by FIX-12). server.php accepts
 LOTTO_WS_PORT, LOTTO_SERVER_LOG, LOTTO_WORKERMAN_LOG_FILE,
 LOTTO_WORKERMAN_PID_FILE env vars for test subprocess isolation.
 
-Next in Phase 11: EPIC-11.4 State machine audit, then 11.5–11.6 per
+Next in Phase 11: EPIC-11.5 Protocol audit, then 11.6 per
 docs/prompt phase 11 detail.md and docs/PHASE_11_REPORT.md.
 
 - [DONE] EPIC-11.0 Full integration testing (Phase 11 audit — 2026-07-27)
