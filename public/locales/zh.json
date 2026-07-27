@@ -1,0 +1,112 @@
+{
+  "app": { "title": "俄罗斯彩票" },
+  "common": { "cancel": "取消", "close": "关闭" },
+  "auth": {
+    "login": "登录",
+    "register": "注册",
+    "logout": "退出",
+    "username": "用户名",
+    "password": "密码",
+    "banned": "您已被封禁至 {until}"
+  },
+  "lobby": {
+    "createRoom": "创建房间",
+    "quickStart": "快速开始",
+    "refresh": "刷新",
+    "join": "加入",
+    "maxPlayers": "最大人数",
+    "password": "密码",
+    "cardsCount": "卡片数",
+    "roomId": "房间",
+    "players": "玩家",
+    "status": "状态",
+    "inRoom": "房间内",
+    "host": "房主",
+    "bank": "奖池",
+    "leaveRoom": "离开",
+    "backToLobby": "返回大厅",
+    "joined": "已加入房间 #{id}",
+    "enterPassword": "房间密码：",
+    "cardsPrompt": "卡片数（1或2）：",
+    "cards": "张",
+    "leftReason": "您已离开房间 ({reason})"
+  },
+  "game": {
+    "startGame": "开始游戏",
+    "drawBarrel": "抽取号码",
+    "players": "玩家",
+    "winChance": "获胜概率",
+    "currentDrawer": "当前回合",
+    "remaining": "剩余",
+    "online": "在线",
+    "disconnected": "离线",
+    "afkWarning": "AFK警告 ({strike}/2)",
+    "gameOver": "游戏结束",
+    "victory": "胜利",
+    "lastSurvivor": "最后幸存者",
+    "winnerLine": "{winner} 赢得 {prize} 金币 ({reason})",
+    "player": "玩家",
+    "paid": "投入",
+    "received": "获得"
+  },
+  "apartment": {
+    "title": "公寓！",
+    "required": "一行已满！支付10金币或拒绝。",
+    "immune": "等待其他玩家决定…",
+    "agree": "同意 (+10)",
+    "refuse": "拒绝"
+  },
+  "reconnect": {
+    "message": "重新连接中…",
+    "restored": "会话已恢复"
+  },
+  "admin": {
+    "title": "服务器管理",
+    "statsHint": "实时统计需服务器实现 admin_stats_data。",
+    "moderation": "管理",
+    "permanent": "永久",
+    "ban": "封禁",
+    "unban": "解封",
+    "kick": "踢出",
+    "rooms": "活跃房间",
+    "closeRoom": "关闭",
+    "logs": "日志 (24h)"
+  },
+  "rules": {
+    "title": "游戏规则",
+    "introTitle": "欢迎",
+    "introBody": "经典俄罗斯彩票实时对战。凑齐15个数字获胜。",
+    "economyTitle": "经济",
+    "economyBody": "初始500金币。每张卡10金币。每日登录+100。",
+    "cardsTitle": "卡片",
+    "cardsBody": "3×9网格，15个数字。开始前选1或2张卡。",
+    "apartmentTitle": "公寓",
+    "apartmentBody": "完成一行时暂停。需付10金币或退出。",
+    "victoryTitle": "胜利",
+    "victoryBody": "先凑齐15个数字者获胜。余数销毁。",
+    "reconnectTitle": "重连",
+    "reconnectBody": "大厅或游戏中15秒内可重连。公寓阶段禁止重连。"
+  },
+  "status": {
+    "waiting": "等待",
+    "playing": "进行中",
+    "apartment": "公寓",
+    "finished": "已结束"
+  },
+  "lang": { "choose": "选择语言" },
+  "errors": {
+    "unknown": "发生错误",
+    "auth_required": "请先登录",
+    "auth_invalid_credentials": "用户名或密码错误",
+    "auth_username_taken": "用户名已存在",
+    "auth_invalid_username": "格式无效",
+    "auth_invalid_token": "会话已过期",
+    "room_not_found": "房间不存在",
+    "not_your_turn": "还没轮到你",
+    "server_full": "服务器已满",
+    "room_full": "房间已满",
+    "room_limit": "房间数已达上限",
+    "cannot_moderate_admin": "无法管理管理员",
+    "invalid_json": "无效请求"
+  }
+}

@@ -1,0 +1,429 @@
+/* Russian Lotto — retro casino theme, mobile-first */
+
+:root {
+  --felt: #1a5c3a;
+  --felt-dark: #0f3d26;
+  --wood: #5c3d1e;
+  --wood-light: #8b5a2b;
+  --gold: #d4af37;
+  --gold-glow: #f0d060;
+  --cream: #f5e6c8;
+  --chip: #c41e3a;
+  --text: #f8f4e8;
+  --text-muted: #c8c0a8;
+  --danger: #e74c3c;
+  --success: #2ecc71;
+  --shadow: rgba(0, 0, 0, 0.45);
+  --radius: 8px;
+  --font: 'Segoe UI', system-ui, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { font-size: 16px; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font);
+  color: var(--text);
+  background:
+    radial-gradient(ellipse at center, var(--felt) 0%, var(--felt-dark) 100%);
+  background-attachment: fixed;
+}
+
+#app { min-height: 100vh; }
+
+.screen {
+  display: none;
+  min-height: 100vh;
+  padding: 1rem;
+}
+.screen.active { display: block; }
+
+.panel {
+  background: linear-gradient(145deg, var(--wood-light), var(--wood));
+  border: 3px solid var(--gold);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 32px var(--shadow);
+  padding: 1.25rem;
+}
+
+.logo-placeholder {
+  height: 120px;
+  max-width: 80%;
+  margin: 0 auto 1rem;
+  background: linear-gradient(135deg, var(--gold) 0%, var(--wood) 100%);
+  border-radius: var(--radius);
+  border: 2px dashed var(--cream);
+  opacity: 0.85;
+}
+.logo-placeholder.small { height: 48px; max-width: 120px; margin: 0; }
+
+h1, h2, h3 { margin: 0 0 0.75rem; color: var(--gold-glow); }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem 1.2rem;
+  border: 2px solid var(--gold);
+  border-radius: var(--radius);
+  background: var(--wood);
+  color: var(--cream);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--shadow);
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn.primary {
+  background: linear-gradient(180deg, var(--gold-glow), var(--gold));
+  color: var(--felt-dark);
+  font-weight: 600;
+}
+.btn.small { padding: 0.35rem 0.75rem; font-size: 0.85rem; }
+
+.icon-btn {
+  background: transparent;
+  border: 1px solid var(--gold);
+  border-radius: 50%;
+  width: 2.25rem;
+  height: 2.25rem;
+  color: var(--cream);
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+input, select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 2px solid var(--wood-light);
+  border-radius: var(--radius);
+  background: var(--cream);
+  color: var(--felt-dark);
+  font-size: 1rem;
+}
+
+label { display: block; margin-bottom: 0.75rem; }
+label span { display: block; margin-bottom: 0.25rem; font-size: 0.9rem; color: var(--text-muted); }
+
+.hidden { display: none !important; }
+
+.message {
+  margin-top: 0.75rem;
+  padding: 0.5rem;
+  border-radius: var(--radius);
+  text-align: center;
+  min-height: 1.5rem;
+}
+.message.error { background: rgba(231, 76, 60, 0.25); color: #ffb3aa; }
+.message.success { background: rgba(46, 204, 113, 0.2); color: #a8f0c8; }
+
+/* Auth */
+.auth-panel { max-width: 420px; margin: 2rem auto; text-align: center; }
+.lang-row { display: flex; gap: 0.5rem; justify-content: center; margin-bottom: 1rem; }
+.tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+.tab {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid var(--gold);
+  background: var(--felt-dark);
+  color: var(--cream);
+  cursor: pointer;
+  border-radius: var(--radius);
+}
+.tab.active { background: var(--gold); color: var(--felt-dark); font-weight: 600; }
+.auth-form { text-align: left; }
+
+/* Top bar */
+.top-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--wood);
+  border-bottom: 2px solid var(--gold);
+  margin: -1rem -1rem 1rem;
+}
+.user-info { flex: 1; }
+.coins::before { content: '🪙 '; }
+.coins { color: var(--gold-glow); font-weight: 700; }
+
+/* Lobby */
+.lobby-main { max-width: 960px; margin: 0 auto; }
+.lobby-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+.sub-panel {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--gold);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+.sub-panel label { max-width: 240px; }
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.data-table th, .data-table td {
+  padding: 0.5rem;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+  text-align: left;
+}
+.data-table th { color: var(--gold); }
+
+.players-list { list-style: none; padding: 0; margin: 0; }
+.players-list li {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.status-online { color: var(--success); }
+.status-disconnected { color: var(--danger); }
+
+/* Game */
+.game-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.game-top { font-size: 0.9rem; }
+
+.win-chance {
+  text-align: center;
+  padding: 0.5rem;
+  background: rgba(0,0,0,0.25);
+  border-radius: var(--radius);
+  margin-bottom: 0.75rem;
+}
+
+.slot-machine {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+.slot-window {
+  width: 4.5rem;
+  height: 4.5rem;
+  background: var(--cream);
+  border: 3px solid var(--gold);
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+.slot-num {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--felt-dark);
+}
+.slot-window.spinning .slot-num {
+  animation: slotSpin 0.1s linear infinite;
+}
+.slot-window.reveal .slot-num {
+  animation: goldPulse 0.6s ease;
+}
+@keyframes slotSpin {
+  0% { transform: translateY(-80%); opacity: 0.5; }
+  100% { transform: translateY(80%); opacity: 0.5; }
+}
+@keyframes goldPulse {
+  0%, 100% { color: var(--felt-dark); }
+  50% { color: var(--gold); text-shadow: 0 0 12px var(--gold-glow); }
+}
+
+.drawn-history {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: center;
+  min-height: 2rem;
+  margin-bottom: 0.75rem;
+}
+.drawn-chip {
+  background: var(--chip);
+  color: white;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+}
+
+.cards-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  margin: 1rem 0;
+  touch-action: pan-y;
+}
+.card-nav {
+  background: var(--wood);
+  border: 1px solid var(--gold);
+  color: var(--cream);
+  font-size: 1.5rem;
+  width: 2rem;
+  height: 3rem;
+  cursor: pointer;
+  border-radius: var(--radius);
+}
+.cards-stack {
+  position: relative;
+  width: 100%;
+  max-width: 340px;
+  min-height: 140px;
+}
+.lotto-card {
+  direction: ltr;
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--cream);
+  color: var(--felt-dark);
+  font-size: 11px;
+  border: 2px solid var(--gold);
+  border-radius: var(--radius);
+  transition: transform 0.3s;
+}
+.lotto-card td {
+  width: 11.11%;
+  height: 2rem;
+  text-align: center;
+  border: 1px solid rgba(0,0,0,0.15);
+  position: relative;
+}
+.lotto-card td.empty { background: rgba(0,0,0,0.06); }
+.lotto-card td.marked::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  background: var(--chip);
+  border-radius: 50%;
+  opacity: 0.85;
+}
+.lotto-card td.match-flash {
+  animation: goldPulse 0.6s ease;
+}
+.lotto-card.stacked {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.draw-btn {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  margin: 0 auto;
+  font-size: 1.1rem;
+  padding: 0.85rem;
+}
+.draw-btn.my-turn {
+  animation: pulseBtn 1s ease infinite;
+  box-shadow: 0 0 20px var(--gold-glow);
+}
+@keyframes pulseBtn {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+}
+
+/* Overlays */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 1rem;
+}
+.overlay .panel { max-width: 560px; width: 100%; max-height: 90vh; overflow-y: auto; }
+
+.rules-panel { background: #f5e6a8; color: #3d2b10; }
+.rules-panel h2 { color: #5c3d1e; }
+.rules-content { font-size: 0.9rem; line-height: 1.5; }
+.rules-content h4 { margin: 1rem 0 0.35rem; }
+
+.apartment-panel { text-align: center; }
+.apartment-timer {
+  font-size: 2.5rem;
+  color: var(--gold-glow);
+  margin: 1rem 0;
+}
+.apartment-actions { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; }
+
+.game-over-panel { text-align: center; }
+
+.reconnect-panel { text-align: center; }
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255,255,255,0.2);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 1rem auto;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.toast {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--wood);
+  border: 2px solid var(--gold);
+  padding: 0.75rem 1.25rem;
+  border-radius: var(--radius);
+  z-index: 200;
+  max-width: 90%;
+  text-align: center;
+}
+
+.admin-panel header { display: flex; justify-content: space-between; align-items: center; }
+.admin-row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.admin-row input { width: 100px; }
+.logs-box {
+  background: #111;
+  color: #0f0;
+  font-size: 0.75rem;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 0.5rem;
+  border-radius: var(--radius);
+  white-space: pre-wrap;
+}
+.hint { font-size: 0.85rem; color: var(--text-muted); }
+
+.lang-options { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; margin: 1rem 0; }
+.lang-options button { width: 100%; }
+
+/* Breakpoints */
+@media (min-width: 768px) {
+  .game-layout { grid-template-columns: 200px 1fr; }
+  .lotto-card { font-size: 12px; }
+  .lotto-card td { height: 2.25rem; }
+  .cards-stack { max-width: 400px; }
+}
+
+@media (min-width: 1280px) {
+  html { font-size: 17px; }
+  .game-layout { grid-template-columns: 240px 1fr; }
+  .cards-stack { max-width: 460px; }
+}
+
+@media (max-width: 280px) {
+  .cards-container { overflow-x: auto; }
+  .cards-stack { min-width: 280px; }
+}
