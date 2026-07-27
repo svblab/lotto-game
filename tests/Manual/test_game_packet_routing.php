@@ -168,85 +168,35 @@ function check(bool $cond, string $label): void
     }
 }
 
+require_once __DIR__ . '/ws_test_harness.php';
+
+$projectRoot = dirname(__DIR__, 2);
+wsTestEnsureDatabase($projectRoot);
+
 $db  = new Database();
 $pdo = $db->getPdo();
 $pdo->exec("DELETE FROM users WHERE username LIKE 'e105\\_%' ESCAPE '\\'");
 
-$projectRoot = dirname(__DIR__, 2);
+$wsPort = wsTestPort();
 
-$stopDescriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
-$stopProcess = @proc_open(['php', $projectRoot . '/server.php', 'stop'], $stopDescriptors, $stopPipes, $projectRoot);
-if (is_resource($stopProcess)) {
-    stream_set_blocking($stopPipes[1], false);
-    stream_set_blocking($stopPipes[2], false);
-    $stopWaited = 0;
-    while ($stopWaited < 5_000_000) {
-        @fread($stopPipes[1], 65536);
-        @fread($stopPipes[2], 65536);
-        if (!proc_get_status($stopProcess)['running']) {
-            break;
-        }
-        usleep(100_000);
-        $stopWaited += 100_000;
-    }
-    foreach ($stopPipes as $p) {
-        if (is_resource($p)) {
-            fclose($p);
-        }
-    }
-    proc_close($stopProcess);
-}
-
-$stdoutFile = sys_get_temp_dir() . '/lotto_game_routing_stdout_' . getmypid() . '.log';
-$stderrFile = sys_get_temp_dir() . '/lotto_game_routing_stderr_' . getmypid() . '.log';
-$descriptors = [
-    0 => ['pipe', 'r'],
-    1 => ['file', $stdoutFile, 'w'],
-    2 => ['file', $stderrFile, 'w'],
-];
-
-$process = proc_open(['php', $projectRoot . '/server.php', 'start'], $descriptors, $pipes, $projectRoot);
-if (!is_resource($process)) {
-    fwrite(STDERR, "Failed to start server.php subprocess\n");
+try {
+    $serverCtx = wsTestStartServer($projectRoot);
+} catch (Throwable $e) {
+    fwrite(STDERR, $e->getMessage() . "\n");
     exit(1);
 }
+
+$process = $serverCtx['process'];
+$stdoutFile = $serverCtx['stdoutFile'];
+$stderrFile = $serverCtx['stderrFile'];
 $GLOBALS['__serverProcess'] = $process;
-if (isset($pipes[0]) && is_resource($pipes[0])) {
-    fclose($pipes[0]);
-}
-
-$bound = false;
-for ($i = 0; $i < 50; $i++) {
-    $status = proc_get_status($process);
-    if (!$status['running']) {
-        break;
-    }
-    $probe = @fsockopen('127.0.0.1', 8080, $errno, $errstr, 0.1);
-    if ($probe) {
-        fclose($probe);
-        $bound = true;
-        break;
-    }
-    usleep(100_000);
-}
-
-if (!$bound) {
-    fwrite(STDERR, "server.php did not bind port 8080 in time\n");
-    fwrite(STDERR, "--- stdout ---\n" . @file_get_contents($stdoutFile) . "\n");
-    fwrite(STDERR, "--- stderr ---\n" . @file_get_contents($stderrFile) . "\n");
-    proc_terminate($process, 9);
-    proc_close($process);
-    @unlink($stdoutFile);
-    @unlink($stderrFile);
-    exit(1);
-}
 
 try {
     // =========================================================================
     // Setup: host + p2 register, host creates a 2-player room, p2 joins.
     // =========================================================================
     echo "SETUP: register host + p2, create_room, join_room\n";
-    $host = new MiniWSClient('127.0.0.1', 8080);
+    $host = new MiniWSClient('127.0.0.1', $wsPort);
     registerAndAuth($host, 'e105_host', 'e105pass123');
     $host->send(json_encode(['action' => 'create_room', 'max_players' => 2, 'password' => '', 'cards_count' => 1]));
     $created = json_decode($host->recvOrNull() ?? '', true);
@@ -254,7 +204,7 @@ try {
     $roomId = $created['room_id'] ?? null;
     check($roomId !== null, 'setup: room_id present');
 
-    $p2 = new MiniWSClient('127.0.0.1', 8080);
+    $p2 = new MiniWSClient('127.0.0.1', $wsPort);
     $p2Auth = registerAndAuth($p2, 'e105_p2', 'e105pass123');
     $p2Token = $p2Auth['session_token'] ?? null;
     check(is_string($p2Token) && $p2Token !== '', 'setup: p2 session_token present');
@@ -330,7 +280,7 @@ try {
     // that game actions are wired behind it)
     // =========================================================================
     echo "\nTEST 7: unauth draw_barrel -> error.auth_required\n";
-    $anon = new MiniWSClient('127.0.0.1', 8080);
+    $anon = new MiniWSClient('127.0.0.1', $wsPort);
     $anon->recvOrNull(); // hello
     $anon->send(json_encode(['action' => 'draw_barrel']));
     $data7 = json_decode($anon->recvOrNull() ?? '', true);
@@ -352,7 +302,7 @@ try {
     $p2->close();
     usleep(300_000); // дать серверу время обработать onClose
 
-    $p2New = new MiniWSClient('127.0.0.1', 8080);
+    $p2New = new MiniWSClient('127.0.0.1', $wsPort);
     $p2New->recvOrNull(); // hello
     $p2New->send(json_encode(['action' => 'reconnect', 'token' => $p2Token]));
     $reconnectMsg = json_decode($p2New->recvOrNull() ?? '', true);
@@ -390,6 +340,7 @@ try {
     @unlink($stderrFile);
 
     $pdo->exec("DELETE FROM users WHERE username LIKE 'e105\\_%' ESCAPE '\\'");
+    wsTestCleanupDatabase();
 }
 
 if (function_exists('pcntl_alarm')) {

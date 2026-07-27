@@ -64,7 +64,7 @@ class AuthService
             $insertStmt->execute([$username, $passwordHash]);
 
             // 6. Логирование успешного исхода (Уровень INFO)
-            $this->logger->write('INFO', "User registered: {$username}");
+            $this->safeLog('INFO', "User registered: {$username}");
 
             return [
                 'success' => true,
@@ -73,7 +73,7 @@ class AuthService
 
         } catch (Exception $e) {
             // Логирование ошибки регистрации (Уровень WARNING)
-            $this->logger->write('WARNING', "Registration failed: " . $e->getMessage());
+            $this->safeLog('WARNING', "Registration failed: " . $e->getMessage());
             throw $e;
         }
     }
@@ -146,7 +146,7 @@ class AuthService
             }
 
             // Шаг 8: Записать лог об успешном входе (Уровень INFO)
-            $this->logger->write('INFO', "User login: {$username}");
+            $this->safeLog('INFO', "User login: {$username}");
 
             // EPIC-1.2: Возврат существующего контракта с добавлением session_token
             return [
@@ -163,8 +163,21 @@ class AuthService
 
         } catch (Exception $e) {
             // Запись лога ошибки выполнения/аутентификации (Уровень WARNING)
-            $this->logger->write('WARNING', "Login failed: " . $e->getMessage());
+            $this->safeLog('WARNING', "Login failed: " . $e->getMessage());
             throw $e;
+        }
+    }
+
+    /**
+     * FIX-14: logging must never break auth flows (e.g. root-owned logs/server.log
+     * during www-data WS tests on VPS).
+     */
+    private function safeLog(string $level, string $message): void
+    {
+        try {
+            $this->logger->write($level, $message);
+        } catch (Exception) {
+            // Intentionally ignored.
         }
     }
 

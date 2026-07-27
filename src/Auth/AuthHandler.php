@@ -270,10 +270,14 @@ final class AuthHandler
     */
    private function mapRegisterError(string $message): string
    {
-       return match ($message) {
-           'Username already exists' => 'error.auth_username_taken',
-           default                   => 'error.auth_invalid_username',
-       };
+       if ($message === 'Username already exists') {
+           return 'error.auth_username_taken';
+       }
+       if (str_contains($message, 'UNIQUE constraint failed') && str_contains($message, 'username')) {
+           return 'error.auth_username_taken';
+       }
+
+       return 'error.auth_invalid_username';
    }
 
    /**

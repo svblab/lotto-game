@@ -1,6 +1,50 @@
 # Implementation Status — Lotto Game Project
 
-- [IN PROGRESS] EPIC-11.0 Full integration testing (Phase 11 audit started 2026-07-27)
+- [IN PROGRESS] EPIC-11.1 Memory audit (Phase 11 — instrumentation complete 2026-07-27; VPS 6h run pending)
+Files:
+- src/Core/MemoryAudit.php (новый файл — opt-in memory snapshots → logs/memory_audit.log)
+- server.php (diff — worker_start/connection/packet/periodic snapshots)
+- src/Core/RoomManager.php (diff — room_created/room_destroyed snapshots)
+- tests/Manual/test_memory_audit.php (новый файл — mock regression: map cleanup, bounded growth)
+- scripts/memory_stability_runner.php (новый файл — 6-hour VPS load test, Linux only)
+- scripts/analyze_memory_log.php (новый файл — validates ≤120% baseline threshold)
+- docs/PHASE_11_REPORT.md (diff — EPIC-11.1 section updated)
+
+Implemented:
+- MemoryAudit utility: LOTTO_MEMORY_AUDIT=1 enables structured snapshots;
+  LOTTO_MEMORY_AUDIT_VERBOSE=1 logs every handled action (default: tracked
+  lifecycle actions only).
+- FIX-13 (ownership): MemoryAudit now accepts optional log path (constructor
+  param + LOTTO_MEMORY_AUDIT_LOG env), mirroring FIX-12 Logger DI-seam.
+  test_memory_audit.php writes to sys_get_temp_dir() only; production
+  logs/memory_audit.log hash verified unchanged after test run.
+- server.php: baseline at worker start, connection open/close, packet
+  snapshots for state-mutating actions, 30-minute periodic timer.
+- RoomManager: snapshots on createRoom/destroyRoom.
+- test_memory_audit.php: map cleanup, timer orphan check, 50-cycle
+  create/destroy bounded-growth test, log file write verification.
+- VPS tooling: memory_stability_runner.php (6h default) +
+  analyze_memory_log.php (acceptance: memory ≤120% baseline).
+
+Verification (Windows dev host):
+- test_memory_audit.php: all groups PASS
+- Full suite: php run_ALL_tests.php (includes new test file)
+
+Remaining: Run memory_stability_runner.php on Ubuntu VPS for 6-hour
+acceptance sign-off per EPIC-11.1 acceptance criteria.
+
+FIX-14 (VPS test isolation, 2026-07-27): Live WS tests now use port 18080
+and temp-dir logs via tests/Manual/ws_test_harness.php — no collision with
+production lotto-server.service on 8080, no writes to root-owned logs/.
+test_helpers_runner.php scenario 4 no longer writes to production server.log.
+test_logger.php removed (superseded by FIX-12). server.php accepts
+LOTTO_WS_PORT, LOTTO_SERVER_LOG, LOTTO_WORKERMAN_LOG_FILE,
+LOTTO_WORKERMAN_PID_FILE env vars for test subprocess isolation.
+
+Next in Phase 11: EPIC-11.2 Timer audit, then 11.3–11.6 per
+docs/prompt phase 11 detail.md and docs/PHASE_11_REPORT.md.
+
+- [DONE] EPIC-11.0 Full integration testing (Phase 11 audit — 2026-07-27)
 Files:
 - server.php (diff — CRITICAL: applied missing EPIC-10.6 AdminHandler wiring +
   FIX-10 onClose userConnections cleanup; documented as done but never landed)
@@ -30,9 +74,6 @@ Verification (Windows dev host, php run_ALL_tests.php):
   Windows — Workerman fork; must re-run on Ubuntu VPS per LOCAL_ENVIRONMENT.md)
 - test_protocol_completeness.php: 50/50 PASSED (adminHandler wiring confirmed)
 - test_phase11_core_flows.php: 17/17 PASSED
-
-Next in Phase 11: EPIC-11.1 Memory audit (VPS), then 11.2–11.6 per
-docs/prompt phase 11 detail.md and docs/PHASE_11_REPORT.md.
 
 - [DONE] EPIC-10.1 Packet validation
 Files:
@@ -2028,8 +2069,8 @@ root-caused and resolved; full regression 0 failed)
 Next planned Epic:
 
 `text
-EPIC-11.1 Memory audit (Phase 11 — see docs/PHASE_11_REPORT.md;
-EPIC-11.0 integration testing in progress, critical P11-001 admin wiring fix applied)
+EPIC-11.2 Timer audit (Phase 11 — see docs/PHASE_11_REPORT.md;
+EPIC-11.1 instrumentation complete, VPS 6h stability run pending)
 `
 PHASE 10 — WEBSOCKET PROTOCOL: COMPLETE (10.0-10.7 all done). Server-side
 protocol surface confirmed complete against ANCHOR_CORE.md/

@@ -13,6 +13,10 @@ $projectRoot = __DIR__;
 $manualDir = $projectRoot . '/tests/Manual';
 $isWindows = DIRECTORY_SEPARATOR === '\\';
 
+$skipAlways = [
+    'test_logger.php',
+];
+
 $skipOnWindows = [
     'test_admin_packet_routing.php',
     'test_auth_packet_routing.php',
@@ -21,7 +25,6 @@ $skipOnWindows = [
     'test_packet_validation.php',
     'test_server_bootstrap.php',
     'test_session_lifecycle.php',
-    'test_logger.php',
 ];
 
 $phpBinary = PHP_BINARY;
@@ -49,6 +52,11 @@ foreach ($files as $file) {
     $basename = basename($file);
     echo "=== {$basename} ===\n";
 
+    if (in_array($basename, $skipAlways, true)) {
+        echo "SKIP: superseded / removed (see FIX-12 in IMPLEMENTATION_STATUS.md)\n\n";
+        continue;
+    }
+
     if ($isWindows && in_array($basename, $skipOnWindows, true)) {
         echo "SKIP: requires Linux/VPS (live Workerman WebSocket server)\n\n";
         continue;
@@ -70,7 +78,9 @@ foreach ($files as $file) {
     fclose($pipes[2]);
     $exitCode = proc_close($proc);
 
-    $tail = implode("\n", array_slice(explode("\n", trim($stdout . "\n" . $stderr)), -3));
+    $output = trim($stdout . "\n" . $stderr);
+    $lines  = explode("\n", $output);
+    $tail   = implode("\n", array_slice($lines, $exitCode !== 0 ? -30 : -15));
     echo $tail . "\n";
 
     if ($exitCode !== 0) {

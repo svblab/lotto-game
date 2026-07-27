@@ -106,3 +106,64 @@ function serverLog(Logger $logger, string $level, string $message): void
     $logger->write($level, $message);
 }
 
+/**
+ * FIX-14: load isolated test-server paths from LOTTO_TEST_CONFIG JSON.
+ *
+ * Live WS tests write a temp config file and pass its path via env so the
+ * Workerman worker subprocess reliably uses the isolated SQLite DB and temp
+ * log files (putenv alone is not always visible inside forked workers).
+ */
+function lottoRuntimeEnv(string $key): ?string
+{
+    if (isset($GLOBALS['__lotto_runtime_config'][$key])) {
+        $fromGlobals = $GLOBALS['__lotto_runtime_config'][$key];
+        if (is_string($fromGlobals) && $fromGlobals !== '') {
+            return $fromGlobals;
+        }
+    }
+
+    $val = getenv($key);
+    if (is_string($val) && $val !== '') {
+        return $val;
+    }
+
+    if (isset($_ENV[$key]) && is_string($_ENV[$key]) && $_ENV[$key] !== '') {
+        return $_ENV[$key];
+    }
+
+    if (isset($_SERVER[$key]) && is_string($_SERVER[$key]) && $_SERVER[$key] !== '') {
+        return $_SERVER[$key];
+    }
+
+    return null;
+}
+
+function lottoApplyTestConfig(): void
+{
+    $configFile = lottoRuntimeEnv('LOTTO_TEST_CONFIG');
+    if ($configFile === null || !is_readable($configFile)) {
+        return;
+    }
+
+    $raw = file_get_contents($configFile);
+    $data = json_decode($raw !== false ? $raw : '', true);
+    if (!is_array($data)) {
+        return;
+    }
+
+    if (!isset($GLOBALS['__lotto_runtime_config']) || !is_array($GLOBALS['__lotto_runtime_config'])) {
+        $GLOBALS['__lotto_runtime_config'] = [];
+    }
+
+    foreach ($data as $key => $value) {
+        if (!is_string($key) || (!is_string($value) && !is_int($value) && !is_float($value))) {
+            continue;
+        }
+        $str = (string) $value;
+        putenv("{$key}={$str}");
+        $_ENV[$key] = $str;
+        $_SERVER[$key] = $str;
+        $GLOBALS['__lotto_runtime_config'][$key] = $str;
+    }
+}
+

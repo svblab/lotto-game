@@ -85,6 +85,10 @@ final class RoomManager
 
         $this->logger->info("Room created: room_id={$roomId} host_conn_id={$hostConnId} max_players={$maxPlayers}");
 
+        if (MemoryAudit::isEnabled() && isset($worker->memoryAudit)) {
+            $worker->memoryAudit->snapshot('room_created', $worker, ['room_id' => $roomId]);
+        }
+
         return $roomId;
     }
 
@@ -133,6 +137,10 @@ final class RoomManager
         unset($worker->rooms[$roomId]);
 
         $this->logger->info("Room destroyed: room_id={$roomId}");
+
+        if (MemoryAudit::isEnabled() && isset($worker->memoryAudit)) {
+            $worker->memoryAudit->snapshot('room_destroyed', $worker, ['room_id' => $roomId]);
+        }
     }
 
     // -------------------------------------------------------------------------

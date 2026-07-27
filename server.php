@@ -85,13 +85,33 @@
 
 declare(strict_types=1);
 
+// FIX-14: CLI config path survives fork even when putenv is unreliable.
+foreach (array_slice($_SERVER['argv'] ?? [], 1) as $lottoCliArg) {
+    if (!is_string($lottoCliArg) || !str_starts_with($lottoCliArg, '--lotto-config=')) {
+        continue;
+    }
+    $lottoConfigPath = substr($lottoCliArg, strlen('--lotto-config='));
+    if ($lottoConfigPath !== '') {
+        putenv('LOTTO_TEST_CONFIG=' . $lottoConfigPath);
+        $_ENV['LOTTO_TEST_CONFIG'] = $lottoConfigPath;
+        $_SERVER['LOTTO_TEST_CONFIG'] = $lottoConfigPath;
+    }
+    break;
+}
+
 require __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/src/Core/Helpers.php';
+
+use function Lotto\Core\lottoApplyTestConfig;
+use function Lotto\Core\lottoRuntimeEnv;
+
+lottoApplyTestConfig();
 
 use Workerman\Worker;
 use Workerman\Timer;
 use Lotto\Core\Constants;
 use Lotto\Core\Logger;
+use Lotto\Core\MemoryAudit;
 use Lotto\Infrastructure\Database;
 use Lotto\Infrastructure\PreparedStatements;
 use Lotto\Auth\SessionService;
@@ -119,14 +139,31 @@ use function Lotto\Core\closeWithCode;
 // LOCAL_ENVIRONMENT.md — ws://localhost:8080)
 // -----------------------------------------------------------------------
 
-$worker = new Worker('websocket://0.0.0.0:8080');
+$wsPortEnv = lottoRuntimeEnv('LOTTO_WS_PORT');
+$wsPort = ($wsPortEnv !== null) ? (int) $wsPortEnv : 8080;
+
+$wmLogFile = lottoRuntimeEnv('LOTTO_WORKERMAN_LOG_FILE');
+if ($wmLogFile !== null) {
+    Worker::$logFile = $wmLogFile;
+}
+
+$wmPidFile = lottoRuntimeEnv('LOTTO_WORKERMAN_PID_FILE');
+if ($wmPidFile !== null) {
+    Worker::$pidFile = $wmPidFile;
+}
+
+$worker = new Worker('websocket://0.0.0.0:' . $wsPort);
 $worker->count = 1;
 $worker->name = 'LottoGameServer';
 
 $worker->onWorkerStart = function (Worker $worker): void {
+    // Re-apply in forked worker (putenv may not survive pcntl_fork on all hosts).
+    lottoApplyTestConfig();
+
     // Инфраструктура (Rule 15: dependency wiring разрешён в server.php)
-    $worker->db     = new Database();
-    $worker->logger = new Logger();
+    $worker->db = new Database();
+    $serverLogPath = lottoRuntimeEnv('LOTTO_SERVER_LOG');
+    $worker->logger = new Logger($serverLogPath);
 
     // EPIC-10.3 (Auth packet routing): AuthHandler уже реализован
     // (EPIC-1.3) — здесь только сборка зависимостей и подключение к
@@ -208,7 +245,17 @@ $worker->onWorkerStart = function (Worker $worker): void {
     $worker->userConnections = [];
     $worker->sessionTokens   = [];
 
+    $worker->memoryAudit = new MemoryAudit($worker->logger);
+
     $worker->logger->info('LottoGameServer started (protocol_version=' . Constants::PROTOCOL_VERSION . ')');
+    $worker->memoryAudit->snapshot('worker_start', $worker);
+
+    // EPIC-11.1: periodic memory snapshots every 30 minutes when audit is on.
+    if (MemoryAudit::isEnabled()) {
+        Timer::add(1800, function () use ($worker): void {
+            $worker->memoryAudit->snapshot('periodic_snapshot', $worker);
+        });
+    }
 
     // Global Watchdog Timer (ANCHOR_CORE.md Part 5 § Global Watchdog Timer)
     // Owner: server. Count: 1 для всего процесса. Interval: 60s.
@@ -281,6 +328,12 @@ $worker->onWebSocketConnected = function ($connection) use ($worker): void {
         'type'             => 'hello',
         'protocol_version' => Constants::PROTOCOL_VERSION,
     ]);
+
+    if (isset($worker->memoryAudit)) {
+        $worker->memoryAudit->snapshot('connection_open', $worker, [
+            'conn_id' => $connection->id ?? null,
+        ]);
+    }
 };
 
 // -----------------------------------------------------------------------
@@ -315,10 +368,14 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
     $connection->packetCount++;
 
     if ($connection->packetCount > Constants::RATE_LIMIT_PACKETS_PER_WINDOW) {
-        $worker->logger->info(
-            'Rate limit exceeded, closing connection (userId=' .
-            ($connection->userId ?? 'null') . ", count={$connection->packetCount})"
-        );
+        try {
+            $worker->logger->info(
+                'Rate limit exceeded, closing connection (userId=' .
+                ($connection->userId ?? 'null') . ", count={$connection->packetCount})"
+            );
+        } catch (\Throwable) {
+            // Logging must not prevent rate-limit close (FIX-14).
+        }
         $connection->close();
         return;
     }
@@ -407,6 +464,10 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
         'admin_get_logs'   => $worker->adminHandler->handleGetLogs($data, $connection),
         default            => sendError($connection, 'error.invalid_json', "Unknown or not-yet-wired action: {$action}"),
     };
+
+    if (isset($worker->memoryAudit) && MemoryAudit::shouldLogAction($action)) {
+        $worker->memoryAudit->snapshot('packet_processed', $worker, ['action' => $action]);
+    }
 };
 
 // -----------------------------------------------------------------------
@@ -439,6 +500,12 @@ $worker->onClose = function ($connection) use ($worker): void {
     // FIX-10).
     if (($connection->userId ?? null) !== null) {
         unset($worker->userConnections[$connection->userId]);
+    }
+
+    if (isset($worker->memoryAudit)) {
+        $worker->memoryAudit->snapshot('connection_close', $worker, [
+            'user_id' => $connection->userId ?? null,
+        ]);
     }
 };
 

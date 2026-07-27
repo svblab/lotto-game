@@ -32,9 +32,21 @@ class Database
             return;
         }
 
-        $dbPath = dirname(__DIR__, 2) . '/game.db';
+        $runtime = $GLOBALS['__lotto_runtime_config']['LOTTO_DB_PATH'] ?? null;
+        if (!is_string($runtime) || $runtime === '') {
+            $runtime = null;
+        }
+
+        $envPath = $runtime ?? (
+            (isset($_ENV['LOTTO_DB_PATH']) && is_string($_ENV['LOTTO_DB_PATH']) && $_ENV['LOTTO_DB_PATH'] !== '')
+                ? $_ENV['LOTTO_DB_PATH']
+                : getenv('LOTTO_DB_PATH')
+        );
+        $dbPath = (is_string($envPath) && $envPath !== '')
+            ? $envPath
+            : dirname(__DIR__, 2) . '/game.db';
         
-        $this->pdo = new PDO("sqlite:" . $dbPath, null, null, [
+        $this->pdo = new PDO('sqlite:' . $dbPath, null, null, [
             PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES   => false,
@@ -43,6 +55,7 @@ class Database
         // Настройки из манифеста EPIC-0.6
         $this->pdo->exec("PRAGMA foreign_keys = ON;");
         $this->pdo->exec("PRAGMA journal_mode = WAL;");
+        $this->pdo->exec("PRAGMA busy_timeout = 5000;");
     }
 
     /**

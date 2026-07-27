@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-27  
 **Repository:** https://github.com/svblab/lotto-game  
-**Auditor session:** EPIC-11.0 started; EPIC-11.1–11.6 pending on VPS
+**Auditor session:** EPIC-11.0 complete; EPIC-11.1 instrumentation complete (VPS 6h run pending); EPIC-11.2–11.6 pending on VPS
 
 ---
 
@@ -61,17 +61,40 @@ These spawn `php server.php start` and connect via real WebSocket. **Workerman f
 
 ---
 
-## EPIC-11.1 — Memory Audit (Pending)
+## EPIC-11.1 — Memory Audit
 
-**Status:** Not started — requires VPS long-duration run.
+**Status:** Instrumentation complete; mock regression tests pass. VPS long-duration run pending.
 
-**Baseline plan:**
-- Record `memory_get_usage()` / `memory_get_peak_usage()` at worker start
-- Instrument after: connection open, packet processing, room create/destroy, game finish
-- Verify `$worker->rooms` and `$worker->userConnections` cleanup on disconnect and game end
-- 6-hour stability test with snapshots every 30 minutes
+### Implementation
 
-**Preliminary static review:** No obvious unbounded array growth patterns found; runtime maps are keyed by room_id/user_id and destroyed via RoomManager/ReconnectService paths (verified in unit tests).
+| Component | Purpose |
+|-----------|---------|
+| `src/Core/MemoryAudit.php` | Opt-in snapshots (`LOTTO_MEMORY_AUDIT=1`) → `logs/memory_audit.log` |
+| `server.php` | Baseline at worker start, connection open/close, tracked actions, 30-min periodic timer |
+| `RoomManager` | Snapshots on room create/destroy |
+| `tests/Manual/test_memory_audit.php` | Mock-based regression (map cleanup, bounded growth) |
+| `scripts/memory_stability_runner.php` | 6-hour VPS load test (Linux only) |
+| `scripts/analyze_memory_log.php` | Validates ≤120% baseline threshold |
+
+### Enabling on VPS
+
+```bash
+LOTTO_MEMORY_AUDIT=1 php server.php start
+# Optional verbose per-packet logging:
+LOTTO_MEMORY_AUDIT=1 LOTTO_MEMORY_AUDIT_VERBOSE=1 php server.php start
+# Full 6-hour stability test:
+php scripts/memory_stability_runner.php --duration=21600 --players=50 --games=10
+# Analyze results:
+php scripts/analyze_memory_log.php
+```
+
+### Preliminary static + mock results
+
+- `test_memory_audit.php`: map cleanup and bounded memory growth verified (mock-based)
+- Runtime maps (`$worker->rooms`, `$worker->userConnections`) keyed by ID and destroyed via RoomManager/ReconnectService paths
+- No obvious unbounded array growth patterns in static review
+
+**Remaining:** Run `memory_stability_runner.php` on Ubuntu VPS for 6-hour acceptance sign-off.
 
 ---
 
@@ -167,7 +190,7 @@ See `docs/IMPLEMENTATION_STATUS.md` § KNOWN GAPS:
 | All protocol actions wired | ✅ Fixed (P11-001) |
 | Unit/integration tests pass | ✅ 25/25 on Windows |
 | Live WS tests pass | ⏳ Run on VPS |
-| Memory/timer/load audits | ⏳ EPIC-11.1–11.6 |
+| Memory/timer/load audits | ⏳ EPIC-11.1 instrumented (VPS 6h pending); 11.2–11.6 pending |
 | Protocol docs synced | ⚠️ 3 low-priority gaps |
 
 **Verdict:** Proceed with Phase 12 frontend development in parallel with completing EPIC-11.1–11.6 on VPS, **provided** the 8 live-server tests pass on Ubuntu after deploying P11-001 fix. Frontend should not depend on admin_stats_data or error.banned until those gaps are resolved.
@@ -180,4 +203,8 @@ See `docs/IMPLEMENTATION_STATUS.md` § KNOWN GAPS:
 - `tests/Manual/test_admin_ban.php` — FIX-11 MockConnection::close()
 - `tests/Manual/test_admin_integration.php` — FIX-11 SpyConnection::close()
 - `tests/Manual/test_phase11_core_flows.php` — new EPIC-11.0 chained flow test
+- `src/Core/MemoryAudit.php` — EPIC-11.1 memory instrumentation
+- `tests/Manual/test_memory_audit.php` — EPIC-11.1 mock regression tests
+- `scripts/memory_stability_runner.php` — EPIC-11.1 VPS long-duration test
+- `scripts/analyze_memory_log.php` — EPIC-11.1 log analyzer
 - `run_ALL_tests.php` — cross-platform runner with Windows SQLite + skip list
