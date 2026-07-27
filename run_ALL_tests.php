@@ -23,6 +23,7 @@ $skipOnWindows = [
     'test_game_packet_routing.php',
     'test_lobby_packet_routing.php',
     'test_packet_validation.php',
+    'test_protocol_audit.php',
     'test_server_bootstrap.php',
     'test_session_lifecycle.php',
 ];

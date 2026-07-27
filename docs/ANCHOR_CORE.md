@@ -545,7 +545,7 @@ Removal reasons: `leave, disconnect, afk, refuse, kicked, banned, admin_close`.
 ## Protocol Packet Types (allowed)
 ```
 hello, auth_result, error, room_list, room_joined, player_joined, player_left,
-game_started, your_turn, barrels_drawn, apartment_alert, reconnect_state,
+game_started, your_turn, barrels_drawn, afk_warning, apartment_alert, reconnect_state,
 game_over, banned, admin_stats_data, admin_logs_data
 ```
 

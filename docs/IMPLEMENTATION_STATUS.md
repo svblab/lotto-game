@@ -1,5 +1,38 @@
 # Implementation Status — Lotto Game Project
 
+- [IN PROGRESS] EPIC-11.5 Protocol audit (Phase 11 — instrumentation complete 2026-07-27; VPS live replay pending)
+Files:
+- docs/ANCHOR_CORE.md (diff — afk_warning added to packet registry)
+- docs/ANCHOR_PROTOCOL.md (diff — afk_warning packet spec, error.banned note)
+- docs/ADR/007.md (новый файл — documentation alignment decisions)
+- tests/Manual/test_protocol_audit.php (новый файл — 7 live WS acceptance tests)
+- scripts/ws_emulator.php (новый файл — CLI client emulator + replay)
+- tests/Manual/test_protocol_completeness.php (diff — afk_warning gap closed)
+- docs/PHASE_11_REPORT.md (diff — EPIC-11.5 section updated)
+
+Implemented:
+- afk_warning registered in ANCHOR_CORE.md and documented in ANCHOR_PROTOCOL.md
+  (ADR-007); closes W1 from static audit.
+- error.banned documented as reserved/unused (ADR-007); `banned` packet is the
+  canonical ban-rejection channel.
+- test_protocol_audit.php: hello/protocol_version, extra-field extensibility,
+  authenticated unknown action, missing fields, room_full live, auth_required.
+- ws_emulator.php: --send, --replay (.jsonl), --interactive modes for
+  protocol replay and manual audit.
+- test_protocol_completeness.php: 50/50 PASS, 2 warnings (admin_stats_data,
+  error.banned reserved — both documented KNOWN GAPS).
+
+Verification (Windows dev host):
+- test_protocol_completeness.php: 50/50 PASS, 2 warnings (expected)
+- test_protocol_audit.php: requires Linux/VPS (live Workerman subprocess)
+- Full suite: php run_ALL_tests.php — 29/29 test files passed (Windows;
+  9 live-server tests skipped)
+
+Remaining: Run test_protocol_audit.php on Ubuntu VPS; use ws_emulator.php
+for session replay during live-game protocol sign-off.
+
+Next in Phase 11: EPIC-11.6 Load testing per docs/prompt phase 11 detail.md.
+
 - [IN PROGRESS] EPIC-11.4 State machine audit (Phase 11 — instrumentation complete 2026-07-27; VPS live-game run pending)
 Files:
 - src/Core/StateMachineAudit.php (новый файл — opt-in state transition logging → logs/state_machine_audit.log)
@@ -2071,11 +2104,9 @@ Result:
   policy решена в пользу ANCHOR_PROTOCOL.md (error-пакет, без разрыва) —
   подкреплено уже реализованным прецедентом error.server_full. Детали —
   см. запись [DONE] EPIC-10.1 в начале файла.
-- ⚠️ OPEN (низкий приоритет, документационный долг): пакет afk_warning
-  (src/Game/ReconnectService.php, EPIC-8.3 Game AFK protection) используется
-  и покрыт тестами, но не задекларирован ни в ANCHOR_PROTOCOL.md, ни в
-  реестре Protocol Packet Types (ANCHOR_CORE.md Part 6). Требует добавления
-  в оба документа (документация, не код — поведение корректно).
+- ✅ RESOLVED (ADR-007, EPIC-11.5, 2026-07-27): пакет afk_warning добавлен
+  в ANCHOR_CORE.md § Protocol Packet Types и ANCHOR_PROTOCOL.md § Turn System.
+  Поведение было корректным с EPIC-8.3; закрыт документационный долг W1.
 - ⚠️ OPEN (низкий приоритет, roadmap-долг): пакет admin_stats_data объявлен
   в ANCHOR_PROTOCOL.md и в реестре ANCHOR_CORE.md, но ни разу не реализован
   и не назначен ни одному Epic в ROADMAP.md (EPIC-9.x покрыл только
@@ -2086,11 +2117,10 @@ Result:
   (ANCHOR_PROTOCOL.md) но нигде не используется — ноль usage sites по
   всему src/ и server.php. Не функциональный пробел: выделенный пакет
   `banned` (`{"type":"banned","until":...}`) уже покрывает каждый путь
-  отказа по бану (login, reconnect — с FIX-11, admin-уведомление). Похоже,
-  этот код ошибки стал избыточным ещё до того, как понадобился, once
-  выделенный пакет уже существовал. Требует либо явного назначения
-  использования, либо формального исключения из реестра (тот же выбор,
-  что уже стоит перед admin_stats_data).
+  отказа по бану (login, reconnect — с FIX-11, admin-уведомление).
+  Документирован как reserved/unused в ADR-007 (EPIC-11.5). Требует
+  либо явного назначения использования, либо формального исключения из
+  реестра (тот же выбор, что уже стоит перед admin_stats_data).
 
 - ✅ RESOLVED (FIX-4, 2026-07-03): test_game_start.php/test_victory.php падали из-за
   устаревших фикстур после ADR-002. Устранено — см. секцию PATCHES § FIX-4.

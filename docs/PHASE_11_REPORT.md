@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-27  
 **Repository:** https://github.com/svblab/lotto-game  
-**Auditor session:** EPIC-11.0 complete; EPIC-11.1/11.2/11.3/11.4 instrumentation complete (VPS runs pending); EPIC-11.5–11.6 pending on VPS
+**Auditor session:** EPIC-11.0 complete; EPIC-11.1/11.2/11.3/11.4 instrumentation complete (VPS runs pending); EPIC-11.5 instrumentation complete (VPS live replay pending); EPIC-11.6 pending on VPS
 
 ---
 
@@ -188,19 +188,33 @@ php scripts/analyze_memory_log.php
 
 ---
 
-## EPIC-11.5 — Protocol Audit (Pending)
+## EPIC-11.5 — Protocol Audit (Instrumentation Complete)
 
-**Status:** Static audit complete; live replay pending.
+**Status:** Documentation aligned; live audit tests added. VPS replay pending.
 
-`test_protocol_completeness.php`: **50/50 PASS**, 3 warnings (known documentation debt):
+### Documentation fixes (ADR-007)
 
-| Warning | Item | Action |
-|---------|------|--------|
-| W1 | `afk_warning` packet used but not in ANCHOR_CORE registry | Add to docs (EPIC-11.5) |
-| W2 | `admin_stats_data` declared but never emitted | Assign epic or exclude |
-| W3 | `error.banned` declared but unused (`banned` packet covers it) | Assign usage or exclude |
+| Warning | Item | Resolution |
+|---------|------|------------|
+| W1 | `afk_warning` packet used but not in ANCHOR_CORE registry | **Resolved** — added to ANCHOR_CORE.md + ANCHOR_PROTOCOL.md |
+| W2 | `admin_stats_data` declared but never emitted | **Open** — deferred (no Epic assigned) |
+| W3 | `error.banned` declared but unused | **Documented** — reserved per ADR-007; `banned` packet is canonical |
 
-After P11-001 fix: all 5 admin actions wired; `$worker->adminHandler` instantiated.
+`test_protocol_completeness.php`: **50/50 PASS**, 2 warnings (W2 + W3 only).
+
+### New tooling
+
+| Component | Purpose |
+|-----------|---------|
+| `tests/Manual/test_protocol_audit.php` | 7 live WS acceptance tests (extensibility, room_full, auth guards) |
+| `scripts/ws_emulator.php` | CLI emulator: `--send`, `--replay session.jsonl`, `--interactive` |
+
+### Live-server test coverage (VPS required)
+
+- `test_protocol_audit.php` — EPIC-11.5 acceptance criteria not covered by routing tests
+- Existing: `test_server_bootstrap.php`, `test_packet_validation.php`, `test_*_packet_routing.php`
+
+**Action:** Run `php tests/Manual/test_protocol_audit.php` on Ubuntu VPS.
 
 ---
 
@@ -232,9 +246,9 @@ See `docs/IMPLEMENTATION_STATUS.md` § KNOWN GAPS:
 |-----------|--------|
 | All protocol actions wired | ✅ Fixed (P11-001) |
 | Unit/integration tests pass | ✅ 28/28 on Windows |
-| Live WS tests pass | ⏳ Run on VPS |
-| Memory/timer/load audits | ⏳ EPIC-11.1/11.2/11.3/11.4 instrumented (VPS runs pending); 11.5–11.6 pending |
-| Protocol docs synced | ⚠️ 3 low-priority gaps |
+| Live WS tests pass | ⏳ Run on VPS (9 live-server tests incl. test_protocol_audit.php) |
+| Memory/timer/load audits | ⏳ EPIC-11.1/11.2/11.3/11.4 instrumented (VPS runs pending); 11.5 instrumented (VPS replay pending); 11.6 pending |
+| Protocol docs synced | ⚠️ 2 low-priority gaps (admin_stats_data, error.banned reserved) |
 
 **Verdict:** Proceed with Phase 12 frontend development in parallel with completing EPIC-11.1–11.6 on VPS, **provided** the 8 live-server tests pass on Ubuntu after deploying P11-001 fix. Frontend should not depend on admin_stats_data or error.banned until those gaps are resolved.
 

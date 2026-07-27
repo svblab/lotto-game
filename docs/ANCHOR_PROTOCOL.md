@@ -39,6 +39,11 @@ connection is not yet authenticated (`$connection->userId === null`).
 Those four actions are the only ones a client can send before
 authenticating; every other action requires an established session.
 
+`error.banned` (ADR-007): reserved in the registry but **not emitted**.
+Ban rejections use the dedicated `banned` packet type instead
+(`{"type":"banned","until":...}`). Kept for forward compatibility;
+do not remove without ADR approval.
+
 ---
 
 ## WebSocket Close Codes
@@ -218,6 +223,14 @@ Server → Room
 {"type": "barrels_drawn", "numbers": [15, 44, 81], "remaining": 57, "next_drawer": "player2", "is_final": false}
 ```
 `numbers`: 1-3 values.
+
+### afk_warning
+Server → Client. Sent to the current drawer when their turn timer
+approaches the auto-draw threshold (EPIC-8.3 / ReconnectService).
+```json
+{"type": "afk_warning", "strike": 1}
+```
+`strike`: `1` (first warning) or `2` (final warning before auto-draw).
 
 ---
 
