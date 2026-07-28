@@ -63,6 +63,17 @@ separate `your_turn` resend or protocol extension — deferred to follow-up Epic
 Decision: **(b) intentionally-retained utility** — docblock updated; no
 production consumer planned; test coverage in test_lobby_integration.php kept.
 
+**Process deviation (Rule 16 — Git Checkpoint Rule):** Phase 13 commits on
+branch `cursor/epic-11-1-vps-ws-test-isolation` did not strictly follow the
+one-Epic-one-commit convention. EPIC-13.3 appears in **two** commit messages:
+`8cd1434` (`EPIC-13.3 wire-afk-drawer-replacement` — ReconnectService only)
+and `f4cf0f4` (`EPIC-13.2-13.3 wire-afk-turn-rotation-and-apartment-resume`
+— ApartmentService `finishApartment`). EPIC-13.2 landed inside `b203493`
+(`EPIC-13.1 start-game-first-turn`) because `handleDrawBarrel()` and
+`handleStartGame()` share `GameService.php` in a single diff. All epics are
+implemented and verified; numbering in commit messages is authoritative for
+audit only — see DECISION LOG 2026-07-28.
+
 ---
 
 - [IN PROGRESS] EPIC-11.6 Load testing (Phase 11 — instrumentation complete 2026-07-27; VPS load runs pending)
@@ -1988,6 +1999,14 @@ Result:
 
 ## DECISION LOG
 
+- 2026-07-28 — Phase 13 git checkpoint deviation Accepted (process note, no
+  code impact): implementation followed Rule 16 intent (each Epic independently
+  verifiable) but commit boundaries did not map 1:1 to Epic numbers. EPIC-13.3
+  label duplicated across commits `8cd1434` and `f4cf0f4`; EPIC-13.2 bundled
+  into `b203493` (EPIC-13.1) due to shared `GameService.php` edits. Documented
+  in Phase 13 block above. Future phases: split file edits per Epic before
+  committing, or use explicit `EPIC-13.2+13.3` combined messages when files
+  cannot be separated without partial commits.
 - 2026-07-26 — ROADMAP.md Phase 11/12/13/14 reorder Accepted (user
   decision, following up on a concern raised after EPIC-10.7): Frontend
   depends entirely on the server implementation, so auditing the server

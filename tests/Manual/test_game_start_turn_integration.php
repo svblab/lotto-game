@@ -203,6 +203,44 @@ function makePlayer(TIntMockConnection $conn, int $cardsCount = 1): array
     assert_true(!empty($r['game_afk_timer_id']), 'integration: game_afk_timer_id armed');
 }
 
+// ---------------------------------------------------------------------------
+// Edge case: GameService without setReconnectService() — your_turn only, no AFK timer
+// ---------------------------------------------------------------------------
+
+{
+    MockTimer::reset();
+    $host = new TIntMockConnection(1, 10, 'host');
+    $p2 = new TIntMockConnection(2, 20, 'p2');
+    $worker = new TIntMockWorker();
+    $room = makeRoom(2, [1, 2]);
+    $room['players'][1] = makePlayer($host, 1);
+    $room['players'][2] = makePlayer($p2, 1);
+    $worker->rooms[2] = $room;
+
+    $db = new TIntMockDatabase(new TIntMockPDO());
+    $users = [
+        10 => ['id' => 10, 'coins' => 500],
+        20 => ['id' => 20, 'coins' => 500],
+    ];
+    $stmts = new TIntMockStmts($users);
+    $log = new TIntMockLogger();
+    $eng = new LottoEngine();
+    $vic = new VictoryService();
+    $apt = new ApartmentService($db, $stmts, $log);
+    $fin = (new ReflectionClass(GameFinishService::class))->newInstanceWithoutConstructor();
+    $game = new GameService($db, $stmts, $eng, $log, $vic, $apt, $fin);
+    // Deliberately no setReconnectService() — mirrors test_game_start.php / test_turn_system.php
+
+    $game->handleStartGame($host, $worker);
+
+    $r = $worker->rooms[2];
+
+    assert_true(count($host->sentOfType('your_turn')) === 1, 'no-reconnect-svc: your_turn still sent');
+    assert_true($r['players'][1]['afk_start'] !== null, 'no-reconnect-svc: afk_start still set');
+    assert_true(empty($r['game_afk_timer_id']), 'no-reconnect-svc: game_afk_timer_id not armed');
+    assert_true(\MockTimer::$addCount === 0, 'no-reconnect-svc: no timer registered in MockTimer');
+}
+
 $total = $passed + $failed;
 echo "\n--- EPIC-13.4 Turn-Start Integration Test ---\n";
 echo "$passed / $total PASSED\n";
