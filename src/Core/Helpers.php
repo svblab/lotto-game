@@ -248,6 +248,56 @@ function lottoPlayerStateTransition(
     }
 }
 
+/**
+ * Windows dev: load SQLite extensions when php.ini omits them.
+ * Safe no-op on Linux/VPS where pdo_sqlite is always enabled.
+ */
+function lottoBootstrapPhpExtensions(): void
+{
+    if (DIRECTORY_SEPARATOR !== '\\') {
+        return;
+    }
+
+    $extDir = dirname(PHP_BINARY) . DIRECTORY_SEPARATOR . 'ext';
+    if (!is_dir($extDir)) {
+        return;
+    }
+
+    ini_set('extension_dir', $extDir);
+    if (!extension_loaded('sqlite3')) {
+        @dl('php_sqlite3.dll');
+    }
+    if (!extension_loaded('pdo_sqlite')) {
+        @dl('php_pdo_sqlite.dll');
+    }
+}
+
+/**
+ * PHP -d flags for spawning child processes on Windows (proc_open cannot dl()).
+ *
+ * @return list<string>
+ */
+function lottoPhpIniArgs(): array
+{
+    if (DIRECTORY_SEPARATOR !== '\\') {
+        return [];
+    }
+
+    $extDir = dirname(PHP_BINARY) . DIRECTORY_SEPARATOR . 'ext';
+    if (!is_dir($extDir)) {
+        return [];
+    }
+
+    return [
+        '-d',
+        'extension_dir=' . $extDir,
+        '-d',
+        'extension=php_sqlite3.dll',
+        '-d',
+        'extension=php_pdo_sqlite.dll',
+    ];
+}
+
 function lottoApplyTestConfig(): void
 {
     $configFile = lottoRuntimeEnv('LOTTO_TEST_CONFIG');
