@@ -85,10 +85,10 @@ final class LobbyService
 
     /**
      * Рассылает актуальный room_list всем аутентифицированным клиентам.
-     * Используется после уничтожения комнаты, чтобы лобби синхронизировалось
+     * Вызывается после create/join/leave/destroy, чтобы лобби синхронизировалось
      * без ручного запроса room_list.
      */
-    private function broadcastRoomList(object $worker): void
+    public function broadcastRoomList(object $worker): void
     {
         $packet = $this->buildRoomListPacket($worker);
 
@@ -198,6 +198,8 @@ final class LobbyService
         // --- 9. Ответный пакет room_joined ---
         // Контракт: ANCHOR_PROTOCOL.md § Lobby → room_joined
         sendJson($connection, $this->buildRoomJoinedPacket($worker->rooms[$roomId], $connection));
+
+        $this->broadcastRoomList($worker);
     }
 
     /**
@@ -312,6 +314,8 @@ final class LobbyService
         if (count($room['players']) >= 2) {
             $this->startLobbyAfkTimer($worker, $roomId);
         }
+
+        $this->broadcastRoomList($worker);
     }
 
     /**
@@ -433,23 +437,23 @@ final class LobbyService
         // Если комната опустела — уничтожаем
         if (empty($room['players'])) {
             $this->roomManager->destroyRoom($worker, $roomId);
-            $this->broadcastRoomList($worker);
-            return;
-        }
+        } else {
+            // Рассылаем player_left оставшимся активным игрокам
+            // Контракт: ANCHOR_PROTOCOL.md § Lobby → player_left
+            $packet = [
+                'type'     => 'player_left',
+                'username' => $username,
+                'reason'   => $reason,
+            ];
 
-        // Рассылаем player_left оставшимся активным игрокам
-        // Контракт: ANCHOR_PROTOCOL.md § Lobby → player_left
-        $packet = [
-            'type'     => 'player_left',
-            'username' => $username,
-            'reason'   => $reason,
-        ];
-
-        foreach ($room['players'] as $player) {
-            if ($player['status'] === 'active') {
-                sendJson($player['connection'], $packet);
+            foreach ($room['players'] as $player) {
+                if ($player['status'] === 'active') {
+                    sendJson($player['connection'], $packet);
+                }
             }
         }
+
+        $this->broadcastRoomList($worker);
     }
 
     /**
@@ -479,6 +483,10 @@ final class LobbyService
                 $room['host_conn_id'] = $connId;
                 $newHostUsername = $room['players'][$connId]['username'];
 
+                // Lobby AFK timer checks host.last_action — refresh on promotion so
+                // a player with stale activity is not immediately re-transferred.
+                $room['players'][$connId]['last_action'] = time();
+
                 $hostChangedPacket = [
                     'type' => 'host_changed',
                     'host' => $newHostUsername,
@@ -499,6 +507,7 @@ final class LobbyService
 
         // Нет активных игроков — уничтожаем комнату
         $this->roomManager->destroyRoom($worker, $roomId);
+        $this->broadcastRoomList($worker);
     }
 
     // -------------------------------------------------------------------------

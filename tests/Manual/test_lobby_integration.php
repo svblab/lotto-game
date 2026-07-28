@@ -243,6 +243,56 @@ $pwdRoomId = $connPwd->lastPacket()['room_id'];
 ok('createRoom: password_hash is not null',           $w6->rooms[$pwdRoomId]['password_hash'] !== null);
 ok('createRoom: password_hash is bcrypt',             password_verify('secret', $w6->rooms[$pwdRoomId]['password_hash']));
 
+// ─── SUITE 2b: room_list broadcast on membership changes ─────────────────────
+
+echo "\n=== SUITE 2b: room_list broadcast ===\n";
+
+MockConnection::reset();
+
+[$lsBc] = makeServices();
+$workerBc = new MockWorker();
+$watcher  = new MockConnection(1, 'watcher');
+$hostBc   = new MockConnection(2, 'host_bc');
+$joinerBc = new MockConnection(3, 'joiner_bc');
+$workerBc->connections = [$watcher, $hostBc, $joinerBc];
+
+$lsBc->handleCreateRoom(['max_players' => 4, 'password' => '', 'cards_count' => 1], $hostBc, $workerBc);
+$bcRoomId = (int) array_key_first($workerBc->rooms);
+ok('broadcast: createRoom pushes room_list to lobby clients',
+    ($watcher->lastPacket()['type'] ?? '') === 'room_list');
+$bcEntry = null;
+foreach ($watcher->lastPacket()['rooms'] ?? [] as $entry) {
+    if (($entry['room_id'] ?? null) === $bcRoomId) {
+        $bcEntry = $entry;
+        break;
+    }
+}
+ok('broadcast: createRoom entry players = 1',           ($bcEntry['players'] ?? 0) === 1);
+
+$lsBc->handleJoinRoom(['room_id' => $bcRoomId, 'password' => '', 'cards_count' => 1], $joinerBc, $workerBc);
+ok('broadcast: joinRoom pushes room_list to lobby clients',
+    ($watcher->lastPacket()['type'] ?? '') === 'room_list');
+$bcEntry = null;
+foreach ($watcher->lastPacket()['rooms'] ?? [] as $entry) {
+    if (($entry['room_id'] ?? null) === $bcRoomId) {
+        $bcEntry = $entry;
+        break;
+    }
+}
+ok('broadcast: joinRoom entry players = 2',             ($bcEntry['players'] ?? 0) === 2);
+
+$lsBc->handleLeaveRoom($joinerBc, $workerBc);
+ok('broadcast: leaveRoom pushes room_list to lobby clients',
+    ($watcher->lastPacket()['type'] ?? '') === 'room_list');
+$bcEntry = null;
+foreach ($watcher->lastPacket()['rooms'] ?? [] as $entry) {
+    if (($entry['room_id'] ?? null) === $bcRoomId) {
+        $bcEntry = $entry;
+        break;
+    }
+}
+ok('broadcast: leaveRoom entry players = 1',            ($bcEntry['players'] ?? 0) === 1);
+
 // ─── SUITE 3: handleJoinRoom ─────────────────────────────────────────────────
 
 echo "\n=== SUITE 3: handleJoinRoom ===\n";
@@ -440,6 +490,13 @@ ok('transferHost: AFK afk_j1 receives host_changed',
     ($afkJ1->lastPacket()['type'] ?? '') === 'host_changed');
 ok('transferHost: AFK host_changed username = afk_j1',
     ($afkJ1->lastPacket()['host'] ?? '') === 'afk_j1');
+
+$workerAfk->rooms[$afkRoomId]['players'][$afkJ1->id]['last_action'] = time() - 9999;
+$lsAfk->transferHost($workerAfk, $afkRoomId);
+ok('transferHost: AFK re-transfer skips stale promoted host',
+    $workerAfk->rooms[$afkRoomId]['host_conn_id'] === $afkHost->id);
+ok('transferHost: AFK refreshes new host last_action on promotion',
+    (time() - $workerAfk->rooms[$afkRoomId]['players'][$afkHost->id]['last_action']) <= 2);
 
 // ─── SUITE 6: handleRoomList ─────────────────────────────────────────────────
 

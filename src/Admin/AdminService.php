@@ -451,6 +451,10 @@ final class AdminService
         } else {
             unset($worker->rooms[$roomId]);
         }
+
+        if ($this->lobbyService !== null) {
+            $this->lobbyService->broadcastRoomList($worker);
+        }
     }
 
     /**
