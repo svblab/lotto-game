@@ -61,6 +61,26 @@ function summary(): void
     }
 }
 
+function packetOfType(MockConnection $conn, string $type): ?array
+{
+    foreach ($conn->sent as $packet) {
+        if (($packet['type'] ?? null) === $type) {
+            return $packet;
+        }
+    }
+    return null;
+}
+
+function lastPacketOfType(MockConnection $conn, string $type): ?array
+{
+    for ($i = count($conn->sent) - 1; $i >= 0; $i--) {
+        if (($conn->sent[$i]['type'] ?? null) === $type) {
+            return $conn->sent[$i];
+        }
+    }
+    return null;
+}
+
 // ─── Mock helpers ─────────────────────────────────────────────────────────────
 
 class MockConnection
@@ -192,7 +212,7 @@ ok('createRoom: sends room_joined',                   ($pkt['type'] ?? '') === '
 ok('createRoom: room_joined has room_id',             isset($pkt['room_id']));
 ok('createRoom: room_joined status = waiting',        ($pkt['status'] ?? '') === 'waiting');
 ok('createRoom: room_joined bank = 0',                ($pkt['bank'] ?? -1) === 0);
-ok('createRoom: room_joined host = username',         ($pkt['host'] ?? '') === 'host');
+ok('createRoom: room_joined host empty while solo',     ($pkt['host'] ?? 'x') === '');
 ok('createRoom: room_joined players count = 1',       count($pkt['players'] ?? []) === 1);
 ok('createRoom: player entry username',               ($pkt['players'][0]['username'] ?? '') === 'host');
 ok('createRoom: player entry cards_count',            ($pkt['players'][0]['cards_count'] ?? 0) === 1);
@@ -303,18 +323,22 @@ MockConnection::reset();
 $worker = new MockWorker();
 $host   = new MockConnection(1, 'host');
 $ls->handleCreateRoom(['max_players' => 4, 'password' => '', 'cards_count' => 1], $host, $worker);
-$roomId = $host->lastPacket()['room_id'];
+$roomId = (int) array_key_first($worker->rooms);
 
 $joiner = new MockConnection(2, 'joiner');
 $ls->handleJoinRoom(['room_id' => $roomId, 'password' => '', 'cards_count' => 2], $joiner, $worker);
-$pktJoin = $joiner->lastPacket();
+$pktJoin = packetOfType($joiner, 'room_joined');
 ok('joinRoom: sends room_joined to joiner',           ($pktJoin['type'] ?? '') === 'room_joined');
 ok('joinRoom: room_joined players count = 2',         count($pktJoin['players'] ?? []) === 2);
-ok('joinRoom: host receives player_joined',           ($host->lastPacket()['type'] ?? '') === 'player_joined');
-ok('joinRoom: player_joined username correct',        ($host->lastPacket()['username'] ?? '') === 'joiner');
-ok('joinRoom: player_joined cards_count correct',     ($host->lastPacket()['cards_count'] ?? 0) === 2);
+$hostPlayerJoined = packetOfType($host, 'player_joined');
+ok('joinRoom: host receives player_joined',           ($hostPlayerJoined['type'] ?? '') === 'player_joined');
+ok('joinRoom: player_joined username correct',        ($hostPlayerJoined['username'] ?? '') === 'joiner');
+ok('joinRoom: player_joined cards_count correct',     ($hostPlayerJoined['cards_count'] ?? 0) === 2);
 ok('joinRoom: joiner added to drawer_order',          in_array($joiner->id, $worker->rooms[$roomId]['drawer_order']));
 ok('joinRoom: drawer_order FIFO host first',          $worker->rooms[$roomId]['drawer_order'][0] === $host->id);
+ok('joinRoom: host promoted on 1→2 transition',       (packetOfType($host, 'host_changed')['type'] ?? '') === 'host_changed');
+ok('joinRoom: host_changed username = creator',         (packetOfType($host, 'host_changed')['host'] ?? '') === 'host');
+ok('joinRoom: room_joined host set for joiner',         ($pktJoin['host'] ?? '') === 'host');
 
 $connNotFound = new MockConnection(3, 'u3');
 $ls->handleJoinRoom(['room_id' => 9999, 'password' => '', 'cards_count' => 1], $connNotFound, $worker);
@@ -357,7 +381,7 @@ ok('joinRoom: error.server_full wins over room_full when both apply (FIX-7/ADR-0
 $w3      = new MockWorker();
 $hostPwd = new MockConnection(20, 'hpwd');
 $ls3->handleCreateRoom(['max_players' => 4, 'password' => 'mypass', 'cards_count' => 1], $hostPwd, $w3);
-$pwdRoomId    = $hostPwd->lastPacket()['room_id'];
+$pwdRoomId    = (int) array_key_first($w3->rooms);
 $connWrongPwd = new MockConnection(21, 'wrongpwd');
 $ls3->handleJoinRoom(['room_id' => $pwdRoomId, 'password' => 'bad', 'cards_count' => 1], $connWrongPwd, $w3);
 ok('joinRoom: error on wrong password',
@@ -366,7 +390,7 @@ ok('joinRoom: error on wrong password',
 $connGoodPwd = new MockConnection(22, 'goodpwd');
 $ls3->handleJoinRoom(['room_id' => $pwdRoomId, 'password' => 'mypass', 'cards_count' => 1], $connGoodPwd, $w3);
 ok('joinRoom: success with correct password',
-    ($connGoodPwd->lastPacket()['type'] ?? '') === 'room_joined');
+    (packetOfType($connGoodPwd, 'room_joined')['type'] ?? '') === 'room_joined');
 
 $connNoAuth         = new MockConnection();
 $connNoAuth->userId = null;
@@ -385,7 +409,7 @@ MockConnection::reset();
 $worker = new MockWorker();
 $host   = new MockConnection(1, 'host');
 $ls->handleCreateRoom(['max_players' => 4, 'password' => '', 'cards_count' => 1], $host, $worker);
-$roomId = $host->lastPacket()['room_id'];
+$roomId = (int) array_key_first($worker->rooms);
 $joiner = new MockConnection(2, 'joiner');
 $ls->handleJoinRoom(['room_id' => $roomId, 'password' => '', 'cards_count' => 1], $joiner, $worker);
 
@@ -394,9 +418,11 @@ ok('leaveRoom: room still exists after non-host leaves', isset($worker->rooms[$r
 ok('leaveRoom: joiner removed from players',             !isset($worker->rooms[$roomId]['players'][$joiner->id]));
 ok('leaveRoom: joiner removed from drawer_order',
     !in_array($joiner->id, $worker->rooms[$roomId]['drawer_order']));
-ok('leaveRoom: host receives player_left',               ($host->lastPacket()['type'] ?? '') === 'player_left');
-ok('leaveRoom: player_left username correct',            ($host->lastPacket()['username'] ?? '') === 'joiner');
-ok('leaveRoom: player_left reason = leave',              ($host->lastPacket()['reason'] ?? '') === 'leave');
+ok('leaveRoom: host receives player_left',               (packetOfType($host, 'player_left')['type'] ?? '') === 'player_left');
+ok('leaveRoom: player_left username correct',            (packetOfType($host, 'player_left')['username'] ?? '') === 'joiner');
+ok('leaveRoom: player_left reason = leave',              (packetOfType($host, 'player_left')['reason'] ?? '') === 'leave');
+ok('leaveRoom: solo player gets host_changed cleared',  (lastPacketOfType($host, 'host_changed')['type'] ?? '') === 'host_changed');
+ok('leaveRoom: host_changed empty when solo',           (lastPacketOfType($host, 'host_changed')['host'] ?? 'x') === '');
 
 ok('leaveRoom: joiner in all_players_history',
     isset($worker->rooms[$roomId]['all_players_history'][$joiner->id]));
@@ -452,7 +478,7 @@ MockConnection::reset();
 $worker = new MockWorker();
 $host   = new MockConnection(1, 'host');
 $ls->handleCreateRoom(['max_players' => 4, 'password' => '', 'cards_count' => 1], $host, $worker);
-$roomId = $host->lastPacket()['room_id'];
+$roomId = (int) array_key_first($worker->rooms);
 $j1     = new MockConnection(2, 'j1');
 $j2     = new MockConnection(3, 'j2');
 $ls->handleJoinRoom(['room_id' => $roomId, 'password' => '', 'cards_count' => 1], $j1, $worker);
@@ -550,7 +576,7 @@ $host   = new MockConnection(1, 'host');
 $ls->handleCreateRoom(['max_players' => 4, 'password' => '', 'cards_count' => 1], $host, $worker);
 ok('afkTimer: no timer on createRoom (1 player)',        MockTimer::$addCount === 0);
 
-$roomId = $host->lastPacket()['room_id'];
+$roomId = (int) array_key_first($worker->rooms);
 $j1     = new MockConnection(2, 'j1');
 $ls->handleJoinRoom(['room_id' => $roomId, 'password' => '', 'cards_count' => 1], $j1, $worker);
 ok('afkTimer: timer created on join (count=2)',          MockTimer::$addCount === 1);
@@ -560,8 +586,8 @@ $addBefore = MockTimer::$addCount;
 $delBefore = MockTimer::$delCount;
 $j2        = new MockConnection(3, 'j2');
 $ls->handleJoinRoom(['room_id' => $roomId, 'password' => '', 'cards_count' => 1], $j2, $worker);
-ok('afkTimer: old timer deleted on re-join (max 1/room)', MockTimer::$delCount === $delBefore + 1);
-ok('afkTimer: new timer created on re-join',              MockTimer::$addCount === $addBefore + 1);
+ok('afkTimer: third join does not delete running timer', MockTimer::$delCount === $delBefore);
+ok('afkTimer: third join does not create another timer', MockTimer::$addCount === $addBefore);
 
 $ls->handleLeaveRoom($j2, $worker);
 $ls->handleLeaveRoom($j1, $worker);
