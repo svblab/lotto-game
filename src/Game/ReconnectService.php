@@ -428,7 +428,7 @@ final class ReconnectService
 
         if ($wasDrawer) {
             $this->gameService->nextDrawer($room);
-            $this->gameService->sendYourTurn($room);
+            $this->gameService->startTurn($room, $worker, $roomId);
         }
     }
 
