@@ -352,6 +352,7 @@
   }
 
   global.LottoUI = {
+    $$,
     $,
     showScreen,
     showToast,

@@ -512,7 +512,7 @@
   async function init() {
     await I18n().load(I18n().detectLang());
     bindEvents();
-    socket = new WS().LottoSocket();
+    socket = new (WS().LottoSocket)();
     wireSocket();
     socket.connect();
     UI().showScreen('auth');
