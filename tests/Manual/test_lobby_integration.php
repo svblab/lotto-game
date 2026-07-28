@@ -102,6 +102,7 @@ class MockWorker
     public array $rooms           = [];
     public array $userConnections = [];
     public array $sessionTokens   = [];
+    public array $connections     = [];
 }
 
 function makeLogger(): Logger
@@ -362,6 +363,19 @@ $soloRoomId = $solo->lastPacket()['room_id'];
 $ls2->handleLeaveRoom($solo, $w2);
 ok('leaveRoom: room destroyed when last player leaves',  !isset($w2->rooms[$soloRoomId]));
 
+[$lsBroadcast] = makeServices();
+$wBroadcast       = new MockWorker();
+$lobbyWatcher     = new MockConnection(30, 'watcher');
+$wBroadcast->connections = [$lobbyWatcher];
+$soloBroadcast    = new MockConnection(31, 'solo_broadcast');
+$lsBroadcast->handleCreateRoom(['max_players' => 4, 'password' => '', 'cards_count' => 1], $soloBroadcast, $wBroadcast);
+$soloBroadcastRoomId = $soloBroadcast->lastPacket()['room_id'];
+$lsBroadcast->handleLeaveRoom($soloBroadcast, $wBroadcast);
+ok('leaveRoom: broadcasts room_list when room destroyed',
+    ($lobbyWatcher->lastPacket()['type'] ?? '') === 'room_list');
+ok('leaveRoom: broadcast room_list excludes destroyed room',
+    count($lobbyWatcher->lastPacket()['rooms'] ?? ['x']) === 0);
+
 [$ls3] = makeServices();
 $w3       = new MockWorker();
 $hPlaying = new MockConnection(20, 'hplaying');
@@ -406,6 +420,26 @@ ok('transferHost: j2 host_changed username = j1',        ($j2->lastPacket()['hos
 $ls->handleLeaveRoom($j1, $worker);
 $ls->handleLeaveRoom($j2, $worker);
 ok('transferHost: room destroyed when all leave',        !isset($worker->rooms[$roomId]));
+
+MockConnection::reset();
+
+[$lsAfk] = makeServices();
+$workerAfk = new MockWorker();
+$afkHost   = new MockConnection(1, 'afk_host');
+$lsAfk->handleCreateRoom(['max_players' => 4, 'password' => '', 'cards_count' => 1], $afkHost, $workerAfk);
+$afkRoomId = $afkHost->lastPacket()['room_id'];
+$afkJ1     = new MockConnection(2, 'afk_j1');
+$lsAfk->handleJoinRoom(['room_id' => $afkRoomId, 'password' => '', 'cards_count' => 1], $afkJ1, $workerAfk);
+
+$lsAfk->transferHost($workerAfk, $afkRoomId);
+ok('transferHost: AFK skips current host, transfers to afk_j1',
+    $workerAfk->rooms[$afkRoomId]['host_conn_id'] === $afkJ1->id);
+ok('transferHost: AFK old host still in room',
+    isset($workerAfk->rooms[$afkRoomId]['players'][$afkHost->id]));
+ok('transferHost: AFK afk_j1 receives host_changed',
+    ($afkJ1->lastPacket()['type'] ?? '') === 'host_changed');
+ok('transferHost: AFK host_changed username = afk_j1',
+    ($afkJ1->lastPacket()['host'] ?? '') === 'afk_j1');
 
 // ─── SUITE 6: handleRoomList ─────────────────────────────────────────────────
 

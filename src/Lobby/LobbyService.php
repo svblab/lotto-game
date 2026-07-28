@@ -80,16 +80,39 @@ final class LobbyService
         }
 
         // --- 2. Формируем список комнат ---
+        sendJson($connection, $this->buildRoomListPacket($worker));
+    }
+
+    /**
+     * Рассылает актуальный room_list всем аутентифицированным клиентам.
+     * Используется после уничтожения комнаты, чтобы лобби синхронизировалось
+     * без ручного запроса room_list.
+     */
+    private function broadcastRoomList(object $worker): void
+    {
+        $packet = $this->buildRoomListPacket($worker);
+
+        foreach ($worker->connections ?? [] as $connection) {
+            if (!empty($connection->userId)) {
+                sendJson($connection, $packet);
+            }
+        }
+    }
+
+    /**
+     * @return array{type: string, rooms: list<array<string, mixed>>}
+     */
+    private function buildRoomListPacket(object $worker): array
+    {
         $rooms = [];
         foreach ($worker->rooms ?? [] as $room) {
             $rooms[] = $this->roomManager->buildRoomListEntry($room);
         }
 
-        // --- 3. Отправляем ответ ---
-        sendJson($connection, [
+        return [
             'type'  => 'room_list',
             'rooms' => $rooms,
-        ]);
+        ];
     }
 
     /**
@@ -410,6 +433,7 @@ final class LobbyService
         // Если комната опустела — уничтожаем
         if (empty($room['players'])) {
             $this->roomManager->destroyRoom($worker, $roomId);
+            $this->broadcastRoomList($worker);
             return;
         }
 
@@ -445,9 +469,10 @@ final class LobbyService
 
         $room = &$worker->rooms[$roomId];
 
-        // Ищем первого активного игрока из drawer_order (FIFO)
+        // Ищем первого активного игрока из drawer_order (FIFO), кроме текущего хоста
         foreach ($room['drawer_order'] as $connId) {
             if (
+                $connId !== $room['host_conn_id'] &&
                 isset($room['players'][$connId]) &&
                 $room['players'][$connId]['status'] === 'active'
             ) {
