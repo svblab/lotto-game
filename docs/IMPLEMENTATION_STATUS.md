@@ -1,5 +1,81 @@
 # Implementation Status — Lotto Game Project
 
+## Phase 13 — Game AFK Wiring & Orphaned-Method Fixes
+
+- [DONE] EPIC-13.0 ADR: Game AFK timer wiring decision
+Files:
+- docs/AUDIT_ORPHANED_METHODS_2026-07-28.md (новый — archived audit report)
+- docs/ADR/008.md (новый — startTurn + setter wiring decision)
+- docs/ROADMAP.md (diff — Phase 13 added, skip note updated)
+
+Decision: ADR-008 option (c) — `GameService::startTurn()` atomically sends
+`your_turn` and arms AFK timer via post-construction `setReconnectService()`.
+
+- [DONE] EPIC-13.1 Wire first-turn your_turn + AFK arm into handleStartGame()
+Files:
+- src/Game/GameService.php (diff — startTurn, setReconnectService, handleStartGame)
+- server.php (diff — setReconnectService wiring)
+
+Verification: `php tests/Manual/test_game_start.php` — 46/46 PASS (Group 7 lines
+401–402 updated; Group 10 afk_start assertion updated for drawer).
+
+- [DONE] EPIC-13.2 Wire AFK arm into handleDrawBarrel() turn rotation
+Files:
+- src/Game/GameService.php (diff — handleDrawBarrel uses startTurn)
+
+Verification: `php tests/Manual/test_turn_system.php` — 38/38 PASS. Group 4
+flagged for EPIC-13.4: added afk_start assertion on next drawer.
+
+- [DONE] EPIC-13.3 Wire AFK arm into drawer-replacement paths
+Files:
+- src/Game/ReconnectService.php (diff — removePlayerFromGame uses startTurn)
+- src/Game/ApartmentService.php (diff — finishApartment uses startTurn)
+
+Verification: `php tests/Manual/test_reconnect.php` 20/20, `test_apartment.php` 32/32.
+
+- [DONE] EPIC-13.4 Test corrections + turn-start integration test
+Files:
+- tests/Manual/test_game_start.php (diff — Group 7/10 assertions)
+- tests/Manual/test_turn_system.php (diff — Group 4 afk_start)
+- tests/Manual/test_game_packet_routing.php (diff — TEST 2 your_turn)
+- tests/Manual/test_phase11_core_flows.php (diff — your_turn assertion)
+- tests/Manual/test_game_start_turn_integration.php (новый — 7/7 PASS)
+- tests/Manual/test_admin_ban.php (diff — MockApartmentService stub)
+
+Verification: `php run_ALL_tests.php` — 41/41 test files PASS.
+
+- [DONE] EPIC-13.5 Apartment early-finish check on kick/ban removal
+Files:
+- src/Game/ApartmentService.php (diff — bindGameService, maybeFinishApartmentEarly)
+- src/Admin/AdminService.php (diff — kick/ban apartment paths)
+- server.php (diff — bindGameService)
+- tests/Manual/test_admin_kick.php (diff — TEST 9 early-finish scenario)
+
+Verification: test_admin_kick TEST 9 PASS; test_apartment 32/32.
+
+- [DONE] EPIC-13.6 Investigation: reconnect mid-turn drawer turn-signal
+Finding: **Frontend does NOT self-activate draw button from reconnect_state.**
+`onReconnectState` (playing) calls `UI().setDrawButton(false, false)` and
+`reconnect_state` carries no active-drawer field. Reconnecting drawer needs
+separate `your_turn` resend or protocol extension — deferred to follow-up Epic.
+
+- [DONE] EPIC-13.7 Cleanup: RoomManager::findRoomIdByUserId()
+Decision: **(b) intentionally-retained utility** — docblock updated; no
+production consumer planned; test coverage in test_lobby_integration.php kept.
+
+**Process deviation (Rule 16 — Git Checkpoint Rule):** Phase 13 commits on
+branch `cursor/epic-11-1-vps-ws-test-isolation` did not strictly follow the
+one-Epic-one-commit convention. EPIC-13.3 appears in **two** commit messages:
+`8cd1434` (`EPIC-13.3 wire-afk-drawer-replacement` — ReconnectService only)
+and `f4cf0f4` (`EPIC-13.2-13.3 wire-afk-turn-rotation-and-apartment-resume`
+— ApartmentService `finishApartment`). EPIC-13.2 landed inside `b203493`
+(`EPIC-13.1 start-game-first-turn`) because `handleDrawBarrel()` and
+`handleStartGame()` share `GameService.php` in a single diff. All epics are
+implemented and verified; numbering in commit messages is authoritative for
+audit only — see DECISION LOG 2026-07-28.
+
+---
+
 - [IN PROGRESS] EPIC-11.6 Load testing (Phase 11 — instrumentation complete 2026-07-27; VPS load runs pending)
 Files:
 - src/Core/LoadAudit.php (новый файл — opt-in handler latency + snapshots → logs/load_audit.log)
@@ -1923,6 +1999,14 @@ Result:
 
 ## DECISION LOG
 
+- 2026-07-28 — Phase 13 git checkpoint deviation Accepted (process note, no
+  code impact): implementation followed Rule 16 intent (each Epic independently
+  verifiable) but commit boundaries did not map 1:1 to Epic numbers. EPIC-13.3
+  label duplicated across commits `8cd1434` and `f4cf0f4`; EPIC-13.2 bundled
+  into `b203493` (EPIC-13.1) due to shared `GameService.php` edits. Documented
+  in Phase 13 block above. Future phases: split file edits per Epic before
+  committing, or use explicit `EPIC-13.2+13.3` combined messages when files
+  cannot be separated without partial commits.
 - 2026-07-26 — ROADMAP.md Phase 11/12/13/14 reorder Accepted (user
   decision, following up on a concern raised after EPIC-10.7): Frontend
   depends entirely on the server implementation, so auditing the server
@@ -2101,6 +2185,12 @@ Result:
 ---
 
 ## KNOWN GAPS / NOT VERIFIED
+
+- ⚠️ OPEN (EPIC-13.6, 2026-07-28): Reconnect mid-turn — reconnecting active
+  drawer does not receive `your_turn`; frontend `onReconnectState` explicitly
+  disables draw button (`setDrawButton(false, false)`) and `reconnect_state`
+  carries no active-drawer field. Requires follow-up Epic (protocol change or
+  `your_turn` resend) before implementation — not reproduced live yet.
 
 - ⚠️ OPEN (низкий приоритет, найдено при FIX-12): real-WS-client
   subprocess-тесты (test_auth_packet_routing.php, test_lobby_packet_routing.php,

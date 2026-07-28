@@ -103,8 +103,10 @@ require __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/src/Core/Helpers.php';
 
 use function Lotto\Core\lottoApplyTestConfig;
+use function Lotto\Core\lottoBootstrapPhpExtensions;
 use function Lotto\Core\lottoRuntimeEnv;
 
+lottoBootstrapPhpExtensions();
 lottoApplyTestConfig();
 
 use Workerman\Worker;
@@ -202,6 +204,7 @@ $worker->onWorkerStart = function (Worker $worker): void {
         $apartmentService,
         $gameFinishService
     );
+    $apartmentService->bindGameService($worker->gameService);
     $worker->gameHandler = new GameHandler($worker->gameService);
 
     // ReconnectService (EPIC-8.0) — конструктор требует LobbyService И
@@ -213,6 +216,8 @@ $worker->onWorkerStart = function (Worker $worker): void {
         $worker->gameService,
         $worker->logger
     );
+    // EPIC-13.1 (ADR-008): post-construction wiring for startTurn() AFK arm.
+    $worker->gameService->setReconnectService($worker->reconnectService);
 
     // EPIC-10.6 (Admin packet routing): AdminService уже реализован
     // (Phase 9) — здесь только сборка зависимостей и подключение к

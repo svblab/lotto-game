@@ -35,6 +35,8 @@ use Lotto\Core\RoomManager;
 use Lotto\Core\Logger;
 use Lotto\Lobby\LobbyService;
 use Lotto\Game\ApartmentService;
+use Lotto\Game\GameFinishService;
+use Lotto\Game\ReconnectService;
 
 $passed = 0;
 $failed = 0;
@@ -85,6 +87,20 @@ function makeRoom(int $roomId, int $hostConnId, string $status): array
         'active_drawer_conn_id' => null, 'drawer_order' => [], 'bag' => [], 'drawn_numbers' => [],
         'players' => [], 'all_players_history' => [],
     ];
+}
+
+/** Minimal PDO stub for GameFinishService timer-cleanup tests (no SQLite driver needed). */
+function makeFinishService(FakeLogger $logger): GameFinishService
+{
+    $pdo = new class extends \PDO {
+        public function __construct() {}
+        public function beginTransaction(): bool { return true; }
+        public function commit(): bool { return true; }
+        public function rollBack(): bool { return true; }
+    };
+    $db = new \Lotto\Infrastructure\Database($pdo);
+    $stmts = new \Lotto\Infrastructure\PreparedStatements($pdo);
+    return new GameFinishService($db, $stmts, $logger);
 }
 
 // =============================================================================
@@ -162,6 +178,137 @@ assertTrue(
     !isset(\MockTimer::$active[$timerId3]),
     'FIX-6: reconnect_timer cancelled after removePlayerFromApartment()'
 );
+
+// =============================================================================
+// TEST 4 — RoomManager::destroyRoom() cancels game_afk_timer_id
+// =============================================================================
+
+echo "\nTEST 4: destroyRoom() cancels game_afk_timer_id (no leak on room destroy)\n";
+
+\MockTimer::reset();
+$gameAfkId = \MockTimer::add(1.0, function () {}, true);
+assertTrue(isset(\MockTimer::$active[$gameAfkId]), 'setup: game_afk timer registered');
+
+$worker4 = new stdClass();
+$worker4->rooms = [];
+$worker4->rooms[4] = makeRoom(4, 400, 'playing');
+$worker4->rooms[4]['game_afk_timer_id'] = $gameAfkId;
+
+$roomManager4 = new RoomManager($logger);
+$roomManager4->destroyRoom($worker4, 4);
+
+assertTrue(
+    !isset(\MockTimer::$active[$gameAfkId]),
+    'game_afk_timer cancelled after RoomManager::destroyRoom()'
+);
+assertTrue(!isset($worker4->rooms[4]), 'room removed from worker');
+
+// =============================================================================
+// TEST 5 — GameFinishService::finishGame() cancels game_afk_timer_id (victory)
+// =============================================================================
+
+echo "\nTEST 5: finishGame(victory) cancels game_afk_timer_id before room destroy\n";
+
+\MockTimer::reset();
+$gameAfkId5 = \MockTimer::add(1.0, function () {}, true);
+
+$worker5 = new stdClass();
+$worker5->rooms = [];
+$h5 = new SpyConnection();
+$worker5->rooms[5] = makeRoom(5, 500, 'playing');
+$worker5->rooms[5]['game_afk_timer_id'] = $gameAfkId5;
+$worker5->rooms[5]['players'][500] = [
+    'user_id' => 50, 'username' => 'winner', 'cards' => [], 'cards_count' => 1,
+    'total_paid' => 10, 'last_action' => time(), 'afk_start' => null, 'strikes' => 0,
+    'auto_draws' => 0, 'status' => 'active', 'session_token' => '', 'reconnect_timer' => null,
+    'connection' => $h5, 'immune' => false,
+];
+
+$finishService = makeFinishService($logger);
+$room5 = &$worker5->rooms[5];
+$finishService->finishGame(
+    $room5,
+    5,
+    [500 => 1],
+    [], // empty prizes — skip DB; timer cleanup is what we test
+    'victory',
+    function () use ($worker5) { unset($worker5->rooms[5]); }
+);
+
+assertTrue(
+    !isset(\MockTimer::$active[$gameAfkId5]),
+    'game_afk_timer cancelled after GameFinishService::finishGame(victory)'
+);
+assertTrue(!isset($worker5->rooms[5]), 'room destroyed after finishGame');
+
+// =============================================================================
+// TEST 6 — ReconnectService last_survivor + empty-room destroy cancel game_afk
+// =============================================================================
+
+echo "\nTEST 6a: finishGame(last_survivor) cancels game_afk_timer_id\n";
+
+\MockTimer::reset();
+$gameAfkId6a = \MockTimer::add(1.0, function () {}, true);
+
+$worker6a = new stdClass();
+$worker6a->rooms = [];
+$c6a = new SpyConnection();
+$worker6a->rooms[6] = makeRoom(6, 601, 'playing');
+$worker6a->rooms[6]['game_afk_timer_id'] = $gameAfkId6a;
+$worker6a->rooms[6]['players'][601] = [
+    'user_id' => 61, 'username' => 'survivor', 'cards' => [], 'cards_count' => 1,
+    'total_paid' => 10, 'last_action' => time(), 'afk_start' => null, 'strikes' => 0,
+    'auto_draws' => 0, 'status' => 'active', 'session_token' => '', 'reconnect_timer' => null,
+    'connection' => $c6a, 'immune' => false,
+];
+
+$finish6a = makeFinishService($logger);
+$room6a = &$worker6a->rooms[6];
+$finish6a->finishGame(
+    $room6a,
+    6,
+    [601 => 1],
+    [],
+    'last_survivor',
+    function () use ($worker6a) { unset($worker6a->rooms[6]); }
+);
+
+assertTrue(
+    !isset(\MockTimer::$active[$gameAfkId6a]),
+    'game_afk_timer cancelled after GameFinishService::finishGame(last_survivor)'
+);
+assertTrue(!isset($worker6a->rooms[6]), 'room destroyed after last_survivor finishGame');
+
+echo "\nTEST 6b: removePlayerFromGame(empty room) cancels game_afk_timer_id\n";
+
+\MockTimer::reset();
+$gameAfkId6b = \MockTimer::add(1.0, function () {}, true);
+
+$worker6b = new stdClass();
+$worker6b->rooms = [];
+$only6b = new SpyConnection();
+$worker6b->rooms[7] = makeRoom(7, 700, 'playing');
+$worker6b->rooms[7]['game_afk_timer_id'] = $gameAfkId6b;
+$worker6b->rooms[7]['players'][701] = [
+    'user_id' => 71, 'username' => 'solo', 'cards' => [], 'cards_count' => 1,
+    'total_paid' => 10, 'last_action' => time(), 'afk_start' => null, 'strikes' => 0,
+    'auto_draws' => 0, 'status' => 'active', 'session_token' => '', 'reconnect_timer' => null,
+    'connection' => $only6b, 'immune' => false,
+];
+
+$noopGame = new class {
+    public function finishGame(): void {}
+    public function nextDrawer(): void {}
+    public function startTurn(): void {}
+};
+$reconnect6b = new ReconnectService(new stdClass(), $noopGame, $logger);
+$reconnect6b->removePlayerFromGame($worker6b, 7, 701, 'afk');
+
+assertTrue(
+    !isset(\MockTimer::$active[$gameAfkId6b]),
+    'game_afk_timer cancelled when last player removed (destroyRoom path)'
+);
+assertTrue(!isset($worker6b->rooms[7]), 'room destroyed when last player removed');
 
 // =============================================================================
 // Regression proof — without FIX-6 this test would fail (documented, not

@@ -143,6 +143,10 @@ final class AdminService
                     'banned',
                     $worker
                 );
+                if (isset($worker->rooms[$roomId])) {
+                    $room = &$worker->rooms[$roomId];
+                    $this->apartmentService->maybeFinishApartmentEarly($room, $roomId, $worker);
+                }
             }
         }
 
@@ -324,6 +328,10 @@ final class AdminService
                 'kicked',
                 $worker
             );
+            if (isset($worker->rooms[$roomId])) {
+                $room = &$worker->rooms[$roomId];
+                $this->apartmentService->maybeFinishApartmentEarly($room, $roomId, $worker);
+            }
         }
 
         if ($this->logger !== null) {

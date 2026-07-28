@@ -187,7 +187,10 @@ final class RoomManager
 
     /**
      * Ищет room_id по user_id игрока.
-     * Используется при reconnect для восстановления состояния.
+     *
+     * Intentionally-retained public utility (EPIC-13.7): zero production callers
+     * as of Phase 13; covered by test_lobby_integration.php. Retained for
+     * future reconnect/admin lookup paths without re-implementing the scan.
      *
      * @return int|null room_id или null если пользователь не в комнате
      */

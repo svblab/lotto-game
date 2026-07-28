@@ -52,6 +52,7 @@ final class GameService
     private VictoryService $victory;
     private ApartmentService $apartment;
     private GameFinishService $finishService;
+    private ?ReconnectService $reconnectService = null;
 
     public function __construct(
         object $db,
@@ -69,6 +70,14 @@ final class GameService
         $this->victory   = $victory;
         $this->apartment = $apartment;
         $this->finishService = $finishService;
+    }
+
+    /**
+     * Post-construction wiring (ADR-008): breaks circular dep with ReconnectService.
+     */
+    public function setReconnectService(ReconnectService $reconnectService): void
+    {
+        $this->reconnectService = $reconnectService;
     }
 
     // -------------------------------------------------------------------------
@@ -330,6 +339,9 @@ final class GameService
 
             $player['connection']->send(json_encode($packet));
         }
+
+        // EPIC-13.1 — first drawer your_turn + game AFK timer (ADR-008, prompt.md § start)
+        $this->startTurn($room, $worker, $roomId);
     }
     // -------------------------------------------------------------------------
     // EPIC-5.0  Send your_turn
@@ -351,6 +363,17 @@ final class GameService
         }
         $room['players'][$drawerConnId]['afk_start'] = time();
         $player['connection']->send(json_encode(['type' => 'your_turn']));
+    }
+
+    /**
+     * EPIC-13.0/13.1 (ADR-008): atomically notify drawer and arm game AFK timer.
+     */
+    public function startTurn(array &$room, object $worker, int $roomId): void
+    {
+        $this->sendYourTurn($room);
+        if ($this->reconnectService !== null) {
+            $this->reconnectService->ensureGameAfkTimer($worker, $roomId);
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -527,7 +550,7 @@ final class GameService
 
         // --- 7. Передать ход следующему ---
         $this->nextDrawer($room);
-        $this->sendYourTurn($room);
+        $this->startTurn($room, $worker, $roomId);
     }
 
     // -------------------------------------------------------------------------

@@ -225,12 +225,14 @@ try {
     // =========================================================================
     // TEST 2: host start_game -> both receive game_started
     // =========================================================================
-    echo "\nTEST 2: host start_game -> game_started broadcast to both players\n";
+    echo "\nTEST 2: host start_game -> game_started broadcast + your_turn to first drawer\n";
     $host->send(json_encode(['action' => 'start_game']));
     $started1 = json_decode($host->recvOrNull() ?? '', true);
     $started2 = json_decode($p2->recvOrNull() ?? '', true);
+    $hostYourTurn = json_decode($host->recvOrNull() ?? '', true);
     check(($started1['type'] ?? null) === 'game_started', 'host receives game_started');
     check(($started2['type'] ?? null) === 'game_started', 'p2 receives game_started');
+    check(($hostYourTurn['type'] ?? null) === 'your_turn', 'host receives your_turn as first drawer');
     check(($started1['bank'] ?? null) === 20, 'bank=20 (2 players x 1 card x 10 coins)');
     check(($started1['drawer_order'] ?? null) === ['e105_host', 'e105_p2'], 'drawer_order = [host, p2] (host first)');
 

@@ -342,6 +342,7 @@ function makeSvc(): array {
     // your_turn sent to p2 (next drawer)
     $p2YT = $p2->sentOfType('your_turn');
     assert_true(count($p2YT) === 1, 'DrawBarrel: your_turn sent to p2');
+    assert_true($r['players'][2]['afk_start'] !== null, 'DrawBarrel: next drawer afk_start set');
 
     // active_drawer rotated to p2
     assert_true($r['active_drawer_conn_id'] === 2, 'DrawBarrel: active_drawer=p2');
