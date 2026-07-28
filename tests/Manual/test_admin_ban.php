@@ -97,6 +97,10 @@ class MockApartmentService
     {
         $this->removed[] = [$roomId, $connId, $reason];
     }
+
+    public function maybeFinishApartmentEarly(array &$room, int $roomId, object $worker): void
+    {
+    }
 }
 
 class MockStmts
