@@ -42,7 +42,10 @@ Files:
 - tests/Manual/test_game_start_turn_integration.php (новый — 7/7 PASS)
 - tests/Manual/test_admin_ban.php (diff — MockApartmentService stub)
 
-Verification: `php run_ALL_tests.php` — 41/41 test files PASS.
+Verification: `php run_ALL_tests.php` — 41/41 test files PASS (local Windows
+dev host, 2026-07-28). VPS `./run_ALL_tests.sh` initially failed with FIX-16
+(8 live WS subprocess tests — server.php fatal on missing bootstrap helper);
+re-verify on VPS after `0de46d0` — see FIX-16.
 
 - [DONE] EPIC-13.5 Apartment early-finish check on kick/ban removal
 Files:
@@ -1084,6 +1087,75 @@ patches/FIX-12-test-register.patch, patches/FIX-12-test-session-service.patch,
 patches/FIX-12-test-single-session.patch, patches/FIX-12-test-victory.patch,
 patches/FIX-12-test-admin-logs.patch, patches/FIX-12-test-admin-integration.patch
 
+## FIX-16 — server.php bootstrap helper missing from committed Helpers.php
+Status: Completed
+Date: 2026-07-28
+
+Found during: full `./run_ALL_tests.sh` on the Ubuntu VPS at the end of
+EPIC-13.4 sign-off — not during local Windows dev, where the committed
+`run_ALL_tests.php` still skips the eight live-WS-subprocess tests via
+`$skipOnWindows` (FIX-15 intent documented in `docs/LOCAL_ENVIRONMENT.md`
+but the bootstrap helpers themselves were never committed).
+
+Background (FIX-15): `lottoBootstrapPhpExtensions()` and `lottoPhpIniArgs()`
+were developed locally for Windows SQLite bootstrap and child-process
+`proc_open` spawning. They lived only in an **uncommitted** diff to
+`src/Core/Helpers.php` alongside local edits to `run_ALL_tests.php`.
+
+Breaking commit: `b203493` (EPIC-13.1) added
+`lottoBootstrapPhpExtensions()` to `server.php:109` (and the corresponding
+`use function` import) — copied from the local uncommitted state — without
+the function definition being present in the repository. On Linux/VPS the
+call is a no-op when defined, but **fatal when undefined**.
+
+Symptom on VPS (`/opt/lotto-game`, `./run_ALL_tests.sh` after `git pull`
+to Phase 13 HEAD before this fix):
+- Eight live WS subprocess tests failed with
+  `server.php did not bind port … in time (running=no)`.
+- stderr on every spawned `server.php`:
+  `PHP Fatal error: Call to undefined function
+  Lotto\Core\lottoBootstrapPhpExtensions() in server.php:109`.
+
+Affected tests (all subprocess-spawned `server.php`):
+`test_admin_packet_routing.php`, `test_auth_packet_routing.php`,
+`test_game_packet_routing.php`, `test_lobby_packet_routing.php`,
+`test_packet_validation.php`, `test_server_bootstrap.php`,
+`test_session_lifecycle.php`, `test_protocol_audit.php`.
+
+Files:
+- src/Core/Helpers.php (diff — add `lottoBootstrapPhpExtensions()` and
+  `lottoPhpIniArgs()`; both no-op / empty-array on Linux)
+
+Fix commit: `0de46d0` — `Fix missing lottoBootstrapPhpExtensions in committed
+Helpers.php.`
+
+Verified:
+- Fresh `git clone` from GitHub at `0de46d0` (branch
+  `cursor/epic-11-1-vps-ws-test-isolation`, no workspace-local files):
+  `php server.php start` with isolated `LOTTO_WS_PORT` reaches Workerman
+  `[ok]` — no fatal error (Windows dev host, 2026-07-28; `composer install`
+  not available in agent environment — vendor copied from lockfile-matched
+  tree for bind test only).
+- Local workspace `php run_ALL_tests.php` at `0de46d0`+: **41/41** test
+  files PASS (Windows dev host, 2026-07-28; uses uncommitted runner with
+  FIX-15 Windows WS enablement).
+- VPS `./run_ALL_tests.sh` after `git pull` to `0de46d0`:
+  **MANUAL VERIFICATION REQUIRED** — agent has no SSH access to
+  `/opt/lotto-game`. Expected: all `tests/Manual/test_*.php` pass (41 files
+  at HEAD); the eight subprocess tests above must reach port bind.
+
+Process lesson (same class as FIX-12): local-only or root-owned artifacts
+masked a production-breaking gap until the VPS-authoritative test run.
+Any symbol `server.php` calls must be committed **in the same commit or an
+earlier one** before the call lands. Uncommitted helper functions
+referenced by committed entrypoints are a release blocker — Windows skips
+are not a substitute for Ubuntu sign-off per `LOCAL_ENVIRONMENT.md`.
+
+No ADR required — no protocol, economy, timer, or room/player structure
+touched. Purely a missing-dependency / process-discipline fix.
+
+Diff: commit `0de46d0` (src/Core/Helpers.php only)
+
 ## EPIC-10.7 — Protocol integration tests
 Status: Completed
 Date: 2026-07-24
@@ -1999,6 +2071,16 @@ Result:
 
 ## DECISION LOG
 
+- 2026-07-28 — FIX-16 Accepted: found during VPS `./run_ALL_tests.sh` at
+  EPIC-13.4 sign-off (not a proactive audit) — `b203493` (EPIC-13.1) called
+  `lottoBootstrapPhpExtensions()` in `server.php` but the function existed
+  only in an uncommitted local `src/Core/Helpers.php` diff (FIX-15 Windows
+  bootstrap work). Eight live-WS-subprocess tests failed on Ubuntu with a
+  fatal error before port bind; local Windows runs did not catch it because
+  the committed `run_ALL_tests.php` still skips those tests via
+  `$skipOnWindows`. Fixed in `0de46d0`. Process takeaway mirrors FIX-12:
+  VPS-authoritative runs expose gaps that dev-host shortcuts hide; never
+  commit `server.php` calls to symbols not yet in the repository.
 - 2026-07-28 — Phase 13 git checkpoint deviation Accepted (process note, no
   code impact): implementation followed Rule 16 intent (each Epic independently
   verifiable) but commit boundaries did not map 1:1 to Epic numbers. EPIC-13.3
