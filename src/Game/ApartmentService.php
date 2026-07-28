@@ -31,6 +31,7 @@ final class ApartmentService
     private object $db;
     private object $stmts;
     private object $logger;
+    private ?object $gameService = null;
     private const APARTMENT_PAYMENT = 5;
 
     public function __construct(object $db, object $stmts, object $logger)
@@ -38,6 +39,14 @@ final class ApartmentService
         $this->db     = $db;
         $this->stmts  = $stmts;
         $this->logger = $logger;
+    }
+
+    /**
+     * Post-construction wiring for early-finish after admin removal (EPIC-13.5).
+     */
+    public function bindGameService(object $gameService): void
+    {
+        $this->gameService = $gameService;
     }
 
     // -------------------------------------------------------------------------
@@ -145,6 +154,21 @@ final class ApartmentService
             }
         }
         return true;
+    }
+
+    /**
+     * EPIC-13.5: after any apartment removal, finish early if all required answered.
+     * Reuses refuse-path logic from handleApartmentChoice().
+     */
+    public function maybeFinishApartmentEarly(array &$room, int $roomId, object $worker): void
+    {
+        if ($this->gameService === null || ($room['status'] ?? null) !== 'apartment') {
+            return;
+        }
+        $participants = $this->getParticipants($room);
+        if ($this->allRequiredAnswered($room, $participants)) {
+            $this->finishApartment($room, $roomId, $worker, $this->gameService);
+        }
     }
 
     /**
@@ -471,7 +495,7 @@ final class ApartmentService
         lottoStateTransition($roomId, 'apartment', 'playing', $resumeTrigger);
         $room['status'] = 'playing';
         $this->logger->info("Room {$roomId}: apartment finished, game resumes");
-        $gameService->sendYourTurn($room);
+        $gameService->startTurn($room, $worker, $roomId);
     }
 
     /**
