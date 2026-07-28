@@ -27,6 +27,7 @@ use function Lotto\Core\lottoStateReject;
  *   room_joined   → Server → Client (входящему игроку)
  *   player_joined → Server → Room  (остальным игрокам)
  *   player_left   → Server → Room  (остальным при выходе)
+ *   host_changed  → Server → Room  (всем активным при смене хоста)
  *
  * Проверяемые лимиты (ANCHOR_CORE.md Part 1):
  *   MAX_ROOMS         = 30  — общее количество комнат
@@ -452,6 +453,17 @@ final class LobbyService
             ) {
                 $room['host_conn_id'] = $connId;
                 $newHostUsername = $room['players'][$connId]['username'];
+
+                $hostChangedPacket = [
+                    'type' => 'host_changed',
+                    'host' => $newHostUsername,
+                ];
+
+                foreach ($room['players'] as $player) {
+                    if ($player['status'] === 'active') {
+                        sendJson($player['connection'], $hostChangedPacket);
+                    }
+                }
 
                 $this->logger->info(
                     "Host transferred in room_id={$roomId} new_host={$newHostUsername}"

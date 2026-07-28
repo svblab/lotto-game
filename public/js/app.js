@@ -160,6 +160,12 @@
     UI().showRoomPanel(state.room, state.user?.username);
   }
 
+  function onHostChanged(pkt) {
+    if (!state.room) return;
+    state.room.host = pkt.host;
+    UI().showRoomPanel(state.room, state.user?.username);
+  }
+
   function onPlayerLeft(pkt) {
     if (pkt.username === state.user?.username) {
       if (['kicked', 'banned', 'admin_close', 'afk', 'refuse'].includes(pkt.reason)) {
@@ -393,9 +399,7 @@
     UI().$('#quick-start-btn')?.addEventListener('click', doQuickStart);
     UI().$('#leave-room-btn')?.addEventListener('click', () => {
       socket.sendAction('leave_room');
-      state.room = null;
-      UI().showRoomPanel(null);
-      socket.sendAction('room_list');
+      resetToLobby();
     });
     UI().$('#start-game-btn')?.addEventListener('click', () => socket.sendAction('start_game'));
 
@@ -481,6 +485,7 @@
       room_list: onRoomList,
       room_joined: onRoomJoined,
       player_joined: onPlayerJoined,
+      host_changed: onHostChanged,
       player_left: onPlayerLeft,
       game_started: onGameStarted,
       your_turn: onYourTurn,

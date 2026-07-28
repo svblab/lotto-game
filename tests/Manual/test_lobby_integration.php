@@ -398,6 +398,10 @@ $ls->handleLeaveRoom($host, $worker);
 ok('transferHost: room still exists',                    isset($worker->rooms[$roomId]));
 ok('transferHost: host transferred to j1 (FIFO)',        $worker->rooms[$roomId]['host_conn_id'] === $j1->id);
 ok('transferHost: old host removed from players',        !isset($worker->rooms[$roomId]['players'][$host->id]));
+ok('transferHost: j1 receives host_changed',             ($j1->lastPacket()['type'] ?? '') === 'host_changed');
+ok('transferHost: j1 host_changed username = j1',        ($j1->lastPacket()['host'] ?? '') === 'j1');
+ok('transferHost: j2 receives host_changed',             ($j2->lastPacket()['type'] ?? '') === 'host_changed');
+ok('transferHost: j2 host_changed username = j1',        ($j2->lastPacket()['host'] ?? '') === 'j1');
 
 $ls->handleLeaveRoom($j1, $worker);
 $ls->handleLeaveRoom($j2, $worker);

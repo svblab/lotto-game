@@ -177,6 +177,14 @@ Server → Room
 {"type": "player_left", "username": "player", "reason": "leave"}
 ```
 
+### host_changed
+Server → Room
+```json
+{"type": "host_changed", "host": "player1"}
+```
+Sent to every active player in the room whenever `host_conn_id` changes
+(e.g. lobby-AFK host timeout via `transferHost()`). See ADR-009.
+
 ---
 
 ## Game Start
