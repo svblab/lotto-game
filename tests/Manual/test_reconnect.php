@@ -78,9 +78,38 @@ class MockGameService
     public int $nextDrawerCalls = 0;
     public int $yourTurnCalls = 0;
 
-    public function handleDrawBarrel(object $connection, object $worker): void
+    public function handleDrawBarrel(object $connection, object $worker, bool $fromAutoDraw = false): void
     {
         $this->drawCalls++;
+        // Simulate post-draw turn rotation (real GameService::nextDrawer).
+        foreach ($worker->rooms as &$room) {
+            if (!isset($room['players'][$connection->id])) {
+                continue;
+            }
+            $order = $room['drawer_order'] ?? [];
+            $pos = array_search($connection->id, $order, true);
+            if ($pos === false) {
+                break;
+            }
+            $count = count($order);
+            for ($i = 1; $i <= $count; $i++) {
+                $next = $order[($pos + $i) % $count];
+                if (
+                    isset($room['players'][$next])
+                    && ($room['players'][$next]['status'] ?? null) === 'active'
+                ) {
+                    $room['active_drawer_conn_id'] = $next;
+                    break;
+                }
+            }
+            break;
+        }
+        unset($room);
+    }
+
+    public function startTurn(array &$room, object $worker, int $roomId): void
+    {
+        $this->yourTurnCalls++;
     }
 
     public function finishGame(
@@ -231,6 +260,8 @@ function makeRoom(int $roomId, int $hostConnId): array
     assert_true(count($statePackets) === 1, 'reconnect: reconnect_state sent');
     assert_true($statePackets[0]['status'] === 'playing', 'reconnect_state: status=playing');
     assert_true($statePackets[0]['drawn_all'] === [5, 10], 'reconnect_state: drawn_all restored');
+    assert_true($worker->rooms[3]['players'][103]['afk_start'] !== null, 'reconnect: afk_start armed for active drawer');
+    assert_true((time() - (int)$worker->rooms[3]['players'][103]['afk_start']) <= 2, 'reconnect: afk_start freshly set');
 }
 
 // ---------------------------------------------------------------------------
@@ -290,7 +321,32 @@ function makeRoom(int $roomId, int $hostConnId): array
 }
 
 // ---------------------------------------------------------------------------
-// GROUP 5: auto draw + afk removal after 3 auto draws
+// GROUP 4b: second AFK warning at 25s
+// ---------------------------------------------------------------------------
+{
+    \MockTimer::reset();
+    $worker = new MockWorker();
+    $lobby = new MockLobbyService();
+    $game = new MockGameService();
+    $svc = new ReconnectService($lobby, $game, new MockLogger());
+
+    $conn = new MockConnection(44, 440, 'afk2');
+    $room = makeRoom(44, 44);
+    $room['status'] = 'playing';
+    $room['players'][44] = makePlayer($conn, 'active');
+    $room['players'][44]['afk_start'] = time() - 26;
+    $room['players'][44]['strikes'] = 1;
+    $worker->rooms[44] = $room;
+
+    $svc->tickGameAfk($worker, 44);
+    assert_true($worker->rooms[44]['players'][44]['strikes'] === 2, 'game afk: strike=2 at 25s');
+    $warnings = $conn->sentOfType('afk_warning');
+    assert_true(count($warnings) === 1, 'game afk: second warning sent');
+    assert_true(($warnings[0]['strike'] ?? null) === 2, 'game afk: warning strike=2');
+}
+
+// ---------------------------------------------------------------------------
+// GROUP 5: auto draw + afk removal after 3 auto draws (last survivor)
 // ---------------------------------------------------------------------------
 {
     \MockTimer::reset();
@@ -309,6 +365,36 @@ function makeRoom(int $roomId, int $hostConnId): array
     $svc->performAutoDraw($worker, 5, 5);
     assert_true($game->drawCalls === 1, 'auto draw: delegated to draw_barrel flow');
     assert_true(!isset($worker->rooms[5]), 'afk remove: last active survivor flow finished room');
+}
+
+// ---------------------------------------------------------------------------
+// GROUP 6: afk removal with 3 players — game continues
+// ---------------------------------------------------------------------------
+{
+    \MockTimer::reset();
+    $worker = new MockWorker();
+    $lobby = new MockLobbyService();
+    $game = new MockGameService();
+    $svc = new ReconnectService($lobby, $game, new MockLogger());
+
+    $c5 = new MockConnection(55, 550, 'afk_drawer');
+    $c6 = new MockConnection(56, 560, 'p6');
+    $c7 = new MockConnection(57, 570, 'p7');
+    $room = makeRoom(55, 55);
+    $room['status'] = 'playing';
+    $room['players'][55] = makePlayer($c5, 'active');
+    $room['players'][56] = makePlayer($c6, 'active');
+    $room['players'][57] = makePlayer($c7, 'active');
+    $room['drawer_order'] = [55, 56, 57];
+    $room['active_drawer_conn_id'] = 55;
+    $room['players'][55]['auto_draws'] = 2;
+    $worker->rooms[55] = $room;
+
+    $svc->performAutoDraw($worker, 55, 55);
+    assert_true($game->drawCalls === 1, 'afk remove: auto draw executed');
+    assert_true(!isset($worker->rooms[55]['players'][55]), 'afk remove: drawer removed after 3rd auto draw');
+    assert_true(isset($worker->rooms[55]['players'][56]), 'afk remove: remaining players stay in room');
+    assert_true($game->finishCalls === 0, 'afk remove: game continues with 2 active players');
 }
 
 // ---------------------------------------------------------------------------

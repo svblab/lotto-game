@@ -194,7 +194,6 @@ final class ReconnectService
         }
         $player['connection']      = $connection;
         $player['last_action']     = time();
-        $player['afk_start']       = null;
         $player['strikes']         = 0;
 
         unset($room['players'][$oldConnId]);
@@ -211,6 +210,17 @@ final class ReconnectService
                 fn($cid) => $cid === $oldConnId ? $newConnId : $cid,
                 $room['drawer_order']
             );
+        }
+
+        // ANCHOR_CORE § Game AFK: afk_start отсчитывается с your_turn.
+        // После reconnect активный drawer должен снова попасть под AFK-защиту.
+        if (
+            ($room['status'] ?? null) === 'playing'
+            && (int)($room['active_drawer_conn_id'] ?? 0) === $newConnId
+        ) {
+            $room['players'][$newConnId]['afk_start'] = time();
+        } else {
+            $room['players'][$newConnId]['afk_start'] = null;
         }
 
         $this->bindConnectionToPlayer($connection, $player, $token, $worker);
@@ -418,7 +428,7 @@ final class ReconnectService
         $autoDrawsBefore = (int)($drawer['auto_draws'] ?? 0);
         $connection = $drawer['connection'];
 
-        $this->gameService->handleDrawBarrel($connection, $worker);
+        $this->gameService->handleDrawBarrel($connection, $worker, true);
 
         if (!isset($worker->rooms[$roomId]['players'][$drawerConnId])) {
             return;

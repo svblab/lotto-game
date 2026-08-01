@@ -413,7 +413,13 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
     $action = $data['action'] ?? null;
 
     if ($action === 'ping') {
-        // ANCHOR_PROTOCOL.md § Heartbeat: "No response required".
+        // prompt.md § ping: в комнате — last_action; в лобби — lastPing (уже выше).
+        // На afk_start не влияет (ANCHOR_CORE § Game AFK Timer).
+        $connId = (int) $connection->id;
+        $roomId = $worker->roomManager->findRoomIdByConnId($worker, $connId);
+        if ($roomId !== null && isset($worker->rooms[$roomId]['players'][$connId])) {
+            $worker->rooms[$roomId]['players'][$connId]['last_action'] = time();
+        }
         return;
     }
 
