@@ -202,6 +202,28 @@ final class AuthHandler
        // сразу после этого метода, EPIC-10.5).
    }
 
+   /**
+    * Отправляет auth_result, когда reconnect подтвердил сессию, но игрок
+    * не находится в восстанавливаемой комнате (закрывает KNOWN GAP в
+    * server.php — клиент иначе зависает без ответа).
+    */
+   public function notifyLobbyRestored(object $connection, string $token): void
+   {
+       if (empty($connection->userId)) {
+           return;
+       }
+
+       $user = $this->authService->getUserById((int)$connection->userId);
+       if ($user === null) {
+           return;
+       }
+
+       $this->sendAuthResult($connection, [
+           'session_token' => $token,
+           'user'          => $user,
+       ]);
+   }
+
    // -------------------------------------------------------------------------
    // Private helpers
    // -------------------------------------------------------------------------

@@ -462,8 +462,18 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
         $worker->authHandler->handleReconnect($data, $connection, $worker);
 
         $token = $data['token'] ?? null;
-        if (is_string($token) && $token !== '') {
-            $worker->reconnectService->handleReconnect($token, $connection, $worker);
+        $roomRestored = false;
+        if (is_string($token) && $token !== '' && ($connection->userId ?? null) !== null) {
+            $roomRestored = $worker->reconnectService->handleReconnect($token, $connection, $worker);
+        }
+
+        if (
+            ($connection->userId ?? null) !== null
+            && !$roomRestored
+            && is_string($token)
+            && $token !== ''
+        ) {
+            $worker->authHandler->notifyLobbyRestored($connection, $token);
         }
         return;
     }

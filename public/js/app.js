@@ -46,6 +46,15 @@
     }
   }
 
+  function clearClientSession() {
+    localStorage.removeItem(STORAGE_TOKEN);
+    localStorage.removeItem(STORAGE_USER);
+    state.user = null;
+    state.room = null;
+    state.inGame = false;
+    if (socket) socket.setSessionToken(null);
+  }
+
   function ensureUserProfile() {
     if (state.user) return state.user;
     const saved = loadPersistedUser();
@@ -129,6 +138,7 @@
     persistUser(state.user);
     localStorage.setItem(STORAGE_TOKEN, pkt.session_token);
     socket.setSessionToken(pkt.session_token);
+    UI().showReconnecting(false);
     UI().updateLobbyUser(state.user);
     UI().showScreen('lobby');
     UI().setMessage('#auth-message', '');
@@ -138,13 +148,11 @@
   function onError(pkt) {
     const msg = I18n().translateError(pkt);
     if ((pkt.code ?? '') === 'error.auth_invalid_token') {
-      localStorage.removeItem(STORAGE_TOKEN);
-      localStorage.removeItem(STORAGE_USER);
-      state.user = null;
-      state.room = null;
-      state.inGame = false;
+      clearClientSession();
       UI().showReconnecting(false);
       UI().showScreen('auth');
+      UI().setMessage('#auth-message', msg, 'error');
+      return;
     }
     if (state.inGame) UI().showToast(msg);
     else if (UI().$('#lobby-screen')?.classList.contains('active')) UI().setMessage('#lobby-message', msg, 'error');
@@ -152,12 +160,8 @@
   }
 
   function onBanned(pkt) {
-    localStorage.removeItem(STORAGE_TOKEN);
-    socket.setSessionToken(null);
+    clearClientSession();
     socket.disconnect();
-    state.user = null;
-    state.room = null;
-    state.inGame = false;
     const until = pkt.until ? new Date(pkt.until * 1000).toLocaleString() : '';
     UI().showScreen('auth');
     UI().setMessage('#auth-message', I18n().t('auth.banned', { until }), 'error');
@@ -309,6 +313,12 @@
   function onReconnectState(pkt) {
     UI().showReconnecting(false);
     ensureUserProfile();
+    if (!state.user) {
+      clearClientSession();
+      UI().showScreen('auth');
+      UI().setMessage('#auth-message', I18n().t('errors.auth_invalid_token'), 'error');
+      return;
+    }
     if (pkt.status === 'waiting') {
       state.inGame = false;
       state.room = {
@@ -437,11 +447,8 @@
     });
 
     UI().$('#logout-btn')?.addEventListener('click', () => {
-      localStorage.removeItem(STORAGE_TOKEN);
-      localStorage.removeItem(STORAGE_USER);
-      socket.setSessionToken(null);
+      clearClientSession();
       socket.disconnect();
-      state.user = null;
       UI().showScreen('auth');
       socket.connect();
     });
@@ -565,7 +572,11 @@
     };
     Object.entries(handlers).forEach(([type, fn]) => socket.on(type, fn));
 
-    socket.on('reconnecting', () => UI().showReconnecting(true));
+    socket.on('reconnecting', () => {
+      if (localStorage.getItem(STORAGE_TOKEN)) {
+        UI().showReconnecting(true);
+      }
+    });
     socket.on('open', () => {
       const token = localStorage.getItem(STORAGE_TOKEN);
       if (token) {
@@ -574,10 +585,11 @@
         socket.sendAction('reconnect', { token });
         return;
       }
+      socket.setSessionToken(null);
       UI().showReconnecting(false);
     });
     socket.on('close', () => {
-      if (socket.sessionToken && !socket.intentionalClose) {
+      if (localStorage.getItem(STORAGE_TOKEN) && socket.sessionToken && !socket.intentionalClose) {
         UI().showReconnecting(true);
       }
     });
@@ -587,15 +599,7 @@
     await I18n().load(I18n().detectLang());
     UI().bindJoinRoomModal();
     bindEvents();
-    const token = localStorage.getItem(STORAGE_TOKEN);
-    const savedUser = loadPersistedUser();
-    if (token && savedUser) {
-      state.user = savedUser;
-      UI().updateLobbyUser(state.user);
-      UI().showScreen('lobby');
-    } else {
-      UI().showScreen('auth');
-    }
+    UI().showScreen('auth');
     socket = new (WS().LottoSocket)();
     wireSocket();
     socket.connect();
