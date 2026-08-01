@@ -284,14 +284,17 @@ label span { display: block; margin-bottom: 0.25rem; font-size: 0.9rem; color: v
   color: var(--felt-dark);
 }
 .slot-window.spinning .slot-num {
-  animation: slotSpin 0.1s linear infinite;
+  animation: slotSpin 0.08s linear infinite;
+}
+.slot-window.spinning.decel .slot-num {
+  animation: none;
 }
 .slot-window.reveal .slot-num {
-  animation: goldPulse 0.6s ease;
+  animation: goldPulse 0.5s ease;
 }
 @keyframes slotSpin {
-  0% { transform: translateY(-80%); opacity: 0.5; }
-  100% { transform: translateY(80%); opacity: 0.5; }
+  0% { transform: translateY(-70%); opacity: 0.35; }
+  100% { transform: translateY(70%); opacity: 0.35; }
 }
 @keyframes goldPulse {
   0%, 100% { color: var(--felt-dark); }

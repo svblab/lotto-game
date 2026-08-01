@@ -320,8 +320,8 @@ final class LobbyService
      * Контракт входного пакета (ANCHOR_PROTOCOL.md § Lobby → leave_room):
      *   {"action": "leave_room"}  — без параметров
      *
-     * Разрешён только в статусе 'waiting' (ANCHOR_CORE.md Part 4 § State Machine).
-     * В статусе 'playing' выход обрабатывается GameService (EPIC-5.x).
+     * Разрешён в статусе 'waiting' (ANCHOR_CORE.md Part 4 § State Machine).
+     * В статусе 'playing' выход делегируется ReconnectService::removePlayerFromGame().
      *
      * Последовательность:
      *   1. Найти комнату игрока
@@ -351,8 +351,14 @@ final class LobbyService
 
         $room = &$worker->rooms[$roomId];
 
-        // --- 3. Только статус 'waiting' ---
-        // В 'playing' выход обрабатывает GameService
+        // --- 3. waiting → LobbyService; playing → Game removal ---
+        if ($room['status'] === 'playing') {
+            if (isset($worker->reconnectService)) {
+                $worker->reconnectService->removePlayerFromGame($worker, $roomId, $connId, 'leave');
+            }
+            return;
+        }
+
         if ($room['status'] !== 'waiting') {
             return;
         }

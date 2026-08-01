@@ -274,6 +274,103 @@
     btn.classList.toggle('my-turn', !!myTurn && enabled);
   }
 
+  const slotSpinTimers = new Map();
+
+  function _slotWindows() {
+    return Array.from($$('#slot-machine .slot-window'));
+  }
+
+  function _clearSlotTimer(win) {
+    const id = slotSpinTimers.get(win);
+    if (id) {
+      clearInterval(id);
+      slotSpinTimers.delete(win);
+    }
+  }
+
+  function resetSlots() {
+    _slotWindows().forEach((win) => {
+      _clearSlotTimer(win);
+      win.classList.remove('spinning', 'reveal', 'decel');
+      const span = win.querySelector('.slot-num');
+      if (span) span.textContent = '—';
+    });
+  }
+
+  function idleSlot(index) {
+    const win = _slotWindows()[index];
+    if (!win) return;
+    _clearSlotTimer(win);
+    win.classList.remove('spinning', 'reveal', 'decel');
+    const span = win.querySelector('.slot-num');
+    if (span) span.textContent = '—';
+  }
+
+  function isSlotsSpinning() {
+    return slotSpinTimers.size > 0 || _slotWindows().some((w) => w.classList.contains('spinning'));
+  }
+
+  function startSlotsWaiting() {
+    _slotWindows().forEach((win, index) => {
+      _clearSlotTimer(win);
+      win.classList.remove('reveal', 'decel');
+      win.classList.add('spinning');
+      const span = win.querySelector('.slot-num');
+      if (!span) return;
+      const id = setInterval(() => {
+        span.textContent = String(Math.floor(Math.random() * 90) + 1);
+      }, 70 + index * 10);
+      slotSpinTimers.set(win, id);
+    });
+  }
+
+  function stopSlotsWaiting() {
+    _slotWindows().forEach((win) => {
+      _clearSlotTimer(win);
+      win.classList.remove('spinning');
+    });
+  }
+
+  function revealSlot(index, number) {
+    return new Promise((resolve) => {
+      const win = _slotWindows()[index];
+      if (!win) {
+        resolve();
+        return;
+      }
+      _clearSlotTimer(win);
+      win.classList.remove('reveal');
+      win.classList.add('spinning', 'decel');
+      const span = win.querySelector('.slot-num');
+      if (!span) {
+        resolve();
+        return;
+      }
+
+      let delay = 55;
+      let ticks = 0;
+      const stopAfter = 10 + index * 5;
+
+      const step = () => {
+        ticks += 1;
+        if (ticks >= stopAfter) {
+          win.classList.remove('spinning', 'decel');
+          win.classList.add('reveal');
+          span.textContent = String(number);
+          setTimeout(() => {
+            win.classList.remove('reveal');
+            resolve();
+          }, 500);
+          return;
+        }
+        span.textContent = String(Math.floor(Math.random() * 90) + 1);
+        delay = Math.min(delay + 28, 240);
+        setTimeout(step, delay);
+      };
+      step();
+    });
+  }
+
   function setSlotNumbers(nums, animate) {
     const windows = $$('#slot-machine .slot-window');
     windows.forEach((win, i) => {
@@ -447,6 +544,12 @@
     renderDrawnHistory,
     setDrawButton,
     setSlotNumbers,
+    resetSlots,
+    startSlotsWaiting,
+    stopSlotsWaiting,
+    revealSlot,
+    idleSlot,
+    isSlotsSpinning,
     renderGamePlayers,
     updateWinChance,
     showApartment,

@@ -131,18 +131,30 @@
     UI().setDrawButton(false, false);
     state.drawLocked = true;
 
-    const display = [null, null, null];
-    for (let i = 0; i < nums.length; i++) {
-      display[i] = nums[i];
-      UI().setSlotNumbers(display, true);
-      await sleep(500);
-      const n = nums[i];
-      state.myMasks = UI().markNumberOnCards(state.myCards, state.myMasks, n);
-      if (!state.drawnAll.includes(n)) state.drawnAll.push(n);
-      UI().renderDrawnHistory(state.drawnAll);
-      UI().renderCards(state.myCards, state.myMasks, state.cardIndex, [n]);
-      UI().updateWinChance(state.myMasks);
-      updatePlayersWinChance();
+    if (!UI().isSlotsSpinning()) {
+      UI().startSlotsWaiting();
+      await sleep(250);
+    } else {
+      UI().stopSlotsWaiting();
+      UI().startSlotsWaiting();
+      await sleep(150);
+    }
+    UI().stopSlotsWaiting();
+
+    for (let i = 0; i < 3; i++) {
+      if (i < nums.length) {
+        await UI().revealSlot(i, nums[i]);
+        const n = nums[i];
+        state.myMasks = UI().markNumberOnCards(state.myCards, state.myMasks, n);
+        if (!state.drawnAll.includes(n)) state.drawnAll.push(n);
+        UI().renderDrawnHistory(state.drawnAll);
+        UI().renderCards(state.myCards, state.myMasks, state.cardIndex, [n]);
+        UI().updateWinChance(state.myMasks);
+        updatePlayersWinChance();
+        await sleep(180);
+      } else {
+        UI().idleSlot(i);
+      }
     }
 
     state.currentDrawer = pkt.next_drawer;
@@ -201,6 +213,11 @@
     if (state.inGame) UI().showToast(msg);
     else if (UI().$('#lobby-screen')?.classList.contains('active')) UI().setMessage('#lobby-message', msg, 'error');
     else UI().setMessage('#auth-message', msg, 'error');
+    if (state.inGame && state.drawLocked) {
+      UI().resetSlots();
+      state.drawLocked = false;
+      UI().setDrawButton(state.isMyTurn, state.isMyTurn);
+    }
   }
 
   function onBanned(pkt) {
@@ -251,7 +268,7 @@
 
   function onPlayerLeft(pkt) {
     if (pkt.username === state.user?.username) {
-      if (['kicked', 'banned', 'admin_close', 'afk', 'refuse'].includes(pkt.reason)) {
+      if (['kicked', 'banned', 'admin_close', 'afk', 'refuse', 'leave'].includes(pkt.reason)) {
         resetToLobby();
         UI().showToast(I18n().t('lobby.leftReason', { reason: pkt.reason }));
       }
@@ -295,7 +312,7 @@
     UI().renderCards(state.myCards, state.myMasks, 0, null);
     UI().updateWinChance(state.myMasks);
     UI().renderGamePlayers(state.players);
-    UI().setSlotNumbers([null, null, null], false);
+    UI().resetSlots();
     UI().setDrawButton(false, false);
     state.currentDrawer = state.drawerOrder[0];
   }
@@ -462,12 +479,18 @@
     state.players = [];
     state.animationQueue = [];
     state.animating = false;
+    UI().resetSlots();
     UI().toggleOverlay('#game-over-modal', false);
     UI().hideApartment();
     UI().updateLobbyMembershipUI(false);
     UI().showScreen('lobby');
     UI().showRoomPanel(null);
     socket.sendAction('room_list');
+  }
+
+  function leaveRoom() {
+    socket.sendAction('leave_room');
+    resetToLobby();
   }
 
   // --- Wire DOM ---
@@ -517,16 +540,15 @@
       UI().$('#create-room-panel')?.classList.add('hidden');
     });
     UI().$('#quick-start-btn')?.addEventListener('click', doQuickStart);
-    UI().$('#leave-room-btn')?.addEventListener('click', () => {
-      socket.sendAction('leave_room');
-      resetToLobby();
-    });
+    UI().$('#leave-room-btn')?.addEventListener('click', leaveRoom);
+    UI().$('#leave-game-btn')?.addEventListener('click', leaveRoom);
     UI().$('#start-game-btn')?.addEventListener('click', () => socket.sendAction('start_game'));
 
     UI().$('#draw-barrel-btn')?.addEventListener('click', () => {
       if (state.drawLocked || state.animating) return;
       state.drawLocked = true;
       UI().setDrawButton(false, false);
+      UI().startSlotsWaiting();
       socket.sendAction('draw_barrel');
     });
 

@@ -123,6 +123,21 @@ class MockWorker
     public array $userConnections = [];
     public array $sessionTokens   = [];
     public array $connections     = [];
+    public ?object $reconnectService = null;
+}
+
+class StubReconnectService
+{
+    /** @var list<array{roomId:int,connId:int,reason:string}> */
+    public array $calls = [];
+
+    public function removePlayerFromGame(object $worker, int $roomId, int $connId, string $reason): void
+    {
+        $this->calls[] = ['roomId' => $roomId, 'connId' => $connId, 'reason' => $reason];
+        if (isset($worker->rooms[$roomId]['players'][$connId])) {
+            unset($worker->rooms[$roomId]['players'][$connId]);
+        }
+    }
 }
 
 function makeLogger(): Logger
@@ -454,12 +469,16 @@ ok('leaveRoom: broadcast room_list excludes destroyed room',
 
 [$ls3] = makeServices();
 $w3       = new MockWorker();
+$stubReconnect = new StubReconnectService();
+$w3->reconnectService = $stubReconnect;
 $hPlaying = new MockConnection(20, 'hplaying');
 $ls3->handleCreateRoom(['max_players' => 4, 'password' => '', 'cards_count' => 1], $hPlaying, $w3);
 $playingRoomId = $hPlaying->lastPacket()['room_id'];
 $w3->rooms[$playingRoomId]['status'] = 'playing';
 $ls3->handleLeaveRoom($hPlaying, $w3);
-ok('leaveRoom: silent return when status = playing',     isset($w3->rooms[$playingRoomId]));
+ok('leaveRoom: delegates to removePlayerFromGame when playing', count($stubReconnect->calls) === 1);
+ok('leaveRoom: playing leave reason = leave', ($stubReconnect->calls[0]['reason'] ?? '') === 'leave');
+ok('leaveRoom: player removed from playing room', !isset($w3->rooms[$playingRoomId]['players'][$hPlaying->id]));
 
 $connNoAuth         = new MockConnection();
 $connNoAuth->userId = null;
