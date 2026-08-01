@@ -254,7 +254,7 @@ try {
     $drawn2 = json_decode($p2->recvOrNull() ?? '', true);
     check(($drawn1['type'] ?? null) === 'barrels_drawn', 'host receives barrels_drawn');
     check(($drawn2['type'] ?? null) === 'barrels_drawn', 'p2 receives barrels_drawn');
-    check(count($drawn1['numbers'] ?? []) === 1, 'exactly 1 number drawn');
+    check(count($drawn1['numbers'] ?? []) === 3, 'exactly 3 numbers drawn per turn');
     check(($drawn1['next_drawer'] ?? null) === 'e105_p2', 'next_drawer=e105_p2');
     $yourTurn = json_decode($p2->recvOrNull() ?? '', true);
     check(($yourTurn['type'] ?? null) === 'your_turn', 'p2 receives your_turn after rotation');

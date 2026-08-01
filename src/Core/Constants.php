@@ -13,6 +13,9 @@ class Constants
 
     public const BET_PER_CARD = 10;
 
+    /** Barrels drawn per active player's turn (GAME_RULES §3). */
+    public const BARRELS_PER_TURN = 3;
+
     public const DAILY_BONUS = 100;
 
     public const RECONNECT_TIMEOUT = 15;

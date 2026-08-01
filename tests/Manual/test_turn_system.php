@@ -308,18 +308,18 @@ function makeSvc(): array {
     $worker->rooms[1] = $room;
 
     $bagBefore = $room['bag'];
-    $firstNumber = $bagBefore[0];
+    $expectedNumbers = array_slice($bagBefore, 0, 3);
 
     $svc->handleDrawBarrel($h, $worker);
 
     $r = $worker->rooms[1];
 
-    // Bag shrunk by 1
-    assert_true(count($r['bag']) === 89, 'DrawBarrel: bag shrunk to 89');
+    // Bag shrunk by 3
+    assert_true(count($r['bag']) === 87, 'DrawBarrel: bag shrunk to 87');
 
     // drawn_numbers updated
-    assert_true(count($r['drawn_numbers']) === 1, 'DrawBarrel: drawn_numbers has 1');
-    assert_true($r['drawn_numbers'][0] === $firstNumber, 'DrawBarrel: correct number recorded');
+    assert_true(count($r['drawn_numbers']) === 3, 'DrawBarrel: drawn_numbers has 3');
+    assert_true($r['drawn_numbers'] === $expectedNumbers, 'DrawBarrel: correct numbers recorded');
 
     // Drawer AFK reset
     assert_true($r['players'][1]['afk_start'] === null, 'DrawBarrel: afk_start reset');
@@ -333,8 +333,8 @@ function makeSvc(): array {
     assert_true(count($p2Pkts) === 1, 'DrawBarrel: p2 got barrels_drawn');
 
     $pkt = $hPkts[0];
-    assert_true($pkt['numbers'] === [$firstNumber], 'DrawBarrel: correct numbers in packet');
-    assert_true($pkt['remaining'] === 89,            'DrawBarrel: remaining=89');
+    assert_true($pkt['numbers'] === $expectedNumbers, 'DrawBarrel: correct numbers in packet');
+    assert_true($pkt['remaining'] === 87,            'DrawBarrel: remaining=87');
     assert_true(is_bool($pkt['is_final']),           'DrawBarrel: is_final is bool');
     assert_true($pkt['is_final'] === false,          'DrawBarrel: is_final=false');
     assert_true($pkt['next_drawer'] === 'p2',        'DrawBarrel: next_drawer=p2');
@@ -417,9 +417,9 @@ function makeSvc(): array {
     $svc->handleDrawBarrel($h, $worker);
     assert_true($worker->rooms[1]['active_drawer_conn_id'] === 2, 'Cycle: after turn 3 drawer=p2');
 
-    // 3 numbers drawn total
-    assert_true(count($worker->rooms[1]['drawn_numbers']) === 3, 'Cycle: 3 numbers drawn');
-    assert_true(count($worker->rooms[1]['bag']) === 87,          'Cycle: bag has 87 left');
+    // 9 numbers drawn total (3 per turn × 3 turns)
+    assert_true(count($worker->rooms[1]['drawn_numbers']) === 9, 'Cycle: 9 numbers drawn');
+    assert_true(count($worker->rooms[1]['bag']) === 81,          'Cycle: bag has 81 left');
 }
 
 // ---------------------------------------------------------------------------

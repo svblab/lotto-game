@@ -484,12 +484,9 @@ $vic = new VictoryService();
 
     $worker->rooms[1] = $room;
 
-    // Draw all 15 numbers — host wins on the 15th
-    // We alternate turns but only host draws here for simplicity
-    // Override active_drawer to host every time until game ends
+    // Draw until victory (3 barrels per turn)
     $drawnCount = 0;
-    for ($i = 0; $i < 15; $i++) {
-        if (!isset($worker->rooms[1])) break; // game ended
+    for ($i = 0; $i < 20 && isset($worker->rooms[1]); $i++) {
         $worker->rooms[1]['active_drawer_conn_id'] = 1; // force host's turn
         $svc->handleDrawBarrel($h, $worker);
         $drawnCount++;

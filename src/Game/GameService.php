@@ -437,13 +437,10 @@ final class GameService
      *   1. Auth guard.
      *   2. Найти комнату.
      *   3. Проверки: статус playing, это ход текущего drawer'а.
-     *   4. EPIC-5.2 — извлечь следующий бочонок из bag.
-     *   5. EPIC-5.4 — markNumber(): отметить число на картах drawer'а.
-     *   6. EPIC-5.3 — barrels_drawn broadcast всем активным игрокам.
+     *   4. EPIC-5.2 — извлечь до BARRELS_PER_TURN бочонков из bag, по одному.
+     *   5. После каждого: markNumber(), победа, «Квартира» (остаток хода отменяется).
+     *   6. EPIC-5.3 — barrels_drawn broadcast (1–3 числа).
      *   7. EPIC-5.1 — nextDrawer(), затем sendYourTurn() следующему.
-     *
-     * Победа и апартаменты — делегированы VictoryService / ApartmentService
-     * в последующих фазах. Здесь только механика хода.
      */
     public function handleDrawBarrel(object $connection, object $worker): void
     {
@@ -484,16 +481,10 @@ final class GameService
             return;
         }
 
-        // --- 4. EPIC-5.2 Извлечь бочонок из мешка ---
-
         if (empty($room['bag'])) {
-            // Мешок пуст — все числа вышли (не должно случиться до победы)
             $this->logger->warning("Room {$roomId}: bag is empty on draw_barrel");
             return;
         }
-
-        $number = array_shift($room['bag']);
-        $room['drawn_numbers'][] = $number;
 
         // Сбросить AFK счётчики drawer'а (успешный ручной ход)
         $room['players'][$connId]['afk_start']   = null;
@@ -501,43 +492,91 @@ final class GameService
         $room['players'][$connId]['auto_draws']   = 0;
         $room['players'][$connId]['last_action']  = time();
 
-        // --- 5. EPIC-5.4 markNumber — отметить число на картах всех игроков ---
-        // Каждый игрок отмечает вытянутое число на своих картах
-        foreach ($room['players'] as $pConnId => $player) {
-            if ($player['status'] === 'active') {
-                $this->markNumber($room, $pConnId, $number);
+        $drawnThisTurn = [];
+
+        // --- 4–5. EPIC-5.2: до 3 бочонков, обработка каждого по отдельности ---
+        for ($i = 0; $i < Constants::BARRELS_PER_TURN; $i++) {
+            if (empty($room['bag'])) {
+                break;
+            }
+
+            $number = array_shift($room['bag']);
+            $room['drawn_numbers'][] = $number;
+            $drawnThisTurn[] = $number;
+
+            foreach ($room['players'] as $pConnId => $player) {
+                if ($player['status'] === 'active') {
+                    $this->markNumber($room, $pConnId, $number);
+                }
+            }
+
+            $winners = $this->victory->checkAllVictories($room);
+            if (!empty($winners)) {
+                $result = $this->victory->calculatePrize($room['bank'], $winners);
+                $remaining = count($room['bag']);
+                $this->broadcastBarrelsDrawn($room, $drawnThisTurn, null, true, $remaining);
+                $this->logger->info(
+                    "Room {$roomId}: barrels [" . implode(', ', $drawnThisTurn) . "] drawn, victory"
+                );
+                $this->finishGame($room, $roomId, $winners, $result['prizes'], $worker);
+                return;
+            }
+
+            if ($this->apartment->shouldTrigger($room)) {
+                $remaining = count($room['bag']);
+                $currentDrawerUsername = $room['players'][$connId]['username'] ?? null;
+                $this->broadcastBarrelsDrawn($room, $drawnThisTurn, $currentDrawerUsername, false, $remaining);
+                $this->logger->info(
+                    "Room {$roomId}: barrels [" . implode(', ', $drawnThisTurn) . "] drawn, apartment"
+                );
+                $this->triggerApartment($room, $roomId, $worker);
+                return;
             }
         }
 
-        // --- 5b. EPIC-6.0/6.1 Victory check (priority: Victory > Apartment) ---
-        $winners = $this->victory->checkAllVictories($room);
-        if (!empty($winners)) {
-            $result = $this->victory->calculatePrize($room['bank'], $winners);
-            $this->finishGame($room, $roomId, $winners, $result['prizes'], $worker);
-            return;
-        }
-
-        // --- 5c. EPIC-7.1 Apartment trigger check ---
-        if ($this->apartment->shouldTrigger($room)) {
-            $this->triggerApartment($room, $roomId, $worker);
-            return; // turn loop paused
-        }
-
         // --- 6. EPIC-5.3 barrels_drawn broadcast ---
-
-        $remaining  = count($room['bag']);
+        $remaining = count($room['bag']);
         $nextDrawer = $this->peekNextDrawer($room);
         $nextDrawerUsername = null;
         if ($nextDrawer !== null && isset($room['players'][$nextDrawer])) {
             $nextDrawerUsername = $room['players'][$nextDrawer]['username'];
         }
 
+        $this->broadcastBarrelsDrawn(
+            $room,
+            $drawnThisTurn,
+            $nextDrawerUsername,
+            $remaining === 0,
+            $remaining
+        );
+
+        $this->logger->info(
+            "Room {$roomId}: barrels [" . implode(', ', $drawnThisTurn) . "] drawn. Remaining: {$remaining}"
+        );
+
+        // --- 7. Передать ход следующему ---
+        $this->nextDrawer($room);
+        $this->startTurn($room, $worker, $roomId);
+    }
+
+    /**
+     * Разослать barrels_drawn всем активным игрокам комнаты.
+     *
+     * @param int[] $numbers 1–3 вытянутых бочонка текущего хода
+     */
+    private function broadcastBarrelsDrawn(
+        array &$room,
+        array $numbers,
+        ?string $nextDrawerUsername,
+        bool $isFinal,
+        int $remaining
+    ): void {
         $packet = [
             'type'         => 'barrels_drawn',
-            'numbers'      => [$number],
+            'numbers'      => $numbers,
             'remaining'    => $remaining,
             'next_drawer'  => $nextDrawerUsername,
-            'is_final'     => $remaining === 0,
+            'is_final'     => $isFinal,
         ];
 
         foreach ($room['players'] as $player) {
@@ -545,14 +584,6 @@ final class GameService
                 $player['connection']->send(json_encode($packet));
             }
         }
-
-        $this->logger->info(
-            "Room {$roomId}: barrel {$number} drawn. Remaining: {$remaining}"
-        );
-
-        // --- 7. Передать ход следующему ---
-        $this->nextDrawer($room);
-        $this->startTurn($room, $worker, $roomId);
     }
 
     // -------------------------------------------------------------------------
