@@ -35,8 +35,18 @@ so tests do not lock or pollute production `game.db`.
 ```bash
 php run_ALL_tests.php
 ```
-This runner enables SQLite extensions automatically and skips 8 live-WebSocket
-subprocess tests (Workerman requires Linux). Full sign-off requires VPS run.
+This runner enables SQLite extensions automatically on Windows.
+Live WebSocket subprocess tests run on Windows too (FIX-15); VPS remains
+authoritative for production sign-off.
+
+**Start server (dev / frontend manual testing):**
+```bash
+php init_db.php          # first time — creates game.db + admin user
+php scripts/start_server.php start
+# Windows: same commands; start_server.php loads SQLite extensions automatically
+```
+Plain `php server.php start` also works after the FIX-15 bootstrap (auto-loads
+SQLite on Windows). Stop with `php scripts/start_server.php stop`.
 
 See `docs/PHASE_11_REPORT.md` for audit status.
 

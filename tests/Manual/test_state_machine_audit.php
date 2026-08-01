@@ -87,6 +87,8 @@ final class FlowConnection
     public int $id;
     public ?int $userId = null;
     public ?string $username = null;
+    public bool $isAdmin = false;
+    public ?string $sessionToken = null;
     public array $sent = [];
 
     public function __construct()

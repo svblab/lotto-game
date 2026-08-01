@@ -7,7 +7,13 @@ declare(strict_types=1);
  *
  * On Windows, enables SQLite extensions when php.ini is absent.
  * Ubuntu/VPS: plain `php` is sufficient (see LOCAL_ENVIRONMENT.md).
+ * Live WS subprocess tests run on all platforms (FIX-15).
  */
+
+require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/src/Core/Helpers.php';
+
+use function Lotto\Core\lottoPhpIniArgs;
 
 $projectRoot = __DIR__;
 $manualDir = $projectRoot . '/tests/Manual';
@@ -17,31 +23,10 @@ $skipAlways = [
     'test_logger.php',
 ];
 
-$skipOnWindows = [
-    'test_admin_packet_routing.php',
-    'test_auth_packet_routing.php',
-    'test_game_packet_routing.php',
-    'test_lobby_packet_routing.php',
-    'test_packet_validation.php',
-    'test_protocol_audit.php',
-    'test_server_bootstrap.php',
-    'test_session_lifecycle.php',
-];
+$skipOnWindows = [];
 
 $phpBinary = PHP_BINARY;
-$args = [];
-
-if ($isWindows) {
-    $extDir = dirname(PHP_BINARY) . DIRECTORY_SEPARATOR . 'ext';
-    if (is_dir($extDir)) {
-        $args[] = '-d';
-        $args[] = 'extension_dir=' . $extDir;
-        $args[] = '-d';
-        $args[] = 'extension=php_sqlite3.dll';
-        $args[] = '-d';
-        $args[] = 'extension=php_pdo_sqlite.dll';
-    }
-}
+$args = lottoPhpIniArgs();
 
 $files = glob($manualDir . '/test_*.php');
 sort($files);

@@ -27,6 +27,11 @@ $GLOBALS['__wsTestDbPath'] = null;
 /** @var string|null Path to LOTTO_TEST_CONFIG JSON for server subprocess */
 $GLOBALS['__wsTestConfigPath'] = null;
 
+require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
+require_once dirname(__DIR__, 2) . '/src/Core/Helpers.php';
+
+\Lotto\Core\lottoBootstrapPhpExtensions();
+
 function wsTestPhpBinary(): string
 {
     return PHP_BINARY;
@@ -160,8 +165,17 @@ function wsTestBuildProcEnv(array $vars): array
  */
 function wsTestServerArgv(string $projectRoot, string $command, array $env): array
 {
+    if (!function_exists('Lotto\Core\lottoPhpIniArgs')) {
+        require_once $projectRoot . '/vendor/autoload.php';
+        require_once $projectRoot . '/src/Core/Helpers.php';
+    }
+
     $configPath = $env['LOTTO_TEST_CONFIG'] ?? '';
-    $argv = [wsTestPhpBinary(), $projectRoot . '/server.php', $command];
+    $argv = array_merge(
+        [wsTestPhpBinary()],
+        \Lotto\Core\lottoPhpIniArgs(),
+        [$projectRoot . '/server.php', $command]
+    );
     if ($configPath !== '') {
         $argv[] = '--lotto-config=' . $configPath;
     }
@@ -258,6 +272,21 @@ function wsTestApplyServerEnv(string $projectRoot): array
 function wsTestStopServer(string $projectRoot): void
 {
     $env = wsTestApplyServerEnv($projectRoot);
+
+    // Workerman `server.php stop` hangs on Windows when no daemon is running
+    // (stop spawns a worker that never exits). Kill stale pid file instead.
+    if (PHP_OS_FAMILY === 'Windows') {
+        $pidFile = $env['LOTTO_WORKERMAN_PID_FILE'] ?? '';
+        if ($pidFile !== '' && is_file($pidFile)) {
+            $pid = (int) trim((string) file_get_contents($pidFile));
+            if ($pid > 0) {
+                @exec('taskkill /F /PID ' . $pid . ' /T');
+            }
+            @unlink($pidFile);
+        }
+        usleep(300_000);
+        return;
+    }
 
     $stopDescriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
     $stopProcess = @proc_open(
