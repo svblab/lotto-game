@@ -234,6 +234,37 @@ function makeRoom(int $roomId, int $hostConnId): array
 }
 
 // ---------------------------------------------------------------------------
+// GROUP 3b: active player refresh (new WS before disconnect processed)
+// ---------------------------------------------------------------------------
+{
+    \MockTimer::reset();
+    $worker = new MockWorker();
+    $lobby = new MockLobbyService();
+    $game = new MockGameService();
+    $svc = new ReconnectService($lobby, $game, new MockLogger());
+
+    $oldConn = new MockConnection(6, 60, 'p6', 'tok-6');
+    $newConn = new MockConnection(106, 0, 'new6');
+    $room = makeRoom(6, 6);
+    $room['status'] = 'waiting';
+    $room['host_conn_id'] = 6;
+    $room['players'][6] = makePlayer($oldConn, 'active');
+    $room['players'][7] = makePlayer(new MockConnection(7, 61, 'p7'), 'active');
+    $worker->rooms[6] = $room;
+
+    $result = $svc->handleReconnect('tok-6', $newConn, $worker);
+
+    assert_true($result === true, 'reconnect refresh: success=true for active player');
+    assert_true(!isset($worker->rooms[6]['players'][6]), 'reconnect refresh: old conn_id removed');
+    assert_true($worker->rooms[6]['players'][106]['status'] === 'active', 'reconnect refresh: player active on new conn');
+    assert_true($worker->rooms[6]['host_conn_id'] === 106, 'reconnect refresh: host_conn_id re-keyed');
+    $statePackets = $newConn->sentOfType('reconnect_state');
+    assert_true(count($statePackets) === 1, 'reconnect refresh: reconnect_state sent');
+    assert_true(($statePackets[0]['host'] ?? '') === 'p6', 'reconnect refresh: host restored in packet');
+    assert_true(count($statePackets[0]['players'] ?? []) === 2, 'reconnect refresh: players list restored');
+}
+
+// ---------------------------------------------------------------------------
 // GROUP 4: game AFK timer warning path
 // ---------------------------------------------------------------------------
 {

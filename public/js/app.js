@@ -9,6 +9,7 @@
   const WS = () => window.LottoWS;
 
   const STORAGE_TOKEN = 'lotto_session_token';
+  const STORAGE_USER = 'lotto_user_profile';
 
   const state = {
     user: null,
@@ -31,7 +32,29 @@
     immune: false,
   };
 
-  let socket;
+  function persistUser(user) {
+    if (!user) return;
+    localStorage.setItem(STORAGE_USER, JSON.stringify(user));
+  }
+
+  function loadPersistedUser() {
+    try {
+      const raw = localStorage.getItem(STORAGE_USER);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function ensureUserProfile() {
+    if (state.user) return state.user;
+    const saved = loadPersistedUser();
+    if (saved) {
+      state.user = saved;
+      UI().updateLobbyUser(state.user);
+    }
+    return state.user;
+  }
 
   // --- Animation queue (max 3) ---
   function enqueueAnimation(job) {
@@ -103,6 +126,7 @@
       coins: pkt.coins,
       is_admin: pkt.is_admin,
     };
+    persistUser(state.user);
     localStorage.setItem(STORAGE_TOKEN, pkt.session_token);
     socket.setSessionToken(pkt.session_token);
     UI().updateLobbyUser(state.user);
@@ -113,6 +137,15 @@
 
   function onError(pkt) {
     const msg = I18n().translateError(pkt);
+    if ((pkt.code ?? '') === 'error.auth_invalid_token') {
+      localStorage.removeItem(STORAGE_TOKEN);
+      localStorage.removeItem(STORAGE_USER);
+      state.user = null;
+      state.room = null;
+      state.inGame = false;
+      UI().showReconnecting(false);
+      UI().showScreen('auth');
+    }
     if (state.inGame) UI().showToast(msg);
     else if (UI().$('#lobby-screen')?.classList.contains('active')) UI().setMessage('#lobby-message', msg, 'error');
     else UI().setMessage('#auth-message', msg, 'error');
@@ -187,6 +220,10 @@
 
   function onGameStarted(pkt) {
     state.inGame = true;
+    if (state.room) {
+      state.room.status = 'playing';
+      state.room.bank = pkt.bank;
+    }
     state.bank = pkt.bank;
     state.drawerOrder = pkt.drawer_order || [];
     state.drawnAll = [];
@@ -271,28 +308,40 @@
 
   function onReconnectState(pkt) {
     UI().showReconnecting(false);
+    ensureUserProfile();
     if (pkt.status === 'waiting') {
       state.inGame = false;
       state.room = {
         room_id: pkt.room_id,
-        host: state.room?.host || '',
+        host: pkt.host ?? '',
         status: 'waiting',
         bank: pkt.bank || 0,
-        players: state.room?.players || [],
+        players: pkt.players || [],
       };
       state.myCards = [];
       state.myMasks = [];
       UI().updateLobbyMembershipUI(true);
+      UI().renderRooms(state.rooms, promptJoinRoom, state.room.room_id);
       UI().showScreen('lobby');
       UI().showRoomPanel(state.room, state.user?.username);
     } else if (pkt.status === 'playing') {
       state.inGame = true;
+      state.room = {
+        room_id: pkt.room_id,
+        host: pkt.host ?? state.room?.host ?? '',
+        status: 'playing',
+        bank: pkt.bank || 0,
+        players: state.room?.players || [],
+      };
       state.bank = pkt.bank || 0;
+      state.drawerOrder = pkt.drawer_order || [];
       state.drawnAll = pkt.drawn_all || [];
       state.myCards = pkt.my_cards || [];
       state.myMasks = pkt.my_masks || (state.myCards.map((c) =>
         c.map((row) => row.map(() => false))
       ));
+      state.currentDrawer = pkt.current_drawer || state.drawerOrder[0] || null;
+      state.cardIndex = 0;
       UI().showScreen('game');
       UI().renderGameHeader(state.bank, state.currentDrawer, null);
       UI().renderDrawnHistory(state.drawnAll);
@@ -327,6 +376,10 @@
   function promptJoinRoom(room) {
     if (guardAlreadyInRoom()) return;
     if (state.room && room.room_id === state.room.room_id) return;
+    if (room.status !== 'waiting') {
+      UI().setMessage('#lobby-message', I18n().t('lobby.roomNotJoinable'), 'error');
+      return;
+    }
     UI().showJoinRoomModal(room, (cards_count, password) => {
       socket.sendAction('join_room', { room_id: room.room_id, password, cards_count });
     });
@@ -385,6 +438,7 @@
 
     UI().$('#logout-btn')?.addEventListener('click', () => {
       localStorage.removeItem(STORAGE_TOKEN);
+      localStorage.removeItem(STORAGE_USER);
       socket.setSessionToken(null);
       socket.disconnect();
       state.user = null;
@@ -513,12 +567,14 @@
 
     socket.on('reconnecting', () => UI().showReconnecting(true));
     socket.on('open', () => {
-      UI().showReconnecting(false);
       const token = localStorage.getItem(STORAGE_TOKEN);
       if (token) {
         socket.setSessionToken(token);
+        UI().showReconnecting(true);
         socket.sendAction('reconnect', { token });
+        return;
       }
+      UI().showReconnecting(false);
     });
     socket.on('close', () => {
       if (socket.sessionToken && !socket.intentionalClose) {
@@ -531,10 +587,18 @@
     await I18n().load(I18n().detectLang());
     UI().bindJoinRoomModal();
     bindEvents();
+    const token = localStorage.getItem(STORAGE_TOKEN);
+    const savedUser = loadPersistedUser();
+    if (token && savedUser) {
+      state.user = savedUser;
+      UI().updateLobbyUser(state.user);
+      UI().showScreen('lobby');
+    } else {
+      UI().showScreen('auth');
+    }
     socket = new (WS().LottoSocket)();
     wireSocket();
     socket.connect();
-    UI().showScreen('auth');
   }
 
   document.addEventListener('DOMContentLoaded', () => {

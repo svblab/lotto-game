@@ -32,6 +32,7 @@
     "twoCards": "2 карточки",
     "yourRoom": "Ваша комната",
     "alreadyInRoom": "Сначала выйдите из текущей комнаты",
+    "roomNotJoinable": "В эту комнату нельзя войти",
     "enterPassword": "Пароль комнаты:",
     "cardsPrompt": "Карточки (1 или 2):",
     "cards": "карт.",

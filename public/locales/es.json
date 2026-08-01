@@ -32,6 +32,7 @@
     "twoCards": "2 cartones",
     "yourRoom": "Tu sala",
     "alreadyInRoom": "Sal de tu sala actual primero",
+    "roomNotJoinable": "No puedes unirte a esta sala",
     "enterPassword": "Contraseña de la sala:",
     "cardsPrompt": "Cartones (1 o 2):",
     "cards": "cart.",

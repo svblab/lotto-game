@@ -32,6 +32,7 @@
     "twoCards": "2 张",
     "yourRoom": "当前房间",
     "alreadyInRoom": "请先离开当前房间",
+    "roomNotJoinable": "该房间不可加入",
     "enterPassword": "房间密码：",
     "cardsPrompt": "卡片数（1或2）：",
     "cards": "张",

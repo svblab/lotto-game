@@ -296,16 +296,11 @@ final class GameService
             }
 
             $playersPayload = [];
-            foreach ($activePlayers as $otherConnId => $other) {
+            foreach ($activePlayers as $otherConnId => $_) {
+                $other = $room['players'][$otherConnId];
+                $masks = $this->buildInitialMasks($other['cards']);
+
                 if ($otherConnId === $pConnId) {
-                    // Свои карты и маски — видны
-                    $masks = array_map(
-                        fn($card) => array_map(
-                            fn($row) => array_map(fn($cell) => false, $row),
-                            $card
-                        ),
-                        $other['cards']
-                    );
                     $playersPayload[] = [
                         'username' => $other['username'],
                         'is_self'  => true,
@@ -313,14 +308,6 @@ final class GameService
                         'masks'    => $masks,
                     ];
                 } else {
-                    // Чужие карты — null, только маски (тоже null по протоколу)
-                    $masks = array_map(
-                        fn($card) => array_map(
-                            fn($row) => array_map(fn($cell) => false, $row),
-                            $card
-                        ),
-                        $other['cards']
-                    );
                     $playersPayload[] = [
                         'username' => $other['username'],
                         'is_self'  => false,
@@ -337,11 +324,26 @@ final class GameService
                 'players'      => $playersPayload,
             ];
 
-            $player['connection']->send(json_encode($packet));
+            sendJson($player['connection'], $packet);
         }
 
         // EPIC-13.1 — first drawer your_turn + game AFK timer (ADR-008, prompt.md § start)
         $this->startTurn($room, $worker, $roomId);
+    }
+
+    /**
+     * @param list<list<list<int|null>>> $cards
+     * @return list<list<list<bool>>>
+     */
+    private function buildInitialMasks(array $cards): array
+    {
+        return array_map(
+            fn($card) => array_map(
+                fn($row) => array_map(fn($cell) => false, $row),
+                $card
+            ),
+            $cards
+        );
     }
     // -------------------------------------------------------------------------
     // EPIC-5.0  Send your_turn

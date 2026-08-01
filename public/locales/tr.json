@@ -32,6 +32,7 @@
     "twoCards": "2 kart",
     "yourRoom": "Odanız",
     "alreadyInRoom": "Önce mevcut odadan çıkın",
+    "roomNotJoinable": "Bu odaya katılamazsınız",
     "enterPassword": "Oda şifresi:",
     "cardsPrompt": "Kart (1 veya 2):",
     "cards": "kart",

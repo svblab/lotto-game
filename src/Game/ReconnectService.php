@@ -131,73 +131,108 @@ final class ReconnectService
                 continue;
             }
 
-            $oldConnId = null;
             foreach ($room['players'] as $connId => $candidate) {
                 if (($candidate['session_token'] ?? '') !== $token) {
                     continue;
                 }
-                if (($candidate['status'] ?? null) !== 'disconnected') {
-                    continue;
+
+                $status = $candidate['status'] ?? null;
+                $newConnId = (int)$connection->id;
+
+                if ($status === 'disconnected') {
+                    return $this->restorePlayerConnection($worker, $roomId, $room, $connId, $connection, $token);
                 }
-                $oldConnId = $connId;
-                break;
+
+                // Page refresh: new WebSocket may arrive before onClose marks the
+                // player disconnected — re-key the active entry onto the new conn.
+                if ($status === 'active' && $connId !== $newConnId) {
+                    return $this->restorePlayerConnection($worker, $roomId, $room, $connId, $connection, $token);
+                }
+
+                if ($status === 'active' && $connId === $newConnId) {
+                    $this->bindConnectionToPlayer($connection, $candidate, $token, $worker);
+                    sendJson($connection, $this->buildReconnectState($room, $connId));
+                    return true;
+                }
             }
-
-            if ($oldConnId === null) {
-                continue;
-            }
-
-            $player = $room['players'][$oldConnId];
-
-            if (!empty($player['reconnect_timer'])) {
-                lottoTimerDel((int) $player['reconnect_timer'], 'reconnect', [
-                    'room_id' => $roomId,
-                    'conn_id' => $oldConnId,
-                ]);
-            }
-
-            $newConnId = (int)$connection->id;
-
-            $player['reconnect_timer'] = null;
-            $player['status']          = 'active';
-            lottoPlayerStateTransition($roomId, $newConnId, 'disconnected', 'active', 'reconnect');
-            $player['connection']      = $connection;
-            $player['last_action']     = time();
-            $player['afk_start']       = null;
-            $player['strikes']         = 0;
-
-            // FIX-9: перенос записи на новый ключ + обновление всех ссылок
-            // на старый conn_id в структуре комнаты.
-            unset($room['players'][$oldConnId]);
-            $room['players'][$newConnId] = $player;
-
-            if (($room['host_conn_id'] ?? null) === $oldConnId) {
-                $room['host_conn_id'] = $newConnId;
-            }
-            if (($room['active_drawer_conn_id'] ?? null) === $oldConnId) {
-                $room['active_drawer_conn_id'] = $newConnId;
-            }
-            if (!empty($room['drawer_order'])) {
-                $room['drawer_order'] = array_map(
-                    fn($cid) => $cid === $oldConnId ? $newConnId : $cid,
-                    $room['drawer_order']
-                );
-            }
-
-            $connection->userId       = $player['user_id'];
-            $connection->username     = $player['username'];
-            $connection->sessionToken = $token;
-
-            if (!isset($worker->userConnections)) {
-                $worker->userConnections = [];
-            }
-            $worker->userConnections[(int)$player['user_id']] = $connection;
-
-            sendJson($connection, $this->buildReconnectState($room, $newConnId));
-            return true;
         }
 
         return false;
+    }
+
+    /**
+     * Re-keys a room player onto a new connection and sends reconnect_state.
+     */
+    private function restorePlayerConnection(
+        object $worker,
+        int $roomId,
+        array &$room,
+        int $oldConnId,
+        object $connection,
+        string $token
+    ): bool {
+        if (!isset($room['players'][$oldConnId])) {
+            return false;
+        }
+
+        $player = $room['players'][$oldConnId];
+        $wasDisconnected = ($player['status'] ?? null) === 'disconnected';
+
+        if (!empty($player['reconnect_timer'])) {
+            lottoTimerDel((int) $player['reconnect_timer'], 'reconnect', [
+                'room_id' => $roomId,
+                'conn_id' => $oldConnId,
+            ]);
+        }
+
+        $newConnId = (int)$connection->id;
+
+        $player['reconnect_timer'] = null;
+        $player['status']          = 'active';
+        if ($wasDisconnected) {
+            lottoPlayerStateTransition($roomId, $newConnId, 'disconnected', 'active', 'reconnect');
+        }
+        $player['connection']      = $connection;
+        $player['last_action']     = time();
+        $player['afk_start']       = null;
+        $player['strikes']         = 0;
+
+        unset($room['players'][$oldConnId]);
+        $room['players'][$newConnId] = $player;
+
+        if (($room['host_conn_id'] ?? null) === $oldConnId) {
+            $room['host_conn_id'] = $newConnId;
+        }
+        if (($room['active_drawer_conn_id'] ?? null) === $oldConnId) {
+            $room['active_drawer_conn_id'] = $newConnId;
+        }
+        if (!empty($room['drawer_order'])) {
+            $room['drawer_order'] = array_map(
+                fn($cid) => $cid === $oldConnId ? $newConnId : $cid,
+                $room['drawer_order']
+            );
+        }
+
+        $this->bindConnectionToPlayer($connection, $player, $token, $worker);
+        sendJson($connection, $this->buildReconnectState($room, $newConnId));
+
+        return true;
+    }
+
+    private function bindConnectionToPlayer(
+        object $connection,
+        array $player,
+        string $token,
+        object $worker
+    ): void {
+        $connection->userId       = $player['user_id'];
+        $connection->username     = $player['username'];
+        $connection->sessionToken = $token;
+
+        if (!isset($worker->userConnections)) {
+            $worker->userConnections = [];
+        }
+        $worker->userConnections[(int)$player['user_id']] = $connection;
     }
 
     /**
@@ -208,26 +243,73 @@ final class ReconnectService
         $status = $room['status'] ?? 'waiting';
         $player = $room['players'][$connId] ?? null;
 
+        $base = [
+            'type'      => 'reconnect_state',
+            'status'    => $status,
+            'room_id'   => $room['room_id'],
+            'bank'      => $room['bank'] ?? 0,
+        ];
+
         if ($status === 'waiting') {
-            return [
-                'type'      => 'reconnect_state',
-                'status'    => 'waiting',
-                'room_id'   => $room['room_id'],
-                'bank'      => $room['bank'] ?? 0,
+            return array_merge($base, [
+                'host'      => $this->resolveHostUsername($room),
+                'players'   => $this->buildLobbyPlayersList($room),
                 'drawn_all' => [],
                 'my_cards'  => null,
+            ]);
+        }
+
+        $drawerOrder = array_values(array_filter(
+            $room['drawer_order'] ?? [],
+            fn($cid) => isset($room['players'][$cid]) && ($room['players'][$cid]['status'] ?? null) === 'active'
+        ));
+        $drawerUsernames = array_map(
+            fn($cid) => $room['players'][$cid]['username'],
+            $drawerOrder
+        );
+        $drawerConnId = $room['active_drawer_conn_id'] ?? null;
+        $currentDrawer = ($drawerConnId !== null && isset($room['players'][$drawerConnId]))
+            ? (string) $room['players'][$drawerConnId]['username']
+            : '';
+
+        return array_merge($base, [
+            'drawn_all'      => $room['drawn_numbers'] ?? [],
+            'my_cards'       => $player['cards'] ?? [],
+            'my_masks'       => $player['masks'] ?? [],
+            'drawer_order'   => $drawerUsernames,
+            'current_drawer' => $currentDrawer,
+        ]);
+    }
+
+    /**
+     * @return list<array{username: string, cards_count: int, status: string}>
+     */
+    private function buildLobbyPlayersList(array $room): array
+    {
+        $players = [];
+        foreach ($room['players'] as $entry) {
+            $players[] = [
+                'username'    => (string) $entry['username'],
+                'cards_count' => (int) ($entry['cards_count'] ?? 1),
+                'status'      => (string) ($entry['status'] ?? 'active'),
             ];
         }
 
-        return [
-            'type'      => 'reconnect_state',
-            'status'    => 'playing',
-            'room_id'   => $room['room_id'],
-            'bank'      => $room['bank'] ?? 0,
-            'drawn_all' => $room['drawn_numbers'] ?? [],
-            'my_cards'  => $player['cards'] ?? [],
-            'my_masks'  => $player['masks'] ?? [],
-        ];
+        return $players;
+    }
+
+    private function resolveHostUsername(array $room): string
+    {
+        if (count($room['players']) < 2) {
+            return '';
+        }
+
+        $hostConnId = $room['host_conn_id'] ?? null;
+        if ($hostConnId === null || !isset($room['players'][$hostConnId])) {
+            return '';
+        }
+
+        return (string) $room['players'][$hostConnId]['username'];
     }
 
     /**

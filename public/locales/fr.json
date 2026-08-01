@@ -32,6 +32,7 @@
     "twoCards": "2 cartons",
     "yourRoom": "Votre salle",
     "alreadyInRoom": "Quittez d'abord votre salle actuelle",
+    "roomNotJoinable": "Cette salle n'est pas ouverte",
     "enterPassword": "Mot de passe :",
     "cardsPrompt": "Cartons (1 ou 2) :",
     "cards": "cart.",

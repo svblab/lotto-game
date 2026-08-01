@@ -419,6 +419,8 @@ function makeService(array $users, MockPDO $pdo): array {
     }
     assert_true($selfEntry  !== null && $selfEntry['is_self'] === true,   'Packet: host is_self=true');
     assert_true($selfEntry['cards'] !== null,                              'Packet: host cards visible');
+    assert_true(count($selfEntry['cards']) === 1,                        'Packet: host cards count=1');
+    assert_true(count($selfEntry['cards'][0] ?? []) === 3,                'Packet: host card is 3 rows');
     assert_true($otherEntry !== null && $otherEntry['is_self'] === false,  'Packet: p2 is_self=false');
     assert_true($otherEntry['cards'] === null,                             'Packet: p2 cards hidden');
 
