@@ -351,9 +351,9 @@ final class GameService
 
     /**
      * Отправить {"type": "your_turn"} текущему drawer'у.
-     * Также сбрасывает afk_start (таймер AFK начинается с этого момента).
+     * AFK-таймер стартует сразу, либо откладывается до turn_ready (после анимации).
      */
-    public function sendYourTurn(array &$room): void
+    public function sendYourTurn(array &$room, bool $deferAfkStart = false): void
     {
         $drawerConnId = $room['active_drawer_conn_id'];
         if (!isset($room['players'][$drawerConnId])) {
@@ -363,24 +363,73 @@ final class GameService
         if ($player['status'] !== 'active') {
             return;
         }
-        $room['players'][$drawerConnId]['afk_start'] = time();
-        $room['players'][$drawerConnId]['strikes']      = 0;
+        $room['players'][$drawerConnId]['strikes'] = 0;
         $autoDraws = (int)($room['players'][$drawerConnId]['auto_draws'] ?? 0);
         $turnSeconds = Constants::gameAfkTurnSeconds();
-        $player['connection']->send(json_encode([
-            'type'         => 'your_turn',
-            'afk_start'    => $room['players'][$drawerConnId]['afk_start'],
-            'turn_seconds' => $turnSeconds,
-            'auto_draws'   => $autoDraws,
-        ]));
+
+        if ($deferAfkStart) {
+            $room['players'][$drawerConnId]['afk_start'] = null;
+            $packet = [
+                'type'         => 'your_turn',
+                'turn_seconds' => $turnSeconds,
+                'auto_draws'   => $autoDraws,
+            ];
+        } else {
+            $room['players'][$drawerConnId]['afk_start'] = time();
+            $packet = [
+                'type'         => 'your_turn',
+                'afk_start'    => $room['players'][$drawerConnId]['afk_start'],
+                'turn_seconds' => $turnSeconds,
+                'auto_draws'   => $autoDraws,
+            ];
+        }
+
+        $room['players'][$drawerConnId]['connection']->send(json_encode($packet));
+    }
+
+    /**
+     * Клиент завершил анимацию хода — запускаем AFK-таймер drawer'а.
+     */
+    public function handleTurnReady(object $connection, object $worker): void
+    {
+        if (empty($connection->userId)) {
+            sendError($connection, 'error.auth_required', 'Authentication required');
+            return;
+        }
+
+        $connId = $connection->id;
+        $roomId = null;
+        foreach ($worker->rooms as $rid => $room) {
+            if (isset($room['players'][$connId])) {
+                $roomId = (int) $rid;
+                break;
+            }
+        }
+
+        if ($roomId === null) {
+            return;
+        }
+
+        $room = &$worker->rooms[$roomId];
+        if (($room['status'] ?? null) !== 'playing') {
+            return;
+        }
+        if (($room['active_drawer_conn_id'] ?? null) !== $connId) {
+            return;
+        }
+        if (!empty($room['players'][$connId]['afk_start'])) {
+            return;
+        }
+
+        $this->sendYourTurn($room, false);
     }
 
     /**
      * EPIC-13.0/13.1 (ADR-008): atomically notify drawer and arm game AFK timer.
      */
-    public function startTurn(array &$room, object $worker, int $roomId): void
+    public function startTurn(array &$room, object $worker, int $roomId, bool $deferAfkStart = false): void
     {
-        $this->sendYourTurn($room);
+        $this->sendYourTurn($room, $deferAfkStart);
         if ($this->reconnectService !== null) {
             $this->reconnectService->ensureGameAfkTimer($worker, $roomId);
         }
@@ -566,7 +615,7 @@ final class GameService
 
         // --- 7. Передать ход следующему ---
         $this->nextDrawer($room);
-        $this->startTurn($room, $worker, $roomId);
+        $this->startTurn($room, $worker, $roomId, true);
     }
 
     /**

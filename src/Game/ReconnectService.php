@@ -503,17 +503,7 @@ final class ReconnectService
             return;
         }
 
-        $active = array_filter($room['players'], fn($p) => ($p['status'] ?? null) === 'active');
-        if (count($active) === 1) {
-            $winnerConnId = (int)array_key_first($active);
-            $this->gameService->finishGame(
-                $room,
-                $roomId,
-                [$winnerConnId => 1],
-                [$winnerConnId => (int)($room['bank'] ?? 0)],
-                $worker,
-                'last_survivor'
-            );
+        if ($this->tryFinishLastSurvivor($worker, $roomId, $room)) {
             return;
         }
 
@@ -529,10 +519,41 @@ final class ReconnectService
             }
         }
 
-        if ($wasDrawer) {
+        if ($wasDrawer && ($room['status'] ?? null) === 'playing') {
             $this->gameService->nextDrawer($room);
-            $this->gameService->startTurn($room, $worker, $roomId);
+            $this->gameService->startTurn($room, $worker, $roomId, true);
         }
+    }
+
+    /**
+     * If exactly one active player remains during playing/apartment — finish immediately.
+     */
+    private function tryFinishLastSurvivor(object $worker, int $roomId, array &$room): bool
+    {
+        if (!in_array($room['status'] ?? '', ['playing', 'apartment'], true)) {
+            return false;
+        }
+
+        $active = array_filter(
+            $room['players'],
+            fn($p) => ($p['status'] ?? null) === 'active'
+        );
+
+        if (count($active) !== 1) {
+            return false;
+        }
+
+        $winnerConnId = (int) array_key_first($active);
+        $this->gameService->finishGame(
+            $room,
+            $roomId,
+            [$winnerConnId => 1],
+            [$winnerConnId => (int) ($room['bank'] ?? 0)],
+            $worker,
+            'last_survivor'
+        );
+
+        return true;
     }
 
     private function findRoomIdByConnId(object $worker, int $connId): ?int

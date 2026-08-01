@@ -220,7 +220,7 @@ Server → Client
 ```json
 {"type": "your_turn", "afk_start": 1704067150, "turn_seconds": 30, "auto_draws": 0}
 ```
-`afk_start`: unix timestamp when the drawer turn (and AFK countdown) began.
+`afk_start`: unix timestamp when the drawer turn (and AFK countdown) began; omitted until client sends `turn_ready` after slot animation.
 `turn_seconds`: seconds allowed for this turn before an AFK strike.
 `auto_draws`: prior auto-draw count for this player (0–2); third strike removes the player.
 
@@ -228,6 +228,12 @@ Server → Client
 Client → Server
 ```json
 {"action": "draw_barrel"}
+```
+
+### turn_ready
+Client → Server. Current drawer signals slot animation finished; server sets `afk_start` and re-sends `your_turn` with AFK fields.
+```json
+{"action": "turn_ready"}
 ```
 
 ### barrels_drawn

@@ -396,6 +396,35 @@ function makeRoom(int $roomId, int $hostConnId): array
 }
 
 // ---------------------------------------------------------------------------
+// GROUP 7: leave during playing — last survivor wins immediately
+// ---------------------------------------------------------------------------
+{
+    \MockTimer::reset();
+    $worker = new MockWorker();
+    $lobby = new MockLobbyService();
+    $game = new MockGameService();
+    $svc = new ReconnectService($lobby, $game, new MockLogger());
+
+    $leaver = new MockConnection(7, 70, 'leaver');
+    $winner = new MockConnection(8, 80, 'winner');
+    $room = makeRoom(7, 7);
+    $room['status'] = 'playing';
+    $room['bank'] = 100;
+    $room['players'][7] = makePlayer($leaver, 'active');
+    $room['players'][8] = makePlayer($winner, 'active');
+    $room['drawer_order'] = [7, 8];
+    $room['active_drawer_conn_id'] = 7;
+    $worker->rooms[7] = $room;
+
+    $svc->removePlayerFromGame($worker, 7, 7, 'leave');
+    assert_true($game->finishCalls === 1, 'leave: last survivor finishes game');
+    assert_true(!isset($worker->rooms[7]), 'leave: room destroyed after last survivor');
+    $leaverLeft = $leaver->sentOfType('player_left');
+    assert_true(count($leaverLeft) === 1, 'leave: departing player notified');
+    assert_true(($leaverLeft[0]['reason'] ?? '') === 'leave', 'leave: departing player reason=leave');
+}
+
+// ---------------------------------------------------------------------------
 // RESULTS
 // ---------------------------------------------------------------------------
 $total = $passed + $failed;

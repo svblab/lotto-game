@@ -342,7 +342,15 @@ function makeSvc(): array {
     // your_turn sent to p2 (next drawer)
     $p2YT = $p2->sentOfType('your_turn');
     assert_true(count($p2YT) === 1, 'DrawBarrel: your_turn sent to p2');
-    assert_true($r['players'][2]['afk_start'] !== null, 'DrawBarrel: next drawer afk_start set');
+    assert_true($r['players'][2]['afk_start'] === null, 'DrawBarrel: next drawer afk deferred until turn_ready');
+    assert_true(!isset($p2YT[0]['afk_start']), 'DrawBarrel: your_turn omits afk_start when deferred');
+
+    $svc->handleTurnReady($p2, $worker);
+    $r = $worker->rooms[1];
+    assert_true($r['players'][2]['afk_start'] !== null, 'turn_ready: afk_start armed');
+    $p2YTAfter = $p2->sentOfType('your_turn');
+    assert_true(count($p2YTAfter) === 2, 'turn_ready: your_turn resent with afk_start');
+    assert_true(isset($p2YTAfter[1]['afk_start']), 'turn_ready: afk_start in packet');
 
     // active_drawer rotated to p2
     assert_true($r['active_drawer_conn_id'] === 2, 'DrawBarrel: active_drawer=p2');

@@ -61,7 +61,7 @@ final class StateMachineAudit
      */
     public const ALLOWED_ACTIONS = [
         'waiting' => ['room_list', 'join_room', 'leave_room', 'start_game', 'reconnect', 'ping'],
-        'playing' => ['draw_barrel', 'leave_room', 'ping', 'reconnect'],
+        'playing' => ['draw_barrel', 'leave_room', 'ping', 'reconnect', 'turn_ready'],
         'apartment' => ['apartment_choice', 'ping'],
         'finished' => [],
     ];

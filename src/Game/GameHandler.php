@@ -50,6 +50,14 @@ final class GameHandler
     }
 
     /**
+     * {"action": "turn_ready"} — drawer finished slot animation, arm AFK timer.
+     */
+    public function handleTurnReady(object $connection, object $worker): void
+    {
+        $this->gameService->handleTurnReady($connection, $worker);
+    }
+
+    /**
      * {"action": "apartment_choice", "choice": "agree"|"refuse"}.
      *
      * Разбор поля `choice` — единственная новая проверка этого Epic'а

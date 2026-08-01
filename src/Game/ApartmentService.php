@@ -495,7 +495,7 @@ final class ApartmentService
         lottoStateTransition($roomId, 'apartment', 'playing', $resumeTrigger);
         $room['status'] = 'playing';
         $this->logger->info("Room {$roomId}: apartment finished, game resumes");
-        $gameService->startTurn($room, $worker, $roomId);
+        $gameService->startTurn($room, $worker, $roomId, true);
     }
 
     /**

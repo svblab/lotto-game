@@ -351,8 +351,8 @@ final class LobbyService
 
         $room = &$worker->rooms[$roomId];
 
-        // --- 3. waiting → LobbyService; playing → Game removal ---
-        if ($room['status'] === 'playing') {
+        // --- 3. waiting → LobbyService; playing/apartment → Game removal ---
+        if (in_array($room['status'], ['playing', 'apartment'], true)) {
             if (isset($worker->reconnectService)) {
                 $worker->reconnectService->removePlayerFromGame($worker, $roomId, $connId, 'leave');
             }

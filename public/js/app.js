@@ -31,6 +31,8 @@
     nextDrawer: null,
     isMyTurn: false,
     immune: false,
+    pendingTurnPkt: null,
+    turnReadySent: false,
   };
 
   let socket;
@@ -160,6 +162,7 @@
     state.drawLocked = false;
     UI().renderGameHeader(state.bank, state.currentDrawer, pkt.remaining);
     UI().setDrawButton(state.isMyTurn && !state.drawLocked, state.isMyTurn);
+    syncTurnUiAndAfk();
 
     if (pkt.is_final) {
       const idx = state.animationQueue.findIndex((j) => j._type === 'game_over');
@@ -322,18 +325,39 @@
     state.currentDrawer = state.drawerOrder[0];
   }
 
+  function syncTurnUiAndAfk() {
+    if (!state.isMyTurn) return;
+    const canAct = !state.animating && !state.drawLocked;
+    UI().setDrawButton(canAct, canAct);
+    if (!canAct) return;
+
+    const pkt = state.pendingTurnPkt;
+    if (!pkt) return;
+
+    if (pkt.afk_start) {
+      UI().startAfkCountdown(pkt.afk_start, pkt.turn_seconds, pkt.auto_draws ?? 0);
+      state.pendingTurnPkt = null;
+      state.turnReadySent = false;
+      return;
+    }
+
+    if (!state.turnReadySent) {
+      state.turnReadySent = true;
+      socket.sendAction('turn_ready');
+    }
+  }
+
   function onYourTurn(pkt) {
     state.isMyTurn = true;
-    if (!state.animating && !state.drawLocked) {
-      UI().setDrawButton(true, true);
-    }
-    if (pkt?.afk_start && pkt?.turn_seconds) {
-      UI().startAfkCountdown(pkt.afk_start, pkt.turn_seconds, pkt.auto_draws ?? 0);
-    }
+    state.pendingTurnPkt = pkt;
+    state.turnReadySent = false;
+    syncTurnUiAndAfk();
   }
 
   function onBarrelsDrawn(pkt) {
     state.isMyTurn = false;
+    state.pendingTurnPkt = null;
+    state.turnReadySent = false;
     UI().hideAfkCountdown();
     state.nextDrawer = pkt.next_drawer;
     enqueueAnimation(async () => {

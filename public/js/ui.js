@@ -166,7 +166,11 @@
     const isHost = room.host === username;
     const canStart = isHost && room.status === 'waiting' && (room.players?.length || 0) >= 2;
     $('#start-game-btn')?.classList.toggle('hidden', !canStart);
-    if (canStart && room.host_timeout_start && room.host_timeout_seconds) {
+    const showLobbyTimer = room.status === 'waiting'
+      && (room.players?.length || 0) >= 2
+      && room.host_timeout_start
+      && room.host_timeout_seconds;
+    if (showLobbyTimer) {
       startLobbyHostCountdown(room.host_timeout_start, room.host_timeout_seconds);
     } else {
       hideLobbyHostCountdown();
