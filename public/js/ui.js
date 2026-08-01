@@ -53,28 +53,103 @@
     $('#admin-open-btn')?.classList.toggle('hidden', !user?.is_admin);
   }
 
-  function renderRooms(rooms, onJoin) {
+  function renderRooms(rooms, onJoin, currentRoomId) {
     const tbody = $('#rooms-tbody');
     if (!tbody) return;
     tbody.innerHTML = '';
     const t = global.LottoI18n.t;
+    const inRoom = currentRoomId != null;
     rooms.forEach((room) => {
       const tr = document.createElement('tr');
-      const canJoin = room.status === 'waiting' && room.players < room.max_players;
+      const isOwnRoom = inRoom && room.room_id === currentRoomId;
+      const canJoin = !inRoom
+        && room.status === 'waiting'
+        && room.players < room.max_players;
+      if (isOwnRoom) tr.classList.add('room-row-current');
       tr.innerHTML = `
         <td>#${room.room_id}</td>
         <td>${room.players}/${room.max_players}</td>
         <td>${t(`status.${room.status}`) || room.status}</td>
         <td>${room.has_password ? '🔒' : '—'}</td>
         <td></td>`;
-      if (canJoin) {
+      const actionCell = tr.lastElementChild;
+      if (isOwnRoom) {
+        const badge = document.createElement('span');
+        badge.className = 'room-badge';
+        badge.textContent = t('lobby.yourRoom');
+        actionCell.appendChild(badge);
+      } else if (canJoin) {
         const btn = document.createElement('button');
         btn.className = 'btn small';
         btn.textContent = t('lobby.join');
         btn.onclick = () => onJoin(room);
-        tr.lastElementChild.appendChild(btn);
+        actionCell.appendChild(btn);
       }
       tbody.appendChild(tr);
+    });
+  }
+
+  function updateLobbyMembershipUI(inRoom) {
+    $('#create-room-btn')?.toggleAttribute('disabled', !!inRoom);
+    $('#quick-start-btn')?.toggleAttribute('disabled', !!inRoom);
+    if (inRoom) {
+      $('#create-room-panel')?.classList.add('hidden');
+      hideJoinRoomModal();
+    }
+  }
+
+  let joinRoomConfirmHandler = null;
+
+  function showJoinRoomModal(room, onConfirm) {
+    joinRoomConfirmHandler = onConfirm;
+    $('#join-room-title').textContent = global.LottoI18n.t('lobby.joinRoomTitle', { id: room.room_id });
+    const pwdWrap = $('#join-password-wrap');
+    const pwdInput = $('#join-room-password');
+    if (room.has_password) {
+      pwdWrap?.classList.remove('hidden');
+      if (pwdInput) pwdInput.value = '';
+    } else {
+      pwdWrap?.classList.add('hidden');
+      if (pwdInput) pwdInput.value = '';
+    }
+    $$('.card-choice-btn').forEach((btn) => {
+      btn.classList.toggle('selected', btn.dataset.cards === '1');
+    });
+    toggleOverlay('#join-room-modal', true);
+    pwdInput?.focus();
+  }
+
+  function hideJoinRoomModal() {
+    joinRoomConfirmHandler = null;
+    toggleOverlay('#join-room-modal', false);
+  }
+
+  function getJoinRoomSelection() {
+    const selected = $('.card-choice-btn.selected');
+    const cards_count = selected?.dataset.cards === '2' ? 2 : 1;
+    const password = $('#join-room-password')?.value || '';
+    return { cards_count, password };
+  }
+
+  function bindJoinRoomModal() {
+    $$('.card-choice-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        $$('.card-choice-btn').forEach((b) => b.classList.remove('selected'));
+        btn.classList.add('selected');
+      });
+    });
+    const confirmJoin = () => {
+      if (!joinRoomConfirmHandler) return;
+      const { cards_count, password } = getJoinRoomSelection();
+      const handler = joinRoomConfirmHandler;
+      hideJoinRoomModal();
+      handler(cards_count, password);
+    };
+    $('#join-room-submit')?.addEventListener('click', confirmJoin);
+    $('#join-room-cancel')?.addEventListener('click', hideJoinRoomModal);
+    $('#join-room-close-btn')?.addEventListener('click', hideJoinRoomModal);
+    $('#join-room-modal')?.addEventListener('click', (e) => {
+      if (e.target?.id === 'join-room-modal') hideJoinRoomModal();
     });
   }
 
@@ -361,6 +436,10 @@
     setAuthTab,
     updateLobbyUser,
     renderRooms,
+    updateLobbyMembershipUI,
+    showJoinRoomModal,
+    hideJoinRoomModal,
+    bindJoinRoomModal,
     showRoomPanel,
     renderPlayerList,
     renderGameHeader,

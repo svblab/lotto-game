@@ -177,6 +177,60 @@ label span { display: block; margin-bottom: 0.25rem; font-size: 0.9rem; color: v
   text-align: left;
 }
 .data-table th { color: var(--gold); }
+.data-table tr.room-row-current td { background: rgba(212, 175, 55, 0.12); }
+.room-badge {
+  font-size: 0.8rem;
+  color: var(--gold-glow);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.lobby-actions .btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.join-room-panel { max-width: 22rem; width: 100%; }
+.join-room-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.join-room-header h3 { margin: 0; }
+.join-room-hint { margin: 0.75rem 0 0.5rem; color: var(--text-muted); }
+.join-room-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+.join-room-actions .btn { flex: 1; min-width: 6rem; }
+.card-choice {
+  display: flex;
+  gap: 0.75rem;
+}
+.card-choice-btn {
+  flex: 1;
+  min-height: 3.25rem;
+  padding: 0.75rem 1rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  border: 2px solid var(--gold);
+  border-radius: var(--radius);
+  background: var(--felt-dark);
+  color: var(--cream);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.card-choice-btn.selected {
+  background: var(--gold);
+  color: var(--felt-dark);
+}
+.card-choice-btn:focus-visible {
+  outline: 2px solid var(--gold-glow);
+  outline-offset: 2px;
+}
 
 .players-list { list-style: none; padding: 0; margin: 0; }
 .players-list li {

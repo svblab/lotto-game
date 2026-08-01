@@ -91,6 +91,28 @@
           <button type="button" id="create-room-cancel" class="btn" data-i18n="common.cancel">Cancel</button>
         </div>
 
+        <div id="join-room-modal" class="overlay hidden" role="dialog" aria-labelledby="join-room-title">
+          <div class="panel join-room-panel">
+            <header class="join-room-header">
+              <h3 id="join-room-title" data-i18n="lobby.joinRoomTitle">Join room</h3>
+              <button type="button" id="join-room-close-btn" class="icon-btn" data-i18n-aria="common.close" aria-label="Close">✕</button>
+            </header>
+            <label id="join-password-wrap" class="hidden">
+              <span data-i18n="lobby.password">Password</span>
+              <input type="password" id="join-room-password" autocomplete="current-password">
+            </label>
+            <p class="join-room-hint" data-i18n="lobby.selectCards">How many cards?</p>
+            <div class="card-choice" role="group" aria-labelledby="join-room-title">
+              <button type="button" class="card-choice-btn selected" data-cards="1" data-i18n="lobby.oneCard">1 card</button>
+              <button type="button" class="card-choice-btn" data-cards="2" data-i18n="lobby.twoCards">2 cards</button>
+            </div>
+            <div class="join-room-actions">
+              <button type="button" id="join-room-submit" class="btn primary" data-i18n="lobby.join">Join</button>
+              <button type="button" id="join-room-cancel" class="btn" data-i18n="common.cancel">Cancel</button>
+            </div>
+          </div>
+        </div>
+
         <table id="rooms-table" class="data-table">
           <thead>
             <tr>

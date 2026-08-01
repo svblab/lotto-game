@@ -132,7 +132,7 @@
 
   function onRoomList(pkt) {
     state.rooms = pkt.rooms || [];
-    UI().renderRooms(state.rooms, promptJoinRoom);
+    UI().renderRooms(state.rooms, promptJoinRoom, state.room?.room_id ?? null);
     if (state.user?.is_admin) UI().renderAdminRooms(state.rooms, (id) => {
       socket.sendAction('admin_close_room', { room_id: id });
     });
@@ -146,6 +146,8 @@
       bank: pkt.bank,
       players: pkt.players || [],
     };
+    UI().updateLobbyMembershipUI(true);
+    UI().renderRooms(state.rooms, promptJoinRoom, state.room.room_id);
     UI().showRoomPanel(state.room, state.user?.username);
     UI().setMessage('#lobby-message', I18n().t('lobby.joined', { id: pkt.room_id }), 'success');
   }
@@ -280,6 +282,7 @@
       };
       state.myCards = [];
       state.myMasks = [];
+      UI().updateLobbyMembershipUI(true);
       UI().showScreen('lobby');
       UI().showRoomPanel(state.room, state.user?.username);
     } else if (pkt.status === 'playing') {
@@ -315,21 +318,28 @@
   }
 
   // --- User actions ---
+  function guardAlreadyInRoom() {
+    if (!state.room) return false;
+    UI().setMessage('#lobby-message', I18n().t('lobby.alreadyInRoom'), 'error');
+    return true;
+  }
+
   function promptJoinRoom(room) {
-    let password = '';
-    if (room.has_password) {
-      password = prompt(I18n().t('lobby.enterPassword')) || '';
-    }
-    const cards = prompt(I18n().t('lobby.cardsPrompt'), '1');
-    const cards_count = cards === '2' ? 2 : 1;
-    socket.sendAction('join_room', { room_id: room.room_id, password, cards_count });
+    if (guardAlreadyInRoom()) return;
+    if (state.room && room.room_id === state.room.room_id) return;
+    UI().showJoinRoomModal(room, (cards_count, password) => {
+      socket.sendAction('join_room', { room_id: room.room_id, password, cards_count });
+    });
   }
 
   function doQuickStart() {
+    if (guardAlreadyInRoom()) return;
     const open = state.rooms.find((r) =>
       r.status === 'waiting' && !r.has_password && r.players < r.max_players);
     if (open) {
-      socket.sendAction('join_room', { room_id: open.room_id, password: '', cards_count: 1 });
+      UI().showJoinRoomModal(open, (cards_count, password) => {
+        socket.sendAction('join_room', { room_id: open.room_id, password, cards_count });
+      });
     } else {
       socket.sendAction('create_room', { max_players: 10, password: '', cards_count: 1 });
     }
@@ -345,6 +355,7 @@
     state.animating = false;
     UI().toggleOverlay('#game-over-modal', false);
     UI().hideApartment();
+    UI().updateLobbyMembershipUI(false);
     UI().showScreen('lobby');
     UI().showRoomPanel(null);
     socket.sendAction('room_list');
@@ -383,12 +394,14 @@
 
     UI().$('#refresh-rooms-btn')?.addEventListener('click', () => socket.sendAction('room_list'));
     UI().$('#create-room-btn')?.addEventListener('click', () => {
+      if (guardAlreadyInRoom()) return;
       UI().$('#create-room-panel')?.classList.remove('hidden');
     });
     UI().$('#create-room-cancel')?.addEventListener('click', () => {
       UI().$('#create-room-panel')?.classList.add('hidden');
     });
     UI().$('#create-room-submit')?.addEventListener('click', () => {
+      if (guardAlreadyInRoom()) return;
       socket.sendAction('create_room', {
         max_players: parseInt(UI().$('#create-max-players').value, 10) || 10,
         password: UI().$('#create-password').value || '',
@@ -516,6 +529,7 @@
 
   async function init() {
     await I18n().load(I18n().detectLang());
+    UI().bindJoinRoomModal();
     bindEvents();
     socket = new (WS().LottoSocket)();
     wireSocket();
