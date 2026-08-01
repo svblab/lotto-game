@@ -338,18 +338,22 @@
         resolve();
         return;
       }
+      // Останавливаем только этот барабан; соседние продолжают крутиться.
       _clearSlotTimer(win);
       win.classList.remove('reveal');
-      win.classList.add('spinning', 'decel');
+      if (!win.classList.contains('spinning')) {
+        win.classList.add('spinning');
+      }
+      win.classList.add('decel');
       const span = win.querySelector('.slot-num');
       if (!span) {
         resolve();
         return;
       }
 
-      let delay = 55;
+      let delay = 50;
       let ticks = 0;
-      const stopAfter = 10 + index * 5;
+      const stopAfter = 12 + index * 4;
 
       const step = () => {
         ticks += 1;
@@ -360,11 +364,11 @@
           setTimeout(() => {
             win.classList.remove('reveal');
             resolve();
-          }, 500);
+          }, 450);
           return;
         }
         span.textContent = String(Math.floor(Math.random() * 90) + 1);
-        delay = Math.min(delay + 28, 240);
+        delay = Math.min(delay + 30, 260);
         setTimeout(step, delay);
       };
       step();

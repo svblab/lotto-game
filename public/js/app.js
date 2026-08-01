@@ -131,16 +131,13 @@
     UI().setDrawButton(false, false);
     state.drawLocked = true;
 
+    // Кнопка уже запустила все 3 барабана; иначе (ход соперника / автоход) — крутим с нуля.
     if (!UI().isSlotsSpinning()) {
       UI().startSlotsWaiting();
-      await sleep(250);
-    } else {
-      UI().stopSlotsWaiting();
-      UI().startSlotsWaiting();
-      await sleep(150);
+      await sleep(300);
     }
-    UI().stopSlotsWaiting();
 
+    // Останавливаем слева направо: каждый барабан замедляется, остальные продолжают вращение.
     for (let i = 0; i < 3; i++) {
       if (i < nums.length) {
         await UI().revealSlot(i, nums[i]);
@@ -151,11 +148,13 @@
         UI().renderCards(state.myCards, state.myMasks, state.cardIndex, [n]);
         UI().updateWinChance(state.myMasks);
         updatePlayersWinChance();
-        await sleep(180);
+        await sleep(100);
       } else {
         UI().idleSlot(i);
       }
     }
+
+    UI().stopSlotsWaiting();
 
     state.currentDrawer = pkt.next_drawer;
     state.drawLocked = false;
