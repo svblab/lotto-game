@@ -278,36 +278,32 @@
   let afkState = null;
   const AFK_RING_C = 2 * Math.PI * 42;
 
-  function startAfkCountdown(afkStart, limits) {
+  function startAfkCountdown(afkStart, turnSeconds, autoDraws) {
     hideAfkCountdown();
-    if (!afkStart || !limits) return;
+    if (!afkStart || !turnSeconds) return;
     afkState = {
       afkStart: Number(afkStart),
-      limits: {
-        strike1: Number(limits.strike1) || 30,
-        strike2: Number(limits.strike2) || 45,
-        strike3: Number(limits.strike3) || 50,
-      },
-      strikes: 0,
+      turnSeconds: Number(turnSeconds) || 30,
+      autoDraws: Number(autoDraws) || 0,
     };
     $('#afk-timer')?.classList.remove('hidden');
-    updateAfkStrikeMarkers(0);
+    updateAfkStrikeMarkers(afkState.autoDraws);
     tickAfkCountdown();
     afkIntervalId = setInterval(tickAfkCountdown, 200);
   }
 
   function syncAfkWarning(pkt) {
-    if (pkt.afk_start && pkt.afk_limits) {
+    if (pkt.afk_start) {
       if (!afkState) {
-        startAfkCountdown(pkt.afk_start, pkt.afk_limits);
+        startAfkCountdown(pkt.afk_start, pkt.turn_seconds, pkt.auto_draws);
       } else {
         afkState.afkStart = Number(pkt.afk_start);
-        afkState.limits = pkt.afk_limits;
+        if (pkt.turn_seconds) afkState.turnSeconds = Number(pkt.turn_seconds);
+        if (pkt.auto_draws !== undefined) afkState.autoDraws = Number(pkt.auto_draws);
       }
     }
     if (afkState && pkt.strike) {
-      afkState.strikes = Number(pkt.strike);
-      updateAfkStrikeMarkers(afkState.strikes);
+      updateAfkStrikeMarkers(Number(pkt.strike));
     }
     tickAfkCountdown();
   }
@@ -316,22 +312,9 @@
     if (!afkState) return;
     const now = Math.floor(Date.now() / 1000);
     const elapsed = now - afkState.afkStart;
-    const { strike1, strike2, strike3 } = afkState.limits;
-    const strikes = afkState.strikes;
-
-    let phaseStart = 0;
-    let phaseEnd = strike1;
-    if (strikes >= 2) {
-      phaseStart = strike2;
-      phaseEnd = strike3;
-    } else if (strikes >= 1) {
-      phaseStart = strike1;
-      phaseEnd = strike2;
-    }
-
-    const remaining = Math.max(0, phaseEnd - elapsed);
-    const phaseDuration = Math.max(1, phaseEnd - phaseStart);
-    const progress = Math.min(1, Math.max(0, (elapsed - phaseStart) / phaseDuration));
+    const turnSeconds = afkState.turnSeconds;
+    const remaining = Math.max(0, turnSeconds - elapsed);
+    const progress = Math.min(1, Math.max(0, elapsed / turnSeconds));
 
     const numEl = $('#afk-countdown');
     if (numEl) numEl.textContent = String(remaining);
@@ -342,7 +325,7 @@
     }
 
     const wrap = $('#afk-timer');
-    wrap?.classList.toggle('phase-danger', strikes >= 2);
+    wrap?.classList.toggle('phase-danger', remaining <= 5 && remaining > 0);
   }
 
   function updateAfkStrikeMarkers(activeStrikes) {

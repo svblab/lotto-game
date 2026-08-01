@@ -32,9 +32,14 @@ class Constants
     /** Apartment voting single-shot timeout (ApartmentService). */
     public const APARTMENT_TIMEOUT = 10;
 
-    /** Game AFK strike thresholds — cumulative inactivity (ReconnectService::tickGameAfk). */
-    public const GAME_AFK_STRIKE1_SECONDS = 30;
+    /** Seconds per turn before AFK strike (auto-draw or removal). */
+    public const GAME_AFK_TURN_SECONDS = 30;
+
+    /** @deprecated Use GAME_AFK_TURN_SECONDS */
+    public const GAME_AFK_STRIKE1_SECONDS = self::GAME_AFK_TURN_SECONDS;
+    /** @deprecated Cumulative strike phases removed — use auto_draws counter */
     public const GAME_AFK_STRIKE2_SECONDS = 45;
+    /** @deprecated Cumulative strike phases removed — use auto_draws counter */
     public const GAME_AFK_STRIKE3_SECONDS = 50;
 
     /** @deprecated Use GAME_AFK_STRIKE1_SECONDS */
@@ -83,9 +88,18 @@ class Constants
         return self::envInt('LOTTO_APARTMENT_TIMEOUT', self::APARTMENT_TIMEOUT);
     }
 
+    public static function gameAfkTurnSeconds(): int
+    {
+        return self::envInt(
+            'LOTTO_GAME_AFK_TURN',
+            self::envInt('LOTTO_GAME_AFK_STRIKE1', self::envInt('LOTTO_GAME_AFK_WARN1', self::GAME_AFK_TURN_SECONDS))
+        );
+    }
+
+    /** @deprecated Use gameAfkTurnSeconds() */
     public static function gameAfkStrike1Seconds(): int
     {
-        return self::envInt('LOTTO_GAME_AFK_STRIKE1', self::envInt('LOTTO_GAME_AFK_WARN1', self::GAME_AFK_STRIKE1_SECONDS));
+        return self::gameAfkTurnSeconds();
     }
 
     public static function gameAfkStrike2Seconds(): int

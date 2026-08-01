@@ -322,8 +322,8 @@
     if (!state.animating && !state.drawLocked) {
       UI().setDrawButton(true, true);
     }
-    if (pkt?.afk_start && pkt?.afk_limits) {
-      UI().startAfkCountdown(pkt.afk_start, pkt.afk_limits);
+    if (pkt?.afk_start && pkt?.turn_seconds) {
+      UI().startAfkCountdown(pkt.afk_start, pkt.turn_seconds, pkt.auto_draws ?? 0);
     }
   }
 

@@ -216,10 +216,11 @@ Player entry, others:
 ### your_turn
 Server → Client
 ```json
-{"type": "your_turn", "afk_start": 1704067150, "afk_limits": {"strike1": 30, "strike2": 45, "strike3": 50}}
+{"type": "your_turn", "afk_start": 1704067150, "turn_seconds": 30, "auto_draws": 0}
 ```
 `afk_start`: unix timestamp when the drawer turn (and AFK countdown) began.
-`afk_limits`: cumulative inactivity thresholds in seconds for strikes 1–3.
+`turn_seconds`: seconds allowed for this turn before an AFK strike.
+`auto_draws`: prior auto-draw count for this player (0–2); third strike removes the player.
 
 ### draw_barrel
 Client → Server
@@ -235,12 +236,12 @@ Server → Room
 `numbers`: 1-3 values.
 
 ### afk_warning
-Server → Client. Sent to the current drawer when a strike threshold is reached.
+Server → Client. Sent to the current drawer when the per-turn timeout is reached.
 ```json
-{"type": "afk_warning", "strike": 1, "time_left": 15, "afk_start": 1704067150, "afk_limits": {"strike1": 30, "strike2": 45, "strike3": 50}}
+{"type": "afk_warning", "strike": 1, "afk_start": 1704067150, "turn_seconds": 30, "auto_draws": 0}
 ```
-`strike`: `1` or `2` (warning). Strike `3` triggers immediate removal without a warning packet.
-`time_left`: seconds until the next strike threshold.
+`strike`: `1` or `2` (warning before auto-draw). Strike `3` triggers immediate removal without a warning packet.
+`auto_draws`: count of prior auto-draws before this strike.
 
 ---
 
