@@ -517,12 +517,40 @@ ok('transferHost: AFK afk_j1 receives host_changed',
 ok('transferHost: AFK host_changed username = afk_j1',
     ($afkJ1->lastPacket()['host'] ?? '') === 'afk_j1');
 
+// ADR-007: a THIRD player is required to prove the queue moves forward
+// (host, j1, j2) instead of bouncing back to an already-tried candidate.
+// This is the exact bug reported in A7 manual QA: with only 2 players the
+// old (buggy) implementation was indistinguishable from correct behavior
+// because "first active player != current host" and "next in FIFO order"
+// happen to coincide when there are only two candidates.
+$afkJ2 = new MockConnection(3, 'afk_j2');
+$lsAfk->handleJoinRoom(['room_id' => $afkRoomId, 'password' => '', 'cards_count' => 1], $afkJ2, $workerAfk);
+
 $workerAfk->rooms[$afkRoomId]['players'][$afkJ1->id]['last_action'] = time() - 9999;
 $lsAfk->transferHost($workerAfk, $afkRoomId);
-ok('transferHost: AFK re-transfer skips stale promoted host',
-    $workerAfk->rooms[$afkRoomId]['host_conn_id'] === $afkHost->id);
+ok('transferHost: AFK re-transfer advances FORWARD to afk_j2 (not back to afk_host)',
+    $workerAfk->rooms[$afkRoomId]['host_conn_id'] === $afkJ2->id);
+ok('transferHost: AFK afk_host (already-tried candidate) is skipped, not re-promoted',
+    $workerAfk->rooms[$afkRoomId]['host_conn_id'] !== $afkHost->id);
+ok('transferHost: AFK afk_host still present in room (only lost host, not removed)',
+    isset($workerAfk->rooms[$afkRoomId]['players'][$afkHost->id]));
 ok('transferHost: AFK refreshes new host last_action on promotion',
-    (time() - $workerAfk->rooms[$afkRoomId]['players'][$afkHost->id]['last_action']) <= 2);
+    (time() - $workerAfk->rooms[$afkRoomId]['players'][$afkJ2->id]['last_action']) <= 2);
+
+// ADR-007: queue exhaustion — afk_j2 (the last untried candidate) also
+// times out. No forward candidate remains (afk_host and afk_j1 were
+// already tried) → room must be force-closed, all remaining players
+// removed with reason='afk', room destroyed.
+$workerAfk->rooms[$afkRoomId]['players'][$afkJ2->id]['last_action'] = time() - 9999;
+$lsAfk->transferHost($workerAfk, $afkRoomId);
+ok('transferHost: AFK exhaustion destroys the room',
+    !isset($workerAfk->rooms[$afkRoomId]));
+ok('transferHost: AFK exhaustion notifies afk_host with player_left/afk',
+    ($afkHost->lastPacket()['type'] ?? '') === 'player_left'
+    && ($afkHost->lastPacket()['reason'] ?? '') === 'afk');
+ok('transferHost: AFK exhaustion notifies afk_j1 with player_left/afk',
+    ($afkJ1->lastPacket()['type'] ?? '') === 'player_left'
+    && ($afkJ1->lastPacket()['reason'] ?? '') === 'afk');
 
 // ─── SUITE 6: handleRoomList ─────────────────────────────────────────────────
 

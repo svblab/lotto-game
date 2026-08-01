@@ -450,13 +450,22 @@ final class LobbyService
     }
 
     /**
-     * Передаёт хост следующему активному игроку по FIFO из drawer_order.
-     * Вызывается когда текущий хост покидает комнату (статус 'waiting').
+     * Передаёт хост следующему активному игроку, идущему СТРОГО ПОСЛЕ
+     * текущего хоста в drawer_order (FIFO по порядку входа в лобби).
+     *
+     * ADR-007: право хоста движется только вперёд по очереди и никогда не
+     * возвращается к уже испробованным кандидатам.
      *
      * Именование: ANCHOR_CORE.md Part 6 § Function Names.
-     * Правило: ANCHOR_CORE.md Part 4 § Host Rules — новый хост = следующий активный FIFO.
+     * Правило: ANCHOR_CORE.md Part 4 § Host Rules — новый хост = следующий
+     * активный FIFO (уточнено ADR-007: "следующий" = дальше по очереди,
+     * не "первый активный, отличный от текущего").
      *
-     * Если активных игроков нет (все disconnected) — destroyRoom().
+     * Если после текущего хоста в очереди не осталось ни одного
+     * неиспробованного активного кандидата — очередь исчерпана (каждый
+     * уже был хостом и не начал игру): комната принудительно закрывается,
+     * все оставшиеся игроки удаляются с reason='afk' (существующий реестр
+     * ANCHOR_CORE.md Part 1 § Removal Reasons — новая причина не вводится).
      */
     public function transferHost(object $worker, int $roomId): void
     {
@@ -466,10 +475,18 @@ final class LobbyService
 
         $room = &$worker->rooms[$roomId];
 
-        // Ищем первого активного игрока из drawer_order (FIFO), кроме текущего хоста
-        foreach ($room['drawer_order'] as $connId) {
+        // Позиция текущего хоста в drawer_order. Ищем кандидата СТРОГО
+        // ПОСЛЕ неё — не с начала массива (это и было причиной бага:
+        // поиск с начала всегда находил первого активного игрока, отличного
+        // от текущего хоста, что приводило к пинг-понгу между двумя первыми
+        // игроками вместо продвижения по очереди).
+        $currentIndex = array_search($room['host_conn_id'], $room['drawer_order'], true);
+        $startIndex   = ($currentIndex === false) ? 0 : $currentIndex + 1;
+        $order        = $room['drawer_order'];
+
+        for ($i = $startIndex; $i < count($order); $i++) {
+            $connId = $order[$i];
             if (
-                $connId !== $room['host_conn_id'] &&
                 isset($room['players'][$connId]) &&
                 $room['players'][$connId]['status'] === 'active'
             ) {
@@ -492,8 +509,47 @@ final class LobbyService
             }
         }
 
-        // Нет активных игроков — уничтожаем комнату
-        $this->roomManager->destroyRoom($worker, $roomId);
+        // Очередь исчерпана вперёд по FIFO: либо активных игроков не
+        // осталось вовсе, либо все оставшиеся уже были хостом и не начали
+        // игру (ADR-007, A7 spec: "перебор игроков завершился полностью").
+        $this->closeRoomAfkExhausted($worker, $roomId);
+    }
+
+    /**
+     * Принудительно удаляет всех оставшихся игроков (reason='afk') и
+     * уничтожает комнату, когда очередь кандидатов на хоста в
+     * transferHost() исчерпана вперёд по FIFO без единого start_game().
+     *
+     * ADR-007. Переиспользует существующий пакет player_left и
+     * существующую причину 'afk' из реестра ANCHOR_CORE.md Part 1 §
+     * Removal Reasons — новых пакетов/причин не вводится (Rule 7).
+     * Экономика не затронута: в 'waiting' total_paid всегда 0
+     * (ANCHOR_CORE.md Part 2 § Reservation Rule), рефанд не требуется.
+     */
+    private function closeRoomAfkExhausted(object $worker, int $roomId): void
+    {
+        if (!isset($worker->rooms[$roomId])) {
+            return;
+        }
+
+        $room = &$worker->rooms[$roomId];
+
+        foreach ($room['players'] as $player) {
+            if (($player['status'] ?? null) === 'active' && isset($player['connection'])) {
+                sendJson($player['connection'], [
+                    'type'     => 'player_left',
+                    'username' => $player['username'],
+                    'reason'   => 'afk',
+                ]);
+            }
+        }
+
+        $this->logger->info(
+            "Lobby AFK: host candidate queue exhausted in room_id={$roomId}, " .
+            'closing room and removing ' . count($room['players']) . ' player(s)'
+        );
+
+        $this->roomManager->destroyRoom($worker, $roomId, 'afk');
         $this->broadcastRoomList($worker);
     }
 

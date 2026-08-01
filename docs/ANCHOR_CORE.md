@@ -407,7 +407,15 @@ Created: `onWorkerStart`. Destroyed: worker shutdown.
 Owner: room. Exists only in `waiting`. Purpose: prevent inactive host.
 Created when: room has `>=2 players` and host responsible for starting.
 Interval: 1s repeat. Check: `time()-host.last_action`. Threshold: 120s.
-Action: transfer host to next active player FIFO.
+Action: transfer host to the next active player FIFO — strictly the
+next untried candidate positioned after the current host in
+`drawer_order`. Rotation is forward-only: a player who already held
+host and timed out is never re-selected while any later candidate
+remains untried (ADR-007). If no untried active candidate remains
+after the current host's position, the queue is exhausted: the room is
+destroyed and every remaining player is removed with reason `afk`
+(existing `player_left` packet, existing reason — ANCHOR_CORE.md Part 1
+§ Removal Reasons; no new packet/reason introduced).
 Destroyed when: game starts, room destroyed, or player count <2. Max one per room.
 
 ## Game AFK Timer
