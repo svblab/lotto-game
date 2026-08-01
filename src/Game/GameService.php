@@ -364,7 +364,16 @@ final class GameService
             return;
         }
         $room['players'][$drawerConnId]['afk_start'] = time();
-        $player['connection']->send(json_encode(['type' => 'your_turn']));
+        $room['players'][$drawerConnId]['strikes']      = 0;
+        $player['connection']->send(json_encode([
+            'type'       => 'your_turn',
+            'afk_start'  => $room['players'][$drawerConnId]['afk_start'],
+            'afk_limits' => [
+                'strike1' => Constants::gameAfkStrike1Seconds(),
+                'strike2' => Constants::gameAfkStrike2Seconds(),
+                'strike3' => Constants::gameAfkStrike3Seconds(),
+            ],
+        ]));
     }
 
     /**
@@ -442,7 +451,7 @@ final class GameService
      *   6. EPIC-5.3 — barrels_drawn broadcast (1–3 числа).
      *   7. EPIC-5.1 — nextDrawer(), затем sendYourTurn() следующему.
      */
-    public function handleDrawBarrel(object $connection, object $worker, bool $fromAutoDraw = false): void
+    public function handleDrawBarrel(object $connection, object $worker): void
     {
         // --- 1. Auth guard ---
         if (empty($connection->userId)) {
@@ -486,14 +495,11 @@ final class GameService
             return;
         }
 
-        // Сбросить AFK-счётчики drawer'а. Ручной ход обнуляет auto_draws;
-        // автоход (ReconnectService) сохраняет накопленный счётчик.
+        // Ручной ход: сброс AFK-счётчиков и перезапуск отсчёта (до передачи хода).
         $room['players'][$connId]['afk_start']   = null;
         $room['players'][$connId]['strikes']      = 0;
+        $room['players'][$connId]['auto_draws']   = 0;
         $room['players'][$connId]['last_action']  = time();
-        if (!$fromAutoDraw) {
-            $room['players'][$connId]['auto_draws'] = 0;
-        }
 
         $drawnThisTurn = [];
 

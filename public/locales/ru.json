@@ -47,7 +47,7 @@
     "remaining": "Осталось",
     "online": "Онлайн",
     "disconnected": "Отошёл",
-    "afkWarning": "Предупреждение AFK ({strike}/2) — сделайте ход!",
+    "afkWarning": "Предупреждение AFK ({strike}/3) — сделайте ход!",
     "gameOver": "Игра окончена",
     "victory": "Победа",
     "lastSurvivor": "Последний герой",

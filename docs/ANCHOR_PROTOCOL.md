@@ -216,8 +216,10 @@ Player entry, others:
 ### your_turn
 Server → Client
 ```json
-{"type": "your_turn"}
+{"type": "your_turn", "afk_start": 1704067150, "afk_limits": {"strike1": 30, "strike2": 45, "strike3": 50}}
 ```
+`afk_start`: unix timestamp when the drawer turn (and AFK countdown) began.
+`afk_limits`: cumulative inactivity thresholds in seconds for strikes 1–3.
 
 ### draw_barrel
 Client → Server
@@ -233,12 +235,12 @@ Server → Room
 `numbers`: 1-3 values.
 
 ### afk_warning
-Server → Client. Sent to the current drawer when their turn timer
-approaches the auto-draw threshold (EPIC-8.3 / ReconnectService).
+Server → Client. Sent to the current drawer when a strike threshold is reached.
 ```json
-{"type": "afk_warning", "strike": 1}
+{"type": "afk_warning", "strike": 1, "time_left": 15, "afk_start": 1704067150, "afk_limits": {"strike1": 30, "strike2": 45, "strike3": 50}}
 ```
-`strike`: `1` (first warning) or `2` (final warning before auto-draw).
+`strike`: `1` or `2` (warning). Strike `3` triggers immediate removal without a warning packet.
+`time_left`: seconds until the next strike threshold.
 
 ---
 

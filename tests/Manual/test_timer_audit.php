@@ -194,7 +194,7 @@ echo "\nGROUP 2: Constants env overrides\n";
 putenv('LOTTO_RECONNECT_TIMEOUT=5');
 putenv('LOTTO_GAME_AFK_AUTO=7');
 assertTrue(Constants::reconnectTimeout() === 5, 'LOTTO_RECONNECT_TIMEOUT override');
-assertTrue(Constants::gameAfkAutoSeconds() === 7, 'LOTTO_GAME_AFK_AUTO override');
+assertTrue(Constants::gameAfkStrike3Seconds() === 7, 'LOTTO_GAME_AFK_STRIKE3/ AUTO override');
 
 putenv('LOTTO_RECONNECT_TIMEOUT');
 putenv('LOTTO_GAME_AFK_AUTO');

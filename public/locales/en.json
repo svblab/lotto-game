@@ -47,7 +47,7 @@
     "remaining": "Barrels left",
     "online": "Online",
     "disconnected": "Away",
-    "afkWarning": "AFK warning ({strike}/2) — draw soon!",
+    "afkWarning": "AFK warning ({strike}/3) — draw soon!",
     "gameOver": "Game Over",
     "victory": "Victory",
     "lastSurvivor": "Last survivor",

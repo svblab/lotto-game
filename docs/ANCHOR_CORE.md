@@ -423,11 +423,11 @@ Owner: room. Exists only in `playing`. Count: exactly 1/room. Interval: 1s repea
 Tracks: `active_drawer_conn_id`. Created on first `your_turn`, reused after turn change — never recreated.
 
 ### Thresholds (measured as `time()-player.afk_start`)
-- 15s: strike=1, warning sent.
-- 25s: strike=2, warning sent.
-- 30s: auto draw, `auto_draws++`, `strikes=0`.
-- `auto_draws>=3`: `removePlayerFromGame(..., 'afk')`.
-- Successful manual draw: `auto_draws=0, strikes=0`.
+- 30s: strike=1, warning sent.
+- 45s: strike=2, warning sent.
+- 50s: strike=3, `removePlayerFromGame(..., 'afk')` — no auto-draw; turn passes to next drawer.
+- Successful manual draw: `strikes=0`, `auto_draws=0`, `afk_start` reset for next drawer via `your_turn`.
+- On turn change: `strikes=0`, `afk_start=time()` for new drawer.
 Destroyed when room leaves `playing` or room destroyed.
 
 ## Apartment Timer

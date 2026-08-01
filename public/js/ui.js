@@ -274,6 +274,95 @@
     btn.classList.toggle('my-turn', !!myTurn && enabled);
   }
 
+  let afkIntervalId = null;
+  let afkState = null;
+  const AFK_RING_C = 2 * Math.PI * 42;
+
+  function startAfkCountdown(afkStart, limits) {
+    hideAfkCountdown();
+    if (!afkStart || !limits) return;
+    afkState = {
+      afkStart: Number(afkStart),
+      limits: {
+        strike1: Number(limits.strike1) || 30,
+        strike2: Number(limits.strike2) || 45,
+        strike3: Number(limits.strike3) || 50,
+      },
+      strikes: 0,
+    };
+    $('#afk-timer')?.classList.remove('hidden');
+    updateAfkStrikeMarkers(0);
+    tickAfkCountdown();
+    afkIntervalId = setInterval(tickAfkCountdown, 200);
+  }
+
+  function syncAfkWarning(pkt) {
+    if (pkt.afk_start && pkt.afk_limits) {
+      if (!afkState) {
+        startAfkCountdown(pkt.afk_start, pkt.afk_limits);
+      } else {
+        afkState.afkStart = Number(pkt.afk_start);
+        afkState.limits = pkt.afk_limits;
+      }
+    }
+    if (afkState && pkt.strike) {
+      afkState.strikes = Number(pkt.strike);
+      updateAfkStrikeMarkers(afkState.strikes);
+    }
+    tickAfkCountdown();
+  }
+
+  function tickAfkCountdown() {
+    if (!afkState) return;
+    const now = Math.floor(Date.now() / 1000);
+    const elapsed = now - afkState.afkStart;
+    const { strike1, strike2, strike3 } = afkState.limits;
+    const strikes = afkState.strikes;
+
+    let phaseStart = 0;
+    let phaseEnd = strike1;
+    if (strikes >= 2) {
+      phaseStart = strike2;
+      phaseEnd = strike3;
+    } else if (strikes >= 1) {
+      phaseStart = strike1;
+      phaseEnd = strike2;
+    }
+
+    const remaining = Math.max(0, phaseEnd - elapsed);
+    const phaseDuration = Math.max(1, phaseEnd - phaseStart);
+    const progress = Math.min(1, Math.max(0, (elapsed - phaseStart) / phaseDuration));
+
+    const numEl = $('#afk-countdown');
+    if (numEl) numEl.textContent = String(remaining);
+
+    const ring = $('#afk-ring-progress');
+    if (ring) {
+      ring.setAttribute('stroke-dashoffset', String(AFK_RING_C * (1 - progress)));
+    }
+
+    const wrap = $('#afk-timer');
+    wrap?.classList.toggle('phase-danger', strikes >= 2);
+  }
+
+  function updateAfkStrikeMarkers(activeStrikes) {
+    $$('.afk-strike').forEach((el) => {
+      const n = parseInt(el.dataset.strike, 10);
+      el.classList.toggle('active', n <= activeStrikes);
+      el.classList.toggle('pending', n > activeStrikes);
+    });
+  }
+
+  function hideAfkCountdown() {
+    if (afkIntervalId) {
+      clearInterval(afkIntervalId);
+      afkIntervalId = null;
+    }
+    afkState = null;
+    $('#afk-timer')?.classList.add('hidden');
+    $('#afk-timer')?.classList.remove('phase-danger');
+  }
+
   const slotSpinTimers = new Map();
 
   function _slotWindows() {
@@ -547,6 +636,9 @@
     renderCards,
     renderDrawnHistory,
     setDrawButton,
+    startAfkCountdown,
+    syncAfkWarning,
+    hideAfkCountdown,
     setSlotNumbers,
     resetSlots,
     startSlotsWaiting,

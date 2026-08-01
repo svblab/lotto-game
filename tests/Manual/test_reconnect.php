@@ -78,33 +78,9 @@ class MockGameService
     public int $nextDrawerCalls = 0;
     public int $yourTurnCalls = 0;
 
-    public function handleDrawBarrel(object $connection, object $worker, bool $fromAutoDraw = false): void
+    public function handleDrawBarrel(object $connection, object $worker): void
     {
         $this->drawCalls++;
-        // Simulate post-draw turn rotation (real GameService::nextDrawer).
-        foreach ($worker->rooms as &$room) {
-            if (!isset($room['players'][$connection->id])) {
-                continue;
-            }
-            $order = $room['drawer_order'] ?? [];
-            $pos = array_search($connection->id, $order, true);
-            if ($pos === false) {
-                break;
-            }
-            $count = count($order);
-            for ($i = 1; $i <= $count; $i++) {
-                $next = $order[($pos + $i) % $count];
-                if (
-                    isset($room['players'][$next])
-                    && ($room['players'][$next]['status'] ?? null) === 'active'
-                ) {
-                    $room['active_drawer_conn_id'] = $next;
-                    break;
-                }
-            }
-            break;
-        }
-        unset($room);
     }
 
     public function startTurn(array &$room, object $worker, int $roomId): void
@@ -309,15 +285,18 @@ function makeRoom(int $roomId, int $hostConnId): array
     $room = makeRoom(4, 4);
     $room['status'] = 'playing';
     $room['players'][4] = makePlayer($conn, 'active');
-    $room['players'][4]['afk_start'] = time() - 16;
+    $room['players'][4]['afk_start'] = time() - 31;
     $worker->rooms[4] = $room;
 
     $svc->ensureGameAfkTimer($worker, 4);
     assert_true(!empty($worker->rooms[4]['game_afk_timer_id']), 'game afk: timer created once');
 
     $svc->tickGameAfk($worker, 4);
-    assert_true($worker->rooms[4]['players'][4]['strikes'] === 1, 'game afk: strike=1 at 15s');
-    assert_true(count($conn->sentOfType('afk_warning')) === 1, 'game afk: warning packet sent');
+    assert_true($worker->rooms[4]['players'][4]['strikes'] === 1, 'game afk: strike=1 at 30s');
+    $warnings = $conn->sentOfType('afk_warning');
+    assert_true(count($warnings) === 1, 'game afk: warning packet sent');
+    assert_true(($warnings[0]['strike'] ?? null) === 1, 'game afk: warning strike=1');
+    assert_true(($warnings[0]['time_left'] ?? null) === 15, 'game afk: time_left=15 until strike2');
 }
 
 // ---------------------------------------------------------------------------
@@ -334,19 +313,20 @@ function makeRoom(int $roomId, int $hostConnId): array
     $room = makeRoom(44, 44);
     $room['status'] = 'playing';
     $room['players'][44] = makePlayer($conn, 'active');
-    $room['players'][44]['afk_start'] = time() - 26;
+    $room['players'][44]['afk_start'] = time() - 46;
     $room['players'][44]['strikes'] = 1;
     $worker->rooms[44] = $room;
 
     $svc->tickGameAfk($worker, 44);
-    assert_true($worker->rooms[44]['players'][44]['strikes'] === 2, 'game afk: strike=2 at 25s');
+    assert_true($worker->rooms[44]['players'][44]['strikes'] === 2, 'game afk: strike=2 at 45s');
     $warnings = $conn->sentOfType('afk_warning');
     assert_true(count($warnings) === 1, 'game afk: second warning sent');
     assert_true(($warnings[0]['strike'] ?? null) === 2, 'game afk: warning strike=2');
+    assert_true(($warnings[0]['time_left'] ?? null) === 5, 'game afk: time_left=5 until strike3');
 }
 
 // ---------------------------------------------------------------------------
-// GROUP 5: auto draw + afk removal after 3 auto draws (last survivor)
+// GROUP 5: strike 3 removal — last survivor (2 players)
 // ---------------------------------------------------------------------------
 {
     \MockTimer::reset();
@@ -355,20 +335,25 @@ function makeRoom(int $roomId, int $hostConnId): array
     $game = new MockGameService();
     $svc = new ReconnectService($lobby, $game, new MockLogger());
 
-    $conn = new MockConnection(5, 50, 'auto');
+    $conn = new MockConnection(5, 50, 'afk_out');
+    $conn2 = new MockConnection(6, 51, 'survivor');
     $room = makeRoom(5, 5);
     $room['status'] = 'playing';
     $room['players'][5] = makePlayer($conn, 'active');
-    $room['players'][5]['auto_draws'] = 2;
+    $room['players'][6] = makePlayer($conn2, 'active');
+    $room['drawer_order'] = [5, 6];
+    $room['active_drawer_conn_id'] = 5;
+    $room['players'][5]['afk_start'] = time() - 51;
     $worker->rooms[5] = $room;
 
-    $svc->performAutoDraw($worker, 5, 5);
-    assert_true($game->drawCalls === 1, 'auto draw: delegated to draw_barrel flow');
-    assert_true(!isset($worker->rooms[5]), 'afk remove: last active survivor flow finished room');
+    $svc->tickGameAfk($worker, 5);
+    assert_true($game->drawCalls === 0, 'afk strike3: no auto draw');
+    assert_true(!isset($worker->rooms[5]), 'afk strike3: last survivor ends room');
+    assert_true($game->finishCalls === 1, 'afk strike3: last_survivor finishGame');
 }
 
 // ---------------------------------------------------------------------------
-// GROUP 6: afk removal with 3 players — game continues
+// GROUP 6: strike 3 removal with 3 players — game continues
 // ---------------------------------------------------------------------------
 {
     \MockTimer::reset();
@@ -387,14 +372,15 @@ function makeRoom(int $roomId, int $hostConnId): array
     $room['players'][57] = makePlayer($c7, 'active');
     $room['drawer_order'] = [55, 56, 57];
     $room['active_drawer_conn_id'] = 55;
-    $room['players'][55]['auto_draws'] = 2;
+    $room['players'][55]['afk_start'] = time() - 51;
     $worker->rooms[55] = $room;
 
-    $svc->performAutoDraw($worker, 55, 55);
-    assert_true($game->drawCalls === 1, 'afk remove: auto draw executed');
-    assert_true(!isset($worker->rooms[55]['players'][55]), 'afk remove: drawer removed after 3rd auto draw');
+    $svc->tickGameAfk($worker, 55);
+    assert_true($game->drawCalls === 0, 'afk remove: no auto draw on strike3');
+    assert_true(!isset($worker->rooms[55]['players'][55]), 'afk remove: drawer removed at 50s');
     assert_true(isset($worker->rooms[55]['players'][56]), 'afk remove: remaining players stay in room');
     assert_true($game->finishCalls === 0, 'afk remove: game continues with 2 active players');
+    assert_true($game->yourTurnCalls >= 1, 'afk remove: turn passed to next drawer');
 }
 
 // ---------------------------------------------------------------------------

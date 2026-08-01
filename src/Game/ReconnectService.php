@@ -219,6 +219,7 @@ final class ReconnectService
             && (int)($room['active_drawer_conn_id'] ?? 0) === $newConnId
         ) {
             $room['players'][$newConnId]['afk_start'] = time();
+            $room['players'][$newConnId]['strikes']     = 0;
         } else {
             $room['players'][$newConnId]['afk_start'] = null;
         }
@@ -358,7 +359,7 @@ final class ReconnectService
     }
 
     /**
-     * EPIC-8.4 / 8.5: warning -> auto draw -> remove('afk').
+     * EPIC-8.4 / 8.5: strike warnings at 30s / 45s, removal at 50s (no auto-draw).
      */
     public function tickGameAfk(object $worker, int $roomId): void
     {
@@ -387,61 +388,47 @@ final class ReconnectService
         }
 
         $elapsed = time() - (int)$drawer['afk_start'];
-        if ($elapsed >= Constants::gameAfkAutoSeconds()) {
-            $this->performAutoDraw($worker, $roomId, (int)$drawerConnId);
+        $strike3 = Constants::gameAfkStrike3Seconds();
+        $strike2 = Constants::gameAfkStrike2Seconds();
+        $strike1 = Constants::gameAfkStrike1Seconds();
+
+        if ($elapsed >= $strike3) {
+            if ((int)$drawer['strikes'] < 3) {
+                $drawer['strikes'] = 3;
+                $this->removePlayerFromGame($worker, $roomId, (int)$drawerConnId, 'afk');
+            }
             return;
         }
 
-        if ($elapsed >= Constants::gameAfkWarn2Seconds() && (int)$drawer['strikes'] < 2) {
+        if ($elapsed >= $strike2 && (int)$drawer['strikes'] < 2) {
             $drawer['strikes'] = 2;
             $drawer['connection']->send(json_encode([
-                'type'   => 'afk_warning',
-                'strike' => 2,
+                'type'       => 'afk_warning',
+                'strike'     => 2,
+                'time_left'  => $strike3 - $strike2,
+                'afk_start'  => (int)$drawer['afk_start'],
+                'afk_limits' => [
+                    'strike1' => $strike1,
+                    'strike2' => $strike2,
+                    'strike3' => $strike3,
+                ],
             ]));
             return;
         }
 
-        if ($elapsed >= Constants::gameAfkWarn1Seconds() && (int)$drawer['strikes'] < 1) {
+        if ($elapsed >= $strike1 && (int)$drawer['strikes'] < 1) {
             $drawer['strikes'] = 1;
             $drawer['connection']->send(json_encode([
-                'type'   => 'afk_warning',
-                'strike' => 1,
+                'type'       => 'afk_warning',
+                'strike'     => 1,
+                'time_left'  => $strike2 - $strike1,
+                'afk_start'  => (int)$drawer['afk_start'],
+                'afk_limits' => [
+                    'strike1' => $strike1,
+                    'strike2' => $strike2,
+                    'strike3' => $strike3,
+                ],
             ]));
-        }
-    }
-
-    /**
-     * Auto draw делегируется в существующий игровой цикл draw_barrel.
-     * После этого накапливаем auto_draws и при >=3 удаляем игрока (reason=afk).
-     */
-    public function performAutoDraw(object $worker, int $roomId, int $drawerConnId): void
-    {
-        if (!isset($worker->rooms[$roomId]['players'][$drawerConnId])) {
-            return;
-        }
-        $room = &$worker->rooms[$roomId];
-        $drawer = &$room['players'][$drawerConnId];
-        if (($drawer['status'] ?? null) !== 'active') {
-            return;
-        }
-
-        $autoDrawsBefore = (int)($drawer['auto_draws'] ?? 0);
-        $connection = $drawer['connection'];
-
-        $this->gameService->handleDrawBarrel($connection, $worker, true);
-
-        if (!isset($worker->rooms[$roomId]['players'][$drawerConnId])) {
-            return;
-        }
-
-        $room = &$worker->rooms[$roomId];
-        $drawer = &$room['players'][$drawerConnId];
-        $drawer['auto_draws'] = $autoDrawsBefore + 1;
-        $drawer['strikes']    = 0;
-        $drawer['afk_start']  = null;
-
-        if ($drawer['auto_draws'] >= 3) {
-            $this->removePlayerFromGame($worker, $roomId, $drawerConnId, 'afk');
         }
     }
 

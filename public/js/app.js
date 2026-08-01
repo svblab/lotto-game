@@ -312,19 +312,24 @@
     UI().updateWinChance(state.myMasks);
     UI().renderGamePlayers(state.players);
     UI().resetSlots();
+    UI().hideAfkCountdown();
     UI().setDrawButton(false, false);
     state.currentDrawer = state.drawerOrder[0];
   }
 
-  function onYourTurn() {
+  function onYourTurn(pkt) {
     state.isMyTurn = true;
     if (!state.animating && !state.drawLocked) {
       UI().setDrawButton(true, true);
+    }
+    if (pkt?.afk_start && pkt?.afk_limits) {
+      UI().startAfkCountdown(pkt.afk_start, pkt.afk_limits);
     }
   }
 
   function onBarrelsDrawn(pkt) {
     state.isMyTurn = false;
+    UI().hideAfkCountdown();
     state.nextDrawer = pkt.next_drawer;
     enqueueAnimation(async () => {
       await animateBarrelsDrawn(pkt);
@@ -332,6 +337,7 @@
   }
 
   function onAfkWarning(pkt) {
+    UI().syncAfkWarning(pkt);
     UI().showToast(I18n().t('game.afkWarning', { strike: pkt.strike }));
   }
 
@@ -479,6 +485,7 @@
     state.animationQueue = [];
     state.animating = false;
     UI().resetSlots();
+    UI().hideAfkCountdown();
     UI().toggleOverlay('#game-over-modal', false);
     UI().hideApartment();
     UI().updateLobbyMembershipUI(false);
