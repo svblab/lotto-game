@@ -421,6 +421,14 @@ final class LobbyService
             'total_paid' => $playerEntry['total_paid'],
         ];
 
+        if (($playerEntry['status'] ?? null) === 'active' && isset($playerEntry['connection'])) {
+            sendJson($playerEntry['connection'], [
+                'type'     => 'player_left',
+                'username' => $username,
+                'reason'   => $reason,
+            ]);
+        }
+
         // Удаляем из players
         unset($room['players'][$connId]);
 
@@ -689,12 +697,36 @@ final class LobbyService
             'type' => 'host_changed',
             'host' => $hostUsername,
         ];
+        $packet = array_merge($packet, $this->lobbyHostTimeoutFields($room));
 
         foreach ($room['players'] as $player) {
             if ($player['status'] === 'active') {
                 sendJson($player['connection'], $packet);
             }
         }
+    }
+
+    /**
+     * Host AFK window fields for clients (only when host is assigned, 2+ players).
+     *
+     * @return array<string, int>
+     */
+    private function lobbyHostTimeoutFields(array $room): array
+    {
+        $hostUsername = $this->resolveLobbyHostUsername($room);
+        if ($hostUsername === '') {
+            return [];
+        }
+
+        $hostConnId = $room['host_conn_id'] ?? null;
+        if ($hostConnId === null || !isset($room['players'][$hostConnId])) {
+            return [];
+        }
+
+        return [
+            'host_timeout_start'   => (int) $room['players'][$hostConnId]['last_action'],
+            'host_timeout_seconds' => Constants::lobbyHostTimeout(),
+        ];
     }
 
     /**
@@ -757,13 +789,13 @@ final class LobbyService
             ];
         }
 
-        return [
+        return array_merge([
             'type'    => 'room_joined',
             'room_id' => $room['room_id'],
             'host'    => $this->resolveLobbyHostUsername($room),
             'status'  => $room['status'],
             'bank'    => $room['bank'],
             'players' => $players,
-        ];
+        ], $this->lobbyHostTimeoutFields($room));
     }
 }

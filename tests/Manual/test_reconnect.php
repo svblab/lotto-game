@@ -353,6 +353,9 @@ function makeRoom(int $roomId, int $hostConnId): array
 
     $svc->tickGameAfk($worker, 5);
     assert_true($game->drawCalls === 0, 'afk strike3: no auto draw');
+    $leftPkts = $conn->sentOfType('player_left');
+    assert_true(count($leftPkts) === 1, 'afk strike3: removed player notified');
+    assert_true(($leftPkts[0]['reason'] ?? '') === 'afk', 'afk strike3: removed player reason=afk');
     assert_true(!isset($worker->rooms[5]), 'afk strike3: last survivor ends room');
     assert_true($game->finishCalls === 1, 'afk strike3: last_survivor finishGame');
 }
@@ -383,6 +386,9 @@ function makeRoom(int $roomId, int $hostConnId): array
 
     $svc->tickGameAfk($worker, 55);
     assert_true($game->drawCalls === 0, 'afk remove: no auto draw on strike3');
+    $leftPkts = $c5->sentOfType('player_left');
+    assert_true(count($leftPkts) === 1, 'afk remove: removed player notified');
+    assert_true(($leftPkts[0]['reason'] ?? '') === 'afk', 'afk remove: removed player reason=afk');
     assert_true(!isset($worker->rooms[55]['players'][55]), 'afk remove: drawer removed at strike3');
     assert_true(isset($worker->rooms[55]['players'][56]), 'afk remove: remaining players stay in room');
     assert_true($game->finishCalls === 0, 'afk remove: game continues with 2 active players');

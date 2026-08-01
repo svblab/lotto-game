@@ -158,8 +158,9 @@ Client → Server
 ### room_joined
 Server → Client
 ```json
-{"type": "room_joined", "room_id": 7, "host": "player1", "status": "waiting", "bank": 0, "players": []}
+{"type": "room_joined", "room_id": 7, "host": "player1", "status": "waiting", "bank": 0, "players": [], "host_timeout_start": 1704067150, "host_timeout_seconds": 120}
 ```
+`host_timeout_start` / `host_timeout_seconds`: present when a lobby host is assigned (≥2 players); countdown until host AFK transfer.
 Player entry:
 ```json
 {"username": "player", "cards_count": 2, "status": "active"}
@@ -180,8 +181,9 @@ Server → Room
 ### host_changed
 Server → Room
 ```json
-{"type": "host_changed", "host": "player1"}
+{"type": "host_changed", "host": "player1", "host_timeout_start": 1704067150, "host_timeout_seconds": 120}
 ```
+`host_timeout_start` / `host_timeout_seconds`: included when `host` is non-empty (lobby host AFK window).
 Sent to every active player in the room whenever `host_conn_id` changes
 (e.g. lobby-AFK host timeout via `transferHost()`). See ADR-009.
 

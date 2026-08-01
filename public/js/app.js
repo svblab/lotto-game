@@ -242,6 +242,8 @@
       status: pkt.status,
       bank: pkt.bank,
       players: pkt.players || [],
+      host_timeout_start: pkt.host_timeout_start ?? null,
+      host_timeout_seconds: pkt.host_timeout_seconds ?? null,
     };
     UI().updateLobbyMembershipUI(true);
     UI().renderRooms(state.rooms, promptJoinRoom, state.room.room_id);
@@ -262,6 +264,8 @@
   function onHostChanged(pkt) {
     if (!state.room) return;
     state.room.host = pkt.host;
+    state.room.host_timeout_start = pkt.host_timeout_start ?? null;
+    state.room.host_timeout_seconds = pkt.host_timeout_seconds ?? null;
     UI().showRoomPanel(state.room, state.user?.username);
   }
 
@@ -313,6 +317,7 @@
     UI().renderGamePlayers(state.players);
     UI().resetSlots();
     UI().hideAfkCountdown();
+    UI().hideLobbyHostCountdown();
     UI().setDrawButton(false, false);
     state.currentDrawer = state.drawerOrder[0];
   }
@@ -395,6 +400,8 @@
         status: 'waiting',
         bank: pkt.bank || 0,
         players: pkt.players || [],
+        host_timeout_start: pkt.host_timeout_start ?? null,
+        host_timeout_seconds: pkt.host_timeout_seconds ?? null,
       };
       state.myCards = [];
       state.myMasks = [];
@@ -486,6 +493,7 @@
     state.animating = false;
     UI().resetSlots();
     UI().hideAfkCountdown();
+    UI().hideLobbyHostCountdown();
     UI().toggleOverlay('#game-over-modal', false);
     UI().hideApartment();
     UI().updateLobbyMembershipUI(false);

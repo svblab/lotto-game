@@ -262,12 +262,19 @@ final class ReconnectService
         ];
 
         if ($status === 'waiting') {
-            return array_merge($base, [
+            $payload = [
                 'host'      => $this->resolveHostUsername($room),
                 'players'   => $this->buildLobbyPlayersList($room),
                 'drawn_all' => [],
                 'my_cards'  => null,
-            ]);
+            ];
+            $hostConnId = $room['host_conn_id'] ?? null;
+            if ($payload['host'] !== '' && $hostConnId !== null && isset($room['players'][$hostConnId])) {
+                $payload['host_timeout_start']   = (int) $room['players'][$hostConnId]['last_action'];
+                $payload['host_timeout_seconds'] = Constants::lobbyHostTimeout();
+            }
+
+            return array_merge($base, $payload);
         }
 
         $drawerOrder = array_values(array_filter(
@@ -467,6 +474,14 @@ final class ReconnectService
             'username'   => $player['username'],
             'total_paid' => $player['total_paid'],
         ];
+
+        if (($player['status'] ?? null) === 'active' && isset($player['connection'])) {
+            sendJson($player['connection'], [
+                'type'     => 'player_left',
+                'username' => $player['username'],
+                'reason'   => $reason,
+            ]);
+        }
 
         unset($room['players'][$connId]);
         $room['drawer_order'] = array_values(

@@ -166,6 +166,11 @@
     const isHost = room.host === username;
     const canStart = isHost && room.status === 'waiting' && (room.players?.length || 0) >= 2;
     $('#start-game-btn')?.classList.toggle('hidden', !canStart);
+    if (canStart && room.host_timeout_start && room.host_timeout_seconds) {
+      startLobbyHostCountdown(room.host_timeout_start, room.host_timeout_seconds);
+    } else {
+      hideLobbyHostCountdown();
+    }
     renderPlayerList('#room-players-list', room.players || [], false);
   }
 
@@ -344,6 +349,52 @@
     afkState = null;
     $('#afk-timer')?.classList.add('hidden');
     $('#afk-timer')?.classList.remove('phase-danger');
+  }
+
+  let lobbyHostIntervalId = null;
+  let lobbyHostState = null;
+  const LOBBY_HOST_RING_C = 2 * Math.PI * 42;
+
+  function startLobbyHostCountdown(timeoutStart, timeoutSeconds) {
+    hideLobbyHostCountdown();
+    if (!timeoutStart || !timeoutSeconds) return;
+    lobbyHostState = {
+      timeoutStart: Number(timeoutStart),
+      timeoutSeconds: Number(timeoutSeconds) || 120,
+    };
+    $('#lobby-host-timer')?.classList.remove('hidden');
+    tickLobbyHostCountdown();
+    lobbyHostIntervalId = setInterval(tickLobbyHostCountdown, 200);
+  }
+
+  function tickLobbyHostCountdown() {
+    if (!lobbyHostState) return;
+    const now = Math.floor(Date.now() / 1000);
+    const elapsed = now - lobbyHostState.timeoutStart;
+    const timeoutSeconds = lobbyHostState.timeoutSeconds;
+    const remaining = Math.max(0, timeoutSeconds - elapsed);
+    const progress = Math.min(1, Math.max(0, elapsed / timeoutSeconds));
+
+    const numEl = $('#lobby-host-countdown');
+    if (numEl) numEl.textContent = String(remaining);
+
+    const ring = $('#lobby-host-ring-progress');
+    if (ring) {
+      ring.setAttribute('stroke-dashoffset', String(LOBBY_HOST_RING_C * (1 - progress)));
+    }
+
+    const wrap = $('#lobby-host-timer');
+    wrap?.classList.toggle('phase-danger', remaining <= 15 && remaining > 0);
+  }
+
+  function hideLobbyHostCountdown() {
+    if (lobbyHostIntervalId) {
+      clearInterval(lobbyHostIntervalId);
+      lobbyHostIntervalId = null;
+    }
+    lobbyHostState = null;
+    $('#lobby-host-timer')?.classList.add('hidden');
+    $('#lobby-host-timer')?.classList.remove('phase-danger');
   }
 
   const slotSpinTimers = new Map();
@@ -622,6 +673,8 @@
     startAfkCountdown,
     syncAfkWarning,
     hideAfkCountdown,
+    startLobbyHostCountdown,
+    hideLobbyHostCountdown,
     setSlotNumbers,
     resetSlots,
     startSlotsWaiting,

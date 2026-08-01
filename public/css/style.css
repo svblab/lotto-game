@@ -301,7 +301,7 @@ label span { display: block; margin-bottom: 0.25rem; font-size: 0.9rem; color: v
   50% { color: var(--gold); text-shadow: 0 0 12px var(--gold-glow); }
 }
 
-/* AFK turn countdown (3 strikes: 30s / 15s / 5s) */
+/* AFK turn countdown (in-game drawer) */
 .afk-timer {
   display: flex;
   flex-direction: column;
@@ -353,8 +353,14 @@ label span { display: block; margin-bottom: 0.25rem; font-size: 0.9rem; color: v
   stroke-dashoffset: 0;
   transition: stroke-dashoffset 0.2s linear, stroke 0.3s;
 }
-.afk-timer.phase-danger .afk-ring-progress {
+.afk-timer.phase-danger .afk-ring-progress,
+.lobby-host-timer.phase-danger .afk-ring-progress {
   stroke: #e74c3c;
+}
+.lobby-host-timer {
+  display: flex;
+  justify-content: center;
+  margin: 0.75rem 0;
 }
 .afk-countdown-num {
   position: absolute;

@@ -532,6 +532,14 @@ final class ApartmentService
             'total_paid' => $player['total_paid'],
         ];
 
+        if (($player['status'] ?? null) === 'active' && isset($player['connection'])) {
+            sendJson($player['connection'], [
+                'type'     => 'player_left',
+                'username' => $player['username'],
+                'reason'   => $reason,
+            ]);
+        }
+
         unset($room['players'][$connId]);
 
         $room['drawer_order'] = array_values(
