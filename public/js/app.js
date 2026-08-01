@@ -10,6 +10,7 @@
 
   const STORAGE_TOKEN = 'lotto_session_token';
   const STORAGE_USER = 'lotto_user_profile';
+  const STORAGE_ACTIVE = 'lotto_active_ws';
 
   const state = {
     user: null,
@@ -32,6 +33,29 @@
     immune: false,
   };
 
+  let socket;
+  let reconnectGuardTimer = null;
+
+  function clearReconnectGuard() {
+    if (reconnectGuardTimer) {
+      clearTimeout(reconnectGuardTimer);
+      reconnectGuardTimer = null;
+    }
+  }
+
+  function startReconnectGuard() {
+    clearReconnectGuard();
+    reconnectGuardTimer = setTimeout(() => {
+      reconnectGuardTimer = null;
+      if (!state.user && shouldAttemptReconnect()) {
+        clearClientSession();
+        UI().showReconnecting(false);
+        UI().showScreen('auth');
+        UI().setMessage('#auth-message', I18n().t('errors.auth_invalid_token'), 'error');
+      }
+    }, 6000);
+  }
+
   function persistUser(user) {
     if (!user) return;
     localStorage.setItem(STORAGE_USER, JSON.stringify(user));
@@ -46,13 +70,30 @@
     }
   }
 
-  function clearClientSession() {
+  function markActiveSession() {
+    sessionStorage.setItem(STORAGE_ACTIVE, '1');
+  }
+
+  function shouldAttemptReconnect() {
+    return sessionStorage.getItem(STORAGE_ACTIVE) === '1'
+      && !!localStorage.getItem(STORAGE_TOKEN);
+  }
+
+  function clearStoredSession() {
     localStorage.removeItem(STORAGE_TOKEN);
     localStorage.removeItem(STORAGE_USER);
+    sessionStorage.removeItem(STORAGE_ACTIVE);
+  }
+
+  function clearClientSession() {
+    clearStoredSession();
     state.user = null;
     state.room = null;
     state.inGame = false;
-    if (socket) socket.setSessionToken(null);
+    if (socket) {
+      socket.setSessionToken(null);
+      socket.cancelReconnect?.();
+    }
   }
 
   function ensureUserProfile() {
@@ -129,6 +170,7 @@
 
   function onAuthResult(pkt) {
     if (!pkt.success) return;
+    clearReconnectGuard();
     state.user = {
       id: pkt.user_id,
       username: pkt.username,
@@ -137,6 +179,7 @@
     };
     persistUser(state.user);
     localStorage.setItem(STORAGE_TOKEN, pkt.session_token);
+    markActiveSession();
     socket.setSessionToken(pkt.session_token);
     UI().showReconnecting(false);
     UI().updateLobbyUser(state.user);
@@ -146,14 +189,15 @@
   }
 
   function onError(pkt) {
-    const msg = I18n().translateError(pkt);
     if ((pkt.code ?? '') === 'error.auth_invalid_token') {
+      clearReconnectGuard();
       clearClientSession();
       UI().showReconnecting(false);
       UI().showScreen('auth');
-      UI().setMessage('#auth-message', msg, 'error');
+      UI().setMessage('#auth-message', I18n().translateError(pkt), 'error');
       return;
     }
+    const msg = I18n().translateError(pkt);
     if (state.inGame) UI().showToast(msg);
     else if (UI().$('#lobby-screen')?.classList.contains('active')) UI().setMessage('#lobby-message', msg, 'error');
     else UI().setMessage('#auth-message', msg, 'error');
@@ -311,7 +355,9 @@
   }
 
   function onReconnectState(pkt) {
+    clearReconnectGuard();
     UI().showReconnecting(false);
+    markActiveSession();
     ensureUserProfile();
     if (!state.user) {
       clearClientSession();
@@ -572,24 +618,28 @@
     };
     Object.entries(handlers).forEach(([type, fn]) => socket.on(type, fn));
 
+    socket.on('transport_error', () => {
+      UI().showReconnecting(false);
+    });
     socket.on('reconnecting', () => {
-      if (localStorage.getItem(STORAGE_TOKEN)) {
+      if (shouldAttemptReconnect()) {
         UI().showReconnecting(true);
       }
     });
     socket.on('open', () => {
-      const token = localStorage.getItem(STORAGE_TOKEN);
-      if (token) {
+      if (shouldAttemptReconnect()) {
+        const token = localStorage.getItem(STORAGE_TOKEN);
         socket.setSessionToken(token);
         UI().showReconnecting(true);
+        startReconnectGuard();
         socket.sendAction('reconnect', { token });
         return;
       }
-      socket.setSessionToken(null);
+      clearClientSession();
       UI().showReconnecting(false);
     });
     socket.on('close', () => {
-      if (localStorage.getItem(STORAGE_TOKEN) && socket.sessionToken && !socket.intentionalClose) {
+      if (shouldAttemptReconnect() && socket.sessionToken && !socket.intentionalClose) {
         UI().showReconnecting(true);
       }
     });
@@ -600,6 +650,12 @@
     UI().bindJoinRoomModal();
     bindEvents();
     UI().showScreen('auth');
+    if (!shouldAttemptReconnect()) {
+      clearStoredSession();
+      state.user = null;
+      state.room = null;
+      state.inGame = false;
+    }
     socket = new (WS().LottoSocket)();
     wireSocket();
     socket.connect();

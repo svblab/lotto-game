@@ -36,7 +36,7 @@ class PreparedStatements
         // ни 'user_admin_by_id' (id, is_admin) не дают username, а исходная
         // версия этого запроса (FIX-10) не включала banned_until, из-за чего
         // reconnect мог обойти бан (см. FIX-11 в IMPLEMENTATION_STATUS.md).
-        'user_auth_fields_by_id' => "SELECT id, username, is_admin, banned_until FROM users WHERE id = ? LIMIT 1",
+        'user_auth_fields_by_id' => "SELECT id, username, is_admin, banned_until, coins FROM users WHERE id = ? LIMIT 1",
 
         'create_user' => "INSERT INTO users (username, password_hash, coins, is_admin, banned_until, last_daily_bonus) VALUES (?, ?, 500, 0, 0, strftime('%s','now'))",
         

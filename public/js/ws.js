@@ -56,13 +56,10 @@
         this.connected = true;
         this.emit('open');
         this._startPing();
-        if (this.sessionToken) {
-          this.sendAction('reconnect', { token: this.sessionToken });
-        }
       };
       this.ws.onmessage = (ev) => this._onMessage(ev.data);
       this.ws.onclose = (ev) => this._onClose(ev);
-      this.ws.onerror = () => this.emit('error', { message: 'WebSocket error' });
+      this.ws.onerror = () => this.emit('transport_error', { message: 'WebSocket error' });
     }
 
     disconnect() {
@@ -78,6 +75,11 @@
 
     setSessionToken(token) {
       this.sessionToken = token || null;
+    }
+
+    cancelReconnect() {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
     }
 
     sendAction(action, extra = {}) {

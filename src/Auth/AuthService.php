@@ -139,7 +139,8 @@ class AuthService
             // EPIC-1.3: Single Session Protection
             $userId = (int)$user['id'];
             if ($worker !== null) {
-                if (isset($worker->userConnections[$userId])) {
+                if (isset($worker->userConnections[$userId])
+                    && $worker->userConnections[$userId] !== $connection) {
                     throw new Exception('User already logged in');
                 }
                 $worker->userConnections[$userId] = $connection;
@@ -193,7 +194,7 @@ class AuthService
      * Не бросает исключений на "не найдено" — вызывающая сторона
      * (AuthHandler::handleReconnect()) трактует null как невалидную сессию.
      *
-     * @return array{id:int, username:string, is_admin:bool, banned_until:int}|null
+     * @return array{id:int, username:string, is_admin:bool, banned_until:int, coins:int}|null
      */
     public function getUserById(int $userId): ?array
     {
@@ -210,6 +211,7 @@ class AuthService
             'username' => (string)$row['username'],
             'is_admin' => (bool)$row['is_admin'],
             'banned_until' => (int)$row['banned_until'],
+            'coins' => (int)$row['coins'],
         ];
     }
 }
