@@ -533,6 +533,7 @@
     UI().updateLobbyMembershipUI(false);
     UI().showScreen('lobby');
     UI().showRoomPanel(null);
+    UI().setMessage('#lobby-message', '');
     socket.sendAction('room_list');
   }
 
