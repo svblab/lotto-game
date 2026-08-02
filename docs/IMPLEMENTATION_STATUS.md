@@ -2,6 +2,49 @@
 
 ## Phase 14 — AFK Timer Audit Fixes
 
+- [DONE] EPIC-14.6 Clear stale lobby joined message on leave room
+Files:
+- public/js/app.js (diff — `resetToLobby()` clears `#lobby-message`)
+
+Notes: Cosmetic UI fix only; unrelated to AFK timing logic. Stale «Вы в комнате
+#N» text persisted after `leave_room` because `onRoomJoined` set the message but
+`resetToLobby()` did not clear it.
+
+VERIFICATION:
+- Manual UI: leave room → `#lobby-message` empty; lobby timers unaffected.
+- `php tests/Manual/test_lobby_integration.php` — 133/133 PASS (no test change).
+- `php run_ALL_tests.php` — 30/41 test files PASS (11 pre-existing failures
+  unrelated to this one-line client fix; same baseline as EPIC-14.1 sign-off).
+
+- [DONE] EPIC-14.5 Fix lobby AFK 120s display and turn passing after start_game
+Files:
+- server.php (diff — `hello` packet gains `server_time`; `touchLobbyHostActivity`
+  restricted to waiting-room lobby-action allowlist: `room_list`, `create_room`,
+  `join_room`, `leave_room` — excludes `start_game` and all in-game/admin actions)
+- public/js/app.js (diff — server clock skew from `hello`; `onHostChanged` ignored
+  while `state.inGame`)
+- public/js/ui.js (diff — `setServerClockSkew` / `serverNowSec()` for lobby and
+  game AFK countdown displays)
+- src/Game/ReconnectService.php (diff — `reconnect_state` `host_timeout_start`
+  sourced from `host_activity_at`, not stale `last_action`)
+- src/Lobby/LobbyService.php (diff — `startLobbyAfkTimer()` refreshes
+  `host_activity_at` + broadcasts on arm; `touchLobbyHostActivity` broadcasts via
+  `broadcastHostChanged` only)
+- tests/Manual/test_lobby_integration.php (diff — SUITE 7: timer arm sets full
+  120s window assertion)
+
+Notes: Closes residual EPIC-14.1 gap where `touchLobbyHostActivity` was wired
+unconditionally for every action (including `start_game`), which re-broadcast
+`host_changed` during game start and broke turn passing. Client clock skew caused
+lobby countdown to open at ~105s instead of 120s when client clock led server.
+
+VERIFICATION:
+- `php tests/Manual/test_lobby_integration.php` — 133/133 PASS (includes SUITE 7
+  «timer arm sets full 120s window» + SUITE 8 ping-immunity from EPIC-14.1).
+- `php run_ALL_tests.php` — 30/41 test files PASS (11 pre-existing failures on
+  Windows dev host: live WS subprocess tests, `sendJson` bootstrap gaps in some
+  apartment/admin manual tests — unchanged from EPIC-14.1 baseline).
+
 - [DONE] EPIC-14.4 Update GAME_RULES.md AFK section to match per-turn model (ADR-008)
 Files:
 - docs/GAME_RULES.md (diff — §4 AFK: per-turn 30s threshold, cross-turn strike counting)
