@@ -169,8 +169,9 @@ Player entry:
 ### player_joined
 Server → Room
 ```json
-{"type": "player_joined", "username": "player", "cards_count": 1}
+{"type": "player_joined", "username": "player", "cards_count": 1, "host": "player1", "host_timeout_start": 1704067150, "host_timeout_seconds": 120}
 ```
+When ≥2 players are seated, includes current lobby host AFK deadline (`host.last_action` + `LOBBY_HOST_TIMEOUT`) so all clients stay in sync.
 
 ### player_left
 Server → Room

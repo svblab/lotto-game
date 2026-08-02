@@ -354,8 +354,23 @@ ok('joinRoom: drawer_order FIFO host first',          $worker->rooms[$roomId]['d
 ok('joinRoom: host promoted on 1→2 transition',       (packetOfType($host, 'host_changed')['type'] ?? '') === 'host_changed');
 ok('joinRoom: host_changed username = creator',         (packetOfType($host, 'host_changed')['host'] ?? '') === 'host');
 ok('joinRoom: room_joined host set for joiner',         ($pktJoin['host'] ?? '') === 'host');
+ok('joinRoom: room_joined includes host_timeout_start', isset($pktJoin['host_timeout_start']));
+ok('joinRoom: player_joined includes host_timeout_start', isset($hostPlayerJoined['host_timeout_start']));
 
-$connNotFound = new MockConnection(3, 'u3');
+$joiner3rd = new MockConnection(3, 'third');
+$hostAfkStartBefore = (int) $worker->rooms[$roomId]['players'][$host->id]['last_action'];
+$worker->rooms[$roomId]['players'][$host->id]['last_action'] = $hostAfkStartBefore + 45;
+$ls->handleJoinRoom(['room_id' => $roomId, 'password' => '', 'cards_count' => 1], $joiner3rd, $worker);
+$pktThird = packetOfType($joiner3rd, 'room_joined');
+$hostSync = lastPacketOfType($host, 'host_changed');
+ok('joinRoom: 3rd player room_joined has host_timeout_start', isset($pktThird['host_timeout_start']));
+ok('joinRoom: 3rd player timeout matches host last_action',
+    ($pktThird['host_timeout_start'] ?? 0) === $hostAfkStartBefore + 45);
+ok('joinRoom: host resynced on 3rd join', ($hostSync['host_timeout_start'] ?? 0) === $hostAfkStartBefore + 45);
+ok('joinRoom: joiner resynced via player_joined',
+    (lastPacketOfType($joiner, 'player_joined')['host_timeout_start'] ?? 0) === $hostAfkStartBefore + 45);
+
+$connNotFound = new MockConnection(4, 'u4');
 $ls->handleJoinRoom(['room_id' => 9999, 'password' => '', 'cards_count' => 1], $connNotFound, $worker);
 ok('joinRoom: error.room_not_found on wrong room_id',
     ($connNotFound->lastPacket()['code'] ?? '') === 'error.room_not_found');

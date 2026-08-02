@@ -418,7 +418,15 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
         $connId = (int) $connection->id;
         $roomId = $worker->roomManager->findRoomIdByConnId($worker, $connId);
         if ($roomId !== null && isset($worker->rooms[$roomId]['players'][$connId])) {
-            $worker->rooms[$roomId]['players'][$connId]['last_action'] = time();
+            $room = &$worker->rooms[$roomId];
+            $room['players'][$connId]['last_action'] = time();
+            if (
+                ($room['status'] ?? null) === 'waiting'
+                && count($room['players']) >= 2
+                && ($room['host_conn_id'] ?? null) === $connId
+            ) {
+                $worker->lobbyService->broadcastLobbyAfkSync($room);
+            }
         }
         return;
     }

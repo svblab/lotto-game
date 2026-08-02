@@ -261,6 +261,13 @@
       cards_count: pkt.cards_count,
       status: 'active',
     });
+    if (pkt.host_timeout_start) {
+      state.room.host_timeout_start = pkt.host_timeout_start;
+      state.room.host_timeout_seconds = pkt.host_timeout_seconds ?? state.room.host_timeout_seconds;
+    }
+    if (pkt.host) {
+      state.room.host = pkt.host;
+    }
     UI().showRoomPanel(state.room, state.user?.username);
   }
 

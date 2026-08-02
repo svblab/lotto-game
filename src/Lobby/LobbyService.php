@@ -286,15 +286,28 @@ final class LobbyService
             " joined room_id={$roomId} cards_count={$cardsCount}"
         );
 
-        // --- 9. Новому игроку: room_joined ---
+        // --- 9. Lobby AFK timer + host promotion (1→2 transition only) ---
+        // Must run before room_joined so the joiner receives current host + timeout.
+        $playerCount = count($room['players']);
+        if ($playerCount === 2) {
+            $this->promoteLobbyHost($worker, $roomId);
+            $this->startLobbyAfkTimer($worker, $roomId);
+            $room = &$worker->rooms[$roomId];
+        }
+
+        // --- 10. Новому игроку: room_joined ---
         sendJson($connection, $this->buildRoomJoinedPacket($room));
 
-        // --- 10. Остальным игрокам: player_joined ---
-        $playerJoinedPacket = [
+        // --- 11. Остальным игрокам: player_joined (with lobby AFK sync fields) ---
+        $playerJoinedPacket = array_merge([
             'type'        => 'player_joined',
             'username'    => $connection->username,
             'cards_count' => $cardsCount,
-        ];
+        ], $this->lobbyHostTimeoutFields($room));
+        $hostUsername = $this->resolveLobbyHostUsername($room);
+        if ($hostUsername !== '') {
+            $playerJoinedPacket['host'] = $hostUsername;
+        }
 
         foreach ($room['players'] as $pid => $player) {
             if ($pid !== $connId && $player['status'] === 'active') {
@@ -302,13 +315,9 @@ final class LobbyService
             }
         }
 
-        // --- 11. Lobby AFK timer + host promotion (1→2 transition only) ---
-        // Контракт: ANCHOR_CORE.md § Lobby AFK Timer / A7 pre-game spec.
-        // Timer starts once when the second player joins; later joins must not reset it.
-        $playerCount = count($room['players']);
-        if ($playerCount === 2) {
-            $this->promoteLobbyHost($worker, $roomId);
-            $this->startLobbyAfkTimer($worker, $roomId);
+        // --- 12. Re-sync lobby AFK countdown for everyone when 3rd+ player joins ---
+        if ($playerCount > 2) {
+            $this->broadcastLobbyAfkSync($room);
         }
 
         $this->broadcastRoomList($worker);
@@ -685,6 +694,18 @@ final class LobbyService
 
         $this->stopLobbyAfkTimer($worker, $roomId);
         $this->broadcastHostChanged($worker->rooms[$roomId], '');
+    }
+
+    /**
+     * Re-broadcast host + lobby AFK deadline so every client uses host.last_action.
+     */
+    public function broadcastLobbyAfkSync(array $room): void
+    {
+        if (($room['status'] ?? null) !== 'waiting' || count($room['players'] ?? []) < 2) {
+            return;
+        }
+
+        $this->broadcastHostChanged($room);
     }
 
     /**
