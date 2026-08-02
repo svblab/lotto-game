@@ -498,12 +498,23 @@ final class ReconnectService
             }
         }
 
-        if (empty($room['players'])) {
-            $this->destroyRoom($worker, $roomId);
+        $active = $this->collectActivePlayers($room);
+
+        if (count($active) === 0) {
+            $this->gameService->handleNoSurvivors($room, $roomId, $worker);
             return;
         }
 
-        if ($this->tryFinishLastSurvivor($worker, $roomId, $room)) {
+        if (count($active) === 1 && in_array($room['status'] ?? '', ['playing', 'apartment'], true)) {
+            $winnerConnId = (int) array_key_first($active);
+            $this->gameService->finishGame(
+                $room,
+                $roomId,
+                [$winnerConnId => 1],
+                [$winnerConnId => (int) ($room['bank'] ?? 0)],
+                $worker,
+                'last_survivor'
+            );
             return;
         }
 
@@ -526,34 +537,15 @@ final class ReconnectService
     }
 
     /**
-     * If exactly one active player remains during playing/apartment — finish immediately.
+     * @param array<string, mixed> $room
+     * @return array<int, mixed>
      */
-    private function tryFinishLastSurvivor(object $worker, int $roomId, array &$room): bool
+    private function collectActivePlayers(array $room): array
     {
-        if (!in_array($room['status'] ?? '', ['playing', 'apartment'], true)) {
-            return false;
-        }
-
-        $active = array_filter(
+        return array_filter(
             $room['players'],
             fn($p) => ($p['status'] ?? null) === 'active'
         );
-
-        if (count($active) !== 1) {
-            return false;
-        }
-
-        $winnerConnId = (int) array_key_first($active);
-        $this->gameService->finishGame(
-            $room,
-            $roomId,
-            [$winnerConnId => 1],
-            [$winnerConnId => (int) ($room['bank'] ?? 0)],
-            $worker,
-            'last_survivor'
-        );
-
-        return true;
     }
 
     private function findRoomIdByConnId(object $worker, int $connId): ?int
@@ -565,32 +557,5 @@ final class ReconnectService
         }
         return null;
     }
-
-    private function destroyRoom(object $worker, int $roomId): void
-    {
-        if (!isset($worker->rooms[$roomId])) {
-            return;
-        }
-
-        $room = $worker->rooms[$roomId];
-        if (!empty($room['lobby_afk_timer_id'])) {
-            lottoTimerDel((int) $room['lobby_afk_timer_id'], 'lobby_afk', ['room_id' => $roomId]);
-        }
-        if (!empty($room['game_afk_timer_id'])) {
-            lottoTimerDel((int) $room['game_afk_timer_id'], 'game_afk', ['room_id' => $roomId]);
-        }
-        if (!empty($room['apartment_timer_id'])) {
-            lottoTimerDel((int) $room['apartment_timer_id'], 'apartment', ['room_id' => $roomId]);
-        }
-
-        foreach (($room['players'] ?? []) as $connId => $p) {
-            if (!empty($p['reconnect_timer'])) {
-                lottoTimerDel((int) $p['reconnect_timer'], 'reconnect', [
-                    'room_id' => $roomId,
-                    'conn_id' => $connId,
-                ]);
-            }
-        }
-        unset($worker->rooms[$roomId]);
-    }
 }
+

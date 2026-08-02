@@ -12,6 +12,7 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/../../src/Core/Helpers.php';
 
 use Lotto\Game\ReconnectService;
+use Lotto\Game\GameFinishService;
 
 $passed = 0;
 $failed = 0;
@@ -109,6 +110,14 @@ class MockGameService
     {
         $this->yourTurnCalls++;
     }
+
+    public int $noSurvivorsCalls = 0;
+
+    public function handleNoSurvivors(array &$room, int $roomId, object $worker): void
+    {
+        $this->noSurvivorsCalls++;
+        unset($worker->rooms[$roomId]);
+    }
 }
 
 function makePlayer(MockConnection $conn, string $status = 'active'): array
@@ -130,6 +139,63 @@ function makePlayer(MockConnection $conn, string $status = 'active'): array
         'connection' => $conn,
         'immune' => false,
     ];
+}
+
+class MockPDO {
+    public bool $committed = false;
+    public bool $rolledBack = false;
+    public function beginTransaction(): void {}
+    public function commit(): void { $this->committed = true; }
+    public function rollBack(): void { $this->rolledBack = true; }
+}
+
+class MockDatabase {
+    public MockPDO $pdo;
+    public function __construct(MockPDO $p) { $this->pdo = $p; }
+    public function getPdo(): MockPDO { return $this->pdo; }
+}
+
+class MockStmts {
+    private array $users;
+    public array $updates = [];
+    public function __construct(array $u = []) { $this->users = $u; }
+    public function get(string $key): object {
+        $users = $this->users; $parent = $this;
+        if ($key === 'user_by_id') {
+            return new class($users) {
+                private array $u; private ?int $id = null;
+                public function __construct(array $u) { $this->u = $u; }
+                public function execute(array $p): void { $this->id = $p[0]; }
+                public function fetch(): array|false { return $this->u[$this->id] ?? false; }
+            };
+        }
+        if ($key === 'update_user_coins') {
+            return new class($parent) {
+                private object $p;
+                public function __construct(object $p) { $this->p = $p; }
+                public function execute(array $p): void { $this->p->updates[] = ['coins' => $p[0], 'user_id' => $p[1]]; }
+            };
+        }
+        throw new \InvalidArgumentException("Unknown: $key");
+    }
+}
+
+function makeRefundGameService(MockPDO $pdo, MockStmts $st): object
+{
+    $db  = new MockDatabase($pdo);
+    $log = new MockLogger();
+    $fin = new GameFinishService($db, $st, $log);
+    return new class($fin) extends MockGameService {
+        private GameFinishService $fin;
+        public function __construct(GameFinishService $fin) { $this->fin = $fin; }
+        public function handleNoSurvivors(array &$room, int $roomId, object $worker): void
+        {
+            $this->noSurvivorsCalls++;
+            $this->fin->handleNoSurvivors($room, $roomId, function () use ($worker, $roomId) {
+                unset($worker->rooms[$roomId]);
+            });
+        }
+    };
 }
 
 function makeRoom(int $roomId, int $hostConnId): array
@@ -316,8 +382,8 @@ function makeRoom(int $roomId, int $hostConnId): array
     $room = makeRoom(44, 44);
     $room['status'] = 'playing';
     $room['players'][44] = makePlayer($conn, 'active');
-    $room['players'][44]['afk_start'] = time() - 31;
     $room['players'][44]['auto_draws'] = 1;
+    $room['players'][44]['afk_start'] = time() - 31;
     $worker->rooms[44] = $room;
 
     $svc->tickGameAfk($worker, 44);
@@ -422,6 +488,80 @@ function makeRoom(int $roomId, int $hostConnId): array
     $leaverLeft = $leaver->sentOfType('player_left');
     assert_true(count($leaverLeft) === 1, 'leave: departing player notified');
     assert_true(($leaverLeft[0]['reason'] ?? '') === 'leave', 'leave: departing player reason=leave');
+}
+
+// ---------------------------------------------------------------------------
+// GROUP 8: zero active with disconnected stragglers — refund + timer cleanup
+// ---------------------------------------------------------------------------
+{
+    \MockTimer::reset();
+    $worker = new MockWorker();
+    $lobby = new MockLobbyService();
+    $pdo = new MockPDO();
+    $st = new MockStmts([
+        101 => ['coins' => 100],
+        201 => ['coins' => 200],
+        301 => ['coins' => 300],
+    ]);
+    $game = makeRefundGameService($pdo, $st);
+    $svc = new ReconnectService($lobby, $game, new MockLogger());
+
+    $c1 = new MockConnection(100, 101, 'active_last');
+    $c2 = new MockConnection(200, 201, 'dc2');
+    $c3 = new MockConnection(300, 301, 'dc3');
+    $room = makeRoom(800, 100);
+    $room['status'] = 'playing';
+    $room['bank'] = 30;
+    $room['drawer_order'] = [100, 200, 300];
+    $room['players'][100] = makePlayer($c1, 'active');
+    $room['players'][100]['total_paid'] = 10;
+    $room['players'][200] = makePlayer($c2, 'disconnected');
+    $room['players'][200]['total_paid'] = 10;
+    $room['players'][200]['reconnect_timer'] = \MockTimer::add(15.0, fn() => null, false);
+    $room['players'][300] = makePlayer($c3, 'disconnected');
+    $room['players'][300]['total_paid'] = 10;
+    $room['players'][300]['reconnect_timer'] = \MockTimer::add(15.0, fn() => null, false);
+    $worker->rooms[800] = $room;
+
+    $svc->removePlayerFromGame($worker, 800, 100, 'leave');
+
+    assert_true($game->noSurvivorsCalls === 1, 'no survivors: handleNoSurvivors called');
+    assert_true(!isset($worker->rooms[800]), 'no survivors: room destroyed');
+    assert_true(count(\MockTimer::$active) === 0, 'no survivors: reconnect timers cancelled');
+    assert_true($pdo->committed === true, 'no survivors: refund transaction committed');
+    assert_true(count($st->updates) === 3, 'no survivors: all 3 players refunded');
+    assert_true($st->updates[0]['coins'] === 110, 'no survivors: p1 coins refunded');
+    assert_true($st->updates[1]['coins'] === 210, 'no survivors: p2 coins refunded');
+    assert_true($st->updates[2]['coins'] === 310, 'no survivors: p3 coins refunded');
+}
+
+// ---------------------------------------------------------------------------
+// GROUP 8b: empty players fast-path — refund instead of silent destroy
+// ---------------------------------------------------------------------------
+{
+    \MockTimer::reset();
+    $worker = new MockWorker();
+    $lobby = new MockLobbyService();
+    $pdo = new MockPDO();
+    $st = new MockStmts([50 => ['coins' => 500]]);
+    $game = makeRefundGameService($pdo, $st);
+    $svc = new ReconnectService($lobby, $game, new MockLogger());
+
+    $solo = new MockConnection(50, 50, 'solo');
+    $room = makeRoom(900, 50);
+    $room['status'] = 'playing';
+    $room['bank'] = 10;
+    $room['players'][50] = makePlayer($solo, 'active');
+    $room['players'][50]['total_paid'] = 10;
+    $worker->rooms[900] = $room;
+
+    $svc->removePlayerFromGame($worker, 900, 50, 'leave');
+
+    assert_true($game->noSurvivorsCalls === 1, 'empty fast-path: handleNoSurvivors called');
+    assert_true(!isset($worker->rooms[900]), 'empty fast-path: room destroyed');
+    assert_true($pdo->committed === true, 'empty fast-path: refund committed');
+    assert_true(count($st->updates) === 1, 'empty fast-path: solo player refunded');
+    assert_true($st->updates[0]['coins'] === 510, 'empty fast-path: coins restored');
 }
 
 // ---------------------------------------------------------------------------

@@ -154,8 +154,9 @@ function makeSvc(array $users = [], ?MockPDO $pdo = null): array {
     $eng = new LottoEngine();
     $vic = new VictoryService();
     $apt = new ApartmentService($db, $st, $log);
-    $fin = (new ReflectionClass(GameFinishService::class))->newInstanceWithoutConstructor();
+    $fin = new GameFinishService($db, $st, $log);
     $svc = new GameService($db, $st, $eng, $log, $vic, $apt, $fin);
+    $apt->bindGameService($svc);
     return [$svc, $log, $st, $pdo, $apt];
 }
 
@@ -454,6 +455,30 @@ $apt2 = new ApartmentService($_db2, $_st2, $_log2);
     $room['apartment_fired'] = true;
 
     assert_true(!$apt2->shouldTrigger($room), 'Re-trigger: apartment_fired blocks re-trigger');
+}
+
+// ---------------------------------------------------------------------------
+// GROUP 9: removePlayerFromApartment last player — no-survivors refund
+// ---------------------------------------------------------------------------
+
+{
+    $h = makeConn(1, 10, 'solo');
+    $worker = new MockWorker();
+    $pdo = new MockPDO();
+    [$svc, , $st, $pdo, $apt] = makeSvc([10 => ['id' => 10, 'coins' => 100]], $pdo);
+
+    $room = makeRoom(1, [1], 10);
+    $room['status'] = 'apartment';
+    $room['players'][1] = makePlayer($h, 1, [], [], false);
+    $room['players'][1]['total_paid'] = 10;
+    $worker->rooms[1] = $room;
+
+    $apt->removePlayerFromApartment($room, 1, 1, 'refuse', $worker);
+
+    assert_true(!isset($worker->rooms[1]), 'apartment empty-path: room destroyed');
+    assert_true($pdo->committed === true, 'apartment empty-path: refund committed');
+    assert_true(count($st->updates) === 1, 'apartment empty-path: solo refunded');
+    assert_true($st->updates[0]['coins'] === 110, 'apartment empty-path: coins restored');
 }
 
 // ---------------------------------------------------------------------------

@@ -753,6 +753,20 @@ final class GameService
         );
     }
 
+    /**
+     * Zero active players — refund all participants and destroy the room.
+     */
+    public function handleNoSurvivors(array &$room, int $roomId, object $worker): void
+    {
+        $this->finishService->handleNoSurvivors(
+            $room,
+            $roomId,
+            function () use ($worker, $roomId) {
+                unset($worker->rooms[$roomId]);
+            }
+        );
+    }
+
     private function peekNextDrawer(array $room): ?int
     {
         $order      = $room['drawer_order'];

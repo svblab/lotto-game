@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace Lotto\Game;
 
-use Lotto\Infrastructure\Database;
-use Lotto\Infrastructure\PreparedStatements;
-use Lotto\Core\Logger;
 use Throwable;
 
 use function Lotto\Core\lottoEconomyRecord;
@@ -19,20 +16,17 @@ use function Lotto\Core\lottoStateTransition;
  */
 final class GameFinishService
 {
-    private Database $db;
-    private PreparedStatements $stmts;
-    private Logger $logger;
+    private object $db;
+    private object $stmts;
+    private object $logger;
 
-    /**
-     * Замечание 6: Строгая типизация системных зависимостей вместо object.
-     */
     public function __construct(
-        Database $db,
-        PreparedStatements $stmts,
-        Logger $logger
+        object $db,
+        object $stmts,
+        object $logger
     ) {
-        $this->db    = $db;
-        $this->stmts = $stmts;
+        $this->db     = $db;
+        $this->stmts  = $stmts;
         $this->logger = $logger;
     }
 
@@ -186,7 +180,85 @@ final class GameFinishService
             "Room {$roomId}: game over successfully processed. Winner: {$winnerUsername}, reason: {$reason}"
         );
 
-        // --- Замечание 4. УПРАВЛЕНИЕ ТАЙМЕРАМИ (Полная очистка утечек памяти) ---
+        $this->cancelRoomTimers($room, $roomId);
+
+        // --- Замечание 5. ИНКАПСУЛЯЦИЯ (Удаление через переданный callback-замыкание) ---
+        $roomDestroyer();
+    }
+
+    /**
+     * Zero active players — refund all participants and tear down the room
+     * (ANCHOR_CORE Part 2 § No Survivors / § Economic Integrity Rule).
+     */
+    public function handleNoSurvivors(
+        array &$room,
+        int $roomId,
+        callable $roomDestroyer
+    ): void {
+        $this->snapshotRemainingPlayersToHistory($room);
+
+        $pdo = $this->db->getPdo();
+        try {
+            $pdo->beginTransaction();
+            foreach ($room['all_players_history'] as $hist) {
+                $uid = (int) ($hist['user_id'] ?? 0);
+                if ($uid <= 0) {
+                    continue;
+                }
+                $stmt = $this->stmts->get('user_by_id');
+                $stmt->execute([$uid]);
+                $row = $stmt->fetch();
+                if ($row === false) {
+                    continue;
+                }
+                $upd = $this->stmts->get('update_user_coins');
+                $upd->execute([(int) $row['coins'] + (int) ($hist['total_paid'] ?? 0), $uid]);
+
+                $refundAmount = (int) ($hist['total_paid'] ?? 0);
+                if ($refundAmount > 0) {
+                    lottoEconomyRecord('refund', $uid, $refundAmount, [
+                        'room_id' => $roomId,
+                        'reason'  => 'no_survivors',
+                    ]);
+                }
+            }
+            $pdo->commit();
+        } catch (Throwable $e) {
+            $pdo->rollBack();
+            $this->logger->error("Room {$roomId}: handleNoSurvivors refund failed: " . $e->getMessage());
+            return;
+        }
+
+        $room['bank'] = 0;
+        $this->logger->info("Room {$roomId}: no survivors, refunds issued");
+
+        $this->cancelRoomTimers($room, $roomId);
+        $roomDestroyer();
+    }
+
+    /**
+     * Ensure disconnected stragglers are included before zero-survivor refund.
+     *
+     * @param array<string, mixed> $room
+     */
+    private function snapshotRemainingPlayersToHistory(array &$room): void
+    {
+        foreach ($room['players'] ?? [] as $connId => $player) {
+            if (!isset($room['all_players_history'][$connId])) {
+                $room['all_players_history'][$connId] = [
+                    'user_id'    => $player['user_id'] ?? 0,
+                    'username'   => $player['username'] ?? 'unknown',
+                    'total_paid' => $player['total_paid'] ?? 0,
+                ];
+            }
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $room
+     */
+    private function cancelRoomTimers(array $room, int $roomId): void
+    {
         if (!empty($room['lobby_afk_timer_id'])) {
             try { lottoTimerDel((int) $room['lobby_afk_timer_id'], 'lobby_afk', ['room_id' => $roomId]); } catch (Throwable $t) {}
         }
@@ -208,8 +280,5 @@ final class GameFinishService
                 }
             }
         }
-
-        // --- Замечание 5. ИНКАПСУЛЯЦИЯ (Удаление через переданный callback-замыкание) ---
-        $roomDestroyer();
     }
 }

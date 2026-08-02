@@ -1,5 +1,28 @@
 # Implementation Status — Lotto Game Project
 
+## Phase 15 — AFK Audit Fixes (Fresh Findings)
+
+- [DONE] EPIC-15.1 Zero-active no-survivors refund during playing (economic integrity)
+Files:
+- src/Game/GameFinishService.php (diff — `handleNoSurvivors()`, `cancelRoomTimers()`, `snapshotRemainingPlayersToHistory()`; constructor `object` deps for testability)
+- src/Game/GameService.php (diff — `handleNoSurvivors()` passthrough)
+- src/Game/ReconnectService.php (diff — `count(active)===0` → refund path; unified active-player dispatch; removed dead `destroyRoom()`)
+- src/Game/ApartmentService.php (diff — delegate no-survivors to `GameService`; fix `removePlayerFromApartment` empty path; `sendJson` import)
+- tests/Manual/test_reconnect.php (diff — GROUP 8/8b no-survivors + refund assertions)
+- tests/Manual/test_apartment.php (diff — GROUP 9 apartment empty-path refund; `makeSvc()` wires real `GameFinishService`)
+
+Notes: Closes ANCHOR_CORE Part 2 § No Survivors / § Economic Integrity Rule gap where
+`removePlayerFromGame()` called bare `destroyRoom()` when `count(active)===0` or
+`empty(players)` — coins lost, zombie rooms with disconnected stragglers. Chose option (a):
+refund logic centralized in `GameFinishService` (ADR-002 payout owner). Disconnected
+stragglers snapshotted into `all_players_history` before refund; reconnect timers cancelled;
+`bank` explicitly zeroed.
+
+VERIFICATION:
+- `php tests/Manual/test_reconnect.php` — **65/65 PASS** (was 52; +GROUP 8/8b).
+- `php tests/Manual/test_apartment.php` — **38/38 PASS** (was 36; +GROUP 9).
+- `php run_ALL_tests.php` — **32/41** files pass (baseline 31/41 pre-epic; `test_apartment.php` fixed).
+
 ## Phase 14 — AFK Timer Audit Fixes
 
 - [DONE] EPIC-14.9 GAME_RULES.md: align lobby AFK activity examples with allowlist

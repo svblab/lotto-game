@@ -7,6 +7,7 @@ namespace Lotto\Game;
 use Lotto\Core\Constants;
 
 use function Lotto\Core\sendError;
+use function Lotto\Core\sendJson;
 use function Lotto\Core\lottoTimerAdd;
 use function Lotto\Core\lottoTimerDel;
 use function Lotto\Core\lottoEconomyRecord;
@@ -480,7 +481,7 @@ final class ApartmentService
         $active = array_filter($room['players'], fn($p) => $p['status'] === 'active');
 
         if (count($active) === 0) {
-            $this->handleNoSurvivors($room, $roomId, $worker);
+            $this->gameService->handleNoSurvivors($room, $roomId, $worker);
             return;
         }
 
@@ -565,49 +566,14 @@ final class ApartmentService
             "Room {$roomId}: player {$player['username']} removed (reason: {$reason})"
         );
 
-        if (empty($room['players'])) {
-            $this->destroyRoom($worker, $roomId);
+        $active = array_filter(
+            $room['players'],
+            fn($p) => ($p['status'] ?? null) === 'active'
+        );
+        if (count($active) === 0) {
+            $this->gameService->handleNoSurvivors($room, $roomId, $worker);
+            return;
         }
-    }
-
-    // -------------------------------------------------------------------------
-    // EPIC-7.x  No survivors
-    // -------------------------------------------------------------------------
-
-    /**
-     * Нет выживших — возврат монет всем участникам (ANCHOR_CORE § No Survivors).
-     */
-    public function handleNoSurvivors(array &$room, int $roomId, object $worker): void
-    {
-        $pdo = $this->db->getPdo();
-        try {
-            $pdo->beginTransaction();
-            foreach ($room['all_players_history'] as $hist) {
-                $uid = $hist['user_id'] ?? 0;
-                if (!$uid) continue;
-                $stmt = $this->stmts->get('user_by_id');
-                $stmt->execute([$uid]);
-                $row = $stmt->fetch();
-                if ($row === false) continue;
-                $upd = $this->stmts->get('update_user_coins');
-                $upd->execute([(int)$row['coins'] + $hist['total_paid'], $uid]);
-
-                $refundAmount = (int) $hist['total_paid'];
-                if ($refundAmount > 0) {
-                    lottoEconomyRecord('refund', $uid, $refundAmount, [
-                        'room_id' => $roomId,
-                        'reason'  => 'no_survivors',
-                    ]);
-                }
-            }
-            $pdo->commit();
-        } catch (\Throwable $e) {
-            $pdo->rollBack();
-            $this->logger->error("handleNoSurvivors: refund failed: " . $e->getMessage());
-        }
-
-        $this->logger->info("Room {$roomId}: no survivors, refunds issued");
-        $this->destroyRoom($worker, $roomId);
     }
 
     // -------------------------------------------------------------------------
