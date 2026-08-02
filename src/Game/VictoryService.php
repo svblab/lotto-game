@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Lotto\Game;
 
-use Lotto\Core\Constants;
-
 /**
  * VictoryService — EPIC-6.0 / 6.1 / 6.2
  *
@@ -125,73 +123,31 @@ final class VictoryService
 
     /**
      * Comparative win-chance per player (display only; never affects payouts).
+     * Delegates to LottoEngine exponential formula; wire format keyed by username.
      *
      * @param  array<int, array> $players  $room['players'], keyed by connId
-     * @return array<string, int>         username => percent (0-100)
+     * @return array<string, float>       username => percent (0–100, 1 decimal)
      */
-    public function calculateWinChances(array $players, ?object $logger = null): array
-    {
-        $weights = [];
-
-        foreach ($players as $player) {
-            if (!isset($player['cards'], $player['masks'])) {
-                if ($logger !== null) {
-                    $logger->warning('calculateWinChances: skipping player missing cards/masks');
-                }
-                continue;
-            }
-
-            $username = (string) ($player['username'] ?? '');
-            if ($username === '') {
-                continue;
-            }
-
-            $bestMoves = null;
-
-            foreach ($player['cards'] as $cardIdx => $card) {
-                $mask = $player['masks'][$cardIdx] ?? [];
-                $marked = 0;
-
-                for ($row = 0; $row < 3; $row++) {
-                    for ($col = 0; $col < 9; $col++) {
-                        if (!empty($mask[$row][$col])) {
-                            $marked++;
-                        }
-                    }
-                }
-
-                $remaining = 15 - $marked;
-                $movesNeeded = (int) ceil($remaining / Constants::BARRELS_PER_TURN);
-
-                if ($movesNeeded === 0) {
-                    if ($logger !== null) {
-                        $logger->warning(
-                            "calculateWinChances: bestMoves=0 for {$username}, using sentinel weight"
-                        );
-                    }
-                    $movesNeeded = 1;
-                }
-
-                if ($bestMoves === null || $movesNeeded < $bestMoves) {
-                    $bestMoves = $movesNeeded;
-                }
-            }
-
-            if ($bestMoves === null) {
-                continue;
-            }
-
-            $weights[$username] = 1 / max($bestMoves, 1);
-        }
-
-        $totalWeight = array_sum($weights);
-        if ($totalWeight <= 0) {
-            return [];
-        }
-
+    public function calculateWinChances(
+        array $players,
+        ?object $logger = null,
+        ?string $roomStatus = null
+    ): array {
+        $byConn = LottoEngine::calculateWinChances($players, $roomStatus);
         $result = [];
-        foreach ($weights as $username => $weight) {
-            $result[$username] = (int) round($weight / $totalWeight * 100);
+
+        foreach ($byConn as $connId => $pct) {
+            if (!isset($players[$connId])) {
+                continue;
+            }
+            $username = (string) ($players[$connId]['username'] ?? '');
+            if ($username === '') {
+                if ($logger !== null) {
+                    $logger->warning('calculateWinChances: missing username for conn_id=' . $connId);
+                }
+                continue;
+            }
+            $result[$username] = $pct;
         }
 
         return $result;

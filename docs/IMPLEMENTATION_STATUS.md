@@ -2,6 +2,32 @@
 
 ## Phase 18 — Client Balance Persistence (2026-08-02)
 
+- [DONE] FIX-28 Exponential win-chance formula (LottoEngine)
+Files:
+- src/Game/LottoEngine.php (diff — `calculateWinChances()` static, exponential weights)
+- src/Game/VictoryService.php (diff — delegate to LottoEngine; username wire map)
+- src/Game/GameService.php (diff — pass `room.status` for apartment immune ×1.1)
+- src/Game/ReconnectService.php (diff — same)
+- public/js/ui.js (diff — bar shows 1-decimal server percent)
+- tests/Manual/test_lotto_engine.php, test_victory.php, test_turn_system.php
+- docs/ADR/014.md (amendment), docs/ANCHOR_PROTOCOL.md, docs/GAME_RULES.md
+
+Notes: Replaces ADR-014 inverse-moves formula with `turnsToWin = 15 − bestCardClosed`,
+`weight = exp(−0.25 × turnsToWin)`, normalize to 1 decimal summing 100%. Active only;
+disconnected excluded; complete card → 100% for winner(s). Wire keys remain `username`.
+
+CHANGED:
+- `LottoEngine::calculateWinChances()` — core math
+- `VictoryService::calculateWinChances()` — conn_id → username for packets
+
+NOT CHANGED:
+- Victory/payout logic, client progress-bar placement (FIX-27), game-over chart
+
+VERIFICATION:
+- `php tests/Manual/test_lotto_engine.php` — PASS (+winChance engine group).
+- `php tests/Manual/test_victory.php` — PASS (GROUP 3b updated).
+- `php tests/Manual/test_turn_system.php` — PASS (win_chances numeric, sum 100%).
+
 - [DONE] FIX-27 Win-chance progress bar + game-over probability chart
 Files:
 - public/index.html (diff — win-chance track/fill; game-over chart canvas + legend)

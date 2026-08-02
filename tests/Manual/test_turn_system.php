@@ -453,7 +453,8 @@ function makeSvc(): array {
     assert_true(isset($last['win_chances']), 'win_chances: field present');
     assert_true(isset($last['win_chances']['host']), 'win_chances: host entry');
     assert_true(isset($last['win_chances']['p2']), 'win_chances: p2 entry');
-    assert_true(is_int($last['win_chances']['host']), 'win_chances: host is int percent');
+    assert_true(is_numeric($last['win_chances']['host']), 'win_chances: host is numeric percent');
+    assert_true(round(array_sum($last['win_chances']), 1) === 100.0, 'win_chances: sum 100%');
 }
 
 // ---------------------------------------------------------------------------

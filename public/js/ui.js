@@ -591,14 +591,15 @@
   }
 
   function updateWinChanceBar(percent) {
-    const pct = Math.max(0, Math.min(100, Math.round(Number(percent) || 0)));
+    const target = Math.max(0, Math.min(100, Number(percent) || 0));
+    const rounded = Math.round(target * 10) / 10;
     const fill = $('#win-chance-fill');
     const label = $('#win-chance-value');
     if (fill) {
-      fill.style.width = `${pct}%`;
-      fill.style.backgroundColor = winChanceBarColor(pct);
+      fill.style.width = `${rounded}%`;
+      fill.style.backgroundColor = winChanceBarColor(rounded);
     }
-    if (label) label.textContent = `${pct}%`;
+    if (label) label.textContent = `${rounded}%`;
   }
 
   const CHART_LINE_COLORS = ['#00BFFF', '#FF6B6B', '#FFD93D', '#6BCB77', '#C084FC', '#FB923C', '#F472B6', '#38BDF8'];

@@ -301,7 +301,10 @@ final class ReconnectService
             'my_masks'       => $player['masks'] ?? [],
             'drawer_order'   => $drawerUsernames,
             'current_drawer' => $currentDrawer,
-            'win_chances'    => $this->gameService->calculateWinChances($room['players']),
+            'win_chances'    => $this->gameService->calculateWinChances(
+                $room['players'],
+                $room['status'] ?? 'playing'
+            ),
         ]);
     }
 

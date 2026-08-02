@@ -380,37 +380,51 @@ function makeChancePlayer(string $username, int $markedCount, int $cardsCount = 
         1 => makeChancePlayer('close', 14),
         2 => makeChancePlayer('far', 0),
     ], $log);
-    assert_true(($chances['close'] ?? -1) === 83, 'winChance: close player 83%');
-    assert_true(($chances['far'] ?? -1) === 17, 'winChance: far player 17%');
+    assert_true(($chances['close'] ?? -1) === 97.1, 'winChance exp: close 14 marked ≈97.1%');
+    assert_true(($chances['far'] ?? -1) === 2.9, 'winChance exp: far 0 marked ≈2.9%');
+    assert_true(round(array_sum($chances), 1) === 100.0, 'winChance exp: sum 100%');
 
     $chances = $vic->calculateWinChances([
         1 => makeChancePlayer('a', 6),
         2 => makeChancePlayer('b', 6),
     ]);
-    assert_true(($chances['a'] ?? -1) === 50, 'winChance: equal players 50%');
-    assert_true(($chances['b'] ?? -1) === 50, 'winChance: equal players 50% b');
+    assert_true(($chances['a'] ?? -1) === 50.0, 'winChance exp: equal players 50%');
+    assert_true(($chances['b'] ?? -1) === 50.0, 'winChance exp: equal players 50% b');
 
     $chances = $vic->calculateWinChances([
         1 => makeChancePlayer('dual', 0, 2, 14),
         2 => makeChancePlayer('solo', 0),
     ]);
-    assert_true(($chances['dual'] ?? -1) === 83, 'winChance: dual-card uses best card');
-    assert_true(($chances['solo'] ?? -1) === 17, 'winChance: solo vs dual best');
+    assert_true(($chances['dual'] ?? -1) === 97.1, 'winChance exp: dual-card uses best card');
+    assert_true(($chances['solo'] ?? -1) === 2.9, 'winChance exp: solo vs dual best');
 
     $chances = $vic->calculateWinChances([
         1 => makeChancePlayer('p1', 12),
         2 => makeChancePlayer('p2', 6),
         3 => makeChancePlayer('p3', 0),
     ]);
-    assert_true(count($chances) === 3, 'winChance: three players included');
-    assert_true(($chances['p1'] ?? 0) > ($chances['p3'] ?? 100), 'winChance: closer beats farther');
+    assert_true(count($chances) === 3, 'winChance exp: three players included');
+    assert_true(($chances['p1'] ?? 0) > ($chances['p2'] ?? 100), 'winChance exp: p1 closer than p2');
+    assert_true(($chances['p2'] ?? 0) > ($chances['p3'] ?? 100), 'winChance exp: p2 closer than p3');
 
     $chances = $vic->calculateWinChances([
         1 => makeChancePlayer('done', 15),
         2 => makeChancePlayer('far', 0),
     ], $log);
-    assert_true(($chances['done'] ?? -1) === 83, 'winChance: complete card uses sentinel weight');
-    assert_true(count(array_filter($log->logs, fn($e) => $e[0] === 'WARNING')) >= 1, 'winChance: warns on bestMoves=0');
+    assert_true(($chances['done'] ?? -1) === 100.0, 'winChance exp: complete card → 100%');
+    assert_true(($chances['far'] ?? -1) === 0.0, 'winChance exp: non-winner 0% when card complete');
+
+    $chances = $vic->calculateWinChances([
+        1 => makeChancePlayer('away', 10, 1, 10),
+    ]);
+    assert_true(($chances['away'] ?? -1) === 100.0, 'winChance exp: sole active player 100%');
+
+    $chances = $vic->calculateWinChances([
+        1 => array_merge(makeChancePlayer('active', 5), ['status' => 'active']),
+        2 => array_merge(makeChancePlayer('gone', 0), ['status' => 'disconnected']),
+    ]);
+    assert_true(($chances['active'] ?? -1) === 100.0, 'winChance exp: disconnected excluded');
+    assert_true(!isset($chances['gone']), 'winChance exp: disconnected not in map');
 }
 
 // ---------------------------------------------------------------------------

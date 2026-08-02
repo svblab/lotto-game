@@ -199,6 +199,67 @@ for ($row = 0; $row < 3; $row++) {
 assert_true(count($mask) === 3 && count($mask[0]) === 9, 'Mask: 3×9 structure OK');
 
 // ---------------------------------------------------------------------------
+// calculateWinChances (exponential comparative indicator)
+// ---------------------------------------------------------------------------
+
+function makeMarkedMaskForCard(array $card, int $markedCount): array
+{
+    $mask = [];
+    $n = 0;
+    for ($row = 0; $row < 3; $row++) {
+        $mask[$row] = [];
+        for ($col = 0; $col < 9; $col++) {
+            if (($card[$row][$col] ?? null) === null) {
+                $mask[$row][$col] = false;
+            } else {
+                $mask[$row][$col] = $n < $markedCount;
+                if ($n < $markedCount) {
+                    $n++;
+                }
+            }
+        }
+    }
+
+    return $mask;
+}
+
+function makeChanceEnginePlayer(int $connId, string $username, int $marked, string $status = 'active'): array
+{
+    global $engine;
+    $card = $engine->generateCard();
+
+    return [
+        'username' => $username,
+        'status'   => $status,
+        'cards'    => [$card],
+        'masks'    => [makeMarkedMaskForCard($card, $marked)],
+    ];
+}
+
+{
+    $chances = LottoEngine::calculateWinChances([
+        1 => makeChanceEnginePlayer(1, 'A', 13),
+        2 => makeChanceEnginePlayer(2, 'B', 10),
+        3 => makeChanceEnginePlayer(3, 'C', 7),
+    ]);
+    assert_true(($chances[1] ?? -1) === 58.9, 'winChance engine: example A ≈58.9% (after sum adjust)');
+    assert_true(($chances[2] ?? -1) === 27.9, 'winChance engine: example B ≈27.9%');
+    assert_true(($chances[3] ?? -1) === 13.2, 'winChance engine: example C ≈13.2%');
+    assert_true(round(array_sum($chances), 1) === 100.0, 'winChance engine: sum 100%');
+
+    $solo = LottoEngine::calculateWinChances([
+        5 => makeChanceEnginePlayer(5, 'solo', 3),
+    ]);
+    assert_true(($solo[5] ?? -1) === 100.0, 'winChance engine: single active → 100%');
+
+    $excluded = LottoEngine::calculateWinChances([
+        1 => makeChanceEnginePlayer(1, 'active', 5),
+        2 => makeChanceEnginePlayer(2, 'gone', 0, 'disconnected'),
+    ]);
+    assert_true(isset($excluded[1]) && !isset($excluded[2]), 'winChance engine: skips disconnected');
+}
+
+// ---------------------------------------------------------------------------
 // RESULTS
 // ---------------------------------------------------------------------------
 

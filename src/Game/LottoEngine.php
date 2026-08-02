@@ -272,4 +272,153 @@ final class LottoEngine
         }
         return $arr;
     }
+
+    // -------------------------------------------------------------------------
+    // Win-chance indicator (exponential weight — display only, never affects payouts)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Comparative win-chance per active player (normalized exponential weights).
+     *
+     * turnsToWin = 15 − closed cells on the player's best card (most closed).
+     * weight = exp(−0.25 × turnsToWin); optional ×1.1 for immune in apartment.
+     *
+     * @param  array<int, array> $players  $room['players'], keyed by conn_id
+     * @return array<int, float>          conn_id => percent (0–100, 1 decimal, sum 100)
+     */
+    public static function calculateWinChances(array $players, ?string $roomStatus = null): array
+    {
+        $active = [];
+        foreach ($players as $connId => $player) {
+            if (($player['status'] ?? '') !== 'active') {
+                continue;
+            }
+            $active[(int) $connId] = $player;
+        }
+
+        if ($active === []) {
+            return [];
+        }
+
+        if (count($active) === 1) {
+            return [(int) array_key_first($active) => 100.0];
+        }
+
+        $turnsMap = [];
+        foreach ($active as $connId => $player) {
+            $turns = self::turnsToWinForPlayer($player);
+            if ($turns === null) {
+                continue;
+            }
+            $turnsMap[$connId] = $turns;
+        }
+
+        if ($turnsMap === []) {
+            return [];
+        }
+
+        $winnerConnIds = [];
+        foreach ($turnsMap as $connId => $turns) {
+            if ($turns <= 0) {
+                $winnerConnIds[] = $connId;
+            }
+        }
+
+        if ($winnerConnIds !== []) {
+            $share   = round(100.0 / count($winnerConnIds), 1);
+            $result  = [];
+            foreach (array_keys($turnsMap) as $connId) {
+                $result[$connId] = in_array($connId, $winnerConnIds, true) ? $share : 0.0;
+            }
+
+            return self::adjustPercentSum($result);
+        }
+
+        $weights = [];
+        foreach ($turnsMap as $connId => $turnsToWin) {
+            $mult = 1.0;
+            if ($roomStatus === 'apartment' && !empty($active[$connId]['immune'])) {
+                $mult = 1.1;
+            }
+            $weights[$connId] = exp(-0.25 * $turnsToWin) * $mult;
+        }
+
+        $total = array_sum($weights);
+        if ($total <= 0) {
+            return [];
+        }
+
+        $percents = [];
+        foreach ($weights as $connId => $weight) {
+            $percents[$connId] = round($weight / $total * 100, 1);
+        }
+
+        return self::adjustPercentSum($percents);
+    }
+
+    /**
+     * @return int|null turnsToWin, or null if cards/masks missing
+     */
+    private static function turnsToWinForPlayer(array $player): ?int
+    {
+        if (!isset($player['cards'], $player['masks'])) {
+            return null;
+        }
+
+        $bestClosed = -1;
+        foreach ($player['cards'] as $cardIdx => $card) {
+            $mask   = $player['masks'][$cardIdx] ?? [];
+            $closed = self::countMarkedCells($mask);
+            if ($closed > $bestClosed) {
+                $bestClosed = $closed;
+            }
+        }
+
+        if ($bestClosed < 0) {
+            return null;
+        }
+
+        return 15 - $bestClosed;
+    }
+
+    private static function countMarkedCells(array $mask): int
+    {
+        $n = 0;
+        foreach ($mask as $row) {
+            foreach ($row as $cell) {
+                if (!empty($cell)) {
+                    $n++;
+                }
+            }
+        }
+
+        return $n;
+    }
+
+    /**
+     * @param  array<int, float> $percents
+     * @return array<int, float>
+     */
+    private static function adjustPercentSum(array $percents): array
+    {
+        if ($percents === []) {
+            return [];
+        }
+
+        $sum = round(array_sum($percents), 1);
+        $diff = round(100.0 - $sum, 1);
+        if ($diff !== 0.0) {
+            $fixKey = array_key_first($percents);
+            $maxVal = -1.0;
+            foreach ($percents as $connId => $pct) {
+                if ($pct > $maxVal) {
+                    $maxVal  = $pct;
+                    $fixKey  = $connId;
+                }
+            }
+            $percents[$fixKey] = round($percents[$fixKey] + $diff, 1);
+        }
+
+        return $percents;
+    }
 }

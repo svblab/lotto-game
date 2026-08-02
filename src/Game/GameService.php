@@ -622,11 +622,11 @@ final class GameService
      * Comparative win-chance map for protocol packets (ADR-014).
      *
      * @param array<int, array> $players
-     * @return array<string, int>
+     * @return array<string, float>
      */
-    public function calculateWinChances(array $players): array
+    public function calculateWinChances(array $players, ?string $roomStatus = null): array
     {
-        return $this->victory->calculateWinChances($players, $this->logger);
+        return $this->victory->calculateWinChances($players, $this->logger, $roomStatus);
     }
 
     /**
@@ -651,7 +651,10 @@ final class GameService
         ];
 
         if ($includeWinChances) {
-            $packet['win_chances'] = $this->calculateWinChances($room['players']);
+            $packet['win_chances'] = $this->calculateWinChances(
+                $room['players'],
+                $room['status'] ?? 'playing'
+            );
         }
 
         foreach ($room['players'] as $player) {

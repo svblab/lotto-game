@@ -243,8 +243,8 @@ Server → Room
 {"type": "barrels_drawn", "numbers": [15, 44, 81], "remaining": 57, "next_drawer": "player2", "is_final": false, "win_chances": {"player1": 42, "player2": 58}}
 ```
 `numbers`: 1-3 values.
-`win_chances` (optional, ADR-014): comparative move-distance-based win-chance
-percent per `username` (informational only; omitted on victory-ending draw).
+`win_chances` (optional, ADR-014): comparative exponential win-chance percent per
+`username` (float, one decimal; sum 100%; informational only; omitted on victory-ending draw).
 
 ### afk_warning
 Server → Client. Sent to the current drawer when the per-turn timeout is reached.
