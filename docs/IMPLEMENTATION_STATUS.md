@@ -2,6 +2,17 @@
 
 ## Phase 14 — AFK Timer Audit Fixes
 
+- [DONE] EPIC-14.9 GAME_RULES.md: align lobby AFK activity examples with allowlist
+Files:
+- docs/GAME_RULES.md (diff — §4 «В лобби»: drop misleading «Начать игру» example;
+  list `room_list` / create / join / leave; note start_game ends waiting phase)
+
+Notes: Documentation-only polish. Matches EPIC-14.5 `$lobbyHostActivityActions` in
+server.php. No code or test changes.
+
+VERIFICATION:
+- Manual review against ANCHOR_CORE.md § Lobby AFK Timer and ADR-010 — consistent.
+
 - [DONE] EPIC-14.8 Fix stale ADR-007 citations in lobby integration test comments
 Files:
 - tests/Manual/test_lobby_integration.php (diff — SUITE 5 comments: ADR-007 → ADR-011)
