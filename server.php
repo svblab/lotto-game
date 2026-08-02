@@ -350,6 +350,7 @@ $worker->onWebSocketConnected = function ($connection) use ($worker): void {
     sendJson($connection, [
         'type'             => 'hello',
         'protocol_version' => Constants::PROTOCOL_VERSION,
+        'server_time'      => time(),
     ]);
 
     if (isset($worker->memoryAudit)) {
@@ -489,8 +490,12 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
     // admin (EPIC-10.6) подключены. reconnect обработан отдельно выше.
     $handlerStart = hrtime(true);
 
-    // ADR-010: genuine lobby host activity (not ping — handled above).
-    $worker->lobbyService->touchLobbyHostActivity($worker, (int) $connection->id);
+    // ADR-010: genuine lobby host activity — only waiting-room lobby actions.
+    // Excludes start_game (game transition) and all in-game/admin actions.
+    $lobbyHostActivityActions = ['room_list', 'create_room', 'join_room', 'leave_room'];
+    if (in_array($action, $lobbyHostActivityActions, true)) {
+        $worker->lobbyService->touchLobbyHostActivity($worker, (int) $connection->id);
+    }
 
     match ($action) {
         'register'         => $worker->authHandler->handleRegister($data, $connection, $worker),

@@ -608,6 +608,13 @@ final class LobbyService
             $room['lobby_afk_timer_id'] = null;
         }
 
+        // Arm the visible 120s window when the lobby AFK timer starts (2nd player seated).
+        $hostConnId = $room['host_conn_id'] ?? null;
+        if ($hostConnId !== null && isset($room['players'][$hostConnId])) {
+            $room['players'][$hostConnId]['host_activity_at'] = time();
+            $this->broadcastHostChanged($room);
+        }
+
         $timerId = lottoTimerAdd(Constants::afkTickInterval(), function () use ($worker, $roomId): void {
             if (!isset($worker->rooms[$roomId])) {
                 return;
@@ -705,7 +712,7 @@ final class LobbyService
         }
 
         $room['players'][$connId]['host_activity_at'] = time();
-        $this->broadcastLobbyAfkSync($room);
+        $this->broadcastHostChanged($room);
     }
 
     /**

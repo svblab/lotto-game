@@ -270,7 +270,7 @@ final class ReconnectService
             ];
             $hostConnId = $room['host_conn_id'] ?? null;
             if ($payload['host'] !== '' && $hostConnId !== null && isset($room['players'][$hostConnId])) {
-                $payload['host_timeout_start']   = (int) $room['players'][$hostConnId]['last_action'];
+                $payload['host_timeout_start']   = (int) ($room['players'][$hostConnId]['host_activity_at'] ?? time());
                 $payload['host_timeout_seconds'] = Constants::lobbyHostTimeout();
             }
 

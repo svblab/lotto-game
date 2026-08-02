@@ -180,6 +180,9 @@
   // --- Packet handlers ---
   function onHello(pkt) {
     console.info('Protocol version', pkt.protocol_version);
+    if (pkt.server_time != null) {
+      UI().setServerClockSkew(Number(pkt.server_time) - Math.floor(Date.now() / 1000));
+    }
   }
 
   function onAuthResult(pkt) {
@@ -272,7 +275,7 @@
   }
 
   function onHostChanged(pkt) {
-    if (!state.room) return;
+    if (!state.room || state.inGame) return;
     state.room.host = pkt.host;
     state.room.host_timeout_start = pkt.host_timeout_start ?? null;
     state.room.host_timeout_seconds = pkt.host_timeout_seconds ?? null;

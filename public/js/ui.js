@@ -283,6 +283,16 @@
     btn.classList.toggle('my-turn', !!myTurn && enabled);
   }
 
+  let serverClockSkew = 0;
+
+  function setServerClockSkew(skewSec) {
+    serverClockSkew = Number.isFinite(skewSec) ? skewSec : 0;
+  }
+
+  function serverNowSec() {
+    return Math.floor(Date.now() / 1000) + serverClockSkew;
+  }
+
   let afkIntervalId = null;
   let afkState = null;
   const AFK_RING_C = 2 * Math.PI * 42;
@@ -319,7 +329,7 @@
 
   function tickAfkCountdown() {
     if (!afkState) return;
-    const now = Math.floor(Date.now() / 1000);
+    const now = serverNowSec();
     const elapsed = now - afkState.afkStart;
     const turnSeconds = afkState.turnSeconds;
     const remaining = Math.max(0, turnSeconds - elapsed);
@@ -373,7 +383,7 @@
 
   function tickLobbyHostCountdown() {
     if (!lobbyHostState) return;
-    const now = Math.floor(Date.now() / 1000);
+    const now = serverNowSec();
     const elapsed = now - lobbyHostState.timeoutStart;
     const timeoutSeconds = lobbyHostState.timeoutSeconds;
     const remaining = Math.max(0, timeoutSeconds - elapsed);
@@ -677,6 +687,7 @@
     startAfkCountdown,
     syncAfkWarning,
     hideAfkCountdown,
+    setServerClockSkew,
     startLobbyHostCountdown,
     hideLobbyHostCountdown,
     setSlotNumbers,

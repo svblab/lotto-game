@@ -643,6 +643,8 @@ $j1     = new MockConnection(2, 'j1');
 $ls->handleJoinRoom(['room_id' => $roomId, 'password' => '', 'cards_count' => 1], $j1, $worker);
 ok('afkTimer: timer created on join (count=2)',          MockTimer::$addCount === 1);
 ok('afkTimer: lobby_afk_timer_id stored in room',        !empty($worker->rooms[$roomId]['lobby_afk_timer_id']));
+ok('afkTimer: timer arm sets full 120s window',
+    (time() - $worker->rooms[$roomId]['players'][$host->id]['host_activity_at']) <= 2);
 
 $addBefore = MockTimer::$addCount;
 $delBefore = MockTimer::$delCount;
