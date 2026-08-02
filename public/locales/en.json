@@ -33,6 +33,7 @@
     "yourRoom": "Your room",
     "alreadyInRoom": "Leave your current room first",
     "roomNotJoinable": "This room is not open for joining",
+    "noQuickStartRoom": "No open rooms for quick start. Create a room instead.",
     "enterPassword": "Enter room password:",
     "cardsPrompt": "Cards (1 or 2):",
     "cards": "cards",

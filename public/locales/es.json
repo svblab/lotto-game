@@ -33,6 +33,7 @@
     "yourRoom": "Tu sala",
     "alreadyInRoom": "Sal de tu sala actual primero",
     "roomNotJoinable": "No puedes unirte a esta sala",
+    "noQuickStartRoom": "No hay salas abiertas para inicio rápido. Crea una sala.",
     "enterPassword": "Contraseña de la sala:",
     "cardsPrompt": "Cartones (1 o 2):",
     "cards": "cart.",

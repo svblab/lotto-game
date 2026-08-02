@@ -505,15 +505,14 @@
 
   function doQuickStart() {
     if (guardAlreadyInRoom()) return;
-    const open = state.rooms.find((r) =>
-      r.status === 'waiting' && !r.has_password && r.players < r.max_players);
-    if (open) {
-      UI().showJoinRoomModal(open, (cards_count, password) => {
-        socket.sendAction('join_room', { room_id: open.room_id, password, cards_count });
-      });
-    } else {
-      socket.sendAction('create_room', { max_players: 10, password: '', cards_count: 1 });
+    const open = state.rooms.find((r) => UI().isQuickStartRoom(r));
+    if (!open) {
+      UI().setMessage('#lobby-message', I18n().t('lobby.noQuickStartRoom'), 'error');
+      return;
     }
+    UI().showJoinRoomModal(open, (cards_count, password) => {
+      socket.sendAction('join_room', { room_id: open.room_id, password, cards_count });
+    });
   }
 
   function resetToLobby() {

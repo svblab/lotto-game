@@ -53,6 +53,17 @@
     $('#admin-open-btn')?.classList.toggle('hidden', !user?.is_admin);
   }
 
+  function isQuickStartRoom(room) {
+    return room.status === 'waiting'
+      && !room.has_password
+      && room.players < room.max_players;
+  }
+
+  function updateQuickStartBtn(rooms, inRoom) {
+    const enabled = !inRoom && rooms.some(isQuickStartRoom);
+    $('#quick-start-btn')?.toggleAttribute('disabled', !enabled);
+  }
+
   function renderRooms(rooms, onJoin, currentRoomId) {
     const tbody = $('#rooms-tbody');
     if (!tbody) return;
@@ -87,12 +98,13 @@
       }
       tbody.appendChild(tr);
     });
+    updateQuickStartBtn(rooms, inRoom);
   }
 
   function updateLobbyMembershipUI(inRoom) {
     $('#create-room-btn')?.toggleAttribute('disabled', !!inRoom);
-    $('#quick-start-btn')?.toggleAttribute('disabled', !!inRoom);
     if (inRoom) {
+      $('#quick-start-btn')?.toggleAttribute('disabled', true);
       $('#create-room-panel')?.classList.add('hidden');
       hideJoinRoomModal();
     }
@@ -686,6 +698,8 @@
     setAuthTab,
     updateLobbyUser,
     renderRooms,
+    isQuickStartRoom,
+    updateQuickStartBtn,
     updateLobbyMembershipUI,
     showJoinRoomModal,
     hideJoinRoomModal,
