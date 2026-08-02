@@ -167,8 +167,14 @@
         </aside>
 
         <main class="game-main">
-          <div id="win-chance-bar" class="win-chance">
-            <span data-i18n="game.winChance">Win chance</span>: <strong id="win-chance-value">0%</strong>
+          <div id="win-chance-bar" class="win-chance" aria-live="polite">
+            <div class="win-chance-header">
+              <span data-i18n="game.winChance">Win chance</span>
+              <strong id="win-chance-value">0%</strong>
+            </div>
+            <div class="win-chance-track" role="presentation">
+              <div id="win-chance-fill" class="win-chance-fill" style="width: 0%"></div>
+            </div>
           </div>
 
           <div id="slot-machine" class="slot-machine" aria-live="polite">
@@ -270,6 +276,11 @@
         <h2 data-i18n="game.gameOver">Game Over</h2>
         <p id="game-over-text"></p>
         <table id="game-over-stats" class="data-table"></table>
+        <div id="game-over-chart-wrap" class="game-over-chart-wrap hidden">
+          <h3 data-i18n="game.winChanceHistory">Win probability by turn</h3>
+          <canvas id="game-over-chart" class="game-over-chart" width="520" height="220" aria-hidden="true"></canvas>
+          <ul id="game-over-chart-legend" class="chart-legend"></ul>
+        </div>
         <button type="button" id="game-over-close" class="btn primary" data-i18n="lobby.backToLobby">Back to Lobby</button>
       </div>
     </div>

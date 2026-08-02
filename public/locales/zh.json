@@ -57,7 +57,8 @@
     "winnersLine": "{winners} 分得 {prize} 金币 ({reason})",
     "player": "玩家",
     "paid": "投入",
-    "received": "获得"
+    "received": "获得",
+    "winChanceHistory": "各回合获胜概率"
   },
   "apartment": {
     "title": "公寓！",

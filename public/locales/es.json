@@ -57,7 +57,8 @@
     "winnersLine": "{winners} reparten {prize} monedas ({reason})",
     "player": "Jugador",
     "paid": "Pagado",
-    "received": "Recibido"
+    "received": "Recibido",
+    "winChanceHistory": "Probabilidad de victoria por turno"
   },
   "apartment": {
     "title": "¡Apartamento!",

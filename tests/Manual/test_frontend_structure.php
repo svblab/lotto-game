@@ -110,5 +110,11 @@ if ($app && str_contains($app, "e.key !== 'F2'") && str_contains($app, 'simulate
     fail('app.js: F2 in-game reconnect QA hotkey');
 }
 
+if ($html && str_contains($html, 'win-chance-fill') && str_contains($html, 'game-over-chart')) {
+    ok('index.html: win-chance bar and game-over chart');
+} else {
+    fail('index.html: win-chance bar and game-over chart');
+}
+
 echo "\n=== Results: $passed passed, $failed failed ===\n";
 exit($failed > 0 ? 1 : 0);

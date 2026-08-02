@@ -57,7 +57,8 @@
     "winnersLine": "{winners} se partagent {prize} pièces ({reason})",
     "player": "Joueur",
     "paid": "Payé",
-    "received": "Reçu"
+    "received": "Reçu",
+    "winChanceHistory": "Probabilité de victoire par tour"
   },
   "apartment": {
     "title": "Appartement !",

@@ -253,11 +253,30 @@ label span { display: block; margin-bottom: 0.25rem; font-size: 0.9rem; color: v
 .game-top { font-size: 0.9rem; }
 
 .win-chance {
-  text-align: center;
-  padding: 0.5rem;
+  padding: 0.5rem 0.75rem;
   background: rgba(0,0,0,0.25);
   border-radius: var(--radius);
   margin-bottom: 0.75rem;
+}
+.win-chance-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.35rem;
+  font-size: 0.9rem;
+}
+.win-chance-track {
+  height: 0.65rem;
+  background: rgba(255,255,255,0.12);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.win-chance-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: rgb(139, 0, 0);
+  transition: width 0.35s ease, background-color 0.35s ease;
 }
 
 .slot-machine {
@@ -519,7 +538,45 @@ label span { display: block; margin-bottom: 0.25rem; font-size: 0.9rem; color: v
 }
 .apartment-actions { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; }
 
-.game-over-panel { text-align: center; }
+.game-over-panel { text-align: center; max-width: 560px; }
+.game-over-chart-wrap {
+  margin: 1rem 0;
+  text-align: left;
+}
+.game-over-chart-wrap h3 {
+  font-size: 0.95rem;
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+.game-over-chart {
+  display: block;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  border-radius: var(--radius);
+  background: rgba(0,0,0,0.35);
+}
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  justify-content: center;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8rem;
+}
+.chart-legend li {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.chart-legend .swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
 
 .reconnect-panel { text-align: center; }
 .spinner {

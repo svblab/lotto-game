@@ -60,7 +60,8 @@
     "player": "Player",
     "paid": "Paid",
     "received": "Received",
-    "returned": "Returned"
+    "returned": "Returned",
+    "winChanceHistory": "Win probability by turn"
   },
   "apartment": {
     "title": "Apartment!",

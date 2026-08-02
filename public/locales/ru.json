@@ -60,7 +60,8 @@
     "player": "Игрок",
     "paid": "Ставка",
     "received": "Выигрыш",
-    "returned": "Возврат"
+    "returned": "Возврат",
+    "winChanceHistory": "Вероятность победы по ходам"
   },
   "apartment": {
     "title": "Квартира!",

@@ -57,7 +57,8 @@
     "winnersLine": "{winners} {prize} jetonu paylaştı ({reason})",
     "player": "Oyuncu",
     "paid": "Ödenen",
-    "received": "Alınan"
+    "received": "Alınan",
+    "winChanceHistory": "Tur bazında kazanma olasılığı"
   },
   "apartment": {
     "title": "Daire!",

@@ -578,11 +578,118 @@
   }
 
   function renderGamePlayers(players) {
-    renderPlayerList('#game-players-list', players, true);
+    renderPlayerList('#game-players-list', players, false);
   }
 
-  function updateWinChance(masks) {
-    $('#win-chance-value').textContent = `${calcWinChance(masks)}%`;
+  /** Dark red (0%) → bright blue (100%) for the personal win-chance bar. */
+  function winChanceBarColor(percent) {
+    const t = Math.max(0, Math.min(100, percent)) / 100;
+    const r = Math.round(139 + (0 - 139) * t);
+    const g = Math.round(0 + (191 - 0) * t);
+    const b = Math.round(0 + (255 - 0) * t);
+    return `rgb(${r}, ${g}, ${b})`;
+  }
+
+  function updateWinChanceBar(percent) {
+    const pct = Math.max(0, Math.min(100, Math.round(Number(percent) || 0)));
+    const fill = $('#win-chance-fill');
+    const label = $('#win-chance-value');
+    if (fill) {
+      fill.style.width = `${pct}%`;
+      fill.style.backgroundColor = winChanceBarColor(pct);
+    }
+    if (label) label.textContent = `${pct}%`;
+  }
+
+  const CHART_LINE_COLORS = ['#00BFFF', '#FF6B6B', '#FFD93D', '#6BCB77', '#C084FC', '#FB923C', '#F472B6', '#38BDF8'];
+
+  function renderWinChanceChart(history) {
+    const wrap = $('#game-over-chart-wrap');
+    const canvas = $('#game-over-chart');
+    const legend = $('#game-over-chart-legend');
+    if (!wrap || !canvas) return;
+
+    if (!history || history.length < 2) {
+      wrap.classList.add('hidden');
+      return;
+    }
+    wrap.classList.remove('hidden');
+
+    const players = [];
+    history.forEach((snap) => {
+      Object.keys(snap.chances || {}).forEach((u) => {
+        if (!players.includes(u)) players.push(u);
+      });
+    });
+
+    const w = canvas.width;
+    const h = canvas.height;
+    const pad = { l: 36, r: 10, t: 10, b: 28 };
+    const plotW = w - pad.l - pad.r;
+    const plotH = h - pad.t - pad.b;
+    const maxTurn = history.length - 1;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.font = '10px system-ui, sans-serif';
+    ctx.textAlign = 'right';
+    for (let y = 0; y <= 100; y += 25) {
+      const py = pad.t + plotH * (1 - y / 100);
+      ctx.beginPath();
+      ctx.moveTo(pad.l, py);
+      ctx.lineTo(pad.l + plotW, py);
+      ctx.stroke();
+      ctx.fillText(`${y}%`, pad.l - 4, py + 3);
+    }
+
+    ctx.textAlign = 'center';
+    history.forEach((_, i) => {
+      const px = pad.l + (maxTurn > 0 ? (i / maxTurn) * plotW : plotW / 2);
+      ctx.fillText(String(i), px, h - 6);
+    });
+
+    players.forEach((name, pi) => {
+      const color = CHART_LINE_COLORS[pi % CHART_LINE_COLORS.length];
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      history.forEach((snap, i) => {
+        const val = snap.chances[name] ?? 0;
+        const px = pad.l + (maxTurn > 0 ? (i / maxTurn) * plotW : plotW / 2);
+        const py = pad.t + plotH * (1 - val / 100);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      });
+      ctx.stroke();
+      ctx.beginPath();
+      history.forEach((snap, i) => {
+        const val = snap.chances[name] ?? 0;
+        const px = pad.l + (maxTurn > 0 ? (i / maxTurn) * plotW : plotW / 2);
+        const py = pad.t + plotH * (1 - val / 100);
+        ctx.fillStyle = color;
+        ctx.arc(px, py, 3, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    });
+
+    if (legend) {
+      legend.innerHTML = '';
+      players.forEach((name, pi) => {
+        const li = document.createElement('li');
+        const swatch = document.createElement('span');
+        swatch.className = 'swatch';
+        swatch.style.background = CHART_LINE_COLORS[pi % CHART_LINE_COLORS.length];
+        li.appendChild(swatch);
+        li.appendChild(document.createTextNode(name));
+        legend.appendChild(li);
+      });
+    }
   }
 
   // --- Apartment ---
@@ -623,7 +730,7 @@
   }
 
   // --- Game over ---
-  function showGameOver(pkt) {
+  function showGameOver(pkt, options = {}) {
     const t = global.LottoI18n.t;
     toggleOverlay('#game-over-modal', true);
     let reasonText;
@@ -660,6 +767,7 @@
       tr.innerHTML = `<td>${s.username}</td><td>${s.paid}</td><td>${s.received}</td>`;
       table.appendChild(tr);
     });
+    renderWinChanceChart(options.winChanceHistory || []);
   }
 
   // --- Admin ---
@@ -772,7 +880,8 @@
     idleSlot,
     isSlotsSpinning,
     renderGamePlayers,
-    updateWinChance,
+    updateWinChanceBar,
+    winChanceBarColor,
     showApartment,
     hideApartment,
     showGameOver,

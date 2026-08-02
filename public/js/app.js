@@ -33,6 +33,7 @@
     immune: false,
     pendingTurnPkt: null,
     turnReadySent: false,
+    winChanceHistory: [],
   };
 
   let socket;
@@ -110,6 +111,34 @@
     return state.user;
   }
 
+  function buildInitialWinChances(drawerOrder) {
+    const names = drawerOrder || [];
+    if (!names.length) return {};
+    const base = Math.floor(100 / names.length);
+    let extra = 100 - base * names.length;
+    const out = {};
+    names.forEach((u) => {
+      out[u] = base + (extra > 0 ? 1 : 0);
+      if (extra > 0) extra--;
+    });
+    return out;
+  }
+
+  function recordWinChanceSnapshot(chances) {
+    if (!chances || Object.keys(chances).length === 0) return;
+    state.winChanceHistory.push({
+      turn: state.winChanceHistory.length,
+      chances: { ...chances },
+    });
+  }
+
+  function applyMyWinChance(chances) {
+    const me = state.user?.username;
+    if (me && chances && chances[me] != null) {
+      UI().updateWinChanceBar(chances[me]);
+    }
+  }
+
   // --- Animation queue (max 3) ---
   function enqueueAnimation(job) {
     if (state.animationQueue.length >= 3) state.animationQueue.shift();
@@ -151,12 +180,15 @@
         if (!state.drawnAll.includes(n)) state.drawnAll.push(n);
         UI().renderDrawnHistory(state.drawnAll);
         UI().renderCards(state.myCards, state.myMasks, state.cardIndex, [n]);
-        UI().updateWinChance(state.myMasks);
-        updatePlayersWinChance(pkt.win_chances);
         await sleep(100);
       } else {
         UI().idleSlot(i);
       }
+    }
+
+    if (pkt.win_chances) {
+      recordWinChanceSnapshot(pkt.win_chances);
+      applyMyWinChance(pkt.win_chances);
     }
 
     UI().stopSlotsWaiting();
@@ -306,6 +338,7 @@
 
   function onGameStarted(pkt) {
     state.inGame = true;
+    state.winChanceHistory = [];
     if (state.room) {
       state.room.status = 'playing';
       state.room.bank = pkt.bank;
@@ -323,15 +356,16 @@
       username: p.username,
       status: 'active',
       cards_count: p.cards?.length || (p.is_self ? state.myCards.length : 1),
-      masks: p.masks,
-      winChance: p.is_self ? UI().calcWinChance(state.myMasks) : null,
     }));
+
+    const initialChances = buildInitialWinChances(state.drawerOrder);
+    recordWinChanceSnapshot(initialChances);
+    applyMyWinChance(initialChances);
 
     UI().showScreen('game');
     UI().renderGameHeader(state.bank, state.drawerOrder[0], 90);
     UI().renderDrawnHistory([]);
     UI().renderCards(state.myCards, state.myMasks, 0, null);
-    UI().updateWinChance(state.myMasks);
     UI().renderGamePlayers(state.players);
     UI().resetSlots();
     UI().hideTurnControls();
@@ -416,7 +450,7 @@
   function onGameOver(pkt) {
     const job = async () => {
       UI().hideApartment();
-      UI().showGameOver(pkt);
+      UI().showGameOver(pkt, { winChanceHistory: state.winChanceHistory });
       if (pkt.statistics) {
         const me = pkt.statistics.find((s) => s.username === state.user?.username);
         if (me && state.user) {
@@ -481,17 +515,14 @@
       UI().renderGameHeader(state.bank, state.currentDrawer, null);
       UI().renderDrawnHistory(state.drawnAll);
       UI().renderCards(state.myCards, state.myMasks, state.cardIndex, null);
-      UI().updateWinChance(state.myMasks);
+      state.players = (state.room?.players || []).map((p) => ({
+        username: p.username,
+        status: p.status || 'active',
+        cards_count: p.cards_count || 1,
+      }));
+      UI().renderGamePlayers(state.players);
       if (pkt.win_chances) {
-        state.players = (state.room?.players || []).map((p) => ({
-          username: p.username,
-          status: p.status || 'active',
-          cards_count: p.cards_count || 1,
-          winChance: p.username === state.user?.username
-            ? UI().calcWinChance(state.myMasks)
-            : (pkt.win_chances[p.username] ?? null),
-        }));
-        UI().renderGamePlayers(state.players);
+        applyMyWinChance(pkt.win_chances);
       }
       syncTurnUi();
       UI().showToast(I18n().t('reconnect.restored'));
@@ -500,19 +531,6 @@
 
   function onAdminLogs(pkt) {
     UI().setAdminLogs(pkt.lines);
-  }
-
-  function updatePlayersWinChance(serverWinChances) {
-    state.players = state.players.map((p) => {
-      if (p.username === state.user?.username) {
-        return { ...p, winChance: UI().calcWinChance(state.myMasks) };
-      }
-      if (serverWinChances && serverWinChances[p.username] != null) {
-        return { ...p, winChance: serverWinChances[p.username] };
-      }
-      return p;
-    });
-    UI().renderGamePlayers(state.players);
   }
 
   // --- User actions ---
@@ -552,6 +570,7 @@
     state.myCards = [];
     state.myMasks = [];
     state.players = [];
+    state.winChanceHistory = [];
     state.animationQueue = [];
     state.animating = false;
     UI().resetSlots();

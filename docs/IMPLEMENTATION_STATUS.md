@@ -2,6 +2,33 @@
 
 ## Phase 18 — Client Balance Persistence (2026-08-02)
 
+- [DONE] FIX-27 Win-chance progress bar + game-over probability chart
+Files:
+- public/index.html (diff — win-chance track/fill; game-over chart canvas + legend)
+- public/css/style.css (diff — bar gradient styles, chart panel)
+- public/js/ui.js (diff — `updateWinChanceBar`, `renderWinChanceChart`; players list without %)
+- public/js/app.js (diff — track `winChanceHistory` from server `win_chances` snapshots)
+- public/locales/*.json (diff — `game.winChanceHistory`)
+- docs/GAME_RULES.md (diff — single bar location, sidebar fields, end-game graph)
+
+Notes: Win chance shown only above slot machine as red→blue progress bar (server
+comparative % from `barrels_drawn.win_chances`). Player sidebar: nickname, cards,
+status only. Client records per-turn snapshots for game-over line chart (no protocol
+change). History lost on mid-game refresh/reconnect — acceptable client-only scope.
+
+CHANGED:
+- Personal win-chance UI: progress bar with `winChanceBarColor()` gradient
+- `renderGamePlayers()` / sidebar: no win-chance column
+- `showGameOver()` renders turn-indexed probability chart after statistics table
+
+NOT CHANGED:
+- `win_chances` server calculation (ADR-014), protocol packets, payout logic
+
+VERIFICATION:
+- `php tests/Manual/test_frontend_structure.php` — PASS.
+- MANUAL: 2-player game → bar updates after each draw; sidebar has no %; game-over
+  modal shows multi-line chart when ≥2 turns recorded.
+
 - [DONE] FIX-26 F2 in-game reconnect QA hotkey + guard fix on page refresh
 Files:
 - public/js/ws.js (diff — `simulateTransportDrop()` closes WS without `intentionalClose`)
