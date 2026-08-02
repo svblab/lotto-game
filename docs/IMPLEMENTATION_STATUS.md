@@ -1,5 +1,499 @@
 # Implementation Status — Lotto Game Project
 
+## Phase 16 — Comparative Win-Chance (Server-Side)
+
+- [DONE] EPIC-16.1 Comparative win-chance calculation and protocol wiring (ADR-014)
+Files:
+- docs/ADR/014.md (new)
+- docs/ANCHOR_PROTOCOL.md (diff — `win_chances` on `barrels_drawn` / `reconnect_state`)
+- src/Game/VictoryService.php (diff — `calculateWinChances()`)
+- src/Game/GameService.php (diff — wire into `broadcastBarrelsDrawn()`; passthrough; skip on victory draw)
+- src/Game/ReconnectService.php (diff — `reconnect_state` playing branch)
+- public/js/app.js (diff — opponents use server `win_chances`; self indicator unchanged)
+- tests/Manual/test_victory.php (diff — GROUP 7 unit tests)
+- tests/Manual/test_turn_system.php (diff — GROUP 7 integration)
+- tests/Manual/test_reconnect.php (diff — `MockGameService::calculateWinChances`; reconnect_state assert)
+
+Notes: Fixes silently broken opponent win-chance (~0% always) by moving comparative
+move-distance formula server-side. Informational only — zero changes to victory
+detection, prize calculation, apartment, AFK, economy, or state machine.
+Opponent card numbers remain hidden; only coarse percentage exposed.
+
+VERIFICATION:
+- `php tests/Manual/test_victory.php` — **48/48 PASS** (was 40; +GROUP 3b unit tests).
+- `php tests/Manual/test_turn_system.php` — **47/47 PASS** (was 42; +GROUP 7).
+- `php tests/Manual/test_reconnect.php` — **107/107 PASS** (+2 reconnect_state asserts).
+- `php run_ALL_tests.php` — baseline unchanged; no victory/prize regressions.
+
+## Phase 15 — AFK Audit Fixes (Fresh Findings)
+
+- [DONE] EPIC-15.4 AFK-cascade last survivor excludes equally idle player (ADR-013)
+Files:
+- docs/ADR/013.md (new)
+- docs/ANCHOR_CORE.md (diff — § Last Survivor qualifying condition for AFK removal)
+- docs/GAME_RULES.md (diff — Last Survivor vs mutual-AFK refund wording)
+- src/Game/ReconnectService.php (diff — `removePlayerFromGame()` AFK + survivor `auto_draws>0` → `handleNoSurvivors()`)
+- tests/Manual/test_reconnect.php (diff — GROUP 5 engaged survivor; 5b/5c both-idle refund; 5d non-afk unchanged)
+- tests/Manual/test_timer_integrity.php (diff — noop `handleNoSurvivors` mock for TEST 6b)
+
+Notes: Closes economy loophole where second-to-last player removed for `afk` paid entire bank to a
+survivor who had themselves accumulated `auto_draws > 0`. Option A (ADR-013): reuse existing
+`handleNoSurvivors()` refund path; no new Player Structure field. Removal reasons `disconnect`,
+`leave`, `refuse`, `kicked`, `banned` unchanged. `ApartmentService::removePlayerFromApartment()` has
+no `count(active)===1` last-survivor branch — out of scope.
+
+VERIFICATION:
+- `php tests/Manual/test_reconnect.php` — **105/105 PASS** (was 77; +GROUP 5b/5c/5d, GROUP 5 split).
+- `php tests/Manual/test_timer_integrity.php` — **14/14 PASS**.
+- `php tests/Manual/test_admin_kick.php` — **39/39 PASS** (no double-refund regression).
+- `php run_ALL_tests.php` — **32/41** files pass (baseline unchanged; `test_timer_integrity` fixed).
+
+- [DONE] EPIC-15.1 Zero-active no-survivors refund during playing (economic integrity)
+Files:
+- src/Game/GameFinishService.php (diff — `handleNoSurvivors()`, `cancelRoomTimers()`, `snapshotRemainingPlayersToHistory()`; constructor `object` deps for testability)
+- src/Game/GameService.php (diff — `handleNoSurvivors()` passthrough)
+- src/Game/ReconnectService.php (diff — `count(active)===0` → refund path; unified active-player dispatch; removed dead `destroyRoom()`)
+- src/Game/ApartmentService.php (diff — delegate no-survivors to `GameService`; fix `removePlayerFromApartment` empty path; `sendJson` import)
+- tests/Manual/test_reconnect.php (diff — GROUP 8/8b no-survivors + refund assertions)
+- tests/Manual/test_apartment.php (diff — GROUP 9 apartment empty-path refund; `makeSvc()` wires real `GameFinishService`)
+
+Notes: Closes ANCHOR_CORE Part 2 § No Survivors / § Economic Integrity Rule gap where
+`removePlayerFromGame()` called bare `destroyRoom()` when `count(active)===0` or
+`empty(players)` — coins lost, zombie rooms with disconnected stragglers. Chose option (a):
+refund logic centralized in `GameFinishService` (ADR-002 payout owner). Disconnected
+stragglers snapshotted into `all_players_history` before refund; reconnect timers cancelled;
+`bank` explicitly zeroed.
+
+VERIFICATION:
+- `php tests/Manual/test_reconnect.php` — **65/65 PASS** (was 52; +GROUP 8/8b).
+- `php tests/Manual/test_apartment.php` — **38/38 PASS** (was 36; +GROUP 9).
+- `php run_ALL_tests.php` — **32/41** files pass (baseline 31/41 pre-epic; `test_apartment.php` fixed).
+
+- [DONE] EPIC-15.2 Progressive game AFK strike windows 30s / 15s / 5s (ADR-012)
+Files:
+- docs/ADR/012.md (new)
+- docs/ANCHOR_CORE.md (diff — § Game AFK Timer thresholds table)
+- docs/ANCHOR_PROTOCOL.md (diff — `turn_seconds` semantics for `your_turn` / `afk_warning`)
+- src/Core/Constants.php (diff — `gameAfkStrikeWindowSeconds()`; removed dead flat-30 helpers)
+- src/Game/ReconnectService.php (diff — `tickGameAfk()` per-strike window lookup)
+- src/Game/GameService.php (diff — `sendYourTurn()` / packet `turn_seconds` per `auto_draws`)
+- tests/Manual/test_reconnect.php (diff — GROUP 4/4b/4c/5/6 boundary + `turn_seconds` assertions)
+- tests/Manual/test_timer_audit.php (diff — `LOTTO_GAME_AFK_STRIKE1/2/3` env override tests)
+
+Notes: `auto_draws` semantics unchanged (ADR-008). Client (`public/js/ui.js`) already uses
+server `turn_seconds` — no hardcoded 30s dependency beyond falsy fallback.
+
+VERIFICATION:
+- `php tests/Manual/test_reconnect.php` — **71/71 PASS** (strike 1≥30s, strike 2≥15s, strike 3≥5s boundaries; `turn_seconds` 30/15 in packets).
+- `php tests/Manual/test_timer_audit.php` — **22/22 PASS**.
+- `php run_ALL_tests.php` — **32/41** files pass (no new failures vs EPIC-15.1 sign-off).
+
+## Phase 14 — AFK Timer Audit Fixes
+
+- [DONE] EPIC-14.9 GAME_RULES.md: align lobby AFK activity examples with allowlist
+Files:
+- docs/GAME_RULES.md (diff — §4 «В лобби»: drop misleading «Начать игру» example;
+  list `room_list` / create / join / leave; note start_game ends waiting phase)
+
+Notes: Documentation-only polish. Matches EPIC-14.5 `$lobbyHostActivityActions` in
+server.php. No code or test changes.
+
+VERIFICATION:
+- Manual review against ANCHOR_CORE.md § Lobby AFK Timer and ADR-010 — consistent.
+
+- [DONE] EPIC-14.8 Fix stale ADR-007 citations in lobby integration test comments
+Files:
+- tests/Manual/test_lobby_integration.php (diff — SUITE 5 comments: ADR-007 → ADR-011)
+
+Notes: Comment-only traceability cleanup (ADR-011 retroactive doc). No logic change.
+Grep confirmed no remaining incorrect «ADR-007» / «A7 spec» citations outside
+legitimate ADR-007 subjects (`error.banned`, `afk_warning` protocol audit).
+
+VERIFICATION:
+- `php tests/Manual/test_lobby_integration.php` — 133/133 PASS (unchanged logic).
+
+- [DONE] EPIC-14.6 Clear stale lobby joined message on leave room
+Files:
+- public/js/app.js (diff — `resetToLobby()` clears `#lobby-message`)
+
+Notes: Cosmetic UI fix only; unrelated to AFK timing logic. Stale «Вы в комнате
+#N» text persisted after `leave_room` because `onRoomJoined` set the message but
+`resetToLobby()` did not clear it.
+
+VERIFICATION:
+- Manual UI: leave room → `#lobby-message` empty; lobby timers unaffected.
+- `php tests/Manual/test_lobby_integration.php` — 133/133 PASS (no test change).
+- `php run_ALL_tests.php` — 30/41 test files PASS (11 pre-existing failures
+  unrelated to this one-line client fix; same baseline as EPIC-14.1 sign-off).
+
+- [DONE] EPIC-14.5 Fix lobby AFK 120s display and turn passing after start_game
+Files:
+- server.php (diff — `hello` packet gains `server_time`; `touchLobbyHostActivity`
+  restricted to waiting-room lobby-action allowlist: `room_list`, `create_room`,
+  `join_room`, `leave_room` — excludes `start_game` and all in-game/admin actions)
+- public/js/app.js (diff — server clock skew from `hello`; `onHostChanged` ignored
+  while `state.inGame`)
+- public/js/ui.js (diff — `setServerClockSkew` / `serverNowSec()` for lobby and
+  game AFK countdown displays)
+- src/Game/ReconnectService.php (diff — `reconnect_state` `host_timeout_start`
+  sourced from `host_activity_at`, not stale `last_action`)
+- src/Lobby/LobbyService.php (diff — `startLobbyAfkTimer()` refreshes
+  `host_activity_at` + broadcasts on arm; `touchLobbyHostActivity` broadcasts via
+  `broadcastHostChanged` only)
+- tests/Manual/test_lobby_integration.php (diff — SUITE 7: timer arm sets full
+  120s window assertion)
+
+Notes: Closes residual EPIC-14.1 gap where `touchLobbyHostActivity` was wired
+unconditionally for every action (including `start_game`), which re-broadcast
+`host_changed` during game start and broke turn passing. Client clock skew caused
+lobby countdown to open at ~105s instead of 120s when client clock led server.
+
+VERIFICATION:
+- `php tests/Manual/test_lobby_integration.php` — 133/133 PASS (includes SUITE 7
+  «timer arm sets full 120s window» + SUITE 8 ping-immunity from EPIC-14.1).
+- `php run_ALL_tests.php` — 30/41 test files PASS (11 pre-existing failures on
+  Windows dev host: live WS subprocess tests, `sendJson` bootstrap gaps in some
+  apartment/admin manual tests — unchanged from EPIC-14.1 baseline).
+
+- [DONE] EPIC-14.4 Update GAME_RULES.md AFK section to match per-turn model (ADR-008)
+Files:
+- docs/GAME_RULES.md (diff — §4 AFK: per-turn 30s threshold, cross-turn strike counting)
+
+Notes: Documentation-only. Aligned with ANCHOR_CORE.md § Game AFK Timer and ADR-008.
+
+VERIFICATION:
+- Manual review against ANCHOR_CORE.md § Game AFK Timer — wording consistent.
+
+- [DONE] EPIC-14.3 Cancel game_afk_timer immediately on apartment transition
+Files:
+- src/Game/ApartmentService.php (diff — explicit game_afk_timer_id cancel in triggerApartment)
+- tests/Manual/test_apartment.php (diff — GROUP 5b assertion; mock_timer bootstrap)
+
+Notes: Defensive self-stop in ReconnectService::tickGameAfk() retained.
+
+VERIFICATION:
+- `php tests/Manual/test_apartment.php` — all PASS (including GROUP 5b)
+
+- [DONE] EPIC-14.2 Lobby AFK: document forward-only rotation + queue exhaustion (ADR-011)
+Files:
+- docs/ADR/011.md (новый — retroactive ADR for host rotation + room destruction)
+- docs/ANCHOR_CORE.md (diff — Room Destruction Rules 4th bullet; ADR-011 citation)
+- src/Lobby/LobbyService.php (diff — comment/citation corrections only)
+
+Notes: No runtime behavior change. Replaces incorrect ADR-007 / "A7 spec" citations.
+
+VERIFICATION:
+- `php tests/Manual/test_lobby_integration.php` — 132/132 PASS (unmodified logic)
+
+- [DONE] EPIC-14.1 Lobby AFK timer: separate host_activity_at from ping keepalive
+Files:
+- docs/ADR/010.md (новый — host_activity_at Player Structure key)
+- docs/ANCHOR_CORE.md (diff — Player Structure, Lobby AFK Timer, Naming Registry)
+- src/Lobby/LobbyService.php (diff — host_activity_at, touchLobbyHostActivity, timer check)
+- server.php (diff — ping no longer syncs lobby AFK; touchLobbyHostActivity on real actions)
+- tests/Manual/test_lobby_integration.php (diff — SUITE 8 ping-immunity regression)
+
+Notes: `ping` still updates `last_action` for connection liveness; lobby AFK reads
+`host_activity_at` only (ADR-010). Game AFK unchanged.
+
+VERIFICATION:
+- `php tests/Manual/test_lobby_integration.php` — all PASS (including SUITE 8)
+- `php run_ALL_tests.php` — 0 failures
+
+---
+
+## Phase 13 — Game AFK Wiring & Orphaned-Method Fixes
+
+- [DONE] EPIC-13.0 ADR: Game AFK timer wiring decision
+Files:
+- docs/AUDIT_ORPHANED_METHODS_2026-07-28.md (новый — archived audit report)
+- docs/ADR/008.md (новый — startTurn + setter wiring decision)
+- docs/ROADMAP.md (diff — Phase 13 added, skip note updated)
+
+Decision: ADR-008 option (c) — `GameService::startTurn()` atomically sends
+`your_turn` and arms AFK timer via post-construction `setReconnectService()`.
+
+- [DONE] EPIC-13.1 Wire first-turn your_turn + AFK arm into handleStartGame()
+Files:
+- src/Game/GameService.php (diff — startTurn, setReconnectService, handleStartGame)
+- server.php (diff — setReconnectService wiring)
+
+Verification: `php tests/Manual/test_game_start.php` — 46/46 PASS (Group 7 lines
+401–402 updated; Group 10 afk_start assertion updated for drawer).
+
+- [DONE] EPIC-13.2 Wire AFK arm into handleDrawBarrel() turn rotation
+Files:
+- src/Game/GameService.php (diff — handleDrawBarrel uses startTurn)
+
+Verification: `php tests/Manual/test_turn_system.php` — 38/38 PASS. Group 4
+flagged for EPIC-13.4: added afk_start assertion on next drawer.
+
+- [DONE] EPIC-13.3 Wire AFK arm into drawer-replacement paths
+Files:
+- src/Game/ReconnectService.php (diff — removePlayerFromGame uses startTurn)
+- src/Game/ApartmentService.php (diff — finishApartment uses startTurn)
+
+Verification: `php tests/Manual/test_reconnect.php` 20/20, `test_apartment.php` 32/32.
+
+- [DONE] EPIC-13.4 Test corrections + turn-start integration test
+Files:
+- tests/Manual/test_game_start.php (diff — Group 7/10 assertions)
+- tests/Manual/test_turn_system.php (diff — Group 4 afk_start)
+- tests/Manual/test_game_packet_routing.php (diff — TEST 2 your_turn)
+- tests/Manual/test_phase11_core_flows.php (diff — your_turn assertion)
+- tests/Manual/test_game_start_turn_integration.php (новый — 7/7 PASS)
+- tests/Manual/test_admin_ban.php (diff — MockApartmentService stub)
+
+Verification: `php run_ALL_tests.php` — 41/41 test files PASS (local Windows
+dev host, 2026-07-28). VPS `./run_ALL_tests.sh` initially failed with FIX-16
+(8 live WS subprocess tests — server.php fatal on missing bootstrap helper);
+re-verify on VPS after `0de46d0` — see FIX-16.
+
+- [DONE] EPIC-13.5 Apartment early-finish check on kick/ban removal
+Files:
+- src/Game/ApartmentService.php (diff — bindGameService, maybeFinishApartmentEarly)
+- src/Admin/AdminService.php (diff — kick/ban apartment paths)
+- server.php (diff — bindGameService)
+- tests/Manual/test_admin_kick.php (diff — TEST 9 early-finish scenario)
+
+Verification: test_admin_kick TEST 9 PASS; test_apartment 32/32.
+
+- [DONE] EPIC-13.6 Investigation: reconnect mid-turn drawer turn-signal
+Finding: **Frontend does NOT self-activate draw button from reconnect_state.**
+`onReconnectState` (playing) calls `UI().setDrawButton(false, false)` and
+`reconnect_state` carries no active-drawer field. Reconnecting drawer needs
+separate `your_turn` resend or protocol extension — deferred to follow-up Epic.
+
+- [DONE] EPIC-13.7 Cleanup: RoomManager::findRoomIdByUserId()
+Decision: **(b) intentionally-retained utility** — docblock updated; no
+production consumer planned; test coverage in test_lobby_integration.php kept.
+
+**Process deviation (Rule 16 — Git Checkpoint Rule):** Phase 13 commits on
+branch `cursor/epic-11-1-vps-ws-test-isolation` did not strictly follow the
+one-Epic-one-commit convention. EPIC-13.3 appears in **two** commit messages:
+`8cd1434` (`EPIC-13.3 wire-afk-drawer-replacement` — ReconnectService only)
+and `f4cf0f4` (`EPIC-13.2-13.3 wire-afk-turn-rotation-and-apartment-resume`
+— ApartmentService `finishApartment`). EPIC-13.2 landed inside `b203493`
+(`EPIC-13.1 start-game-first-turn`) because `handleDrawBarrel()` and
+`handleStartGame()` share `GameService.php` in a single diff. All epics are
+implemented and verified; numbering in commit messages is authoritative for
+audit only — see DECISION LOG 2026-07-28.
+
+---
+
+- [IN PROGRESS] EPIC-11.6 Load testing (Phase 11 — instrumentation complete 2026-07-27; VPS load runs pending)
+Files:
+- src/Core/LoadAudit.php (новый файл — opt-in handler latency + snapshots → logs/load_audit.log)
+- server.php (diff — LoadAudit wiring, onMessage latency recording, periodic snapshots)
+- scripts/load_test_runner.php (новый файл — ramp/steady/storm/long VPS scenarios)
+- scripts/analyze_load_log.php (новый файл — p95/CPU/memory acceptance validator)
+- tests/Manual/test_load_audit.php (новый файл — 30 mock regression tests)
+- docs/PHASE_11_REPORT.md (diff — EPIC-11.6 section updated)
+
+Implemented:
+- LoadAudit utility: LOTTO_LOAD_AUDIT=1 logs per-action handler latency_ms and
+  periodic snapshots (mem, connections, rooms) for EPIC-11.6 targets.
+- load_test_runner.php: four scenarios (ramp, steady, storm, long) with
+  realistic register/room/game flows; client RTT → logs/load_client.log;
+  CPU/memory sampling → logs/load_resource.log.
+- analyze_load_log.php: validates p95 < 100ms (register/login/draw_barrel),
+  peak memory < 450 MB, peak CPU < 80%.
+- test_load_audit.php: utility, percentile math, client/resource log parsing.
+
+Verification (Windows dev host):
+- test_load_audit.php: 30/30 PASS
+- load_test_runner.php: requires Linux/VPS (Workerman)
+- analyze_load_log.php: runs after VPS load_test_runner completion
+
+Remaining: Run load scenarios on Ubuntu VPS (1 CPU / 512 MB target):
+  php scripts/load_test_runner.php --scenario=ramp --players=100 --games=10 --duration=300
+  php scripts/load_test_runner.php --scenario=steady --duration=1800
+  php scripts/load_test_runner.php --scenario=storm
+  php scripts/load_test_runner.php --scenario=long --duration=3600
+
+Next in Phase 11: Complete EPIC-11.1–11.6 VPS sign-off runs per docs/PHASE_11_REPORT.md.
+
+- [IN PROGRESS] EPIC-11.5 Protocol audit (Phase 11 — instrumentation complete 2026-07-27; VPS live replay pending)
+Files:
+- docs/ANCHOR_CORE.md (diff — afk_warning added to packet registry)
+- docs/ANCHOR_PROTOCOL.md (diff — afk_warning packet spec, error.banned note)
+- docs/ADR/007.md (новый файл — documentation alignment decisions)
+- tests/Manual/test_protocol_audit.php (новый файл — 7 live WS acceptance tests)
+- scripts/ws_emulator.php (новый файл — CLI client emulator + replay)
+- tests/Manual/test_protocol_completeness.php (diff — afk_warning gap closed)
+- docs/PHASE_11_REPORT.md (diff — EPIC-11.5 section updated)
+
+Implemented:
+- afk_warning registered in ANCHOR_CORE.md and documented in ANCHOR_PROTOCOL.md
+  (ADR-007); closes W1 from static audit.
+- error.banned documented as reserved/unused (ADR-007); `banned` packet is the
+  canonical ban-rejection channel.
+- test_protocol_audit.php: hello/protocol_version, extra-field extensibility,
+  authenticated unknown action, missing fields, room_full live, auth_required.
+- ws_emulator.php: --send, --replay (.jsonl), --interactive modes for
+  protocol replay and manual audit.
+- test_protocol_completeness.php: 50/50 PASS, 2 warnings (admin_stats_data,
+  error.banned reserved — both documented KNOWN GAPS).
+
+Verification (Windows dev host):
+- test_protocol_completeness.php: 50/50 PASS, 2 warnings (expected)
+- test_protocol_audit.php: requires Linux/VPS (live Workerman subprocess)
+- Full suite: php run_ALL_tests.php — 29/29 test files passed (Windows;
+  9 live-server tests skipped)
+
+Remaining: Run test_protocol_audit.php on Ubuntu VPS; use ws_emulator.php
+for session replay during live-game protocol sign-off.
+
+- [IN PROGRESS] EPIC-11.4 State machine audit (Phase 11 — instrumentation complete 2026-07-27; VPS live-game run pending)
+Files:
+- src/Core/StateMachineAudit.php (новый файл — opt-in state transition logging → logs/state_machine_audit.log)
+- src/Core/Helpers.php (diff — lottoStateTransition/lottoStateReject/lottoPlayerStateTransition)
+- server.php (diff — StateMachineAudit wiring)
+- src/Core/RoomManager.php, src/Game/GameService.php, src/Game/GameFinishService.php,
+  src/Game/ApartmentService.php, src/Game/ReconnectService.php, src/Lobby/LobbyService.php,
+  src/Admin/AdminService.php (diff — transition/rejection hooks)
+- tests/Manual/test_state_machine_audit.php (новый файл — 29 mock regression tests)
+- scripts/analyze_state_machine_log.php (новый файл — log replay + transition validation)
+- docs/PHASE_11_REPORT.md (diff — EPIC-11.4 section updated)
+
+Implemented:
+- StateMachineAudit utility: LOTTO_STATE_AUDIT=1 logs room transitions, player
+  transitions, and rejected actions per ANCHOR_CORE.md Part 4.
+- Transition graph encoded: waiting→playing→apartment→playing→finished→destroyed.
+- Instrumentation at all status mutation sites + key rejection guards.
+- test_state_machine_audit.php: utility, valid/invalid transitions, apartment
+  cycle, apartment timeout, host disconnect/reconnect, join_room guard.
+- analyze_state_machine_log.php: parse log, verify sequence against spec.
+
+Verification (Windows dev host):
+- test_state_machine_audit.php: 29/29 PASS
+- Full suite: php run_ALL_tests.php — 28/28 test files passed
+- Existing state tests unchanged: test_phase11_core_flows.php (17/17),
+  test_apartment.php (32/32), test_reconnect.php (20/20)
+
+Remaining: Enable LOTTO_STATE_AUDIT=1 on VPS during live multi-game sessions;
+run analyze_state_machine_log.php after sessions for full sign-off.
+
+Next in Phase 11: EPIC-11.5 Protocol audit, then 11.6 per
+docs/prompt phase 11 detail.md and docs/PHASE_11_REPORT.md.
+
+- [IN PROGRESS] EPIC-11.3 Economy audit (Phase 11 — instrumentation complete 2026-07-27; VPS live-game run pending)
+Files:
+- src/Core/EconomyAudit.php (новый файл — opt-in financial event logging → logs/economy_audit.log)
+- src/Core/Helpers.php (diff — lottoEconomyRecord() helper)
+- server.php (diff — EconomyAudit wiring)
+- src/Game/GameService.php, src/Game/GameFinishService.php, src/Game/ApartmentService.php,
+  src/Admin/AdminService.php (diff — audit hooks on stake/prize/burn/apartment/refund)
+- tests/Manual/test_economy_audit.php (новый файл — 32 mock regression tests)
+- scripts/economy_integrity_runner.php (новый файл — multi-scenario conservation check)
+- scripts/analyze_economy_log.php (новый файл — log replay + duplicate tx_id check)
+- docs/PHASE_11_REPORT.md (diff — EPIC-11.3 section updated)
+
+Implemented:
+- EconomyAudit utility: LOTTO_ECONOMY_AUDIT=1 logs stake/prize/apartment/refund/burn
+  with tx_id, user_id, room_id, signed amount, microsecond timestamp.
+- Transaction sites instrumented: startGame stakes, finishGame prizes+burn,
+  apartment payments, admin kick/close refunds, no-survivors refunds.
+- Conservation invariant: sum(user coins) + room banks + burned = initial total.
+- test_economy_audit.php: utility, replay, VictoryService math, GameFinishService integration.
+- economy_integrity_runner.php: 4-scenario chain (stake → prize/burn → apartment → refund).
+- analyze_economy_log.php: parse log, optional --initial replay verification.
+
+Verification (Windows dev host):
+- test_economy_audit.php: 32/32 PASS
+- economy_integrity_runner.php: PASS
+- Existing economy tests unchanged: test_victory.php (40/40), test_apartment.php (32/32),
+  test_admin_integration.php (20/20)
+
+Remaining: Enable LOTTO_ECONOMY_AUDIT=1 on VPS during live multi-game sessions;
+run analyze_economy_log.php with --initial balances for full sign-off.
+
+Next in Phase 11: EPIC-11.5 Protocol audit, then 11.6 per
+docs/prompt phase 11 detail.md and docs/PHASE_11_REPORT.md.
+
+- [IN PROGRESS] EPIC-11.2 Timer audit (Phase 11 — instrumentation complete 2026-07-27; VPS accelerated run pending)
+Files:
+- src/Core/TimerAudit.php (новый файл — opt-in timer lifecycle logging → logs/timer_audit.log)
+- src/Core/Constants.php (diff — env-resolved timeout accessors + AFK/APARTMENT constants)
+- src/Core/Helpers.php (diff — lottoTimerAdd/lottoTimerDel wrappers with audit hooks)
+- server.php (diff — TimerAudit wiring, watchdog uses env-resolved timeouts)
+- src/Lobby/LobbyService.php, src/Game/ReconnectService.php, src/Game/ApartmentService.php,
+  src/Game/GameService.php, src/Game/GameFinishService.php, src/Core/RoomManager.php
+  (diff — all Timer::add/del migrated to lottoTimer* wrappers)
+- tests/Manual/test_timer_audit.php (новый файл — 20 mock regression tests)
+- tests/Manual/mock_timer.php (diff — fire()/fireAll() for accelerated mock tests)
+- scripts/timer_accelerated_runner.php (новый файл — VPS accelerated timer scenarios)
+- scripts/analyze_timer_log.php (новый файл — drift ±200ms + orphan check)
+- tests/Manual/ws_test_harness.php (diff — LOTTO_TIMER_AUDIT_LOG isolation)
+- docs/PHASE_11_REPORT.md (diff — EPIC-11.2 section updated)
+
+Implemented:
+- TimerAudit utility: LOTTO_TIMER_AUDIT=1 logs add/del/fire with microsecond timestamps.
+- Env overrides for accelerated VPS testing: LOTTO_RECONNECT_TIMEOUT,
+  LOTTO_LOBBY_HOST_TIMEOUT, LOTTO_UNAUTHORIZED_TIMEOUT, LOTTO_AUTHORIZED_TIMEOUT,
+  LOTTO_APARTMENT_TIMEOUT, LOTTO_GAME_AFK_WARN1/WARN2/AUTO, LOTTO_WATCHDOG_INTERVAL,
+  LOTTO_AFK_TICK_INTERVAL.
+- lottoTimerAdd/lottoTimerDel: single instrumentation seam for all production timers.
+- test_timer_audit.php: TimerAudit utility, env overrides, RoomManager cleanup,
+  reconnect schedule/cancel, lobby AFK start/stop, single-shot fire semantics.
+- VPS tooling: timer_accelerated_runner.php (5s reconnect default) +
+  analyze_timer_log.php (acceptance: no orphans, drift ≤200ms).
+
+Verification (Windows dev host):
+- test_timer_audit.php: 20/20 PASS
+- test_timer_integrity.php: 5/5 PASS (FIX-6 regression, unchanged)
+- Full suite: php run_ALL_tests.php — 26/26 test files passed
+
+Remaining: Run timer_accelerated_runner.php on Ubuntu VPS for live drift
+acceptance sign-off per EPIC-11.2 acceptance criteria.
+
+Next in Phase 11: EPIC-11.5 Protocol audit, then 11.6 per
+docs/prompt phase 11 detail.md and docs/PHASE_11_REPORT.md.
+
+- [IN PROGRESS] EPIC-11.1 Memory audit (Phase 11 — instrumentation complete 2026-07-27; VPS 6h run pending)
+Files:
+- src/Core/MemoryAudit.php (новый файл — opt-in memory snapshots → logs/memory_audit.log)
+- server.php (diff — worker_start/connection/packet/periodic snapshots)
+- src/Core/RoomManager.php (diff — room_created/room_destroyed snapshots)
+- tests/Manual/test_memory_audit.php (новый файл — mock regression: map cleanup, bounded growth)
+- scripts/memory_stability_runner.php (новый файл — 6-hour VPS load test, Linux only)
+- scripts/analyze_memory_log.php (новый файл — validates ≤120% baseline threshold)
+- docs/PHASE_11_REPORT.md (diff — EPIC-11.1 section updated)
+
+Implemented:
+- MemoryAudit utility: LOTTO_MEMORY_AUDIT=1 enables structured snapshots;
+  LOTTO_MEMORY_AUDIT_VERBOSE=1 logs every handled action (default: tracked
+  lifecycle actions only).
+- FIX-13 (ownership): MemoryAudit now accepts optional log path (constructor
+  param + LOTTO_MEMORY_AUDIT_LOG env), mirroring FIX-12 Logger DI-seam.
+  test_memory_audit.php writes to sys_get_temp_dir() only; production
+  logs/memory_audit.log hash verified unchanged after test run.
+- server.php: baseline at worker start, connection open/close, packet
+  snapshots for state-mutating actions, 30-minute periodic timer.
+- RoomManager: snapshots on createRoom/destroyRoom.
+- test_memory_audit.php: map cleanup, timer orphan check, 50-cycle
+  create/destroy bounded-growth test, log file write verification.
+- VPS tooling: memory_stability_runner.php (6h default) +
+  analyze_memory_log.php (acceptance: memory ≤120% baseline).
+
+Verification (Windows dev host):
+- test_memory_audit.php: all groups PASS
+- Full suite: php run_ALL_tests.php (includes new test file)
+
+Remaining: Run memory_stability_runner.php on Ubuntu VPS for 6-hour
+acceptance sign-off per EPIC-11.1 acceptance criteria.
+
+FIX-14 (VPS test isolation, 2026-07-27): Live WS tests now use port 18080
+and temp-dir logs via tests/Manual/ws_test_harness.php — no collision with
+production lotto-server.service on 8080, no writes to root-owned logs/.
+test_helpers_runner.php scenario 4 no longer writes to production server.log.
+test_logger.php removed (superseded by FIX-12). server.php accepts
+LOTTO_WS_PORT, LOTTO_SERVER_LOG, LOTTO_WORKERMAN_LOG_FILE,
+LOTTO_WORKERMAN_PID_FILE env vars for test subprocess isolation.
+
+Next in Phase 11: EPIC-11.5 Protocol audit, then 11.6 per
+docs/prompt phase 11 detail.md and docs/PHASE_11_REPORT.md.
+
 - [DONE] EPIC-11.0 Full integration testing (Phase 11 audit, 2026-07-27)
 Files:
 - tests/Manual/test_admin_ban.php (diff — FIX-11 MockConnection::close())
@@ -814,6 +1308,75 @@ Diff: patches/FIX-12-Logger.patch, patches/FIX-12-test-login.patch,
 patches/FIX-12-test-register.patch, patches/FIX-12-test-session-service.patch,
 patches/FIX-12-test-single-session.patch, patches/FIX-12-test-victory.patch,
 patches/FIX-12-test-admin-logs.patch, patches/FIX-12-test-admin-integration.patch
+
+## FIX-16 — server.php bootstrap helper missing from committed Helpers.php
+Status: Completed
+Date: 2026-07-28
+
+Found during: full `./run_ALL_tests.sh` on the Ubuntu VPS at the end of
+EPIC-13.4 sign-off — not during local Windows dev, where the committed
+`run_ALL_tests.php` still skips the eight live-WS-subprocess tests via
+`$skipOnWindows` (FIX-15 intent documented in `docs/LOCAL_ENVIRONMENT.md`
+but the bootstrap helpers themselves were never committed).
+
+Background (FIX-15): `lottoBootstrapPhpExtensions()` and `lottoPhpIniArgs()`
+were developed locally for Windows SQLite bootstrap and child-process
+`proc_open` spawning. They lived only in an **uncommitted** diff to
+`src/Core/Helpers.php` alongside local edits to `run_ALL_tests.php`.
+
+Breaking commit: `b203493` (EPIC-13.1) added
+`lottoBootstrapPhpExtensions()` to `server.php:109` (and the corresponding
+`use function` import) — copied from the local uncommitted state — without
+the function definition being present in the repository. On Linux/VPS the
+call is a no-op when defined, but **fatal when undefined**.
+
+Symptom on VPS (`/opt/lotto-game`, `./run_ALL_tests.sh` after `git pull`
+to Phase 13 HEAD before this fix):
+- Eight live WS subprocess tests failed with
+  `server.php did not bind port … in time (running=no)`.
+- stderr on every spawned `server.php`:
+  `PHP Fatal error: Call to undefined function
+  Lotto\Core\lottoBootstrapPhpExtensions() in server.php:109`.
+
+Affected tests (all subprocess-spawned `server.php`):
+`test_admin_packet_routing.php`, `test_auth_packet_routing.php`,
+`test_game_packet_routing.php`, `test_lobby_packet_routing.php`,
+`test_packet_validation.php`, `test_server_bootstrap.php`,
+`test_session_lifecycle.php`, `test_protocol_audit.php`.
+
+Files:
+- src/Core/Helpers.php (diff — add `lottoBootstrapPhpExtensions()` and
+  `lottoPhpIniArgs()`; both no-op / empty-array on Linux)
+
+Fix commit: `0de46d0` — `Fix missing lottoBootstrapPhpExtensions in committed
+Helpers.php.`
+
+Verified:
+- Fresh `git clone` from GitHub at `0de46d0` (branch
+  `cursor/epic-11-1-vps-ws-test-isolation`, no workspace-local files):
+  `php server.php start` with isolated `LOTTO_WS_PORT` reaches Workerman
+  `[ok]` — no fatal error (Windows dev host, 2026-07-28; `composer install`
+  not available in agent environment — vendor copied from lockfile-matched
+  tree for bind test only).
+- Local workspace `php run_ALL_tests.php` at `0de46d0`+: **41/41** test
+  files PASS (Windows dev host, 2026-07-28; uses uncommitted runner with
+  FIX-15 Windows WS enablement).
+- VPS `./run_ALL_tests.sh` after `git pull` to `0de46d0`:
+  **MANUAL VERIFICATION REQUIRED** — agent has no SSH access to
+  `/opt/lotto-game`. Expected: all `tests/Manual/test_*.php` pass (41 files
+  at HEAD); the eight subprocess tests above must reach port bind.
+
+Process lesson (same class as FIX-12): local-only or root-owned artifacts
+masked a production-breaking gap until the VPS-authoritative test run.
+Any symbol `server.php` calls must be committed **in the same commit or an
+earlier one** before the call lands. Uncommitted helper functions
+referenced by committed entrypoints are a release blocker — Windows skips
+are not a substitute for Ubuntu sign-off per `LOCAL_ENVIRONMENT.md`.
+
+No ADR required — no protocol, economy, timer, or room/player structure
+touched. Purely a missing-dependency / process-discipline fix.
+
+Diff: commit `0de46d0` (src/Core/Helpers.php only)
 
 ## EPIC-10.7 — Protocol integration tests
 Status: Completed
@@ -1730,6 +2293,24 @@ Result:
 
 ## DECISION LOG
 
+- 2026-07-28 — FIX-16 Accepted: found during VPS `./run_ALL_tests.sh` at
+  EPIC-13.4 sign-off (not a proactive audit) — `b203493` (EPIC-13.1) called
+  `lottoBootstrapPhpExtensions()` in `server.php` but the function existed
+  only in an uncommitted local `src/Core/Helpers.php` diff (FIX-15 Windows
+  bootstrap work). Eight live-WS-subprocess tests failed on Ubuntu with a
+  fatal error before port bind; local Windows runs did not catch it because
+  the committed `run_ALL_tests.php` still skips those tests via
+  `$skipOnWindows`. Fixed in `0de46d0`. Process takeaway mirrors FIX-12:
+  VPS-authoritative runs expose gaps that dev-host shortcuts hide; never
+  commit `server.php` calls to symbols not yet in the repository.
+- 2026-07-28 — Phase 13 git checkpoint deviation Accepted (process note, no
+  code impact): implementation followed Rule 16 intent (each Epic independently
+  verifiable) but commit boundaries did not map 1:1 to Epic numbers. EPIC-13.3
+  label duplicated across commits `8cd1434` and `f4cf0f4`; EPIC-13.2 bundled
+  into `b203493` (EPIC-13.1) due to shared `GameService.php` edits. Documented
+  in Phase 13 block above. Future phases: split file edits per Epic before
+  committing, or use explicit `EPIC-13.2+13.3` combined messages when files
+  cannot be separated without partial commits.
 - 2026-07-26 — ROADMAP.md Phase 11/12/13/14 reorder Accepted (user
   decision, following up on a concern raised after EPIC-10.7): Frontend
   depends entirely on the server implementation, so auditing the server
@@ -1909,6 +2490,12 @@ Result:
 
 ## KNOWN GAPS / NOT VERIFIED
 
+- ⚠️ OPEN (EPIC-13.6, 2026-07-28): Reconnect mid-turn — reconnecting active
+  drawer does not receive `your_turn`; frontend `onReconnectState` explicitly
+  disables draw button (`setDrawButton(false, false)`) and `reconnect_state`
+  carries no active-drawer field. Requires follow-up Epic (protocol change or
+  `your_turn` resend) before implementation — not reproduced live yet.
+
 - ⚠️ OPEN (низкий приоритет, найдено при FIX-12): real-WS-client
   subprocess-тесты (test_auth_packet_routing.php, test_lobby_packet_routing.php,
   test_game_packet_routing.php, test_admin_packet_routing.php,
@@ -1941,11 +2528,9 @@ Result:
   policy решена в пользу ANCHOR_PROTOCOL.md (error-пакет, без разрыва) —
   подкреплено уже реализованным прецедентом error.server_full. Детали —
   см. запись [DONE] EPIC-10.1 в начале файла.
-- ⚠️ OPEN (низкий приоритет, документационный долг): пакет afk_warning
-  (src/Game/ReconnectService.php, EPIC-8.3 Game AFK protection) используется
-  и покрыт тестами, но не задекларирован ни в ANCHOR_PROTOCOL.md, ни в
-  реестре Protocol Packet Types (ANCHOR_CORE.md Part 6). Требует добавления
-  в оба документа (документация, не код — поведение корректно).
+- ✅ RESOLVED (ADR-007, EPIC-11.5, 2026-07-27): пакет afk_warning добавлен
+  в ANCHOR_CORE.md § Protocol Packet Types и ANCHOR_PROTOCOL.md § Turn System.
+  Поведение было корректным с EPIC-8.3; закрыт документационный долг W1.
 - ⚠️ OPEN (низкий приоритет, roadmap-долг): пакет admin_stats_data объявлен
   в ANCHOR_PROTOCOL.md и в реестре ANCHOR_CORE.md, но ни разу не реализован
   и не назначен ни одному Epic в ROADMAP.md (EPIC-9.x покрыл только
@@ -1956,11 +2541,10 @@ Result:
   (ANCHOR_PROTOCOL.md) но нигде не используется — ноль usage sites по
   всему src/ и server.php. Не функциональный пробел: выделенный пакет
   `banned` (`{"type":"banned","until":...}`) уже покрывает каждый путь
-  отказа по бану (login, reconnect — с FIX-11, admin-уведомление). Похоже,
-  этот код ошибки стал избыточным ещё до того, как понадобился, once
-  выделенный пакет уже существовал. Требует либо явного назначения
-  использования, либо формального исключения из реестра (тот же выбор,
-  что уже стоит перед admin_stats_data).
+  отказа по бану (login, reconnect — с FIX-11, admin-уведомление).
+  Документирован как reserved/unused в ADR-007 (EPIC-11.5). Требует
+  либо явного назначения использования, либо формального исключения из
+  реестра (тот же выбор, что уже стоит перед admin_stats_data).
 
 - ✅ RESOLVED (FIX-4, 2026-07-03): test_game_start.php/test_victory.php падали из-за
   устаревших фикстур после ADR-002. Устранено — см. секцию PATCHES § FIX-4.
@@ -2045,8 +2629,8 @@ root-caused and resolved; full regression 0 failed)
 Next planned Epic:
 
 `text
-EPIC-11.1 Memory audit (Phase 11 — see docs/PHASE_11_REPORT.md;
-EPIC-11.0 integration testing in progress, critical P11-001 admin wiring fix applied)
+EPIC-11.4 State machine audit (Phase 11 — see docs/PHASE_11_REPORT.md;
+EPIC-11.1/11.2/11.3 instrumentation complete, VPS runs pending)
 `
 PHASE 10 — WEBSOCKET PROTOCOL: COMPLETE (10.0-10.7 all done). Server-side
 protocol surface confirmed complete against ANCHOR_CORE.md/
