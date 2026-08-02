@@ -108,6 +108,28 @@ final class ReconnectService
     }
 
     /**
+     * После login с новым session_token: обновить token у записи игрока в комнате
+     * (браузер закрыт → login вместо reconnect → старый token в room['players']).
+     */
+    public function adoptSessionTokenForUser(object $worker, int $userId, string $newToken): void
+    {
+        if ($userId <= 0 || $newToken === '') {
+            return;
+        }
+
+        foreach (array_keys($worker->rooms ?? []) as $roomId) {
+            if (!isset($worker->rooms[$roomId]['players']) || !is_array($worker->rooms[$roomId]['players'])) {
+                continue;
+            }
+            foreach (array_keys($worker->rooms[$roomId]['players']) as $connId) {
+                if ((int) ($worker->rooms[$roomId]['players'][$connId]['user_id'] ?? 0) === $userId) {
+                    $worker->rooms[$roomId]['players'][$connId]['session_token'] = $newToken;
+                }
+            }
+        }
+    }
+
+    /**
      * EPIC-8.2: восстановление disconnected игрока по session token.
      *
      * FIX-9 (обнаружено при подключении EPIC-10.5, т.е. при первом реальном

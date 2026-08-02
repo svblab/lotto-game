@@ -606,12 +606,13 @@
 
   function renderWinChanceChart(history) {
     const wrap = $('#game-over-chart-wrap');
-    const canvas = $('#game-over-chart');
+    const chartEl = $('#game-over-chart');
     const legend = $('#game-over-chart-legend');
-    if (!wrap || !canvas) return;
+    if (!wrap || !chartEl) return;
 
     if (!history || history.length < 2) {
       wrap.classList.add('hidden');
+      chartEl.innerHTML = '';
       return;
     }
     wrap.classList.remove('hidden');
@@ -623,61 +624,100 @@
       });
     });
 
-    const w = canvas.width;
-    const h = canvas.height;
-    const pad = { l: 36, r: 10, t: 10, b: 28 };
+    const w = 520;
+    const h = 220;
+    const pad = { l: 40, r: 12, t: 12, b: 32 };
     const plotW = w - pad.l - pad.r;
     const plotH = h - pad.t - pad.b;
     const maxTurn = history.length - 1;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const svgNs = 'http://www.w3.org/2000/svg';
 
-    ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    ctx.fillRect(0, 0, w, h);
+    const svg = document.createElementNS(svgNs, 'svg');
+    svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    svg.setAttribute('class', 'win-chance-line-chart');
+    svg.setAttribute('aria-hidden', 'true');
 
-    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-    ctx.fillStyle = 'rgba(255,255,255,0.55)';
-    ctx.font = '10px system-ui, sans-serif';
-    ctx.textAlign = 'right';
-    for (let y = 0; y <= 100; y += 25) {
-      const py = pad.t + plotH * (1 - y / 100);
-      ctx.beginPath();
-      ctx.moveTo(pad.l, py);
-      ctx.lineTo(pad.l + plotW, py);
-      ctx.stroke();
-      ctx.fillText(`${y}%`, pad.l - 4, py + 3);
+    const bg = document.createElementNS(svgNs, 'rect');
+    bg.setAttribute('width', String(w));
+    bg.setAttribute('height', String(h));
+    bg.setAttribute('fill', 'rgba(0,0,0,0.35)');
+    svg.appendChild(bg);
+
+    for (let yVal = 0; yVal <= 100; yVal += 25) {
+      const py = pad.t + plotH * (1 - yVal / 100);
+      const grid = document.createElementNS(svgNs, 'line');
+      grid.setAttribute('x1', String(pad.l));
+      grid.setAttribute('y1', String(py));
+      grid.setAttribute('x2', String(pad.l + plotW));
+      grid.setAttribute('y2', String(py));
+      grid.setAttribute('stroke', 'rgba(255,255,255,0.12)');
+      svg.appendChild(grid);
+
+      const yLabel = document.createElementNS(svgNs, 'text');
+      yLabel.setAttribute('x', String(pad.l - 6));
+      yLabel.setAttribute('y', String(py + 3));
+      yLabel.setAttribute('fill', 'rgba(255,255,255,0.55)');
+      yLabel.setAttribute('font-size', '10');
+      yLabel.setAttribute('text-anchor', 'end');
+      yLabel.textContent = `${yVal}%`;
+      svg.appendChild(yLabel);
     }
 
-    ctx.textAlign = 'center';
     history.forEach((_, i) => {
       const px = pad.l + (maxTurn > 0 ? (i / maxTurn) * plotW : plotW / 2);
-      ctx.fillText(String(i), px, h - 6);
+      const xLabel = document.createElementNS(svgNs, 'text');
+      xLabel.setAttribute('x', String(px));
+      xLabel.setAttribute('y', String(h - 8));
+      xLabel.setAttribute('fill', 'rgba(255,255,255,0.55)');
+      xLabel.setAttribute('font-size', '10');
+      xLabel.setAttribute('text-anchor', 'middle');
+      xLabel.textContent = String(i);
+      svg.appendChild(xLabel);
     });
+
+    const turnAxis = (global.LottoI18n && global.LottoI18n.t('game.chartTurn')) || 'Turn';
+    const axisLabel = document.createElementNS(svgNs, 'text');
+    axisLabel.setAttribute('x', String(pad.l + plotW / 2));
+    axisLabel.setAttribute('y', String(h - 2));
+    axisLabel.setAttribute('fill', 'rgba(255,255,255,0.45)');
+    axisLabel.setAttribute('font-size', '9');
+    axisLabel.setAttribute('text-anchor', 'middle');
+    axisLabel.textContent = turnAxis;
+    svg.appendChild(axisLabel);
 
     players.forEach((name, pi) => {
       const color = CHART_LINE_COLORS[pi % CHART_LINE_COLORS.length];
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
+      const points = history.map((snap, i) => {
+        const val = snap.chances[name] ?? 0;
+        const px = pad.l + (maxTurn > 0 ? (i / maxTurn) * plotW : plotW / 2);
+        const py = pad.t + plotH * (1 - val / 100);
+        return `${px},${py}`;
+      }).join(' ');
+
+      const poly = document.createElementNS(svgNs, 'polyline');
+      poly.setAttribute('fill', 'none');
+      poly.setAttribute('stroke', color);
+      poly.setAttribute('stroke-width', '2');
+      poly.setAttribute('stroke-linejoin', 'round');
+      poly.setAttribute('stroke-linecap', 'round');
+      poly.setAttribute('points', points);
+      svg.appendChild(poly);
+
       history.forEach((snap, i) => {
         const val = snap.chances[name] ?? 0;
         const px = pad.l + (maxTurn > 0 ? (i / maxTurn) * plotW : plotW / 2);
         const py = pad.t + plotH * (1 - val / 100);
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
-      });
-      ctx.stroke();
-      ctx.beginPath();
-      history.forEach((snap, i) => {
-        const val = snap.chances[name] ?? 0;
-        const px = pad.l + (maxTurn > 0 ? (i / maxTurn) * plotW : plotW / 2);
-        const py = pad.t + plotH * (1 - val / 100);
-        ctx.fillStyle = color;
-        ctx.arc(px, py, 3, 0, Math.PI * 2);
-        ctx.fill();
+        const dot = document.createElementNS(svgNs, 'circle');
+        dot.setAttribute('cx', String(px));
+        dot.setAttribute('cy', String(py));
+        dot.setAttribute('r', '3');
+        dot.setAttribute('fill', color);
+        svg.appendChild(dot);
       });
     });
+
+    chartEl.innerHTML = '';
+    chartEl.appendChild(svg);
 
     if (legend) {
       legend.innerHTML = '';

@@ -385,6 +385,34 @@ function makeRoom(int $roomId, int $hostConnId): array
 }
 
 // ---------------------------------------------------------------------------
+// GROUP 3c: adoptSessionTokenForUser — login after browser close
+// ---------------------------------------------------------------------------
+{
+    \MockTimer::reset();
+    $worker = new MockWorker();
+    $lobby = new MockLobbyService();
+    $game = new MockGameService();
+    $svc = new ReconnectService($lobby, $game, new MockLogger());
+
+    $oldConn = new MockConnection(8, 80, 'p8', 'old-token-8');
+    $newConn = new MockConnection(108, 0, 'new8');
+    $room = makeRoom(8, 8);
+    $room['status'] = 'playing';
+    $room['players'][8] = makePlayer($oldConn, 'disconnected');
+    $worker->rooms[8] = $room;
+
+    $svc->adoptSessionTokenForUser($worker, 80, 'new-token-8');
+    assert_true(
+        $worker->rooms[8]['players'][8]['session_token'] === 'new-token-8',
+        'adopt token: room player session_token updated'
+    );
+
+    $result = $svc->handleReconnect('new-token-8', $newConn, $worker);
+    assert_true($result === true, 'adopt token: reconnect succeeds with new token');
+    assert_true($worker->rooms[8]['players'][108]['status'] === 'active', 'adopt token: player restored on new conn');
+}
+
+// ---------------------------------------------------------------------------
 // GROUP 4: game AFK timer — strike 1 auto-draw (player stays)
 // ---------------------------------------------------------------------------
 {

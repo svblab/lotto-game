@@ -58,7 +58,8 @@
     "player": "Oyuncu",
     "paid": "Ödenen",
     "received": "Alınan",
-    "winChanceHistory": "Tur bazında kazanma olasılığı"
+    "winChanceHistory": "Tur bazında kazanma olasılığı",
+    "chartTurn": "Tur"
   },
   "apartment": {
     "title": "Daire!",

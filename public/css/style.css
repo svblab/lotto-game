@@ -549,12 +549,16 @@ label span { display: block; margin-bottom: 0.25rem; font-size: 0.9rem; color: v
   text-align: center;
 }
 .game-over-chart {
-  display: block;
   width: 100%;
   max-width: 520px;
   margin: 0 auto;
   border-radius: var(--radius);
-  background: rgba(0,0,0,0.35);
+}
+.win-chance-line-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius);
 }
 .chart-legend {
   display: flex;

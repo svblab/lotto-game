@@ -2,6 +2,38 @@
 
 ## Phase 18 — Client Balance Persistence (2026-08-02)
 
+- [DONE] FIX-29 Browser-reopen reconnect + SVG line chart (game-over)
+Files:
+- public/js/app.js (diff — `hasPersistedSession()`; no token wipe on init; reconnect on WS open)
+- public/js/ui.js (diff — SVG `polyline` line chart in `renderWinChanceChart`)
+- public/index.html (diff — chart container div instead of canvas)
+- public/css/style.css (diff — `.win-chance-line-chart` styles)
+- public/locales/*.json (diff — `game.chartTurn`)
+- src/Game/ReconnectService.php (diff — `adoptSessionTokenForUser()`)
+- server.php (diff — login → adopt token + `handleReconnect()`)
+- tests/Manual/test_reconnect.php (diff — GROUP 3c adopt token)
+- tests/Manual/test_frontend_structure.php (diff — SVG chart + reconnect checks)
+
+Notes: Closing the browser clears sessionStorage but kept localStorage token was
+wiped on next visit (`init()` + sessionStorage gate). Reconnect now attempts on
+any persisted token. Login after manual re-auth adopts the new `session_token` onto
+the disconnected room player so `handleReconnect()` can match. Game-over chart
+rendered as SVG line chart (grid, axes, polylines, point markers, legend).
+
+CHANGED:
+- Client: auto-reconnect on page load when `lotto_session_token` exists
+- Server: `login` action tries room restore after token adoption
+- Game-over modal: canvas chart → SVG line chart
+
+NOT CHANGED:
+- 15s playing disconnect grace, lobby immediate removal, F2 QA hotkey
+
+VERIFICATION:
+- `php tests/Manual/test_reconnect.php` — PASS (GROUP 3c).
+- `php tests/Manual/test_frontend_structure.php` — PASS.
+- MANUAL: start game → close browser tab → reopen within 15s → auto-rejoin room;
+  finish game → game-over modal shows multi-line SVG chart.
+
 - [DONE] FIX-28 Exponential win-chance formula (LottoEngine)
 Files:
 - src/Game/LottoEngine.php (diff — `calculateWinChances()` static, exponential weights)

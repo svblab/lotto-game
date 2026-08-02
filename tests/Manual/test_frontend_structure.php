@@ -116,5 +116,18 @@ if ($html && str_contains($html, 'win-chance-fill') && str_contains($html, 'game
     fail('index.html: win-chance bar and game-over chart');
 }
 
+$ui = file_get_contents(__DIR__ . '/../../public/js/ui.js');
+if ($ui && str_contains($ui, 'createElementNS') && str_contains($ui, 'polyline')) {
+    ok('ui.js: SVG line chart for game-over');
+} else {
+    fail('ui.js: SVG line chart for game-over');
+}
+
+if ($app && str_contains($app, 'hasPersistedSession') && str_contains($app, 'return hasPersistedSession()')) {
+    ok('app.js: reconnect uses persisted localStorage token');
+} else {
+    fail('app.js: reconnect uses persisted localStorage token');
+}
+
 echo "\n=== Results: $passed passed, $failed failed ===\n";
 exit($failed > 0 ? 1 : 0);

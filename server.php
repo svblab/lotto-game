@@ -499,7 +499,22 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
 
     match ($action) {
         'register'         => $worker->authHandler->handleRegister($data, $connection, $worker),
-        'login'            => $worker->authHandler->handleLogin($data, $connection, $worker),
+        'login'            => (function () use ($worker, $data, $connection): void {
+            $worker->authHandler->handleLogin($data, $connection, $worker);
+            $token = $connection->sessionToken ?? null;
+            if (($connection->userId ?? null) === null || !is_string($token) || $token === '') {
+                return;
+            }
+            $worker->reconnectService->adoptSessionTokenForUser(
+                $worker,
+                (int) $connection->userId,
+                $token
+            );
+            $roomRestored = $worker->reconnectService->handleReconnect($token, $connection, $worker);
+            if (!$roomRestored) {
+                $worker->authHandler->notifyLobbyRestored($connection, $token);
+            }
+        })(),
         'room_list'        => $worker->lobbyHandler->handleRoomList($connection, $worker),
         'create_room'      => $worker->lobbyHandler->handleCreateRoom($data, $connection, $worker),
         'join_room'        => $worker->lobbyHandler->handleJoinRoom($data, $connection, $worker),

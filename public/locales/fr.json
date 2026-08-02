@@ -58,7 +58,8 @@
     "player": "Joueur",
     "paid": "Payé",
     "received": "Reçu",
-    "winChanceHistory": "Probabilité de victoire par tour"
+    "winChanceHistory": "Probabilité de victoire par tour",
+    "chartTurn": "Tour"
   },
   "apartment": {
     "title": "Appartement !",

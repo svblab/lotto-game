@@ -75,13 +75,16 @@
     }
   }
 
+  function hasPersistedSession() {
+    return !!localStorage.getItem(STORAGE_TOKEN);
+  }
+
   function markActiveSession() {
     sessionStorage.setItem(STORAGE_ACTIVE, '1');
   }
 
   function shouldAttemptReconnect() {
-    return sessionStorage.getItem(STORAGE_ACTIVE) === '1'
-      && !!localStorage.getItem(STORAGE_TOKEN);
+    return hasPersistedSession();
   }
 
   function clearStoredSession() {
@@ -768,8 +771,10 @@
         socket.sendAction('reconnect', { token });
         return;
       }
-      clearClientSession();
       UI().showReconnecting(false);
+      if (!state.user) {
+        UI().showScreen('auth');
+      }
     });
     socket.on('close', () => {
       if (shouldAttemptReconnect() && socket.sessionToken && !socket.intentionalClose) {
@@ -782,12 +787,14 @@
     await I18n().load(I18n().detectLang());
     UI().bindJoinRoomModal();
     bindEvents();
-    UI().showScreen('auth');
-    if (!shouldAttemptReconnect()) {
-      clearStoredSession();
+    if (hasPersistedSession()) {
+      ensureUserProfile();
+      UI().showReconnecting(true);
+    } else {
       state.user = null;
       state.room = null;
       state.inGame = false;
+      UI().showScreen('auth');
     }
     socket = new (WS().LottoSocket)();
     wireSocket();

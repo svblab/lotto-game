@@ -61,7 +61,8 @@
     "paid": "Ставка",
     "received": "Выигрыш",
     "returned": "Возврат",
-    "winChanceHistory": "Вероятность победы по ходам"
+    "winChanceHistory": "Вероятность победы по ходам",
+    "chartTurn": "Ход"
   },
   "apartment": {
     "title": "Квартира!",

@@ -58,7 +58,8 @@
     "player": "玩家",
     "paid": "投入",
     "received": "获得",
-    "winChanceHistory": "各回合获胜概率"
+    "winChanceHistory": "各回合获胜概率",
+    "chartTurn": "回合"
   },
   "apartment": {
     "title": "公寓！",
