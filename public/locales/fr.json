@@ -45,6 +45,7 @@
     "players": "Joueurs",
     "winChance": "Chance de gagner",
     "currentDrawer": "Tour",
+    "waitingForPlayer": "Tour de {player}, en attente…",
     "remaining": "Restants",
     "online": "En ligne",
     "disconnected": "Absent",

@@ -45,6 +45,7 @@
     "players": "玩家",
     "winChance": "获胜概率",
     "currentDrawer": "当前回合",
+    "waitingForPlayer": "{player} 的回合，等待中…",
     "remaining": "剩余",
     "online": "在线",
     "disconnected": "离线",

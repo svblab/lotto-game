@@ -45,6 +45,7 @@
     "players": "Jugadores",
     "winChance": "Probabilidad",
     "currentDrawer": "Turno",
+    "waitingForPlayer": "Turno de {player}, esperando…",
     "remaining": "Restantes",
     "online": "En línea",
     "disconnected": "Ausente",

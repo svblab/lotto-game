@@ -123,7 +123,7 @@
       await job();
     } finally {
       state.animating = false;
-      syncTurnUiAndAfk();
+      syncTurnUi();
       drainQueue();
     }
   }
@@ -131,7 +131,7 @@
   async function animateBarrelsDrawn(pkt) {
     const nums = pkt.numbers || [];
 
-    UI().setDrawButton(false, false);
+    UI().hideTurnControls();
     state.drawLocked = true;
 
     // Кнопка уже запустила все 3 барабана; иначе (ход соперника / автоход) — крутим с нуля.
@@ -220,7 +220,7 @@
     if (state.inGame && state.drawLocked) {
       UI().resetSlots();
       state.drawLocked = false;
-      UI().setDrawButton(state.isMyTurn, state.isMyTurn);
+      syncTurnUi();
     }
   }
 
@@ -328,31 +328,47 @@
     UI().updateWinChance(state.myMasks);
     UI().renderGamePlayers(state.players);
     UI().resetSlots();
-    UI().hideAfkCountdown();
+    UI().hideTurnControls();
     UI().hideLobbyHostCountdown();
-    UI().setDrawButton(false, false);
-    state.currentDrawer = state.drawerOrder[0];
+    state.isMyTurn = false;
+    state.pendingTurnPkt = null;
+    state.turnReadySent = false;
+    state.currentDrawer = state.drawerOrder[0] || null;
+    syncTurnUi();
   }
 
-  function syncTurnUiAndAfk() {
-    if (!state.isMyTurn) return;
-    const canAct = !state.animating && !state.drawLocked;
-    UI().setDrawButton(canAct, canAct);
-    if (!canAct) return;
-
-    const pkt = state.pendingTurnPkt;
-    if (!pkt) return;
-
-    if (pkt.afk_start) {
-      UI().startAfkCountdown(pkt.afk_start, pkt.turn_seconds, pkt.auto_draws ?? 0);
-      state.pendingTurnPkt = null;
-      state.turnReadySent = false;
+  function syncTurnUi() {
+    if (state.animating || state.drawLocked) {
+      UI().hideTurnControls();
       return;
     }
 
-    if (!state.turnReadySent) {
-      state.turnReadySent = true;
-      socket.sendAction('turn_ready');
+    if (state.isMyTurn) {
+      UI().showActiveTurnControls();
+      UI().setDrawButton(true, true);
+
+      const pkt = state.pendingTurnPkt;
+      if (!pkt) return;
+
+      if (pkt.afk_start) {
+        UI().startAfkCountdown(pkt.afk_start, pkt.turn_seconds, pkt.auto_draws ?? 0);
+        state.pendingTurnPkt = null;
+        state.turnReadySent = false;
+        return;
+      }
+
+      if (!state.turnReadySent) {
+        state.turnReadySent = true;
+        socket.sendAction('turn_ready');
+      }
+      return;
+    }
+
+    const drawer = state.currentDrawer || state.nextDrawer;
+    if (drawer) {
+      UI().showWaitingTurnControls(drawer);
+    } else {
+      UI().hideTurnControls();
     }
   }
 
@@ -360,14 +376,14 @@
     state.isMyTurn = true;
     state.pendingTurnPkt = pkt;
     state.turnReadySent = false;
-    syncTurnUiAndAfk();
+    syncTurnUi();
   }
 
   function onBarrelsDrawn(pkt) {
     state.isMyTurn = false;
     state.pendingTurnPkt = null;
     state.turnReadySent = false;
-    UI().hideAfkCountdown();
+    UI().hideTurnControls();
     state.nextDrawer = pkt.next_drawer;
     enqueueAnimation(async () => {
       await animateBarrelsDrawn(pkt);
@@ -476,7 +492,7 @@
         }));
         UI().renderGamePlayers(state.players);
       }
-      UI().setDrawButton(false, false);
+      syncTurnUi();
       UI().showToast(I18n().t('reconnect.restored'));
     }
   }
@@ -538,7 +554,7 @@
     state.animationQueue = [];
     state.animating = false;
     UI().resetSlots();
-    UI().hideAfkCountdown();
+    UI().hideTurnControls();
     UI().hideLobbyHostCountdown();
     UI().toggleOverlay('#game-over-modal', false);
     UI().hideApartment();
@@ -608,7 +624,7 @@
     UI().$('#draw-barrel-btn')?.addEventListener('click', () => {
       if (state.drawLocked || state.animating) return;
       state.drawLocked = true;
-      UI().setDrawButton(false, false);
+      UI().hideTurnControls();
       UI().startSlotsWaiting();
       socket.sendAction('draw_barrel');
     });

@@ -295,6 +295,31 @@
     btn.classList.toggle('my-turn', !!myTurn && enabled);
   }
 
+  function hideTurnControls() {
+    $('#turn-controls-active')?.classList.add('hidden');
+    $('#turn-wait-msg')?.classList.add('hidden');
+    hideAfkCountdown();
+    setDrawButton(false, false);
+  }
+
+  function showActiveTurnControls() {
+    $('#turn-wait-msg')?.classList.add('hidden');
+    $('#turn-controls-active')?.classList.remove('hidden');
+  }
+
+  function showWaitingTurnControls(drawerUsername) {
+    hideAfkCountdown();
+    setDrawButton(false, false);
+    $('#turn-controls-active')?.classList.add('hidden');
+    const el = $('#turn-wait-msg');
+    if (!el) return;
+    const name = drawerUsername || '';
+    el.textContent = name
+      ? global.LottoI18n.t('game.waitingForPlayer', { player: name })
+      : '';
+    el.classList.toggle('hidden', !name);
+  }
+
   let serverClockSkew = 0;
 
   function setServerClockSkew(skewSec) {
@@ -710,6 +735,9 @@
     renderCards,
     renderDrawnHistory,
     setDrawButton,
+    hideTurnControls,
+    showActiveTurnControls,
+    showWaitingTurnControls,
     startAfkCountdown,
     syncAfkWarning,
     hideAfkCountdown,

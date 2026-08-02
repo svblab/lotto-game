@@ -45,6 +45,7 @@
     "players": "Игроки",
     "winChance": "Шанс на победу",
     "currentDrawer": "Ход",
+    "waitingForPlayer": "Ход игрока {player}, ждём…",
     "remaining": "Осталось",
     "online": "Онлайн",
     "disconnected": "Отошёл",

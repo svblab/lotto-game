@@ -45,6 +45,7 @@
     "players": "Oyuncular",
     "winChance": "Kazanma şansı",
     "currentDrawer": "Sıra",
+    "waitingForPlayer": "{player} sırası, bekleniyor…",
     "remaining": "Kalan",
     "online": "Çevrimiçi",
     "disconnected": "Uzakta",

@@ -45,6 +45,7 @@
     "players": "Players",
     "winChance": "Win chance",
     "currentDrawer": "Current drawer",
+    "waitingForPlayer": "{player}'s turn — waiting…",
     "remaining": "Barrels left",
     "online": "Online",
     "disconnected": "Away",

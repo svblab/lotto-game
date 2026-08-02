@@ -185,21 +185,25 @@
             <button type="button" id="card-next" class="card-nav" aria-label="Next card">›</button>
           </div>
 
-          <div id="afk-timer" class="afk-timer hidden" aria-live="polite">
-            <div class="afk-strikes" aria-label="AFK strikes">
-              <span class="afk-strike pending" data-strike="1" title="Strike 1"></span>
-              <span class="afk-strike pending" data-strike="2" title="Strike 2"></span>
+          <div id="turn-controls-active" class="turn-controls-active hidden">
+            <div id="afk-timer" class="afk-timer hidden" aria-live="polite">
+              <div class="afk-strikes" aria-label="AFK strikes">
+                <span class="afk-strike pending" data-strike="1" title="Strike 1"></span>
+                <span class="afk-strike pending" data-strike="2" title="Strike 2"></span>
+              </div>
+              <div class="afk-countdown-ring">
+                <svg viewBox="0 0 90 90" class="afk-ring-svg" aria-hidden="true">
+                  <circle cx="45" cy="45" r="42" class="afk-ring-bg"></circle>
+                  <circle id="afk-ring-progress" cx="45" cy="45" r="42" class="afk-ring-progress"></circle>
+                </svg>
+                <span id="afk-countdown" class="afk-countdown-num">30</span>
+              </div>
             </div>
-            <div class="afk-countdown-ring">
-              <svg viewBox="0 0 90 90" class="afk-ring-svg" aria-hidden="true">
-                <circle cx="45" cy="45" r="42" class="afk-ring-bg"></circle>
-                <circle id="afk-ring-progress" cx="45" cy="45" r="42" class="afk-ring-progress"></circle>
-              </svg>
-              <span id="afk-countdown" class="afk-countdown-num">30</span>
-            </div>
+
+            <button type="button" id="draw-barrel-btn" class="btn draw-btn" disabled data-i18n="game.drawBarrel">Draw Barrel</button>
           </div>
 
-          <button type="button" id="draw-barrel-btn" class="btn draw-btn" disabled data-i18n="game.drawBarrel">Draw Barrel</button>
+          <p id="turn-wait-msg" class="turn-wait-msg hidden" aria-live="polite"></p>
         </main>
       </div>
     </section>
