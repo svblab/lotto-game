@@ -198,6 +198,10 @@
     markActiveSession();
     socket.setSessionToken(pkt.session_token);
     UI().showReconnecting(false);
+    state.room = null;
+    state.inGame = false;
+    UI().updateLobbyMembershipUI(false);
+    UI().showRoomPanel(null);
     UI().updateLobbyUser(state.user);
     UI().showScreen('lobby');
     UI().setMessage('#auth-message', '');
@@ -283,7 +287,7 @@
 
   function onPlayerLeft(pkt) {
     if (pkt.username === state.user?.username) {
-      if (['kicked', 'banned', 'admin_close', 'afk', 'refuse', 'leave'].includes(pkt.reason)) {
+      if (['kicked', 'banned', 'admin_close', 'afk', 'refuse', 'leave', 'disconnect'].includes(pkt.reason)) {
         resetToLobby();
         UI().showToast(I18n().t('lobby.leftReason', { reason: pkt.reason }));
       }

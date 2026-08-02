@@ -37,7 +37,8 @@ final class ReconnectService
 
     /**
      * EPIC-8.1: обработка потери соединения игрока.
-     * waiting/playing -> disconnected + reconnect timer.
+     * waiting -> немедленное удаление из комнаты (reconnect только после старта игры).
+     * playing -> disconnected + reconnect timer.
      * apartment -> немедленное удаление (reason=disconnect).
      */
     public function handleDisconnect(object $connection, object $worker): void
@@ -59,7 +60,12 @@ final class ReconnectService
             return;
         }
 
-        if ($status !== 'waiting' && $status !== 'playing') {
+        if ($status === 'waiting') {
+            $this->lobbyService->removePlayerFromLobby($worker, $roomId, $connId, 'disconnect');
+            return;
+        }
+
+        if ($status !== 'playing') {
             return;
         }
 
@@ -86,8 +92,7 @@ final class ReconnectService
                     return;
                 }
 
-                if (($room['status'] ?? 'waiting') === 'waiting') {
-                    $this->lobbyService->removePlayerFromLobby($worker, $roomId, $connId, 'disconnect');
+                if (($room['status'] ?? 'playing') === 'waiting') {
                     return;
                 }
 

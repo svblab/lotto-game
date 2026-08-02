@@ -2,6 +2,33 @@
 
 ## Phase 18 — Client Balance Persistence (2026-08-02)
 
+- [DONE] FIX-24 No lobby reconnect grace — waiting disconnect removes player immediately
+Files:
+- src/Game/ReconnectService.php (diff — `handleDisconnect()` waiting → `removePlayerFromLobby`; timer callback playing-only)
+- public/js/app.js (diff — `auth_result` clears stale room; `player_left` reason `disconnect` resets lobby)
+- tests/Manual/test_reconnect.php (diff — GROUP 1b waiting immediate removal; GROUP 2 playing timeout)
+- tests/Manual/test_timer_audit.php (diff — GROUP 4 split waiting vs playing)
+
+Notes: Closes reconnect F1: disconnected lobby player stayed in `room['players']` as
+`disconnected` with 15s timer, inflating room_list counts and allowing stale reconnect.
+User rule: no reconnect tracking in lobby; only after `start_game` (`playing`). Page-refresh
+re-key in waiting (active before onClose) unchanged via `handleReconnect()` GROUP 3b.
+ANCHOR_CORE.md still lists reconnect in `waiting` — behavior intentionally overridden per
+user instruction (Rule 1); doc sync deferred.
+
+CHANGED:
+- Lobby disconnect: immediate `removePlayerFromLobby(..., 'disconnect')` + `broadcastRoomList`
+- Client: clear `state.room` on `auth_result` when not restored to room; handle self `disconnect` `player_left`
+
+NOT CHANGED:
+- Playing-state 15s reconnect timer, apartment immediate removal, in-game `reconnect_state`
+
+VERIFICATION:
+- `php tests/Manual/test_reconnect.php` — **111/111 PASS** (+GROUP 1b, GROUP 2 retargeted).
+- `php tests/Manual/test_timer_audit.php` — **24/24 PASS**.
+- MANUAL (F1): join room in lobby, disconnect tab → player gone from room_list immediately;
+  reconnect shows lobby without stale membership; can join same room again.
+
 - [DONE] FIX-23 Game-over modal lists all winners on shared victory
 Files:
 - public/js/ui.js (diff — `showGameOver()` derives winners from `statistics[].received > 0`)

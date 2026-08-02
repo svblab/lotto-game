@@ -262,7 +262,30 @@ function makeRoom(int $roomId, int $hostConnId): array
 }
 
 // ---------------------------------------------------------------------------
-// GROUP 2: reconnect timer expiry -> removePlayerFromLobby for waiting
+// GROUP 1b: waiting disconnect -> immediate removePlayerFromLobby (no reconnect)
+// ---------------------------------------------------------------------------
+{
+    \MockTimer::reset();
+    $worker = new MockWorker();
+    $lobby = new MockLobbyService();
+    $game = new MockGameService();
+    $svc = new ReconnectService($lobby, $game, new MockLogger());
+
+    $conn = new MockConnection(12, 120, 'lobby', 'tok-12');
+    $room = makeRoom(12, 12);
+    $room['status'] = 'waiting';
+    $room['players'][12] = makePlayer($conn, 'active');
+    $worker->rooms[12] = $room;
+
+    $svc->handleDisconnect($conn, $worker);
+
+    assert_true(count($lobby->removed) === 1, 'waiting disconnect: immediate removePlayerFromLobby');
+    assert_true($lobby->removed[0][2] === 'disconnect', 'waiting disconnect: reason=disconnect');
+    assert_true(!isset($worker->rooms[12]['players'][12]), 'waiting disconnect: player removed from room');
+}
+
+// ---------------------------------------------------------------------------
+// GROUP 2: playing reconnect timer expiry -> removePlayerFromGame
 // ---------------------------------------------------------------------------
 {
     \MockTimer::reset();
@@ -272,9 +295,14 @@ function makeRoom(int $roomId, int $hostConnId): array
     $svc = new ReconnectService($lobby, $game, new MockLogger());
 
     $conn = new MockConnection(2, 20, 'w', 'tok-2');
+    $mate = new MockConnection(3, 30, 'mate', 'tok-3');
+    $third = new MockConnection(4, 40, 'third', 'tok-4');
     $room = makeRoom(2, 2);
-    $room['status'] = 'waiting';
+    $room['drawer_order'] = [2, 3, 4];
+    $room['status'] = 'playing';
     $room['players'][2] = makePlayer($conn, 'active');
+    $room['players'][3] = makePlayer($mate, 'active');
+    $room['players'][4] = makePlayer($third, 'active');
     $worker->rooms[2] = $room;
 
     $svc->handleDisconnect($conn, $worker);
@@ -282,8 +310,9 @@ function makeRoom(int $roomId, int $hostConnId): array
     $cb = \MockTimer::$active[$timerId]['cb'];
     $cb();
 
-    assert_true(count($lobby->removed) === 1, 'reconnect timeout waiting: removePlayerFromLobby called');
-    assert_true($lobby->removed[0][2] === 'disconnect', 'reconnect timeout waiting: reason=disconnect');
+    assert_true(!isset($worker->rooms[2]['players'][2]), 'reconnect timeout playing: disconnected player removed');
+    assert_true(isset($worker->rooms[2]['players'][3]), 'reconnect timeout playing: other players remain');
+    assert_true(isset($worker->rooms[2]['players'][4]), 'reconnect timeout playing: third player remains');
 }
 
 // ---------------------------------------------------------------------------

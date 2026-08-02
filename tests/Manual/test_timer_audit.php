@@ -107,6 +107,11 @@ final class MockGameService
 
     public function nextDrawer(array &$room): void {}
     public function sendYourTurn(array &$room): void {}
+
+    public function calculateWinChances(array $players): array
+    {
+        return [];
+    }
 }
 
 function makeRoom(int $roomId, int $hostConnId, string $status = 'waiting'): array
@@ -238,10 +243,10 @@ assertTrue(!isset($worker->rooms[$roomId]), 'room removed from worker');
 assertTrue(count(\MockTimer::$active) === 0, 'all room timers cancelled on destroyRoom');
 
 // =============================================================================
-// GROUP 4 — Reconnect timer schedule + cancel on reconnect
+// GROUP 4 — waiting: immediate lobby removal; playing: reconnect timer + cancel
 // =============================================================================
 
-echo "\nGROUP 4: Reconnect timer schedule and cancel\n";
+echo "\nGROUP 4: Lobby immediate removal + playing reconnect timer\n";
 
 \MockTimer::reset();
 putenv('LOTTO_RECONNECT_TIMEOUT=5');
@@ -251,6 +256,10 @@ putenv('LOTTO_TIMER_AUDIT_LOG=' . $auditLogPath);
 $audit = new TimerAudit(new FakeLogger(), $auditLogPath);
 $GLOBALS['__lotto_timer_audit'] = $audit;
 
+$lobby = new MockLobbyService();
+$game = new MockGameService();
+$reconnect = new ReconnectService($lobby, $game, new FakeLogger());
+
 $worker4 = new stdClass();
 $worker4->rooms = [1 => makeRoom(1, 10, 'waiting')];
 $host = new SpyConnection(10, 1, 'host', 'tok_host');
@@ -258,18 +267,24 @@ $guest = new SpyConnection(11, 2, 'guest', 'tok_guest');
 $worker4->rooms[1]['players'][10] = makePlayer($host);
 $worker4->rooms[1]['players'][11] = makePlayer($guest);
 
-$lobby = new MockLobbyService();
-$game = new MockGameService();
-$reconnect = new ReconnectService($lobby, $game, new FakeLogger());
-
 $reconnect->handleDisconnect($guest, $worker4);
-$timerId = $worker4->rooms[1]['players'][11]['reconnect_timer'] ?? null;
-assertTrue($timerId !== null && isset(\MockTimer::$active[$timerId]), 'disconnect schedules reconnect timer');
+assertTrue(count($lobby->removed) === 1, 'waiting disconnect: immediate removePlayerFromLobby');
+assertTrue(!isset($worker4->rooms[1]['players'][11]), 'waiting disconnect: guest removed from room');
 
-$newConn = new SpyConnection(99, 2, 'guest', 'tok_guest');
-$reconnect->handleReconnect('tok_guest', $newConn, $worker4);
-assertTrue(!isset(\MockTimer::$active[$timerId]), 'reconnect cancels pending reconnect timer');
-assertTrue(isset($worker4->rooms[1]['players'][99]), 'player re-keyed to new connection id');
+$worker4b = new stdClass();
+$worker4b->rooms = [3 => makeRoom(3, 30, 'playing')];
+$playingGuest = new SpyConnection(31, 3, 'pguest', 'tok_pg');
+$worker4b->rooms[3]['players'][30] = makePlayer($host);
+$worker4b->rooms[3]['players'][31] = makePlayer($playingGuest);
+
+$reconnect->handleDisconnect($playingGuest, $worker4b);
+$timerId = $worker4b->rooms[3]['players'][31]['reconnect_timer'] ?? null;
+assertTrue($timerId !== null && isset(\MockTimer::$active[$timerId]), 'playing disconnect schedules reconnect timer');
+
+$newConn = new SpyConnection(99, 3, 'pguest', 'tok_pg');
+$reconnect->handleReconnect('tok_pg', $newConn, $worker4b);
+assertTrue(!isset(\MockTimer::$active[$timerId]), 'playing reconnect cancels pending reconnect timer');
+assertTrue(isset($worker4b->rooms[3]['players'][99]), 'playing player re-keyed to new connection id');
 
 unset($GLOBALS['__lotto_timer_audit']);
 putenv('LOTTO_TIMER_AUDIT');
