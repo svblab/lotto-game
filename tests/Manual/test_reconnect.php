@@ -438,7 +438,7 @@ function makeRoom(int $roomId, int $hostConnId): array
 }
 
 // ---------------------------------------------------------------------------
-// GROUP 5: strike 3 removal — last survivor (2 players)
+// GROUP 5: strike 3 removal — engaged last survivor (survivor auto_draws=0)
 // ---------------------------------------------------------------------------
 {
     \MockTimer::reset();
@@ -457,6 +457,7 @@ function makeRoom(int $roomId, int $hostConnId): array
     $room['active_drawer_conn_id'] = 5;
     $room['players'][5]['afk_start'] = time() - 4;
     $room['players'][5]['auto_draws'] = 2;
+    assert_true($room['players'][6]['auto_draws'] === 0, 'afk strike3: survivor never auto-drawn');
     $worker->rooms[5] = $room;
 
     $svc->tickGameAfk($worker, 5);
@@ -467,8 +468,115 @@ function makeRoom(int $roomId, int $hostConnId): array
     $leftPkts = $conn->sentOfType('player_left');
     assert_true(count($leftPkts) === 1, 'afk strike3: removed player notified');
     assert_true(($leftPkts[0]['reason'] ?? '') === 'afk', 'afk strike3: removed player reason=afk');
-    assert_true(!isset($worker->rooms[5]), 'afk strike3: last survivor ends room');
+    assert_true(!isset($worker->rooms[5]), 'afk strike3: engaged survivor ends room');
     assert_true($game->finishCalls === 1, 'afk strike3: last_survivor finishGame');
+    assert_true($game->noSurvivorsCalls === 0, 'afk strike3: no refund when survivor engaged');
+}
+
+// ---------------------------------------------------------------------------
+// GROUP 5b: AFK cascade — both idle (survivor auto_draws>0) → no_survivors
+// ---------------------------------------------------------------------------
+{
+    \MockTimer::reset();
+    $worker = new MockWorker();
+    $lobby = new MockLobbyService();
+    $game = new MockGameService();
+    $svc = new ReconnectService($lobby, $game, new MockLogger());
+
+    $afk = new MockConnection(51, 510, 'afk_out');
+    $idle = new MockConnection(52, 520, 'idle_survivor');
+    $room = makeRoom(51, 51);
+    $room['status'] = 'playing';
+    $room['bank'] = 20;
+    $room['players'][51] = makePlayer($afk, 'active');
+    $room['players'][51]['auto_draws'] = 2;
+    $room['players'][52] = makePlayer($idle, 'active');
+    $room['players'][52]['auto_draws'] = 1;
+    $room['drawer_order'] = [51, 52];
+    $worker->rooms[51] = $room;
+
+    $svc->removePlayerFromGame($worker, 51, 51, 'afk');
+
+    assert_true($game->noSurvivorsCalls === 1, 'afk both-idle: handleNoSurvivors called');
+    assert_true($game->finishCalls === 0, 'afk both-idle: no last_survivor payout');
+    assert_true(!isset($worker->rooms[51]), 'afk both-idle: room destroyed');
+}
+
+// ---------------------------------------------------------------------------
+// GROUP 5c: AFK both-idle — survivor refunded via snapshot (integration)
+// ---------------------------------------------------------------------------
+{
+    \MockTimer::reset();
+    $worker = new MockWorker();
+    $lobby = new MockLobbyService();
+    $pdo = new MockPDO();
+    $st = new MockStmts([
+        510 => ['coins' => 100],
+        520 => ['coins' => 200],
+    ]);
+    $game = makeRefundGameService($pdo, $st);
+    $svc = new ReconnectService($lobby, $game, new MockLogger());
+
+    $afk = new MockConnection(53, 510, 'afk_out');
+    $idle = new MockConnection(54, 520, 'idle_survivor');
+    $room = makeRoom(53, 53);
+    $room['status'] = 'playing';
+    $room['bank'] = 20;
+    $room['players'][53] = makePlayer($afk, 'active');
+    $room['players'][53]['total_paid'] = 10;
+    $room['players'][53]['auto_draws'] = 2;
+    $room['players'][54] = makePlayer($idle, 'active');
+    $room['players'][54]['total_paid'] = 10;
+    $room['players'][54]['auto_draws'] = 1;
+    $worker->rooms[53] = $room;
+
+    $svc->removePlayerFromGame($worker, 53, 53, 'afk');
+
+    assert_true($game->noSurvivorsCalls === 1, 'afk both-idle refund: handleNoSurvivors');
+    assert_true($game->finishCalls === 0, 'afk both-idle refund: no last_survivor');
+    assert_true(!isset($worker->rooms[53]), 'afk both-idle refund: room destroyed');
+    assert_true($pdo->committed === true, 'afk both-idle refund: transaction committed');
+    assert_true(count($st->updates) === 2, 'afk both-idle refund: both players refunded');
+    assert_true($st->updates[0]['add'] === 10, 'afk both-idle refund: removed player stake');
+    assert_true($st->updates[1]['add'] === 10, 'afk both-idle refund: survivor stake');
+    $go = $idle->sentOfType('game_over');
+    assert_true(count($go) === 1, 'afk both-idle refund: game_over to survivor');
+    assert_true(($go[0]['reason'] ?? '') === 'no_survivors', 'afk both-idle refund: reason=no_survivors');
+    assert_true(($go[0]['prize'] ?? -1) === 0, 'afk both-idle refund: no prize');
+    assert_true(($go[0]['winner'] ?? 'x') === '', 'afk both-idle refund: no winner');
+}
+
+// ---------------------------------------------------------------------------
+// GROUP 5d: non-afk last survivor — auto_draws on survivor ignored (ADR-013)
+// ---------------------------------------------------------------------------
+{
+    \MockTimer::reset();
+    $worker = new MockWorker();
+    $lobby = new MockLobbyService();
+    $game = new MockGameService();
+    $svc = new ReconnectService($lobby, $game, new MockLogger());
+
+    foreach (['leave', 'disconnect', 'kicked', 'banned'] as $reason) {
+        $roomId = 60 + crc32($reason) % 10;
+        $leaverConn = $roomId;
+        $winnerConn = $roomId + 1;
+        $leaver = new MockConnection($leaverConn, $leaverConn * 10, "out_{$reason}");
+        $winner = new MockConnection($winnerConn, $winnerConn * 10, "win_{$reason}");
+        $room = makeRoom($roomId, $leaverConn);
+        $room['status'] = 'playing';
+        $room['bank'] = 50;
+        $room['players'][$leaverConn] = makePlayer($leaver, 'active');
+        $room['players'][$winnerConn] = makePlayer($winner, 'active');
+        $room['players'][$winnerConn]['auto_draws'] = 2;
+        $worker->rooms[$roomId] = $room;
+
+        $svc->removePlayerFromGame($worker, $roomId, $leaverConn, $reason);
+
+        assert_true($game->finishCalls >= 1, "{$reason}: last_survivor still pays bank");
+        assert_true($game->noSurvivorsCalls === 0, "{$reason}: no refund path");
+        assert_true(!isset($worker->rooms[$roomId]), "{$reason}: room destroyed");
+        $game->finishCalls = 0;
+    }
 }
 
 // ---------------------------------------------------------------------------

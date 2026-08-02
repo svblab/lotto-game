@@ -509,6 +509,16 @@ final class ReconnectService
 
         if (count($active) === 1 && in_array($room['status'] ?? '', ['playing', 'apartment'], true)) {
             $winnerConnId = (int) array_key_first($active);
+
+            // ADR-013: AFK-cascade last survivor with own auto_draws → no_survivors refund
+            if (
+                $reason === 'afk'
+                && (int) ($room['players'][$winnerConnId]['auto_draws'] ?? 0) > 0
+            ) {
+                $this->gameService->handleNoSurvivors($room, $roomId, $worker, $notifyOnNoSurvivors);
+                return;
+            }
+
             $this->gameService->finishGame(
                 $room,
                 $roomId,

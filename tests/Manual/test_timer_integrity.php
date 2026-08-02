@@ -300,6 +300,13 @@ $noopGame = new class {
     public function finishGame(): void {}
     public function nextDrawer(): void {}
     public function startTurn(): void {}
+    public function handleNoSurvivors(array &$room, int $roomId, object $worker, ?object $notifyConnection = null): void
+    {
+        if (!empty($room['game_afk_timer_id'])) {
+            \MockTimer::del((int) $room['game_afk_timer_id']);
+        }
+        unset($worker->rooms[$roomId]);
+    }
 };
 $reconnect6b = new ReconnectService(new stdClass(), $noopGame, $logger);
 $reconnect6b->removePlayerFromGame($worker6b, 7, 701, 'afk');

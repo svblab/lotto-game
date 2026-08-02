@@ -2,6 +2,27 @@
 
 ## Phase 15 — AFK Audit Fixes (Fresh Findings)
 
+- [DONE] EPIC-15.4 AFK-cascade last survivor excludes equally idle player (ADR-013)
+Files:
+- docs/ADR/013.md (new)
+- docs/ANCHOR_CORE.md (diff — § Last Survivor qualifying condition for AFK removal)
+- docs/GAME_RULES.md (diff — Last Survivor vs mutual-AFK refund wording)
+- src/Game/ReconnectService.php (diff — `removePlayerFromGame()` AFK + survivor `auto_draws>0` → `handleNoSurvivors()`)
+- tests/Manual/test_reconnect.php (diff — GROUP 5 engaged survivor; 5b/5c both-idle refund; 5d non-afk unchanged)
+- tests/Manual/test_timer_integrity.php (diff — noop `handleNoSurvivors` mock for TEST 6b)
+
+Notes: Closes economy loophole where second-to-last player removed for `afk` paid entire bank to a
+survivor who had themselves accumulated `auto_draws > 0`. Option A (ADR-013): reuse existing
+`handleNoSurvivors()` refund path; no new Player Structure field. Removal reasons `disconnect`,
+`leave`, `refuse`, `kicked`, `banned` unchanged. `ApartmentService::removePlayerFromApartment()` has
+no `count(active)===1` last-survivor branch — out of scope.
+
+VERIFICATION:
+- `php tests/Manual/test_reconnect.php` — **105/105 PASS** (was 77; +GROUP 5b/5c/5d, GROUP 5 split).
+- `php tests/Manual/test_timer_integrity.php` — **14/14 PASS**.
+- `php tests/Manual/test_admin_kick.php` — **39/39 PASS** (no double-refund regression).
+- `php run_ALL_tests.php` — **32/41** files pass (baseline unchanged; `test_timer_integrity` fixed).
+
 - [DONE] EPIC-15.1 Zero-active no-survivors refund during playing (economic integrity)
 Files:
 - src/Game/GameFinishService.php (diff — `handleNoSurvivors()`, `cancelRoomTimers()`, `snapshotRemainingPlayersToHistory()`; constructor `object` deps for testability)
