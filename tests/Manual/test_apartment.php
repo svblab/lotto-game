@@ -493,6 +493,44 @@ $apt2 = new ApartmentService($_db2, $_st2, $_log2);
 }
 
 // ---------------------------------------------------------------------------
+// GROUP 10: host transfer when host removed during apartment (EPIC-9.3 gap)
+// ---------------------------------------------------------------------------
+
+{
+    $h  = makeConn(1, 10, 'host');
+    $p2 = makeConn(2, 20, 'p2');
+    $p3 = makeConn(3, 30, 'p3');
+    $worker = new MockWorker();
+
+    [$svc, , , , $apt] = makeSvc([
+        10 => ['id' => 10, 'coins' => 100],
+        20 => ['id' => 20, 'coins' => 100],
+        30 => ['id' => 30, 'coins' => 100],
+    ]);
+
+    $room = makeRoom(1, [1, 2, 3], 30);
+    $room['players'][1] = makePlayer($h,  1, [], [], false);
+    $room['players'][2] = makePlayer($p2, 1, [], [], true);
+    $room['players'][3] = makePlayer($p3, 1, [], [], true);
+    $room['status']     = 'apartment';
+    $room['apartment_fired'] = true;
+    $worker->rooms[1] = $room;
+
+    $apt->removePlayerFromApartment($worker->rooms[1], 1, 1, 'refuse', $worker);
+
+    $r = $worker->rooms[1];
+    assert_true($r['host_conn_id'] === 2, 'Host transfer: FIFO next active player becomes host');
+
+    $p2HostChanged = $p2->sentOfType('host_changed');
+    assert_true(count($p2HostChanged) === 1, 'Host transfer: host_changed sent to p2');
+    assert_true($p2HostChanged[0]['host'] === 'p2', 'Host transfer: host_changed names p2');
+
+    $p3HostChanged = $p3->sentOfType('host_changed');
+    assert_true(count($p3HostChanged) === 1, 'Host transfer: host_changed sent to p3');
+    assert_true($p3HostChanged[0]['host'] === 'p2', 'Host transfer: host_changed consistent for all');
+}
+
+// ---------------------------------------------------------------------------
 // RESULTS
 // ---------------------------------------------------------------------------
 

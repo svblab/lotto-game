@@ -516,6 +516,7 @@ final class ApartmentService
     ): void {
         if (!isset($room['players'][$connId])) return;
 
+        $wasHost = ($room['host_conn_id'] ?? null) === $connId;
         $player = $room['players'][$connId];
         $userId = (int)($player['user_id'] ?? 0);
 
@@ -577,11 +578,57 @@ final class ApartmentService
             $this->gameService->handleNoSurvivors($room, $roomId, $worker, $notifyConn);
             return;
         }
+
+        if ($wasHost) {
+            foreach ($room['drawer_order'] as $candidateConnId) {
+                if (
+                    isset($room['players'][$candidateConnId]) &&
+                    ($room['players'][$candidateConnId]['status'] ?? null) === 'active'
+                ) {
+                    $room['host_conn_id'] = $candidateConnId;
+                    break;
+                }
+            }
+            $this->broadcastHostChanged($room);
+        }
     }
 
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
+
+    private function broadcastHostChanged(array $room): void
+    {
+        $hostUsername = $this->resolveHostUsername($room);
+        if ($hostUsername === '') {
+            return;
+        }
+
+        $packet = [
+            'type' => 'host_changed',
+            'host' => $hostUsername,
+        ];
+
+        foreach ($room['players'] as $player) {
+            if (($player['status'] ?? null) === 'active' && isset($player['connection'])) {
+                sendJson($player['connection'], $packet);
+            }
+        }
+    }
+
+    private function resolveHostUsername(array $room): string
+    {
+        if (count($room['players']) < 2) {
+            return '';
+        }
+
+        $hostConnId = $room['host_conn_id'] ?? null;
+        if ($hostConnId === null || !isset($room['players'][$hostConnId])) {
+            return '';
+        }
+
+        return (string) $room['players'][$hostConnId]['username'];
+    }
 
     private function isRowComplete(array $card, array $mask, int $row): bool
     {
