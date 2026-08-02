@@ -2,6 +2,26 @@
 
 ## Phase 18 — Client Balance Persistence (2026-08-02)
 
+- [DONE] FIX-25 Quick Start pseudo-random room pick when multiple eligible
+Files:
+- public/js/ui.js (diff — `pickQuickStartRoom()` filters + random choice among eligible)
+- public/js/app.js (diff — `doQuickStart()` uses `pickQuickStartRoom` instead of `.find()`)
+- docs/GAME_RULES.md (diff — §2 quick start multi-room behavior)
+
+Notes: Previously Quick Start always joined the first eligible room in `room_list` order.
+Now: 0 eligible → error; 1 → that room; 2+ → `Math.floor(Math.random() * n)`.
+
+CHANGED:
+- `pickQuickStartRoom()` helper exported from UI module
+- `doQuickStart()` uses pseudo-random selection
+
+NOT CHANGED:
+- Eligibility rules (`waiting`, no password, not full), join_room flow, server room_list
+
+VERIFICATION:
+- MANUAL: create 2+ open waiting rooms without password → Quick Start joins a random one
+  across repeated clicks (before joining); single room → always that room.
+
 - [DONE] FIX-24 No lobby reconnect grace — waiting disconnect removes player immediately
 Files:
 - src/Game/ReconnectService.php (diff — `handleDisconnect()` waiting → `removePlayerFromLobby`; timer callback playing-only)

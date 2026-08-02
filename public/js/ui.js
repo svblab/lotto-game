@@ -59,6 +59,16 @@
       && room.players < room.max_players;
   }
 
+  /**
+   * Pick one eligible quick-start room. Single match → that room; multiple → pseudo-random.
+   */
+  function pickQuickStartRoom(rooms) {
+    const eligible = (rooms || []).filter(isQuickStartRoom);
+    if (eligible.length === 0) return null;
+    if (eligible.length === 1) return eligible[0];
+    return eligible[Math.floor(Math.random() * eligible.length)];
+  }
+
   function updateQuickStartBtn(rooms, inRoom) {
     const enabled = !inRoom && rooms.some(isQuickStartRoom);
     $('#quick-start-btn')?.toggleAttribute('disabled', !enabled);
@@ -733,6 +743,7 @@
     updateLobbyUser,
     renderRooms,
     isQuickStartRoom,
+    pickQuickStartRoom,
     updateQuickStartBtn,
     updateLobbyMembershipUI,
     showJoinRoomModal,

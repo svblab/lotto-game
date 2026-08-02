@@ -534,7 +534,7 @@
 
   function doQuickStart() {
     if (guardAlreadyInRoom()) return;
-    const open = state.rooms.find((r) => UI().isQuickStartRoom(r));
+    const open = UI().pickQuickStartRoom(state.rooms);
     if (!open) {
       UI().setMessage('#lobby-message', I18n().t('lobby.noQuickStartRoom'), 'error');
       return;
