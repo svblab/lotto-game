@@ -358,13 +358,13 @@ ok('joinRoom: room_joined includes host_timeout_start', isset($pktJoin['host_tim
 ok('joinRoom: player_joined includes host_timeout_start', isset($hostPlayerJoined['host_timeout_start']));
 
 $joiner3rd = new MockConnection(3, 'third');
-$hostAfkStartBefore = (int) $worker->rooms[$roomId]['players'][$host->id]['last_action'];
-$worker->rooms[$roomId]['players'][$host->id]['last_action'] = $hostAfkStartBefore + 45;
+$hostAfkStartBefore = (int) $worker->rooms[$roomId]['players'][$host->id]['host_activity_at'];
+$worker->rooms[$roomId]['players'][$host->id]['host_activity_at'] = $hostAfkStartBefore + 45;
 $ls->handleJoinRoom(['room_id' => $roomId, 'password' => '', 'cards_count' => 1], $joiner3rd, $worker);
 $pktThird = packetOfType($joiner3rd, 'room_joined');
 $hostSync = lastPacketOfType($host, 'host_changed');
 ok('joinRoom: 3rd player room_joined has host_timeout_start', isset($pktThird['host_timeout_start']));
-ok('joinRoom: 3rd player timeout matches host last_action',
+ok('joinRoom: 3rd player timeout matches host host_activity_at',
     ($pktThird['host_timeout_start'] ?? 0) === $hostAfkStartBefore + 45);
 ok('joinRoom: host resynced on 3rd join', ($hostSync['host_timeout_start'] ?? 0) === $hostAfkStartBefore + 45);
 ok('joinRoom: joiner resynced via player_joined',
@@ -560,7 +560,7 @@ ok('transferHost: AFK host_changed username = afk_j1',
 $afkJ2 = new MockConnection(3, 'afk_j2');
 $lsAfk->handleJoinRoom(['room_id' => $afkRoomId, 'password' => '', 'cards_count' => 1], $afkJ2, $workerAfk);
 
-$workerAfk->rooms[$afkRoomId]['players'][$afkJ1->id]['last_action'] = time() - 9999;
+$workerAfk->rooms[$afkRoomId]['players'][$afkJ1->id]['host_activity_at'] = time() - 9999;
 $lsAfk->transferHost($workerAfk, $afkRoomId);
 ok('transferHost: AFK re-transfer advances FORWARD to afk_j2 (not back to afk_host)',
     $workerAfk->rooms[$afkRoomId]['host_conn_id'] === $afkJ2->id);
@@ -568,14 +568,14 @@ ok('transferHost: AFK afk_host (already-tried candidate) is skipped, not re-prom
     $workerAfk->rooms[$afkRoomId]['host_conn_id'] !== $afkHost->id);
 ok('transferHost: AFK afk_host still present in room (only lost host, not removed)',
     isset($workerAfk->rooms[$afkRoomId]['players'][$afkHost->id]));
-ok('transferHost: AFK refreshes new host last_action on promotion',
-    (time() - $workerAfk->rooms[$afkRoomId]['players'][$afkJ2->id]['last_action']) <= 2);
+ok('transferHost: AFK refreshes new host host_activity_at on promotion',
+    (time() - $workerAfk->rooms[$afkRoomId]['players'][$afkJ2->id]['host_activity_at']) <= 2);
 
 // ADR-007: queue exhaustion — afk_j2 (the last untried candidate) also
 // times out. No forward candidate remains (afk_host and afk_j1 were
 // already tried) → room must be force-closed, all remaining players
 // removed with reason='afk', room destroyed.
-$workerAfk->rooms[$afkRoomId]['players'][$afkJ2->id]['last_action'] = time() - 9999;
+$workerAfk->rooms[$afkRoomId]['players'][$afkJ2->id]['host_activity_at'] = time() - 9999;
 $lsAfk->transferHost($workerAfk, $afkRoomId);
 ok('transferHost: AFK exhaustion destroys the room',
     !isset($workerAfk->rooms[$afkRoomId]));
@@ -687,6 +687,56 @@ ok('afkTimer: timer active before destroyRoom',           !empty($w2->rooms[$rId
 $rm2->destroyRoom($w2, $rId2);
 ok('afkTimer: destroyRoom removes room (timer cancelled)', !isset($w2->rooms[$rId2]));
 ok('afkTimer: MockTimer::del called by destroyRoom',       MockTimer::$delCount >= 1);
+
+// ─── SUITE 8: Lobby AFK ping immunity (ADR-010) ─────────────────────────────
+
+echo "\n=== SUITE 8: Lobby AFK ping immunity (ADR-010) ===\n";
+
+MockConnection::reset();
+MockTimer::reset();
+
+[$lsPing] = makeServices();
+$workerPing = new MockWorker();
+$pingHost   = new MockConnection(1, 'ping_host');
+$pingJoiner = new MockConnection(2, 'ping_joiner');
+$lsPing->handleCreateRoom(['max_players' => 4, 'password' => '', 'cards_count' => 1], $pingHost, $workerPing);
+$pingRoomId = $pingHost->lastPacket()['room_id'];
+$lsPing->handleJoinRoom(['room_id' => $pingRoomId, 'password' => '', 'cards_count' => 1], $pingJoiner, $workerPing);
+
+$timerId = $workerPing->rooms[$pingRoomId]['lobby_afk_timer_id'];
+ok('pingImmunity: lobby AFK timer active', !empty($timerId));
+
+// Simulate 120s+ of ping-only keepalives: last_action fresh, host_activity_at stale.
+$workerPing->rooms[$pingRoomId]['players'][$pingHost->id]['host_activity_at'] = time() - Constants::lobbyHostTimeout() - 5;
+$workerPing->rooms[$pingRoomId]['players'][$pingHost->id]['last_action'] = time();
+
+MockTimer::fire((int) $timerId);
+ok('pingImmunity: host transfer fires despite fresh last_action from pings',
+    $workerPing->rooms[$pingRoomId]['host_conn_id'] === $pingJoiner->id);
+ok('pingImmunity: stale ping_host remains in room after AFK transfer',
+    isset($workerPing->rooms[$pingRoomId]['players'][$pingHost->id]));
+
+MockConnection::reset();
+MockTimer::reset();
+
+[$lsTouch] = makeServices();
+$workerTouch = new MockWorker();
+$touchHost   = new MockConnection(1, 'touch_host');
+$touchJoiner = new MockConnection(2, 'touch_joiner');
+$lsTouch->handleCreateRoom(['max_players' => 4, 'password' => '', 'cards_count' => 1], $touchHost, $workerTouch);
+$touchRoomId = $touchHost->lastPacket()['room_id'];
+$lsTouch->handleJoinRoom(['room_id' => $touchRoomId, 'password' => '', 'cards_count' => 1], $touchJoiner, $workerTouch);
+
+$touchTimerId = $workerTouch->rooms[$touchRoomId]['lobby_afk_timer_id'];
+$workerTouch->rooms[$touchRoomId]['players'][$touchHost->id]['host_activity_at'] = time() - Constants::lobbyHostTimeout() - 5;
+
+$lsTouch->touchLobbyHostActivity($workerTouch, $touchHost->id);
+ok('pingImmunity: touchLobbyHostActivity refreshes host_activity_at',
+    (time() - $workerTouch->rooms[$touchRoomId]['players'][$touchHost->id]['host_activity_at']) <= 2);
+
+MockTimer::fire((int) $touchTimerId);
+ok('pingImmunity: timer does not transfer after genuine host activity',
+    $workerTouch->rooms[$touchRoomId]['host_conn_id'] === $touchHost->id);
 
 // ─── Summary ──────────────────────────────────────────────────────────────────
 

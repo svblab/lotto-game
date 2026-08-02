@@ -255,6 +255,11 @@ final class ApartmentService
     ): void {
         $participants = $this->prepareApartment($room);
 
+        if (!empty($room['game_afk_timer_id'])) {
+            lottoTimerDel((int) $room['game_afk_timer_id'], 'game_afk', ['room_id' => $roomId]);
+            $room['game_afk_timer_id'] = null;
+        }
+
         $this->logger->info("Room {$roomId}: apartment triggered");
 
         // Broadcast apartment_alert

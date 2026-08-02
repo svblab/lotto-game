@@ -476,12 +476,12 @@ final class LobbyService
      * Передаёт хост следующему активному игроку, идущему СТРОГО ПОСЛЕ
      * текущего хоста в drawer_order (FIFO по порядку входа в лобби).
      *
-     * ADR-007: право хоста движется только вперёд по очереди и никогда не
+     * ADR-011: право хоста движется только вперёд по очереди и никогда не
      * возвращается к уже испробованным кандидатам.
      *
      * Именование: ANCHOR_CORE.md Part 6 § Function Names.
      * Правило: ANCHOR_CORE.md Part 4 § Host Rules — новый хост = следующий
-     * активный FIFO (уточнено ADR-007: "следующий" = дальше по очереди,
+     * активный FIFO (уточнено ADR-011: "следующий" = дальше по очереди,
      * не "первый активный, отличный от текущего").
      *
      * Если после текущего хоста в очереди не осталось ни одного
@@ -516,9 +516,9 @@ final class LobbyService
                 $room['host_conn_id'] = $connId;
                 $newHostUsername = $room['players'][$connId]['username'];
 
-                // Lobby AFK timer checks host.last_action — refresh on promotion so
+                // Lobby AFK timer checks host.host_activity_at — refresh on promotion so
                 // a player with stale activity is not immediately re-transferred.
-                $room['players'][$connId]['last_action'] = time();
+                $room['players'][$connId]['host_activity_at'] = time();
 
                 $this->broadcastHostChanged($room);
 
@@ -526,7 +526,7 @@ final class LobbyService
                     "Host transferred in room_id={$roomId} new_host={$newHostUsername}"
                 );
 
-                // Brand-new 120s window for the promoted host (A7 spec points 5–6).
+                // Brand-new 120s window for the promoted host (ADR-011).
                 $this->startLobbyAfkTimer($worker, $roomId);
                 return;
             }
@@ -534,7 +534,7 @@ final class LobbyService
 
         // Очередь исчерпана вперёд по FIFO: либо активных игроков не
         // осталось вовсе, либо все оставшиеся уже были хостом и не начали
-        // игру (ADR-007, A7 spec: "перебор игроков завершился полностью").
+        // игру (ADR-011: host-candidate queue exhausted).
         $this->closeRoomAfkExhausted($worker, $roomId);
     }
 
@@ -543,7 +543,7 @@ final class LobbyService
      * уничтожает комнату, когда очередь кандидатов на хоста в
      * transferHost() исчерпана вперёд по FIFO без единого start_game().
      *
-     * ADR-007. Переиспользует существующий пакет player_left и
+     * ADR-011. Переиспользует существующий пакет player_left и
      * существующую причину 'afk' из реестра ANCHOR_CORE.md Part 1 §
      * Removal Reasons — новых пакетов/причин не вводится (Rule 7).
      * Экономика не затронута: в 'waiting' total_paid всегда 0
@@ -585,7 +585,7 @@ final class LobbyService
      *
      * Контракт: ANCHOR_CORE.md § Lobby AFK Timer.
      *   Owner: room. Interval: 1s repeat. Threshold: LOBBY_HOST_TIMEOUT (120s).
-     *   Action: transferHost() если host.last_action устарел.
+     *   Action: transferHost() если host.host_activity_at устарел.
      *   Max 1 на комнату — предыдущий отменяется перед созданием.
      *
      * Вызывается из handleJoinRoom() on the 1→2 transition and from
@@ -626,9 +626,9 @@ final class LobbyService
                 return;
             }
 
-            $hostLastAction = $room['players'][$hostConnId]['last_action'];
+            $hostLastActivity = $room['players'][$hostConnId]['host_activity_at'] ?? 0;
 
-            if ((time() - $hostLastAction) >= Constants::lobbyHostTimeout()) {
+            if ((time() - $hostLastActivity) >= Constants::lobbyHostTimeout()) {
                 $this->logger->info(
                     "Lobby AFK: host timed out in room_id={$roomId}, transferring host"
                 );
@@ -679,8 +679,33 @@ final class LobbyService
         }
 
         $room['host_conn_id'] = $firstConnId;
-        $room['players'][$firstConnId]['last_action'] = time();
+        $room['players'][$firstConnId]['host_activity_at'] = time();
         $this->broadcastHostChanged($room);
+    }
+
+    /**
+     * Records genuine lobby host interaction (ADR-010).
+     * Called from server.php for non-ping actions when the sender is host in waiting.
+     */
+    public function touchLobbyHostActivity(object $worker, int $connId): void
+    {
+        $roomId = $this->roomManager->findRoomIdByConnId($worker, $connId);
+        if ($roomId === null || !isset($worker->rooms[$roomId])) {
+            return;
+        }
+
+        $room = &$worker->rooms[$roomId];
+
+        if (($room['status'] ?? null) !== 'waiting' || count($room['players']) < 2) {
+            return;
+        }
+
+        if (($room['host_conn_id'] ?? null) !== $connId || !isset($room['players'][$connId])) {
+            return;
+        }
+
+        $room['players'][$connId]['host_activity_at'] = time();
+        $this->broadcastLobbyAfkSync($room);
     }
 
     /**
@@ -697,7 +722,7 @@ final class LobbyService
     }
 
     /**
-     * Re-broadcast host + lobby AFK deadline so every client uses host.last_action.
+     * Re-broadcast host + lobby AFK deadline so every client uses host.host_activity_at.
      */
     public function broadcastLobbyAfkSync(array $room): void
     {
@@ -745,7 +770,7 @@ final class LobbyService
         }
 
         return [
-            'host_timeout_start'   => (int) $room['players'][$hostConnId]['last_action'],
+            'host_timeout_start'   => (int) ($room['players'][$hostConnId]['host_activity_at'] ?? 0),
             'host_timeout_seconds' => Constants::lobbyHostTimeout(),
         ];
     }
@@ -783,7 +808,8 @@ final class LobbyService
             'cards'           => [],
             'cards_count'     => $cardsCount,
             'total_paid'      => 0,
-            'last_action'     => time(),
+            'last_action'       => time(),
+            'host_activity_at'  => time(),
             'afk_start'       => null,
             'strikes'         => 0,
             'auto_draws'      => 0,

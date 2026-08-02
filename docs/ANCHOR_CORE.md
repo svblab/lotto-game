@@ -69,6 +69,7 @@ $room['players'][$connId] = [
   'cards_count' => 1|2,
   'total_paid' => int,
   'last_action' => int,
+  'host_activity_at' => int,
   'afk_start' => null,
   'strikes' => 0,
   'auto_draws' => 0,
@@ -113,7 +114,9 @@ Stored in `drawer_order`:
 5. Queue is cyclic.
 
 ## Room Destruction Rules
-Destroy room if: no players remain | game finished | admin closed room.
+Destroy room if: no players remain | game finished | admin closed room |
+lobby host-candidate queue exhausted (ADR-011 — all seated players timed out
+as host without `start_game`).
 Before destruction: cancel all timers (room + reconnect), remove room from memory.
 
 ## Timer Registry
@@ -406,12 +409,14 @@ Created: `onWorkerStart`. Destroyed: worker shutdown.
 ## Lobby AFK Timer
 Owner: room. Exists only in `waiting`. Purpose: prevent inactive host.
 Created when: room has `>=2 players` and host responsible for starting.
-Interval: 1s repeat. Check: `time()-host.last_action`. Threshold: 120s.
+Interval: 1s repeat. Check: `time()-host.host_activity_at`. Threshold: 120s.
+`host_activity_at` tracks genuine lobby host interaction only — not updated
+by `ping` (ADR-010); `last_action` remains for connection liveness.
 Action: transfer host to the next active player FIFO — strictly the
 next untried candidate positioned after the current host in
 `drawer_order`. Rotation is forward-only: a player who already held
 host and timed out is never re-selected while any later candidate
-remains untried (ADR-007). If no untried active candidate remains
+remains untried (ADR-011). If no untried active candidate remains
 after the current host's position, the queue is exhausted: the room is
 destroyed and every remaining player is removed with reason `afk`
 (existing `player_left` packet, existing reason — ANCHOR_CORE.md Part 1
@@ -522,7 +527,7 @@ Room states: `waiting, playing, apartment, finished`.
 
 ## Player Structure Keys (allowed)
 ```
-user_id, username, cards, cards_count, total_paid, last_action, afk_start,
+user_id, username, cards, cards_count, total_paid, last_action, host_activity_at, afk_start,
 strikes, auto_draws, status, session_token, reconnect_timer, connection, immune
 ```
 Player states: `active, disconnected`.

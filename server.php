@@ -415,18 +415,11 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
     if ($action === 'ping') {
         // prompt.md § ping: в комнате — last_action; в лобби — lastPing (уже выше).
         // На afk_start не влияет (ANCHOR_CORE § Game AFK Timer).
+        // На host_activity_at не влияет (ADR-010 § Lobby AFK Timer).
         $connId = (int) $connection->id;
         $roomId = $worker->roomManager->findRoomIdByConnId($worker, $connId);
         if ($roomId !== null && isset($worker->rooms[$roomId]['players'][$connId])) {
-            $room = &$worker->rooms[$roomId];
-            $room['players'][$connId]['last_action'] = time();
-            if (
-                ($room['status'] ?? null) === 'waiting'
-                && count($room['players']) >= 2
-                && ($room['host_conn_id'] ?? null) === $connId
-            ) {
-                $worker->lobbyService->broadcastLobbyAfkSync($room);
-            }
+            $worker->rooms[$roomId]['players'][$connId]['last_action'] = time();
         }
         return;
     }
@@ -495,6 +488,10 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
     // Диспетчер: auth (EPIC-10.3), lobby (EPIC-10.4), game (EPIC-10.5) и
     // admin (EPIC-10.6) подключены. reconnect обработан отдельно выше.
     $handlerStart = hrtime(true);
+
+    // ADR-010: genuine lobby host activity (not ping — handled above).
+    $worker->lobbyService->touchLobbyHostActivity($worker, (int) $connection->id);
+
     match ($action) {
         'register'         => $worker->authHandler->handleRegister($data, $connection, $worker),
         'login'            => $worker->authHandler->handleLogin($data, $connection, $worker),

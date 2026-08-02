@@ -7,6 +7,7 @@ declare(strict_types=1);
  * Run: php tests/Manual/test_apartment.php
  */
 
+require_once __DIR__ . '/mock_timer.php';
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/../../src/Core/Helpers.php';
 
@@ -313,6 +314,33 @@ $apt = new ApartmentService($_mockDb, $_mockSt, $_mockLog);
     assert_true(count($p2Alert) === 1,            'Alert: p2 received alert');
     assert_true($p2Alert[0]['required'] === false,'Alert: immune p2 required=false');
     assert_true($hAlert[0]['time_left'] === 10,   'Alert: time_left=10');
+}
+
+// ---------------------------------------------------------------------------
+// GROUP 5b: triggerApartment cancels game_afk_timer immediately (EPIC-14.3)
+// ---------------------------------------------------------------------------
+
+{
+    $h  = makeConn(1, 10, 'host');
+    $p2 = makeConn(2, 20, 'p2');
+    $worker = new MockWorker();
+    $room = makeRoom(1, [1, 2]);
+    $room['players'][1] = makePlayer($h,  1, [], [], false);
+    $room['players'][2] = makePlayer($p2, 1, [], [], false);
+    $room['game_afk_timer_id'] = MockTimer::add(1.0, fn() => null, true);
+    $worker->rooms[1] = $room;
+
+    $mockGameService = new class {};
+    $apt->triggerApartment($worker->rooms[1], 1, $worker, $mockGameService);
+
+    assert_true(
+        $worker->rooms[1]['game_afk_timer_id'] === null,
+        'triggerApartment: game_afk_timer_id null immediately after transition'
+    );
+    assert_true(
+        MockTimer::$delCount >= 1,
+        'triggerApartment: game_afk timer cancelled via lottoTimerDel'
+    );
 }
 
 // ---------------------------------------------------------------------------

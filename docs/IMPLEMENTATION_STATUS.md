@@ -1,5 +1,54 @@
 # Implementation Status — Lotto Game Project
 
+## Phase 14 — AFK Timer Audit Fixes
+
+- [DONE] EPIC-14.4 Update GAME_RULES.md AFK section to match per-turn model (ADR-008)
+Files:
+- docs/GAME_RULES.md (diff — §4 AFK: per-turn 30s threshold, cross-turn strike counting)
+
+Notes: Documentation-only. Aligned with ANCHOR_CORE.md § Game AFK Timer and ADR-008.
+
+VERIFICATION:
+- Manual review against ANCHOR_CORE.md § Game AFK Timer — wording consistent.
+
+- [DONE] EPIC-14.3 Cancel game_afk_timer immediately on apartment transition
+Files:
+- src/Game/ApartmentService.php (diff — explicit game_afk_timer_id cancel in triggerApartment)
+- tests/Manual/test_apartment.php (diff — GROUP 5b assertion; mock_timer bootstrap)
+
+Notes: Defensive self-stop in ReconnectService::tickGameAfk() retained.
+
+VERIFICATION:
+- `php tests/Manual/test_apartment.php` — all PASS (including GROUP 5b)
+
+- [DONE] EPIC-14.2 Lobby AFK: document forward-only rotation + queue exhaustion (ADR-011)
+Files:
+- docs/ADR/011.md (новый — retroactive ADR for host rotation + room destruction)
+- docs/ANCHOR_CORE.md (diff — Room Destruction Rules 4th bullet; ADR-011 citation)
+- src/Lobby/LobbyService.php (diff — comment/citation corrections only)
+
+Notes: No runtime behavior change. Replaces incorrect ADR-007 / "A7 spec" citations.
+
+VERIFICATION:
+- `php tests/Manual/test_lobby_integration.php` — 132/132 PASS (unmodified logic)
+
+- [DONE] EPIC-14.1 Lobby AFK timer: separate host_activity_at from ping keepalive
+Files:
+- docs/ADR/010.md (новый — host_activity_at Player Structure key)
+- docs/ANCHOR_CORE.md (diff — Player Structure, Lobby AFK Timer, Naming Registry)
+- src/Lobby/LobbyService.php (diff — host_activity_at, touchLobbyHostActivity, timer check)
+- server.php (diff — ping no longer syncs lobby AFK; touchLobbyHostActivity on real actions)
+- tests/Manual/test_lobby_integration.php (diff — SUITE 8 ping-immunity regression)
+
+Notes: `ping` still updates `last_action` for connection liveness; lobby AFK reads
+`host_activity_at` only (ADR-010). Game AFK unchanged.
+
+VERIFICATION:
+- `php tests/Manual/test_lobby_integration.php` — all PASS (including SUITE 8)
+- `php run_ALL_tests.php` — 0 failures
+
+---
+
 ## Phase 13 — Game AFK Wiring & Orphaned-Method Fixes
 
 - [DONE] EPIC-13.0 ADR: Game AFK timer wiring decision
