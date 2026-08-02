@@ -1,5 +1,39 @@
 # Implementation Status — Lotto Game Project
 
+## Phase 18 — Client Balance Persistence (2026-08-02)
+
+- [DONE] FIX-18 Persist post-game_over balance to localStorage (client-only)
+Files:
+- public/js/app.js (diff — `onGameOver()` calls `persistUser()` after updating `state.user.coins`)
+
+Notes: Server-side payout math confirmed correct (GameFinishService / game.db).
+Symptom "coins not given out" was stale localStorage after refresh: `onGameOver()`
+updated in-memory balance and DOM but never persisted. `ensureUserProfile()` reads
+localStorage on reconnect/refresh.
+
+CHANGED:
+- `onGameOver()`: call `persistUser(state.user)` after `paid`/`received` arithmetic
+
+NOT CHANGED:
+- `game_over` / `reconnect_state` protocol, server economy, GameFinishService,
+  GameService bank/payout, PreparedStatements
+
+VERIFICATION:
+- MANUAL VERIFICATION REQUIRED: play 2–3 player game to victory; confirm winner
+  balance on screen; hard-refresh → balance matches post-win (not pre-game).
+- Repeat for loser (paid > 0, received = 0) — deduction survives refresh.
+
+- [PROPOSED] ADR-016 Server-authoritative client balance (`coins` field)
+Files:
+- docs/ADR/016.md (new, Status: Proposed)
+
+Notes: Proposes additive `coins` on `game_over.statistics[]`, `reconnect_state`,
+and optional `balance_updated` for admin/apartment paths. Implementation blocked
+until ADR accepted (Rule 7). FIX-18 is interim mitigation only.
+
+VERIFICATION:
+- N/A — ADR draft for user review. Post-approval verification matrix in ADR §Implementation Epic.
+
 ## Phase 17 — Compliance Audit Fixes (2026-08-02)
 
 - [DONE] FIX-17 Reconnecting active drawer restores draw-button UI (client-only)
