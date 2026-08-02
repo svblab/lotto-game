@@ -756,14 +756,19 @@ final class GameService
     /**
      * Zero active players — refund all participants and destroy the room.
      */
-    public function handleNoSurvivors(array &$room, int $roomId, object $worker): void
-    {
+    public function handleNoSurvivors(
+        array &$room,
+        int $roomId,
+        object $worker,
+        ?object $notifyConnection = null
+    ): void {
         $this->finishService->handleNoSurvivors(
             $room,
             $roomId,
             function () use ($worker, $roomId) {
                 unset($worker->rooms[$roomId]);
-            }
+            },
+            $notifyConnection
         );
     }
 

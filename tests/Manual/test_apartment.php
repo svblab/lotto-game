@@ -78,6 +78,14 @@ class MockStmts {
                 public function fetch(): false { return false; }
             };
         }
+        if ($key === 'add_user_coins') {
+            return new class($parent) {
+                private object $p;
+                public function __construct(object $p) { $this->p = $p; }
+                public function execute(array $p): void { $this->p->updates[] = ['add' => $p[0], 'user_id' => $p[1]]; }
+                public function fetch(): false { return false; }
+            };
+        }
         throw new \InvalidArgumentException("Unknown: $key");
     }
 }
@@ -478,7 +486,10 @@ $apt2 = new ApartmentService($_db2, $_st2, $_log2);
     assert_true(!isset($worker->rooms[1]), 'apartment empty-path: room destroyed');
     assert_true($pdo->committed === true, 'apartment empty-path: refund committed');
     assert_true(count($st->updates) === 1, 'apartment empty-path: solo refunded');
-    assert_true($st->updates[0]['coins'] === 110, 'apartment empty-path: coins restored');
+    assert_true($st->updates[0]['add'] === 10, 'apartment empty-path: stake returned');
+    $go = $h->sentOfType('game_over');
+    assert_true(count($go) === 1, 'apartment empty-path: game_over sent');
+    assert_true(($go[0]['reason'] ?? '') === 'no_survivors', 'apartment empty-path: no winner');
 }
 
 // ---------------------------------------------------------------------------

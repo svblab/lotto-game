@@ -47,7 +47,7 @@
     "remaining": "Restants",
     "online": "En ligne",
     "disconnected": "Absent",
-    "afkWarning": "Avertissement AFK ({strike}/3)",
+    "afkWarning": "Avertissement AFK ({strike}/2)",
     "gameOver": "Fin de partie",
     "victory": "Victoire",
     "lastSurvivor": "Dernier survivant",

@@ -47,7 +47,7 @@
     "remaining": "Kalan",
     "online": "Çevrimiçi",
     "disconnected": "Uzakta",
-    "afkWarning": "AFK uyarısı ({strike}/3)",
+    "afkWarning": "AFK uyarısı ({strike}/2)",
     "gameOver": "Oyun bitti",
     "victory": "Zafer",
     "lastSurvivor": "Son hayatta kalan",

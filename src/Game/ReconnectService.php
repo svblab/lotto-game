@@ -460,6 +460,9 @@ final class ReconnectService
         $player = $room['players'][$connId];
         $wasHost = ($room['host_conn_id'] ?? null) === $connId;
         $wasDrawer = ($room['active_drawer_conn_id'] ?? null) === $connId;
+        $notifyOnNoSurvivors = (($player['status'] ?? null) === 'active' && isset($player['connection']))
+            ? $player['connection']
+            : null;
 
         if (!empty($player['reconnect_timer'])) {
             lottoTimerDel((int) $player['reconnect_timer'], 'reconnect', [
@@ -500,7 +503,7 @@ final class ReconnectService
         $active = $this->collectActivePlayers($room);
 
         if (count($active) === 0) {
-            $this->gameService->handleNoSurvivors($room, $roomId, $worker);
+            $this->gameService->handleNoSurvivors($room, $roomId, $worker, $notifyOnNoSurvivors);
             return;
         }
 

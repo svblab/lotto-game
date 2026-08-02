@@ -294,6 +294,13 @@ Server → Room (same `game_over` packet, `reason` differs)
 {"type": "game_over", "winner": "player", "reason": "last_survivor", "prize": 80, "final_bank": 80, "statistics": []}
 ```
 
+### no_survivors
+Server → Room. Zero active players remain — stakes refunded, no winner, `prize` and `final_bank` are 0.
+```json
+{"type": "game_over", "winner": "", "reason": "no_survivors", "prize": 0, "final_bank": 0, "statistics": [{"username": "p1", "paid": 10, "received": 10}]}
+```
+`received` equals `paid` (stake return, not a prize).
+
 ---
 
 ## Reconnect

@@ -348,10 +348,11 @@
   }
 
   function updateAfkStrikeMarkers(activeStrikes) {
+    const strikes = Math.min(2, Math.max(0, Number(activeStrikes) || 0));
     $$('.afk-strike').forEach((el) => {
       const n = parseInt(el.dataset.strike, 10);
-      el.classList.toggle('active', n <= activeStrikes);
-      el.classList.toggle('pending', n > activeStrikes);
+      el.classList.toggle('active', n <= strikes);
+      el.classList.toggle('pending', n > strikes);
     });
   }
 
@@ -578,15 +579,26 @@
   function showGameOver(pkt) {
     const t = global.LottoI18n.t;
     toggleOverlay('#game-over-modal', true);
-    const reason = pkt.reason === 'last_survivor'
-      ? t('game.lastSurvivor') : t('game.victory');
-    $('#game-over-text').textContent = t('game.winnerLine', {
-      winner: pkt.winner,
-      prize: pkt.prize,
-      reason,
-    });
+    let reasonText;
+    if (pkt.reason === 'no_survivors') {
+      reasonText = t('game.noSurvivors');
+    } else if (pkt.reason === 'last_survivor') {
+      reasonText = t('game.lastSurvivor');
+    } else {
+      reasonText = t('game.victory');
+    }
+    if (pkt.reason === 'no_survivors') {
+      $('#game-over-text').textContent = t('game.noSurvivorsLine');
+    } else {
+      $('#game-over-text').textContent = t('game.winnerLine', {
+        winner: pkt.winner,
+        prize: pkt.prize,
+        reason: reasonText,
+      });
+    }
+    const receivedLabel = pkt.reason === 'no_survivors' ? t('game.returned') : t('game.received');
     const table = $('#game-over-stats');
-    table.innerHTML = `<tr><th>${t('game.player')}</th><th>${t('game.paid')}</th><th>${t('game.received')}</th></tr>`;
+    table.innerHTML = `<tr><th>${t('game.player')}</th><th>${t('game.paid')}</th><th>${receivedLabel}</th></tr>`;
     (pkt.statistics || []).forEach((s) => {
       const tr = document.createElement('tr');
       tr.innerHTML = `<td>${s.username}</td><td>${s.paid}</td><td>${s.received}</td>`;

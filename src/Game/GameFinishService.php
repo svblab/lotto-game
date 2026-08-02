@@ -193,34 +193,41 @@ final class GameFinishService
     public function handleNoSurvivors(
         array &$room,
         int $roomId,
-        callable $roomDestroyer
+        callable $roomDestroyer,
+        ?object $notifyConnection = null
     ): void {
         $this->snapshotRemainingPlayersToHistory($room);
+
+        $bankBefore = (int) ($room['bank'] ?? 0);
+        $totalRefunded = 0;
+        $statistics = [];
 
         $pdo = $this->db->getPdo();
         try {
             $pdo->beginTransaction();
-            foreach ($room['all_players_history'] as $hist) {
+            foreach ($room['all_players_history'] as $connId => $hist) {
                 $uid = (int) ($hist['user_id'] ?? 0);
-                if ($uid <= 0) {
-                    continue;
-                }
-                $stmt = $this->stmts->get('user_by_id');
-                $stmt->execute([$uid]);
-                $row = $stmt->fetch();
-                if ($row === false) {
-                    continue;
-                }
-                $upd = $this->stmts->get('update_user_coins');
-                $upd->execute([(int) $row['coins'] + (int) ($hist['total_paid'] ?? 0), $uid]);
-
                 $refundAmount = (int) ($hist['total_paid'] ?? 0);
-                if ($refundAmount > 0) {
+                $username = (string) ($hist['username'] ?? 'unknown');
+
+                if ($uid > 0 && $refundAmount > 0) {
+                    $add = $this->stmts->get('add_user_coins');
+                    $add->execute([$refundAmount, $uid]);
+
                     lottoEconomyRecord('refund', $uid, $refundAmount, [
                         'room_id' => $roomId,
                         'reason'  => 'no_survivors',
                     ]);
+                    $totalRefunded += $refundAmount;
                 }
+
+                $statistics[] = [
+                    'username' => $username,
+                    'paid'     => $refundAmount,
+                    'received' => $refundAmount,
+                ];
+
+                $room['all_players_history'][$connId]['total_paid'] = 0;
             }
             $pdo->commit();
         } catch (Throwable $e) {
@@ -229,8 +236,52 @@ final class GameFinishService
             return;
         }
 
+        $burned = max(0, $bankBefore - $totalRefunded);
+        if ($burned > 0) {
+            lottoEconomyRecord('burn', 0, $burned, [
+                'room_id' => $roomId,
+                'reason'  => 'no_survivors',
+            ]);
+        }
+
+        $fromStatus = $room['status'] ?? 'playing';
+        lottoStateTransition($roomId, $fromStatus, 'destroyed', 'no_active_players');
         $room['bank'] = 0;
-        $this->logger->info("Room {$roomId}: no survivors, refunds issued");
+
+        $packet = json_encode([
+            'type'       => 'game_over',
+            'winner'     => '',
+            'reason'     => 'no_survivors',
+            'prize'      => 0,
+            'final_bank' => 0,
+            'statistics' => $statistics,
+        ]);
+
+        foreach ($room['players'] ?? [] as $player) {
+            if (isset($player['connection'])) {
+                try {
+                    $player['connection']->send($packet);
+                } catch (Throwable $sendError) {
+                    $this->logger->warning(
+                        "Room {$roomId}: failed sending game_over (no_survivors): " . $sendError->getMessage()
+                    );
+                }
+            }
+        }
+
+        if ($notifyConnection !== null) {
+            try {
+                $notifyConnection->send($packet);
+            } catch (Throwable $sendError) {
+                $this->logger->warning(
+                    "Room {$roomId}: failed sending game_over to departing player: " . $sendError->getMessage()
+                );
+            }
+        }
+
+        $this->logger->info(
+            "Room {$roomId}: no survivors, refunds={$totalRefunded}, burned={$burned}, no winner"
+        );
 
         $this->cancelRoomTimers($room, $roomId);
         $roomDestroyer();

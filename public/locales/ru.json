@@ -47,14 +47,17 @@
     "remaining": "Осталось",
     "online": "Онлайн",
     "disconnected": "Отошёл",
-    "afkWarning": "Предупреждение AFK ({strike}/3) — сделайте ход!",
+    "afkWarning": "Предупреждение AFK ({strike}/2) — сделайте ход!",
     "gameOver": "Игра окончена",
     "victory": "Победа",
     "lastSurvivor": "Последний герой",
+    "noSurvivors": "Нет выживших",
+    "noSurvivorsLine": "Победителя нет. Ставки возвращены.",
     "winnerLine": "{winner} получает {prize} монет ({reason})",
     "player": "Игрок",
     "paid": "Ставка",
-    "received": "Выигрыш"
+    "received": "Выигрыш",
+    "returned": "Возврат"
   },
   "apartment": {
     "title": "Квартира!",

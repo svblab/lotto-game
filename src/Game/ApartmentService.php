@@ -571,7 +571,10 @@ final class ApartmentService
             fn($p) => ($p['status'] ?? null) === 'active'
         );
         if (count($active) === 0) {
-            $this->gameService->handleNoSurvivors($room, $roomId, $worker);
+            $notifyConn = (($player['status'] ?? null) === 'active' && isset($player['connection']))
+                ? $player['connection']
+                : null;
+            $this->gameService->handleNoSurvivors($room, $roomId, $worker, $notifyConn);
             return;
         }
     }

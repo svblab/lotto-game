@@ -47,14 +47,17 @@
     "remaining": "Barrels left",
     "online": "Online",
     "disconnected": "Away",
-    "afkWarning": "AFK warning ({strike}/3) — draw soon!",
+    "afkWarning": "AFK warning ({strike}/2) — draw soon!",
     "gameOver": "Game Over",
     "victory": "Victory",
     "lastSurvivor": "Last survivor",
+    "noSurvivors": "No survivors",
+    "noSurvivorsLine": "No winner. All stakes returned.",
     "winnerLine": "{winner} wins {prize} coins ({reason})",
     "player": "Player",
     "paid": "Paid",
-    "received": "Received"
+    "received": "Received",
+    "returned": "Returned"
   },
   "apartment": {
     "title": "Apartment!",

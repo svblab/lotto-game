@@ -117,7 +117,7 @@ class MockGameService
 
     public int $noSurvivorsCalls = 0;
 
-    public function handleNoSurvivors(array &$room, int $roomId, object $worker): void
+    public function handleNoSurvivors(array &$room, int $roomId, object $worker, ?object $notifyConnection = null): void
     {
         $this->noSurvivorsCalls++;
         unset($worker->rooms[$roomId]);
@@ -180,6 +180,13 @@ class MockStmts {
                 public function execute(array $p): void { $this->p->updates[] = ['coins' => $p[0], 'user_id' => $p[1]]; }
             };
         }
+        if ($key === 'add_user_coins') {
+            return new class($parent) {
+                private object $p;
+                public function __construct(object $p) { $this->p = $p; }
+                public function execute(array $p): void { $this->p->updates[] = ['add' => $p[0], 'user_id' => $p[1]]; }
+            };
+        }
         throw new \InvalidArgumentException("Unknown: $key");
     }
 }
@@ -192,13 +199,13 @@ function makeRefundGameService(MockPDO $pdo, MockStmts $st): object
     return new class($fin) extends MockGameService {
         private GameFinishService $fin;
         public function __construct(GameFinishService $fin) { $this->fin = $fin; }
-        public function handleNoSurvivors(array &$room, int $roomId, object $worker): void
-        {
-            $this->noSurvivorsCalls++;
-            $this->fin->handleNoSurvivors($room, $roomId, function () use ($worker, $roomId) {
-                unset($worker->rooms[$roomId]);
-            });
-        }
+    public function handleNoSurvivors(array &$room, int $roomId, object $worker, ?object $notifyConnection = null): void
+    {
+        $this->noSurvivorsCalls++;
+        $this->fin->handleNoSurvivors($room, $roomId, function () use ($worker, $roomId) {
+            unset($worker->rooms[$roomId]);
+        }, $notifyConnection);
+    }
     };
 }
 
@@ -568,9 +575,14 @@ function makeRoom(int $roomId, int $hostConnId): array
     assert_true(count(\MockTimer::$active) === 0, 'no survivors: reconnect timers cancelled');
     assert_true($pdo->committed === true, 'no survivors: refund transaction committed');
     assert_true(count($st->updates) === 3, 'no survivors: all 3 players refunded');
-    assert_true($st->updates[0]['coins'] === 110, 'no survivors: p1 coins refunded');
-    assert_true($st->updates[1]['coins'] === 210, 'no survivors: p2 coins refunded');
-    assert_true($st->updates[2]['coins'] === 310, 'no survivors: p3 coins refunded');
+    assert_true($st->updates[0]['add'] === 10, 'no survivors: p1 refunded');
+    assert_true($st->updates[1]['add'] === 10, 'no survivors: p2 refunded');
+    assert_true($st->updates[2]['add'] === 10, 'no survivors: p3 refunded');
+    $go = $c2->sentOfType('game_over');
+    assert_true(count($go) === 1, 'no survivors: game_over sent');
+    assert_true(($go[0]['reason'] ?? '') === 'no_survivors', 'no survivors: reason=no_survivors');
+    assert_true(($go[0]['prize'] ?? -1) === 0, 'no survivors: no prize');
+    assert_true(($go[0]['winner'] ?? 'x') === '', 'no survivors: no winner');
 }
 
 // ---------------------------------------------------------------------------
@@ -599,7 +611,10 @@ function makeRoom(int $roomId, int $hostConnId): array
     assert_true(!isset($worker->rooms[900]), 'empty fast-path: room destroyed');
     assert_true($pdo->committed === true, 'empty fast-path: refund committed');
     assert_true(count($st->updates) === 1, 'empty fast-path: solo player refunded');
-    assert_true($st->updates[0]['coins'] === 510, 'empty fast-path: coins restored');
+    assert_true($st->updates[0]['add'] === 10, 'empty fast-path: stake returned');
+    $go = $solo->sentOfType('game_over');
+    assert_true(count($go) === 1, 'empty fast-path: game_over sent');
+    assert_true(($go[0]['reason'] ?? '') === 'no_survivors', 'empty fast-path: no winner reason');
 }
 
 // ---------------------------------------------------------------------------
