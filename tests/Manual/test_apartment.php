@@ -267,10 +267,10 @@ $apt = new ApartmentService($_mockDb, $_mockSt, $_mockLog);
     assert_true($room['status'] === 'apartment',      'prepareApartment: status=apartment');
     assert_true($room['apartment_fired'] === true,     'prepareApartment: apartment_fired=true');
     assert_true($room['apartment_responses'] === [],   'prepareApartment: responses empty');
-    assert_true($participants[1] === true,             'prepareApartment: closed-row player required=true');
-    assert_true($participants[2] === false,            'prepareApartment: no-line player required=false');
-    assert_true($room['players'][1]['immune'] === false, 'prepareApartment: closed-row player immune=false');
-    assert_true($room['players'][2]['immune'] === true,  'prepareApartment: no-line player immune=true');
+    assert_true($participants[1] === false,            'prepareApartment: closed-row player required=false (immune)');
+    assert_true($participants[2] === true,             'prepareApartment: no-line player required=true');
+    assert_true($room['players'][1]['immune'] === true,  'prepareApartment: closed-row player immune=true');
+    assert_true($room['players'][2]['immune'] === false, 'prepareApartment: no-line player immune=false');
 }
 
 {
@@ -288,10 +288,10 @@ $apt = new ApartmentService($_mockDb, $_mockSt, $_mockLog);
 
     $participants = $apt->prepareApartment($room);
 
-    assert_true($participants[1] === true,  'prepareApartment 3p: only closed-row player required');
-    assert_true($participants[2] === false, 'prepareApartment 3p: no-line p2 immune');
-    assert_true($participants[3] === false, 'prepareApartment 3p: no-line p3 immune');
-    assert_true(count(array_filter($participants)) === 1, 'prepareApartment 3p: exactly one required');
+    assert_true($participants[1] === false, 'prepareApartment 3p: closed-row player immune');
+    assert_true($participants[2] === true,  'prepareApartment 3p: no-line p2 required');
+    assert_true($participants[3] === true,  'prepareApartment 3p: no-line p3 required');
+    assert_true(count(array_filter($participants)) === 2, 'prepareApartment 3p: exactly two required');
 }
 
 // ---------------------------------------------------------------------------
@@ -349,9 +349,9 @@ $apt = new ApartmentService($_mockDb, $_mockSt, $_mockLog);
     $hAlert  = $h->sentOfType('apartment_alert');
     $p2Alert = $p2->sentOfType('apartment_alert');
     assert_true(count($hAlert) === 1,             'Alert: host received alert');
-    assert_true($hAlert[0]['required'] === true,  'Alert: host required=true');
+    assert_true($hAlert[0]['required'] === false, 'Alert: closed-row host required=false (immune)');
     assert_true(count($p2Alert) === 1,            'Alert: p2 received alert');
-    assert_true($p2Alert[0]['required'] === false,'Alert: immune p2 required=false');
+    assert_true($p2Alert[0]['required'] === true, 'Alert: no-line p2 required=true');
     assert_true($hAlert[0]['time_left'] === 10,   'Alert: time_left=10');
 }
 

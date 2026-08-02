@@ -112,7 +112,7 @@ final class ApartmentService
         $room['apartment_fired']     = true;
         $room['apartment_responses'] = [];
 
-        // GAME_RULES.md §5: required only for players with a closed row at trigger time.
+        // Closed-row players earned immunity (triggered the event); others must pay.
         // Persist onto player['immune'] so getParticipants() stays consistent mid-round.
         $participants = [];
         foreach ($room['players'] as $connId => $player) {
@@ -120,8 +120,8 @@ final class ApartmentService
                 continue;
             }
             $playerHasLine = $this->hasLine($player);
-            $room['players'][$connId]['immune'] = !$playerHasLine;
-            $participants[$connId] = $playerHasLine;
+            $room['players'][$connId]['immune'] = $playerHasLine;
+            $participants[$connId] = !$playerHasLine;
         }
         return $participants;
     }
@@ -226,7 +226,7 @@ final class ApartmentService
             return $room['_apartment_participants'];
         }
 
-        // По умолчанию совпадает с prepareApartment(): required=true для не-immune active игроков.
+        // Matches prepareApartment(): immune (closed row) → required=false; others pay.
         $participants = [];
         foreach ($room['players'] as $connId => $player) {
             if (($player['status'] ?? '') !== 'active') {
