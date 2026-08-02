@@ -551,7 +551,7 @@ ok('transferHost: AFK afk_j1 receives host_changed',
 ok('transferHost: AFK host_changed username = afk_j1',
     ($afkJ1->lastPacket()['host'] ?? '') === 'afk_j1');
 
-// ADR-007: a THIRD player is required to prove the queue moves forward
+// ADR-011: a THIRD player is required to prove the queue moves forward
 // (host, j1, j2) instead of bouncing back to an already-tried candidate.
 // This is the exact bug reported in A7 manual QA: with only 2 players the
 // old (buggy) implementation was indistinguishable from correct behavior
@@ -571,7 +571,7 @@ ok('transferHost: AFK afk_host still present in room (only lost host, not remove
 ok('transferHost: AFK refreshes new host host_activity_at on promotion',
     (time() - $workerAfk->rooms[$afkRoomId]['players'][$afkJ2->id]['host_activity_at']) <= 2);
 
-// ADR-007: queue exhaustion — afk_j2 (the last untried candidate) also
+// ADR-011: queue exhaustion — afk_j2 (the last untried candidate) also
 // times out. No forward candidate remains (afk_host and afk_j1 were
 // already tried) → room must be force-closed, all remaining players
 // removed with reason='afk', room destroyed.

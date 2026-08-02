@@ -2,6 +2,17 @@
 
 ## Phase 14 — AFK Timer Audit Fixes
 
+- [DONE] EPIC-14.8 Fix stale ADR-007 citations in lobby integration test comments
+Files:
+- tests/Manual/test_lobby_integration.php (diff — SUITE 5 comments: ADR-007 → ADR-011)
+
+Notes: Comment-only traceability cleanup (ADR-011 retroactive doc). No logic change.
+Grep confirmed no remaining incorrect «ADR-007» / «A7 spec» citations outside
+legitimate ADR-007 subjects (`error.banned`, `afk_warning` protocol audit).
+
+VERIFICATION:
+- `php tests/Manual/test_lobby_integration.php` — 133/133 PASS (unchanged logic).
+
 - [DONE] EPIC-14.6 Clear stale lobby joined message on leave room
 Files:
 - public/js/app.js (diff — `resetToLobby()` clears `#lobby-message`)
