@@ -397,23 +397,14 @@
 
   function onApartmentAlert(pkt) {
     state.immune = !pkt.required;
-    enqueueAnimation(async () => {
-      await new Promise((resolve) => {
-        UI().showApartment(
-          pkt.required,
-          pkt.time_left || 10,
-          () => socket.sendAction('apartment_choice', { choice: 'agree' }),
-          () => socket.sendAction('apartment_choice', { choice: 'refuse' }),
-          () => socket.sendAction('apartment_choice', { choice: 'refuse' })
-        );
-        const check = setInterval(() => {
-          if (UI().$('#apartment-modal')?.classList.contains('hidden')) {
-            clearInterval(check);
-            resolve();
-          }
-        }, 200);
-      });
-    });
+    // Server apartment timer starts on send — do not queue behind barrel animation.
+    UI().showApartment(
+      pkt.required,
+      pkt.time_left || 10,
+      () => socket.sendAction('apartment_choice', { choice: 'agree' }),
+      () => socket.sendAction('apartment_choice', { choice: 'refuse' }),
+      () => socket.sendAction('apartment_choice', { choice: 'refuse' })
+    );
   }
 
   function onGameOver(pkt) {

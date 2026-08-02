@@ -2,6 +2,27 @@
 
 ## Phase 18 — Client Balance Persistence (2026-08-02)
 
+- [DONE] FIX-22 Apartment alert shown immediately (not behind barrel animation)
+Files:
+- public/js/app.js (diff — `onApartmentAlert()` no longer uses `enqueueAnimation`)
+
+Notes: Non-immune players were kicked to lobby before seeing agree/refuse: server
+`apartment_timer` (10s per ANCHOR_CORE) starts when `apartment_alert` is sent, but
+the client queued the modal behind `barrels_drawn` slot animation (~8s+). Server timed
+out → `player_left` reason=refuse → `resetToLobby()` before modal appeared.
+
+CHANGED:
+- `onApartmentAlert()`: call `UI().showApartment()` synchronously on packet receipt
+
+NOT CHANGED:
+- Server apartment timer duration (10s), `ApartmentService` logic, protocol, animation queue for barrels
+
+VERIFICATION:
+- MANUAL: 2–3 player game, trigger apartment — required (non-immune) player sees
+  agree/refuse modal immediately with full ~10s countdown; not thrown to lobby until
+  timeout/refuse. Immune player sees wait screen immediately.
+- No automated test (client UI timing).
+
 - [DONE] FIX-21 GAME_RULES.md §5 «Квартира» direction and payment amount corrected
 Files:
 - docs/GAME_RULES.md (diff — swap immune/required categories; 10 → 5 coins)
