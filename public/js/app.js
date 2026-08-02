@@ -422,7 +422,10 @@
       UI().showGameOver(pkt);
       if (pkt.statistics) {
         const me = pkt.statistics.find((s) => s.username === state.user?.username);
-        if (me) state.user.coins = (state.user.coins || 0) - me.paid + me.received;
+        if (me && state.user) {
+          state.user.coins = (state.user.coins || 0) - me.paid + me.received;
+          persistUser(state.user);
+        }
         UI().updateLobbyUser(state.user);
       }
     };
