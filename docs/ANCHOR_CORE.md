@@ -427,11 +427,10 @@ Destroyed when: game starts, room destroyed, or player count <2. Max one per roo
 Owner: room. Exists only in `playing`. Count: exactly 1/room. Interval: 1s repeat.
 Tracks: `active_drawer_conn_id`. Created on first `your_turn`, reused after turn change — never recreated.
 
-### Thresholds (measured as `time()-player.afk_start` per turn)
-- `turn_seconds` (default 30): per-turn limit before strike.
-- `auto_draws=0`: strike 1 — `afk_warning` sent, auto-draw performed, player stays (`auto_draws=1`).
-- `auto_draws=1`: strike 2 — `afk_warning` sent, auto-draw performed, player stays (`auto_draws=2`).
-- `auto_draws=2`: strike 3 — `removePlayerFromGame(..., 'afk')` (no auto-draw).
+### Thresholds (measured as `time()-player.afk_start` per turn; ADR-012)
+- `auto_draws=0`: strike 1 — window **30s** (`LOTTO_GAME_AFK_STRIKE1`) → `afk_warning`, auto-draw, player stays (`auto_draws=1`).
+- `auto_draws=1`: strike 2 — window **15s** (`LOTTO_GAME_AFK_STRIKE2`) → `afk_warning`, auto-draw, player stays (`auto_draws=2`).
+- `auto_draws=2`: strike 3 — window **5s** (`LOTTO_GAME_AFK_STRIKE3`) → `removePlayerFromGame(..., 'afk')` (no auto-draw).
 - Successful manual draw: `strikes=0`, `auto_draws=0`, `afk_start` reset for next drawer via `your_turn`.
 - On turn change: `strikes=0`, `afk_start=time()` for new drawer (`auto_draws` preserved per player).
 Destroyed when room leaves `playing` or room destroyed.

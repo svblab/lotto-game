@@ -365,7 +365,7 @@ final class GameService
         }
         $room['players'][$drawerConnId]['strikes'] = 0;
         $autoDraws = (int)($room['players'][$drawerConnId]['auto_draws'] ?? 0);
-        $turnSeconds = Constants::gameAfkTurnSeconds();
+        $turnSeconds = Constants::gameAfkStrikeWindowSeconds($autoDraws);
 
         if ($deferAfkStart) {
             $room['players'][$drawerConnId]['afk_start'] = null;

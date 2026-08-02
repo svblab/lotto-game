@@ -192,12 +192,18 @@ putenv('LOTTO_TIMER_AUDIT_LOG');
 echo "\nGROUP 2: Constants env overrides\n";
 
 putenv('LOTTO_RECONNECT_TIMEOUT=5');
-putenv('LOTTO_GAME_AFK_TURN=7');
+putenv('LOTTO_GAME_AFK_STRIKE1=7');
+putenv('LOTTO_GAME_AFK_STRIKE2=4');
+putenv('LOTTO_GAME_AFK_STRIKE3=2');
 assertTrue(Constants::reconnectTimeout() === 5, 'LOTTO_RECONNECT_TIMEOUT override');
-assertTrue(Constants::gameAfkTurnSeconds() === 7, 'LOTTO_GAME_AFK_TURN override');
+assertTrue(Constants::gameAfkStrikeWindowSeconds(0) === 7, 'LOTTO_GAME_AFK_STRIKE1 override');
+assertTrue(Constants::gameAfkStrikeWindowSeconds(1) === 4, 'LOTTO_GAME_AFK_STRIKE2 override');
+assertTrue(Constants::gameAfkStrikeWindowSeconds(2) === 2, 'LOTTO_GAME_AFK_STRIKE3 override');
 
 putenv('LOTTO_RECONNECT_TIMEOUT');
-putenv('LOTTO_GAME_AFK_TURN');
+putenv('LOTTO_GAME_AFK_STRIKE1');
+putenv('LOTTO_GAME_AFK_STRIKE2');
+putenv('LOTTO_GAME_AFK_STRIKE3');
 assertTrue(Constants::reconnectTimeout() === Constants::RECONNECT_TIMEOUT, 'default reconnect timeout restored');
 
 // =============================================================================

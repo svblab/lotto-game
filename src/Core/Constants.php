@@ -32,22 +32,14 @@ class Constants
     /** Apartment voting single-shot timeout (ApartmentService). */
     public const APARTMENT_TIMEOUT = 10;
 
-    /** Seconds per turn before AFK strike (auto-draw or removal). */
-    public const GAME_AFK_TURN_SECONDS = 30;
+    /** Strike 1 AFK window (auto_draws=0). */
+    public const GAME_AFK_STRIKE1_SECONDS = 30;
 
-    /** @deprecated Use GAME_AFK_TURN_SECONDS */
-    public const GAME_AFK_STRIKE1_SECONDS = self::GAME_AFK_TURN_SECONDS;
-    /** @deprecated Cumulative strike phases removed — use auto_draws counter */
-    public const GAME_AFK_STRIKE2_SECONDS = 45;
-    /** @deprecated Cumulative strike phases removed — use auto_draws counter */
-    public const GAME_AFK_STRIKE3_SECONDS = 50;
+    /** Strike 2 AFK window (auto_draws=1). */
+    public const GAME_AFK_STRIKE2_SECONDS = 15;
 
-    /** @deprecated Use GAME_AFK_STRIKE1_SECONDS */
-    public const GAME_AFK_WARN1_SECONDS = self::GAME_AFK_STRIKE1_SECONDS;
-    /** @deprecated Use GAME_AFK_STRIKE2_SECONDS */
-    public const GAME_AFK_WARN2_SECONDS = self::GAME_AFK_STRIKE2_SECONDS;
-    /** @deprecated Use GAME_AFK_STRIKE3_SECONDS */
-    public const GAME_AFK_AUTO_SECONDS = self::GAME_AFK_STRIKE3_SECONDS;
+    /** Strike 3 / removal AFK window (auto_draws=2). */
+    public const GAME_AFK_STRIKE3_SECONDS = 5;
 
     /** Repeat interval for lobby/game AFK polling timers. */
     public const AFK_TICK_INTERVAL = 1;
@@ -88,46 +80,16 @@ class Constants
         return self::envInt('LOTTO_APARTMENT_TIMEOUT', self::APARTMENT_TIMEOUT);
     }
 
-    public static function gameAfkTurnSeconds(): int
+    public static function gameAfkStrikeWindowSeconds(int $autoDraws): int
     {
-        return self::envInt(
-            'LOTTO_GAME_AFK_TURN',
-            self::envInt('LOTTO_GAME_AFK_STRIKE1', self::envInt('LOTTO_GAME_AFK_WARN1', self::GAME_AFK_TURN_SECONDS))
-        );
-    }
+        if ($autoDraws <= 0) {
+            return self::envInt('LOTTO_GAME_AFK_STRIKE1', self::GAME_AFK_STRIKE1_SECONDS);
+        }
+        if ($autoDraws === 1) {
+            return self::envInt('LOTTO_GAME_AFK_STRIKE2', self::GAME_AFK_STRIKE2_SECONDS);
+        }
 
-    /** @deprecated Use gameAfkTurnSeconds() */
-    public static function gameAfkStrike1Seconds(): int
-    {
-        return self::gameAfkTurnSeconds();
-    }
-
-    public static function gameAfkStrike2Seconds(): int
-    {
-        return self::envInt('LOTTO_GAME_AFK_STRIKE2', self::envInt('LOTTO_GAME_AFK_WARN2', self::GAME_AFK_STRIKE2_SECONDS));
-    }
-
-    public static function gameAfkStrike3Seconds(): int
-    {
-        return self::envInt('LOTTO_GAME_AFK_STRIKE3', self::envInt('LOTTO_GAME_AFK_AUTO', self::GAME_AFK_STRIKE3_SECONDS));
-    }
-
-    /** @deprecated Use gameAfkStrike1Seconds() */
-    public static function gameAfkWarn1Seconds(): int
-    {
-        return self::gameAfkStrike1Seconds();
-    }
-
-    /** @deprecated Use gameAfkStrike2Seconds() */
-    public static function gameAfkWarn2Seconds(): int
-    {
-        return self::gameAfkStrike2Seconds();
-    }
-
-    /** @deprecated Use gameAfkStrike3Seconds() */
-    public static function gameAfkAutoSeconds(): int
-    {
-        return self::gameAfkStrike3Seconds();
+        return self::envInt('LOTTO_GAME_AFK_STRIKE3', self::GAME_AFK_STRIKE3_SECONDS);
     }
 
     public static function afkTickInterval(): float

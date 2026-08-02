@@ -222,7 +222,7 @@ Server → Client
 {"type": "your_turn", "afk_start": 1704067150, "turn_seconds": 30, "auto_draws": 0}
 ```
 `afk_start`: unix timestamp when the drawer turn (and AFK countdown) began; omitted until client sends `turn_ready` after slot animation.
-`turn_seconds`: seconds allowed for this turn before an AFK strike.
+`turn_seconds`: seconds allowed for **this strike's** inactivity window before an AFK strike (30 / 15 / 5 per ADR-012, keyed to current `auto_draws`).
 `auto_draws`: prior auto-draw count for this player (0–2); third strike removes the player.
 
 ### draw_barrel
@@ -250,6 +250,7 @@ Server → Client. Sent to the current drawer when the per-turn timeout is reach
 {"type": "afk_warning", "strike": 1, "afk_start": 1704067150, "turn_seconds": 30, "auto_draws": 0}
 ```
 `strike`: `1` or `2` (warning before auto-draw). Strike `3` triggers immediate removal without a warning packet.
+`turn_seconds`: current strike's inactivity window (30 for strike 1, 15 for strike 2).
 `auto_draws`: count of prior auto-draws before this strike.
 
 ---

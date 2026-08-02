@@ -13,6 +13,10 @@ require_once __DIR__ . '/../../src/Core/Helpers.php';
 
 use Lotto\Game\ReconnectService;
 use Lotto\Game\GameFinishService;
+use Lotto\Game\GameService;
+use Lotto\Game\LottoEngine;
+use Lotto\Game\VictoryService;
+use Lotto\Game\ApartmentService;
 
 $passed = 0;
 $failed = 0;
@@ -351,13 +355,16 @@ function makeRoom(int $roomId, int $hostConnId): array
     $room = makeRoom(4, 4);
     $room['status'] = 'playing';
     $room['players'][4] = makePlayer($conn, 'active');
-    $room['players'][4]['afk_start'] = time() - 31;
+    $room['players'][4]['afk_start'] = time() - 29;
     $room['players'][4]['auto_draws'] = 0;
     $worker->rooms[4] = $room;
 
     $svc->ensureGameAfkTimer($worker, 4);
     assert_true(!empty($worker->rooms[4]['game_afk_timer_id']), 'game afk: timer created once');
 
+    $svc->tickGameAfk($worker, 4);
+    assert_true($game->drawCalls === 0, 'game afk strike1: no draw before 30s');
+    $worker->rooms[4]['players'][4]['afk_start'] = time() - 30;
     $svc->tickGameAfk($worker, 4);
     assert_true($game->drawCalls === 1, 'game afk: auto-draw on strike 1');
     assert_true($worker->rooms[4]['players'][4]['auto_draws'] === 1, 'game afk: auto_draws=1 after strike 1');
@@ -383,9 +390,12 @@ function makeRoom(int $roomId, int $hostConnId): array
     $room['status'] = 'playing';
     $room['players'][44] = makePlayer($conn, 'active');
     $room['players'][44]['auto_draws'] = 1;
-    $room['players'][44]['afk_start'] = time() - 31;
+    $room['players'][44]['afk_start'] = time() - 14;
     $worker->rooms[44] = $room;
 
+    $svc->tickGameAfk($worker, 44);
+    assert_true($game->drawCalls === 0, 'game afk strike2: no draw before 15s');
+    $worker->rooms[44]['players'][44]['afk_start'] = time() - 15;
     $svc->tickGameAfk($worker, 44);
     assert_true($game->drawCalls === 1, 'game afk: auto-draw on strike 2');
     assert_true($worker->rooms[44]['players'][44]['auto_draws'] === 2, 'game afk: auto_draws=2 after strike 2');
@@ -393,6 +403,31 @@ function makeRoom(int $roomId, int $hostConnId): array
     $warnings = $conn->sentOfType('afk_warning');
     assert_true(count($warnings) === 1, 'game afk: second warning sent');
     assert_true(($warnings[0]['strike'] ?? null) === 2, 'game afk: warning strike=2');
+    assert_true(($warnings[0]['turn_seconds'] ?? null) === 15, 'game afk: strike2 turn_seconds=15');
+}
+
+// ---------------------------------------------------------------------------
+// GROUP 4c: your_turn turn_seconds reflects auto_draws stage
+// ---------------------------------------------------------------------------
+{
+    \MockTimer::reset();
+    $conn = new MockConnection(440, 4400, 'turn_pkt');
+    $room = makeRoom(440, 440);
+    $room['status'] = 'playing';
+    $room['active_drawer_conn_id'] = 440;
+    $room['players'][440] = makePlayer($conn, 'active');
+    $room['players'][440]['auto_draws'] = 1;
+
+    $pdo = new MockPDO();
+    $db = new MockDatabase($pdo);
+    $st = new MockStmts();
+    $log = new MockLogger();
+    $gs = new GameService($db, $st, new LottoEngine(), $log, new VictoryService(), new ApartmentService($db, $st, $log), new GameFinishService($db, $st, $log));
+    $gs->sendYourTurn($room, false);
+
+    $turnPkts = $conn->sentOfType('your_turn');
+    assert_true(count($turnPkts) === 1, 'your_turn: packet sent');
+    assert_true(($turnPkts[0]['turn_seconds'] ?? null) === 15, 'your_turn: turn_seconds=15 when auto_draws=1');
 }
 
 // ---------------------------------------------------------------------------
@@ -413,10 +448,13 @@ function makeRoom(int $roomId, int $hostConnId): array
     $room['players'][6] = makePlayer($conn2, 'active');
     $room['drawer_order'] = [5, 6];
     $room['active_drawer_conn_id'] = 5;
-    $room['players'][5]['afk_start'] = time() - 31;
+    $room['players'][5]['afk_start'] = time() - 4;
     $room['players'][5]['auto_draws'] = 2;
     $worker->rooms[5] = $room;
 
+    $svc->tickGameAfk($worker, 5);
+    assert_true(isset($worker->rooms[5]['players'][5]), 'afk strike3: no removal before 5s');
+    $worker->rooms[5]['players'][5]['afk_start'] = time() - 5;
     $svc->tickGameAfk($worker, 5);
     assert_true($game->drawCalls === 0, 'afk strike3: no auto draw');
     $leftPkts = $conn->sentOfType('player_left');
@@ -446,7 +484,7 @@ function makeRoom(int $roomId, int $hostConnId): array
     $room['players'][57] = makePlayer($c7, 'active');
     $room['drawer_order'] = [55, 56, 57];
     $room['active_drawer_conn_id'] = 55;
-    $room['players'][55]['afk_start'] = time() - 31;
+    $room['players'][55]['afk_start'] = time() - 5;
     $room['players'][55]['auto_draws'] = 2;
     $worker->rooms[55] = $room;
 

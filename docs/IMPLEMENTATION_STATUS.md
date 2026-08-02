@@ -23,6 +23,25 @@ VERIFICATION:
 - `php tests/Manual/test_apartment.php` — **38/38 PASS** (was 36; +GROUP 9).
 - `php run_ALL_tests.php` — **32/41** files pass (baseline 31/41 pre-epic; `test_apartment.php` fixed).
 
+- [DONE] EPIC-15.2 Progressive game AFK strike windows 30s / 15s / 5s (ADR-012)
+Files:
+- docs/ADR/012.md (new)
+- docs/ANCHOR_CORE.md (diff — § Game AFK Timer thresholds table)
+- docs/ANCHOR_PROTOCOL.md (diff — `turn_seconds` semantics for `your_turn` / `afk_warning`)
+- src/Core/Constants.php (diff — `gameAfkStrikeWindowSeconds()`; removed dead flat-30 helpers)
+- src/Game/ReconnectService.php (diff — `tickGameAfk()` per-strike window lookup)
+- src/Game/GameService.php (diff — `sendYourTurn()` / packet `turn_seconds` per `auto_draws`)
+- tests/Manual/test_reconnect.php (diff — GROUP 4/4b/4c/5/6 boundary + `turn_seconds` assertions)
+- tests/Manual/test_timer_audit.php (diff — `LOTTO_GAME_AFK_STRIKE1/2/3` env override tests)
+
+Notes: `auto_draws` semantics unchanged (ADR-008). Client (`public/js/ui.js`) already uses
+server `turn_seconds` — no hardcoded 30s dependency beyond falsy fallback.
+
+VERIFICATION:
+- `php tests/Manual/test_reconnect.php` — **71/71 PASS** (strike 1≥30s, strike 2≥15s, strike 3≥5s boundaries; `turn_seconds` 30/15 in packets).
+- `php tests/Manual/test_timer_audit.php` — **22/22 PASS**.
+- `php run_ALL_tests.php` — **32/41** files pass (no new failures vs EPIC-15.1 sign-off).
+
 ## Phase 14 — AFK Timer Audit Fixes
 
 - [DONE] EPIC-14.9 GAME_RULES.md: align lobby AFK activity examples with allowlist

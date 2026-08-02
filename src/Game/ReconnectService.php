@@ -394,13 +394,12 @@ final class ReconnectService
             return;
         }
 
-        $turnSeconds = Constants::gameAfkTurnSeconds();
+        $autoDraws = (int)($drawer['auto_draws'] ?? 0);
+        $turnSeconds = Constants::gameAfkStrikeWindowSeconds($autoDraws);
         $elapsed = time() - (int)$drawer['afk_start'];
         if ($elapsed < $turnSeconds) {
             return;
         }
-
-        $autoDraws = (int)($drawer['auto_draws'] ?? 0);
 
         if ($autoDraws >= 2) {
             $this->removePlayerFromGame($worker, $roomId, (int)$drawerConnId, 'afk');
