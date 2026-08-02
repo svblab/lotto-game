@@ -171,7 +171,7 @@ foreach ($declaredErrorCodes as $code) {
     if ($count > 0) {
         check(true, "error code '{$code}' used ({$count} site(s))");
     } else {
-        warn("error code '{$code}' declared in ANCHOR_PROTOCOL.md but NEVER used — 'banned' packet type may cover its purpose instead (see notes)");
+        warn("error code '{$code}' declared in ANCHOR_PROTOCOL.md but NEVER used — reserved per ADR-007 (`banned` packet covers ban rejections)");
     }
 }
 
@@ -193,9 +193,6 @@ if (empty($undeclaredPackets)) {
     check(true, 'no undeclared packet types found in code');
 } else {
     foreach ($undeclaredPackets as $p) {
-        // KNOWN GAP: afk_warning is used (ReconnectService, EPIC-8.3) but
-        // was never added to the ANCHOR_CORE.md registry. Documentation
-        // debt, not a code defect - warning, not a failure.
         warn("packet type '{$p}' is emitted in code but NOT declared in ANCHOR_CORE.md's registry — documentation debt (Rule 27)");
     }
 }

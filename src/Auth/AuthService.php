@@ -64,7 +64,7 @@ class AuthService
             $insertStmt->execute([$username, $passwordHash]);
 
             // 6. Логирование успешного исхода (Уровень INFO)
-            $this->logger->write('INFO', "User registered: {$username}");
+            $this->safeLog('INFO', "User registered: {$username}");
 
             return [
                 'success' => true,
@@ -73,7 +73,7 @@ class AuthService
 
         } catch (Exception $e) {
             // Логирование ошибки регистрации (Уровень WARNING)
-            $this->logger->write('WARNING', "Registration failed: " . $e->getMessage());
+            $this->safeLog('WARNING', "Registration failed: " . $e->getMessage());
             throw $e;
         }
     }
@@ -139,14 +139,15 @@ class AuthService
             // EPIC-1.3: Single Session Protection
             $userId = (int)$user['id'];
             if ($worker !== null) {
-                if (isset($worker->userConnections[$userId])) {
+                if (isset($worker->userConnections[$userId])
+                    && $worker->userConnections[$userId] !== $connection) {
                     throw new Exception('User already logged in');
                 }
                 $worker->userConnections[$userId] = $connection;
             }
 
             // Шаг 8: Записать лог об успешном входе (Уровень INFO)
-            $this->logger->write('INFO', "User login: {$username}");
+            $this->safeLog('INFO', "User login: {$username}");
 
             // EPIC-1.2: Возврат существующего контракта с добавлением session_token
             return [
@@ -163,8 +164,21 @@ class AuthService
 
         } catch (Exception $e) {
             // Запись лога ошибки выполнения/аутентификации (Уровень WARNING)
-            $this->logger->write('WARNING', "Login failed: " . $e->getMessage());
+            $this->safeLog('WARNING', "Login failed: " . $e->getMessage());
             throw $e;
+        }
+    }
+
+    /**
+     * FIX-14: logging must never break auth flows (e.g. root-owned logs/server.log
+     * during www-data WS tests on VPS).
+     */
+    private function safeLog(string $level, string $message): void
+    {
+        try {
+            $this->logger->write($level, $message);
+        } catch (Exception) {
+            // Intentionally ignored.
         }
     }
 
@@ -180,7 +194,7 @@ class AuthService
      * Не бросает исключений на "не найдено" — вызывающая сторона
      * (AuthHandler::handleReconnect()) трактует null как невалидную сессию.
      *
-     * @return array{id:int, username:string, is_admin:bool, banned_until:int}|null
+     * @return array{id:int, username:string, is_admin:bool, banned_until:int, coins:int}|null
      */
     public function getUserById(int $userId): ?array
     {
@@ -197,6 +211,7 @@ class AuthService
             'username' => (string)$row['username'],
             'is_admin' => (bool)$row['is_admin'],
             'banned_until' => (int)$row['banned_until'],
+            'coins' => (int)$row['coins'],
         ];
     }
 }

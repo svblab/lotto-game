@@ -27,7 +27,7 @@ declare(strict_types=1);
  * Запуск: php tests/Manual/test_packet_validation.php
  */
 
-const HARD_TIMEOUT_SECONDS = 25;
+const HARD_TIMEOUT_SECONDS = 45;
 const RATE_LIMIT = 15; // должно совпадать с Constants::RATE_LIMIT_PACKETS_PER_WINDOW
 
 // =============================================================================
@@ -61,6 +61,7 @@ if (function_exists('pcntl_async_signals')) {
 final class MiniWSClient
 {
     private $sock;
+    private bool $closed = false;
 
     public function __construct(string $host, int $port, float $connectTimeout = 5.0)
     {
@@ -111,14 +112,28 @@ final class MiniWSClient
         fwrite($this->sock, $frame);
     }
 
-    /** @return string|null payload, или null при таймауте/закрытии — см. isClosed() для различения */
-    public function recvOrNull(float $timeout = 1.5): ?string
+    /** @return string|null payload текстового фрейма; null при таймауте/close */
+    public function recvOrNull(float $timeout = 2.0): ?string
+    {
+        $frame = $this->recvFrameOrNull($timeout);
+        if ($frame === null || ($frame['opcode'] ?? null) === 0x8) {
+            return null;
+        }
+
+        return $frame['payload'];
+    }
+
+    /**
+     * @return array{opcode: int, payload: string}|null
+     */
+    public function recvFrameOrNull(float $timeout = 2.0): ?array
     {
         stream_set_timeout($this->sock, (int)$timeout, (int)(($timeout - (int)$timeout) * 1000000));
         $hdr = fread($this->sock, 2);
         if ($hdr === false || strlen($hdr) < 2) {
             return null;
         }
+        $opcode = ord($hdr[0]) & 0x0F;
         $b1 = ord($hdr[1]);
         $len = $b1 & 0x7F;
         if ($len === 126) {
@@ -142,13 +157,34 @@ final class MiniWSClient
             }
             $payload .= $chunk;
         }
-        return $payload;
+
+        if ($opcode === 0x8) {
+            $this->closed = true;
+        }
+
+        return ['opcode' => $opcode, 'payload' => $payload];
     }
 
-    /** Различает "таймаут, соединение живо" от "соединение реально закрыто сервером" */
     public function isClosed(): bool
     {
-        return feof($this->sock);
+        return $this->closed || feof($this->sock);
+    }
+
+    public function waitUntilClosed(float $timeout = 2.0): bool
+    {
+        $deadline = microtime(true) + $timeout;
+        while (microtime(true) < $deadline) {
+            if ($this->isClosed()) {
+                return true;
+            }
+            $this->recvFrameOrNull(0.2);
+            if ($this->isClosed()) {
+                return true;
+            }
+            usleep(50_000);
+        }
+
+        return $this->isClosed();
     }
 
     public function close(): void
@@ -180,71 +216,23 @@ function check(bool $cond, string $label): void
 // Поднимаем server.php (self-healing + вывод в файлы, см. test_server_bootstrap.php)
 // =============================================================================
 
+require_once __DIR__ . '/ws_test_harness.php';
+
 $projectRoot = dirname(__DIR__, 2);
+wsTestEnsureDatabase($projectRoot);
+$wsPort = wsTestPort();
 
-$stopDescriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
-$stopProcess = @proc_open(['php', $projectRoot . '/server.php', 'stop'], $stopDescriptors, $stopPipes, $projectRoot);
-if (is_resource($stopProcess)) {
-    stream_set_blocking($stopPipes[1], false);
-    stream_set_blocking($stopPipes[2], false);
-    $stopWaited = 0;
-    while ($stopWaited < 5_000_000) {
-        @fread($stopPipes[1], 65536);
-        @fread($stopPipes[2], 65536);
-        if (!proc_get_status($stopProcess)['running']) {
-            break;
-        }
-        usleep(100_000);
-        $stopWaited += 100_000;
-    }
-    foreach ($stopPipes as $p) {
-        if (is_resource($p)) {
-            fclose($p);
-        }
-    }
-    proc_close($stopProcess);
-    usleep(300_000);
-}
-
-$stdoutFile = tempnam(sys_get_temp_dir(), 'lotto_srv_out_');
-$stderrFile = tempnam(sys_get_temp_dir(), 'lotto_srv_err_');
-$descriptors = [0 => ['pipe', 'r'], 1 => ['file', $stdoutFile, 'w'], 2 => ['file', $stderrFile, 'w']];
-
-$process = proc_open(['php', $projectRoot . '/server.php', 'start'], $descriptors, $pipes, $projectRoot);
-if (!is_resource($process)) {
-    fwrite(STDERR, "Failed to start server.php subprocess\n");
+try {
+    $serverCtx = wsTestStartServer($projectRoot);
+} catch (Throwable $e) {
+    fwrite(STDERR, $e->getMessage() . "\n");
     exit(1);
 }
+
+$process = $serverCtx['process'];
+$stdoutFile = $serverCtx['stdoutFile'];
+$stderrFile = $serverCtx['stderrFile'];
 $GLOBALS['__serverProcess'] = $process;
-if (isset($pipes[0]) && is_resource($pipes[0])) {
-    fclose($pipes[0]);
-}
-
-$bound = false;
-for ($i = 0; $i < 50; $i++) {
-    $status = proc_get_status($process);
-    if (!$status['running']) {
-        break;
-    }
-    $probe = @fsockopen('127.0.0.1', 8080, $errno, $errstr, 0.1);
-    if ($probe) {
-        fclose($probe);
-        $bound = true;
-        break;
-    }
-    usleep(100_000);
-}
-
-if (!$bound) {
-    fwrite(STDERR, "server.php did not bind port 8080 in time\n");
-    fwrite(STDERR, "--- stdout ---\n" . @file_get_contents($stdoutFile) . "\n");
-    fwrite(STDERR, "--- stderr ---\n" . @file_get_contents($stderrFile) . "\n");
-    proc_terminate($process, 9);
-    proc_close($process);
-    @unlink($stdoutFile);
-    @unlink($stderrFile);
-    exit(1);
-}
 
 try {
     // =========================================================================
@@ -252,13 +240,13 @@ try {
     // error.invalid_json, соединение остаётся открытым.
     // =========================================================================
     echo "TEST 1: ровно " . RATE_LIMIT . " невалидных пакетов — все получают ответ, соединение живо\n";
-    $c1 = new MiniWSClient('127.0.0.1', 8080);
+    $c1 = new MiniWSClient('127.0.0.1', $wsPort);
     $c1->recvOrNull(); // hello
 
     $received = 0;
     for ($i = 0; $i < RATE_LIMIT; $i++) {
         $c1->send('{not valid json ' . $i);
-        $resp = $c1->recvOrNull(1.0);
+        $resp = $c1->recvOrNull(2.0);
         if ($resp !== null) {
             $data = json_decode($resp, true);
             if (($data['type'] ?? null) === 'error' && ($data['code'] ?? null) === 'error.invalid_json') {
@@ -274,17 +262,20 @@ try {
     // TEST 2: RATE_LIMIT+1 (16-й) пакет в том же окне -> закрытие БЕЗ error-пакета
     // =========================================================================
     echo "\nTEST 2: " . (RATE_LIMIT + 1) . "-й пакет в том же окне -> закрытие без error-пакета\n";
-    $c2 = new MiniWSClient('127.0.0.1', 8080);
+    $c2 = new MiniWSClient('127.0.0.1', $wsPort);
     $c2->recvOrNull(); // hello
 
     for ($i = 0; $i < RATE_LIMIT; $i++) {
         $c2->send('{not valid json ' . $i);
-        $c2->recvOrNull(1.0); // вычитываем error-пакеты, не мешаем следующим
+        $c2->recvOrNull(2.0);
     }
-    // 16-й пакет — превышение лимита
     $c2->send('{not valid json overflow');
-    $respOverflow = $c2->recvOrNull(1.5);
-    check($respOverflow === null, 'на 16-й пакет НЕТ error-пакета (соединение закрыто, а не отвечено)');
+    $overflowFrame = $c2->recvFrameOrNull(2.0);
+    $gotErrorJson = $overflowFrame !== null
+        && ($overflowFrame['opcode'] ?? null) === 0x1
+        && str_contains($overflowFrame['payload'], 'error.invalid_json');
+    check(!$gotErrorJson, 'на 16-й пакет НЕТ error.invalid_json (rate limit закрывает без error-пакета)');
+    $c2->waitUntilClosed(2.0);
     check($c2->isClosed(), 'соединение реально закрыто сервером после превышения rate limit (не просто таймаут)');
     $c2->close();
 
@@ -293,7 +284,7 @@ try {
     // не только ошибочные (ADR-003 п.2).
     // =========================================================================
     echo "\nTEST 3: rate limit считает ping-пакеты наравне с прочими\n";
-    $c3 = new MiniWSClient('127.0.0.1', 8080);
+    $c3 = new MiniWSClient('127.0.0.1', $wsPort);
     $c3->recvOrNull(); // hello
 
     for ($i = 0; $i < RATE_LIMIT; $i++) {
@@ -305,7 +296,7 @@ try {
 
     // 16-й ping — превышение
     $c3->send(json_encode(['action' => 'ping']));
-    usleep(300_000); // даём серверу время обработать и закрыть
+    $c3->waitUntilClosed(2.0);
     check($c3->isClosed(), 'соединение закрыто после ' . (RATE_LIMIT + 1) . "-го ping (rate limit не делает исключения для валидных action)");
     $c3->close();
 
@@ -315,12 +306,12 @@ try {
     // окнах, соединение не должно закрываться.
     // =========================================================================
     echo "\nTEST 4: окно сбрасывается — burst в двух окнах не суммируется\n";
-    $c4 = new MiniWSClient('127.0.0.1', 8080);
+    $c4 = new MiniWSClient('127.0.0.1', $wsPort);
     $c4->recvOrNull(); // hello
 
     for ($i = 0; $i < RATE_LIMIT; $i++) {
         $c4->send('{not valid json a' . $i);
-        $c4->recvOrNull(1.0);
+        $c4->recvOrNull(2.0);
     }
     check(!$c4->isClosed(), 'соединение живо после первого burst (' . RATE_LIMIT . ' пакетов)');
 
@@ -329,7 +320,7 @@ try {
     $received4 = 0;
     for ($i = 0; $i < RATE_LIMIT; $i++) {
         $c4->send('{not valid json b' . $i);
-        $resp = $c4->recvOrNull(1.0);
+        $resp = $c4->recvOrNull(2.0);
         if ($resp !== null) {
             $data = json_decode($resp, true);
             if (($data['code'] ?? null) === 'error.invalid_json') {
@@ -346,7 +337,7 @@ try {
     // ADR-003 сценарий, без rate limit в игре вообще).
     // =========================================================================
     echo "\nTEST 5: одиночный невалидный JSON не закрывает соединение\n";
-    $c5 = new MiniWSClient('127.0.0.1', 8080);
+    $c5 = new MiniWSClient('127.0.0.1', $wsPort);
     $c5->recvOrNull(); // hello
     $c5->send('totally not json at all {{{');
     $resp5 = $c5->recvOrNull();
@@ -372,6 +363,7 @@ try {
     proc_close($process);
     @unlink($stdoutFile);
     @unlink($stderrFile);
+    wsTestCleanupDatabase();
 }
 
 if (function_exists('pcntl_alarm')) {

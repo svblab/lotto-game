@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Lotto\Game;
 
+use Lotto\Core\Constants;
+
 /**
  * VictoryService — EPIC-6.0 / 6.1 / 6.2
  *
@@ -115,6 +117,84 @@ final class VictoryService
         $burned       = $bank - $distributed;
 
         return ['prizes' => $prizes, 'burned' => $burned];
+    }
+
+    // -------------------------------------------------------------------------
+    // EPIC-16.0  Comparative win-chance (informational only — ADR-014)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Comparative win-chance per player (display only; never affects payouts).
+     *
+     * @param  array<int, array> $players  $room['players'], keyed by connId
+     * @return array<string, int>         username => percent (0-100)
+     */
+    public function calculateWinChances(array $players, ?object $logger = null): array
+    {
+        $weights = [];
+
+        foreach ($players as $player) {
+            if (!isset($player['cards'], $player['masks'])) {
+                if ($logger !== null) {
+                    $logger->warning('calculateWinChances: skipping player missing cards/masks');
+                }
+                continue;
+            }
+
+            $username = (string) ($player['username'] ?? '');
+            if ($username === '') {
+                continue;
+            }
+
+            $bestMoves = null;
+
+            foreach ($player['cards'] as $cardIdx => $card) {
+                $mask = $player['masks'][$cardIdx] ?? [];
+                $marked = 0;
+
+                for ($row = 0; $row < 3; $row++) {
+                    for ($col = 0; $col < 9; $col++) {
+                        if (!empty($mask[$row][$col])) {
+                            $marked++;
+                        }
+                    }
+                }
+
+                $remaining = 15 - $marked;
+                $movesNeeded = (int) ceil($remaining / Constants::BARRELS_PER_TURN);
+
+                if ($movesNeeded === 0) {
+                    if ($logger !== null) {
+                        $logger->warning(
+                            "calculateWinChances: bestMoves=0 for {$username}, using sentinel weight"
+                        );
+                    }
+                    $movesNeeded = 1;
+                }
+
+                if ($bestMoves === null || $movesNeeded < $bestMoves) {
+                    $bestMoves = $movesNeeded;
+                }
+            }
+
+            if ($bestMoves === null) {
+                continue;
+            }
+
+            $weights[$username] = 1 / max($bestMoves, 1);
+        }
+
+        $totalWeight = array_sum($weights);
+        if ($totalWeight <= 0) {
+            return [];
+        }
+
+        $result = [];
+        foreach ($weights as $username => $weight) {
+            $result[$username] = (int) round($weight / $totalWeight * 100);
+        }
+
+        return $result;
     }
 
     // -------------------------------------------------------------------------

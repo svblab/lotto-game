@@ -149,87 +149,43 @@ function check(bool $cond, string $label): void
     }
 }
 
+require_once __DIR__ . '/ws_test_harness.php';
+
+$projectRoot = dirname(__DIR__, 2);
+wsTestEnsureDatabase($projectRoot);
+
 $db  = new Database();
 $pdo = $db->getPdo();
 $pdo->exec("DELETE FROM users WHERE username LIKE 'fix10\\_%' ESCAPE '\\'");
 
-$projectRoot = dirname(__DIR__, 2);
+$wsPort = wsTestPort();
 
-$stopDescriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
-$stopProcess = @proc_open(['php', $projectRoot . '/server.php', 'stop'], $stopDescriptors, $stopPipes, $projectRoot);
-if (is_resource($stopProcess)) {
-    stream_set_blocking($stopPipes[1], false);
-    stream_set_blocking($stopPipes[2], false);
-    $stopWaited = 0;
-    while ($stopWaited < 5_000_000) {
-        @fread($stopPipes[1], 65536);
-        @fread($stopPipes[2], 65536);
-        if (!proc_get_status($stopProcess)['running']) break;
-        usleep(100_000);
-        $stopWaited += 100_000;
-    }
-    foreach ($stopPipes as $p) {
-        if (is_resource($p)) fclose($p);
-    }
-    proc_close($stopProcess);
-}
-
-$stdoutFile = sys_get_temp_dir() . '/lotto_session_lifecycle_stdout_' . getmypid() . '.log';
-$stderrFile = sys_get_temp_dir() . '/lotto_session_lifecycle_stderr_' . getmypid() . '.log';
-$descriptors = [
-    0 => ['pipe', 'r'],
-    1 => ['file', $stdoutFile, 'w'],
-    2 => ['file', $stderrFile, 'w'],
-];
-
-$process = proc_open(['php', $projectRoot . '/server.php', 'start'], $descriptors, $pipes, $projectRoot);
-if (!is_resource($process)) {
-    fwrite(STDERR, "Failed to start server.php subprocess\n");
+try {
+    $serverCtx = wsTestStartServer($projectRoot);
+} catch (Throwable $e) {
+    fwrite(STDERR, $e->getMessage() . "\n");
     exit(1);
 }
+
+$process = $serverCtx['process'];
+$stdoutFile = $serverCtx['stdoutFile'];
+$stderrFile = $serverCtx['stderrFile'];
 $GLOBALS['__serverProcess'] = $process;
-if (isset($pipes[0]) && is_resource($pipes[0])) {
-    fclose($pipes[0]);
-}
-
-$bound = false;
-for ($i = 0; $i < 50; $i++) {
-    $status = proc_get_status($process);
-    if (!$status['running']) break;
-    $probe = @fsockopen('127.0.0.1', 8080, $errno, $errstr, 0.1);
-    if ($probe) {
-        fclose($probe);
-        $bound = true;
-        break;
-    }
-    usleep(100_000);
-}
-
-if (!$bound) {
-    fwrite(STDERR, "server.php did not bind port 8080 in time\n");
-    fwrite(STDERR, "--- stdout ---\n" . @file_get_contents($stdoutFile) . "\n");
-    fwrite(STDERR, "--- stderr ---\n" . @file_get_contents($stderrFile) . "\n");
-    proc_terminate($process, 9);
-    proc_close($process);
-    @unlink($stdoutFile);
-    @unlink($stderrFile);
-    exit(1);
-}
 
 try {
     // =========================================================================
     // TEST 1: disconnect while NOT in any room -> login again succeeds
     // =========================================================================
     echo "TEST 1: disconnect (no room) -> login again succeeds (FIX-10)\n";
-    $a1 = new SessionLifecycleClient('127.0.0.1', 8080);
+    $a1 = new SessionLifecycleClient('127.0.0.1', $wsPort);
     $a1->recvOrNull(); // hello
     $a1->send(json_encode(['action' => 'register', 'username' => 'fix10_user1', 'password' => 'fix10pass123']));
     $reg1 = json_decode($a1->recvOrNull() ?? '', true);
     check(($reg1['type'] ?? null) === 'auth_result', 'register succeeds');
     $a1->close();
-    usleep(400_000); // let onClose process
+    usleep(1_000_000); // let onClose process (VPS-safe)
 
-    $b1 = new SessionLifecycleClient('127.0.0.1', 8080);
+    $b1 = new SessionLifecycleClient('127.0.0.1', $wsPort);
     $b1->recvOrNull(); // hello
     $b1->send(json_encode(['action' => 'login', 'username' => 'fix10_user1', 'password' => 'fix10pass123']));
     $login1 = json_decode($b1->recvOrNull() ?? '', true);
@@ -244,16 +200,16 @@ try {
     // authenticates the connection (proven via a subsequent create_room).
     // =========================================================================
     echo "\nTEST 2: disconnect (no room) -> reconnect alone authenticates (FIX-10)\n";
-    $a2 = new SessionLifecycleClient('127.0.0.1', 8080);
+    $a2 = new SessionLifecycleClient('127.0.0.1', $wsPort);
     $a2->recvOrNull();
     $a2->send(json_encode(['action' => 'register', 'username' => 'fix10_user2', 'password' => 'fix10pass123']));
     $reg2 = json_decode($a2->recvOrNull() ?? '', true);
     $token2 = $reg2['session_token'] ?? null;
     check(is_string($token2) && $token2 !== '', 'register: session_token present');
     $a2->close();
-    usleep(400_000);
+    usleep(1_000_000);
 
-    $b2 = new SessionLifecycleClient('127.0.0.1', 8080);
+    $b2 = new SessionLifecycleClient('127.0.0.1', $wsPort);
     $b2->recvOrNull();
     $b2->send(json_encode(['action' => 'reconnect', 'token' => $token2]));
     $b2->recvOrNull(1.0); // no room -> ReconnectService sends nothing; just draining
@@ -272,13 +228,13 @@ try {
     // ADR-001's single-active-session policy).
     // =========================================================================
     echo "\nTEST 3: concurrent double-login still rejected (ADR-001 regression guard)\n";
-    $c1 = new SessionLifecycleClient('127.0.0.1', 8080);
+    $c1 = new SessionLifecycleClient('127.0.0.1', $wsPort);
     $c1->recvOrNull();
     $c1->send(json_encode(['action' => 'register', 'username' => 'fix10_user3', 'password' => 'fix10pass123']));
     $reg3 = json_decode($c1->recvOrNull() ?? '', true);
     check(($reg3['type'] ?? null) === 'auth_result', 'register succeeds');
 
-    $c2 = new SessionLifecycleClient('127.0.0.1', 8080);
+    $c2 = new SessionLifecycleClient('127.0.0.1', $wsPort);
     $c2->recvOrNull();
     $c2->send(json_encode(['action' => 'login', 'username' => 'fix10_user3', 'password' => 'fix10pass123']));
     $dupLogin = json_decode($c2->recvOrNull() ?? '', true);
@@ -308,6 +264,7 @@ try {
     @unlink($stderrFile);
 
     $pdo->exec("DELETE FROM users WHERE username LIKE 'fix10\\_%' ESCAPE '\\'");
+    wsTestCleanupDatabase();
 }
 
 if (function_exists('pcntl_alarm')) {

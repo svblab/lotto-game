@@ -85,13 +85,38 @@
 
 declare(strict_types=1);
 
+// FIX-14: CLI config path survives fork even when putenv is unreliable.
+foreach (array_slice($_SERVER['argv'] ?? [], 1) as $lottoCliArg) {
+    if (!is_string($lottoCliArg) || !str_starts_with($lottoCliArg, '--lotto-config=')) {
+        continue;
+    }
+    $lottoConfigPath = substr($lottoCliArg, strlen('--lotto-config='));
+    if ($lottoConfigPath !== '') {
+        putenv('LOTTO_TEST_CONFIG=' . $lottoConfigPath);
+        $_ENV['LOTTO_TEST_CONFIG'] = $lottoConfigPath;
+        $_SERVER['LOTTO_TEST_CONFIG'] = $lottoConfigPath;
+    }
+    break;
+}
+
 require __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/src/Core/Helpers.php';
 
+use function Lotto\Core\lottoApplyTestConfig;
+use function Lotto\Core\lottoBootstrapPhpExtensions;
+use function Lotto\Core\lottoRuntimeEnv;
+
+lottoBootstrapPhpExtensions();
+lottoApplyTestConfig();
+
 use Workerman\Worker;
-use Workerman\Timer;
 use Lotto\Core\Constants;
 use Lotto\Core\Logger;
+use Lotto\Core\MemoryAudit;
+use Lotto\Core\TimerAudit;
+use Lotto\Core\EconomyAudit;
+use Lotto\Core\StateMachineAudit;
+use Lotto\Core\LoadAudit;
 use Lotto\Infrastructure\Database;
 use Lotto\Infrastructure\PreparedStatements;
 use Lotto\Auth\SessionService;
@@ -113,20 +138,38 @@ use Lotto\Admin\AdminHandler;
 use function Lotto\Core\sendJson;
 use function Lotto\Core\sendError;
 use function Lotto\Core\closeWithCode;
+use function Lotto\Core\lottoTimerAdd;
 
 // -----------------------------------------------------------------------
 // Worker bootstrap (ANCHOR_CORE.md Part 1 — single Workerman worker,
 // LOCAL_ENVIRONMENT.md — ws://localhost:8080)
 // -----------------------------------------------------------------------
 
-$worker = new Worker('websocket://0.0.0.0:8080');
+$wsPortEnv = lottoRuntimeEnv('LOTTO_WS_PORT');
+$wsPort = ($wsPortEnv !== null) ? (int) $wsPortEnv : 8080;
+
+$wmLogFile = lottoRuntimeEnv('LOTTO_WORKERMAN_LOG_FILE');
+if ($wmLogFile !== null) {
+    Worker::$logFile = $wmLogFile;
+}
+
+$wmPidFile = lottoRuntimeEnv('LOTTO_WORKERMAN_PID_FILE');
+if ($wmPidFile !== null) {
+    Worker::$pidFile = $wmPidFile;
+}
+
+$worker = new Worker('websocket://0.0.0.0:' . $wsPort);
 $worker->count = 1;
 $worker->name = 'LottoGameServer';
 
 $worker->onWorkerStart = function (Worker $worker): void {
+    // Re-apply in forked worker (putenv may not survive pcntl_fork on all hosts).
+    lottoApplyTestConfig();
+
     // Инфраструктура (Rule 15: dependency wiring разрешён в server.php)
-    $worker->db     = new Database();
-    $worker->logger = new Logger();
+    $worker->db = new Database();
+    $serverLogPath = lottoRuntimeEnv('LOTTO_SERVER_LOG');
+    $worker->logger = new Logger($serverLogPath);
 
     // EPIC-10.3 (Auth packet routing): AuthHandler уже реализован
     // (EPIC-1.3) — здесь только сборка зависимостей и подключение к
@@ -161,6 +204,7 @@ $worker->onWorkerStart = function (Worker $worker): void {
         $apartmentService,
         $gameFinishService
     );
+    $apartmentService->bindGameService($worker->gameService);
     $worker->gameHandler = new GameHandler($worker->gameService);
 
     // ReconnectService (EPIC-8.0) — конструктор требует LobbyService И
@@ -172,6 +216,8 @@ $worker->onWorkerStart = function (Worker $worker): void {
         $worker->gameService,
         $worker->logger
     );
+    // EPIC-13.1 (ADR-008): post-construction wiring for startTurn() AFK arm.
+    $worker->gameService->setReconnectService($worker->reconnectService);
 
     // EPIC-10.6 (Admin packet routing): AdminService уже реализован
     // (Phase 9) — здесь только сборка зависимостей и подключение к
@@ -208,14 +254,38 @@ $worker->onWorkerStart = function (Worker $worker): void {
     $worker->userConnections = [];
     $worker->sessionTokens   = [];
 
+    $worker->memoryAudit = new MemoryAudit($worker->logger);
+    $worker->timerAudit = new TimerAudit($worker->logger);
+    $worker->economyAudit = new EconomyAudit($worker->logger);
+    $worker->stateAudit = new StateMachineAudit($worker->logger);
+    $worker->loadAudit = new LoadAudit($worker->logger);
+    $GLOBALS['__lotto_timer_audit'] = $worker->timerAudit;
+    $GLOBALS['__lotto_economy_audit'] = $worker->economyAudit;
+    $GLOBALS['__lotto_state_audit'] = $worker->stateAudit;
+
     $worker->logger->info('LottoGameServer started (protocol_version=' . Constants::PROTOCOL_VERSION . ')');
+    $worker->memoryAudit->snapshot('worker_start', $worker);
+
+    if (LoadAudit::isEnabled()) {
+        $worker->loadAudit->snapshot('worker_start', $worker);
+        lottoTimerAdd(60, function () use ($worker): void {
+            $worker->loadAudit->snapshot('periodic', $worker);
+        }, [], true, 'load_audit_periodic');
+    }
+
+    // EPIC-11.1: periodic memory snapshots every 30 minutes when audit is on.
+    if (MemoryAudit::isEnabled()) {
+        lottoTimerAdd(1800, function () use ($worker): void {
+            $worker->memoryAudit->snapshot('periodic_snapshot', $worker);
+        }, [], true, 'memory_audit_periodic');
+    }
 
     // Global Watchdog Timer (ANCHOR_CORE.md Part 5 § Global Watchdog Timer)
-    // Owner: server. Count: 1 для всего процесса. Interval: 60s.
+    // Owner: server. Count: 1 для всего процесса. Interval: WATCHDOG_INTERVAL.
     // Закрывает мёртвые соединения по порогам AUTHORIZED/UNAUTHORIZED_TIMEOUT.
     // Создан в onWorkerStart, уничтожается вместе с процессом воркера —
     // отдельного Timer::del() не требуется (Worker shutdown = timer stop).
-    Timer::add(60, function () use ($worker): void {
+    lottoTimerAdd((float) Constants::watchdogInterval(), function () use ($worker): void {
         $now = time();
 
         foreach ($worker->connections as $connection) {
@@ -223,8 +293,8 @@ $worker->onWorkerStart = function (Worker $worker): void {
             $isAuthorized = !empty($connection->userId);
 
             $threshold = $isAuthorized
-                ? Constants::AUTHORIZED_TIMEOUT
-                : Constants::UNAUTHORIZED_TIMEOUT;
+                ? Constants::authorizedTimeout()
+                : Constants::unauthorizedTimeout();
 
             if (($now - $lastPing) > $threshold) {
                 $worker->logger->info(
@@ -234,7 +304,7 @@ $worker->onWorkerStart = function (Worker $worker): void {
                 $connection->close();
             }
         }
-    });
+    }, [], true, 'global_watchdog');
 };
 
 // -----------------------------------------------------------------------
@@ -280,7 +350,14 @@ $worker->onWebSocketConnected = function ($connection) use ($worker): void {
     sendJson($connection, [
         'type'             => 'hello',
         'protocol_version' => Constants::PROTOCOL_VERSION,
+        'server_time'      => time(),
     ]);
+
+    if (isset($worker->memoryAudit)) {
+        $worker->memoryAudit->snapshot('connection_open', $worker, [
+            'conn_id' => $connection->id ?? null,
+        ]);
+    }
 };
 
 // -----------------------------------------------------------------------
@@ -315,10 +392,14 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
     $connection->packetCount++;
 
     if ($connection->packetCount > Constants::RATE_LIMIT_PACKETS_PER_WINDOW) {
-        $worker->logger->info(
-            'Rate limit exceeded, closing connection (userId=' .
-            ($connection->userId ?? 'null') . ", count={$connection->packetCount})"
-        );
+        try {
+            $worker->logger->info(
+                'Rate limit exceeded, closing connection (userId=' .
+                ($connection->userId ?? 'null') . ", count={$connection->packetCount})"
+            );
+        } catch (\Throwable) {
+            // Logging must not prevent rate-limit close (FIX-14).
+        }
         $connection->close();
         return;
     }
@@ -333,7 +414,14 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
     $action = $data['action'] ?? null;
 
     if ($action === 'ping') {
-        // ANCHOR_PROTOCOL.md § Heartbeat: "No response required".
+        // prompt.md § ping: в комнате — last_action; в лобби — lastPing (уже выше).
+        // На afk_start не влияет (ANCHOR_CORE § Game AFK Timer).
+        // На host_activity_at не влияет (ADR-010 § Lobby AFK Timer).
+        $connId = (int) $connection->id;
+        $roomId = $worker->roomManager->findRoomIdByConnId($worker, $connId);
+        if ($roomId !== null && isset($worker->rooms[$roomId]['players'][$connId])) {
+            $worker->rooms[$roomId]['players'][$connId]['last_action'] = time();
+        }
         return;
     }
 
@@ -382,14 +470,33 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
         $worker->authHandler->handleReconnect($data, $connection, $worker);
 
         $token = $data['token'] ?? null;
-        if (is_string($token) && $token !== '') {
-            $worker->reconnectService->handleReconnect($token, $connection, $worker);
+        $roomRestored = false;
+        if (is_string($token) && $token !== '' && ($connection->userId ?? null) !== null) {
+            $roomRestored = $worker->reconnectService->handleReconnect($token, $connection, $worker);
+        }
+
+        if (
+            ($connection->userId ?? null) !== null
+            && !$roomRestored
+            && is_string($token)
+            && $token !== ''
+        ) {
+            $worker->authHandler->notifyLobbyRestored($connection, $token);
         }
         return;
     }
 
     // Диспетчер: auth (EPIC-10.3), lobby (EPIC-10.4), game (EPIC-10.5) и
     // admin (EPIC-10.6) подключены. reconnect обработан отдельно выше.
+    $handlerStart = hrtime(true);
+
+    // ADR-010: genuine lobby host activity — only waiting-room lobby actions.
+    // Excludes start_game (game transition) and all in-game/admin actions.
+    $lobbyHostActivityActions = ['room_list', 'create_room', 'join_room', 'leave_room'];
+    if (in_array($action, $lobbyHostActivityActions, true)) {
+        $worker->lobbyService->touchLobbyHostActivity($worker, (int) $connection->id);
+    }
+
     match ($action) {
         'register'         => $worker->authHandler->handleRegister($data, $connection, $worker),
         'login'            => $worker->authHandler->handleLogin($data, $connection, $worker),
@@ -399,6 +506,7 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
         'leave_room'       => $worker->lobbyHandler->handleLeaveRoom($connection, $worker),
         'start_game'       => $worker->gameHandler->handleStartGame($connection, $worker),
         'draw_barrel'      => $worker->gameHandler->handleDrawBarrel($connection, $worker),
+        'turn_ready'       => $worker->gameHandler->handleTurnReady($connection, $worker),
         'apartment_choice' => $worker->gameHandler->handleApartmentChoice($data, $connection, $worker),
         'admin_ban_user'   => $worker->adminHandler->handleBanUser($data, $connection, $worker),
         'admin_unban_user' => $worker->adminHandler->handleUnbanUser($data, $connection),
@@ -407,6 +515,15 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
         'admin_get_logs'   => $worker->adminHandler->handleGetLogs($data, $connection),
         default            => sendError($connection, 'error.invalid_json', "Unknown or not-yet-wired action: {$action}"),
     };
+
+    if (isset($worker->loadAudit)) {
+        $latencyMs = (hrtime(true) - $handlerStart) / 1_000_000;
+        $worker->loadAudit->recordLatency($action, $latencyMs, $worker);
+    }
+
+    if (isset($worker->memoryAudit) && MemoryAudit::shouldLogAction($action)) {
+        $worker->memoryAudit->snapshot('packet_processed', $worker, ['action' => $action]);
+    }
 };
 
 // -----------------------------------------------------------------------
@@ -439,6 +556,12 @@ $worker->onClose = function ($connection) use ($worker): void {
     // FIX-10).
     if (($connection->userId ?? null) !== null) {
         unset($worker->userConnections[$connection->userId]);
+    }
+
+    if (isset($worker->memoryAudit)) {
+        $worker->memoryAudit->snapshot('connection_close', $worker, [
+            'user_id' => $connection->userId ?? null,
+        ]);
     }
 };
 

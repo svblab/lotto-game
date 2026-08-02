@@ -38,6 +38,7 @@ final class GameHandler
     public function handleStartGame(object $connection, object $worker): void
     {
         $this->gameService->handleStartGame($connection, $worker);
+        $worker->lobbyService->broadcastRoomList($worker);
     }
 
     /**
@@ -46,6 +47,14 @@ final class GameHandler
     public function handleDrawBarrel(object $connection, object $worker): void
     {
         $this->gameService->handleDrawBarrel($connection, $worker);
+    }
+
+    /**
+     * {"action": "turn_ready"} — drawer finished slot animation, arm AFK timer.
+     */
+    public function handleTurnReady(object $connection, object $worker): void
+    {
+        $this->gameService->handleTurnReady($connection, $worker);
     }
 
     /**

@@ -39,6 +39,11 @@ connection is not yet authenticated (`$connection->userId === null`).
 Those four actions are the only ones a client can send before
 authenticating; every other action requires an established session.
 
+`error.banned` (ADR-007): reserved in the registry but **not emitted**.
+Ban rejections use the dedicated `banned` packet type instead
+(`{"type":"banned","until":...}`). Kept for forward compatibility;
+do not remove without ADR approval.
+
 ---
 
 ## WebSocket Close Codes
@@ -153,8 +158,9 @@ Client → Server
 ### room_joined
 Server → Client
 ```json
-{"type": "room_joined", "room_id": 7, "host": "player1", "status": "waiting", "bank": 0, "players": []}
+{"type": "room_joined", "room_id": 7, "host": "player1", "status": "waiting", "bank": 0, "players": [], "host_timeout_start": 1704067150, "host_timeout_seconds": 120}
 ```
+`host_timeout_start` / `host_timeout_seconds`: present when a lobby host is assigned (≥2 players); countdown until host AFK transfer.
 Player entry:
 ```json
 {"username": "player", "cards_count": 2, "status": "active"}
@@ -163,14 +169,24 @@ Player entry:
 ### player_joined
 Server → Room
 ```json
-{"type": "player_joined", "username": "player", "cards_count": 1}
+{"type": "player_joined", "username": "player", "cards_count": 1, "host": "player1", "host_timeout_start": 1704067150, "host_timeout_seconds": 120}
 ```
+When ≥2 players are seated, includes current lobby host AFK deadline (`host.last_action` + `LOBBY_HOST_TIMEOUT`) so all clients stay in sync.
 
 ### player_left
 Server → Room
 ```json
 {"type": "player_left", "username": "player", "reason": "leave"}
 ```
+
+### host_changed
+Server → Room
+```json
+{"type": "host_changed", "host": "player1", "host_timeout_start": 1704067150, "host_timeout_seconds": 120}
+```
+`host_timeout_start` / `host_timeout_seconds`: included when `host` is non-empty (lobby host AFK window).
+Sent to every active player in the room whenever `host_conn_id` changes
+(e.g. lobby-AFK host timeout via `transferHost()`). See ADR-009.
 
 ---
 
@@ -203,8 +219,11 @@ Player entry, others:
 ### your_turn
 Server → Client
 ```json
-{"type": "your_turn"}
+{"type": "your_turn", "afk_start": 1704067150, "turn_seconds": 30, "auto_draws": 0}
 ```
+`afk_start`: unix timestamp when the drawer turn (and AFK countdown) began; omitted until client sends `turn_ready` after slot animation.
+`turn_seconds`: seconds allowed for **this strike's** inactivity window before an AFK strike (30 / 15 / 5 per ADR-012, keyed to current `auto_draws`).
+`auto_draws`: prior auto-draw count for this player (0–2); third strike removes the player.
 
 ### draw_barrel
 Client → Server
@@ -212,12 +231,29 @@ Client → Server
 {"action": "draw_barrel"}
 ```
 
+### turn_ready
+Client → Server. Current drawer signals slot animation finished; server sets `afk_start` and re-sends `your_turn` with AFK fields.
+```json
+{"action": "turn_ready"}
+```
+
 ### barrels_drawn
 Server → Room
 ```json
-{"type": "barrels_drawn", "numbers": [15, 44, 81], "remaining": 57, "next_drawer": "player2", "is_final": false}
+{"type": "barrels_drawn", "numbers": [15, 44, 81], "remaining": 57, "next_drawer": "player2", "is_final": false, "win_chances": {"player1": 42, "player2": 58}}
 ```
 `numbers`: 1-3 values.
+`win_chances` (optional, ADR-014): comparative move-distance-based win-chance
+percent per `username` (informational only; omitted on victory-ending draw).
+
+### afk_warning
+Server → Client. Sent to the current drawer when the per-turn timeout is reached.
+```json
+{"type": "afk_warning", "strike": 1, "afk_start": 1704067150, "turn_seconds": 30, "auto_draws": 0}
+```
+`strike`: `1` or `2` (warning before auto-draw). Strike `3` triggers immediate removal without a warning packet.
+`turn_seconds`: current strike's inactivity window (30 for strike 1, 15 for strike 2).
+`auto_draws`: count of prior auto-draws before this strike.
 
 ---
 
@@ -260,6 +296,13 @@ Server → Room (same `game_over` packet, `reason` differs)
 {"type": "game_over", "winner": "player", "reason": "last_survivor", "prize": 80, "final_bank": 80, "statistics": []}
 ```
 
+### no_survivors
+Server → Room. Zero active players remain — stakes refunded, no winner, `prize` and `final_bank` are 0.
+```json
+{"type": "game_over", "winner": "", "reason": "no_survivors", "prize": 0, "final_bank": 0, "statistics": [{"username": "p1", "paid": 10, "received": 10}]}
+```
+`received` equals `paid` (stake return, not a prize).
+
 ---
 
 ## Reconnect
@@ -273,8 +316,10 @@ Waiting room:
 ```
 Playing:
 ```json
-{"type": "reconnect_state", "status": "playing", "room_id": 5, "bank": 80, "drawn_all": [], "my_cards": []}
+{"type": "reconnect_state", "status": "playing", "room_id": 5, "bank": 80, "drawn_all": [], "my_cards": [], "win_chances": {"player1": 50, "player2": 50}}
 ```
+`win_chances` (optional, ADR-014): same semantics as `barrels_drawn`; included
+for `status === "playing"` so reconnecting clients restore opponent indicators.
 
 ---
 

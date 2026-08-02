@@ -5,11 +5,13 @@ namespace Lotto\Lobby;
 use Lotto\Core\Constants;
 use Lotto\Core\Logger;
 use Lotto\Core\RoomManager;
-use Workerman\Timer;
 
 use function Lotto\Core\sendJson;
 use function Lotto\Core\sendError;
 use function Lotto\Core\broadcastToRoom;
+use function Lotto\Core\lottoTimerAdd;
+use function Lotto\Core\lottoTimerDel;
+use function Lotto\Core\lottoStateReject;
 
 /**
  * LobbyService — EPIC-2.1 / EPIC-2.2 / EPIC-2.3 / EPIC-2.4 / EPIC-2.6
@@ -25,6 +27,7 @@ use function Lotto\Core\broadcastToRoom;
  *   room_joined   → Server → Client (входящему игроку)
  *   player_joined → Server → Room  (остальным игрокам)
  *   player_left   → Server → Room  (остальным при выходе)
+ *   host_changed  → Server → Room  (всем активным при смене хоста)
  *
  * Проверяемые лимиты (ANCHOR_CORE.md Part 1):
  *   MAX_ROOMS         = 30  — общее количество комнат
@@ -77,16 +80,39 @@ final class LobbyService
         }
 
         // --- 2. Формируем список комнат ---
+        sendJson($connection, $this->buildRoomListPacket($worker));
+    }
+
+    /**
+     * Рассылает актуальный room_list всем аутентифицированным клиентам.
+     * Вызывается после create/join/leave/destroy, чтобы лобби синхронизировалось
+     * без ручного запроса room_list.
+     */
+    public function broadcastRoomList(object $worker): void
+    {
+        $packet = $this->buildRoomListPacket($worker);
+
+        foreach ($worker->connections ?? [] as $connection) {
+            if (!empty($connection->userId)) {
+                sendJson($connection, $packet);
+            }
+        }
+    }
+
+    /**
+     * @return array{type: string, rooms: list<array<string, mixed>>}
+     */
+    private function buildRoomListPacket(object $worker): array
+    {
         $rooms = [];
         foreach ($worker->rooms ?? [] as $room) {
             $rooms[] = $this->roomManager->buildRoomListEntry($room);
         }
 
-        // --- 3. Отправляем ответ ---
-        sendJson($connection, [
+        return [
             'type'  => 'room_list',
             'rooms' => $rooms,
-        ]);
+        ];
     }
 
     /**
@@ -171,7 +197,9 @@ final class LobbyService
 
         // --- 9. Ответный пакет room_joined ---
         // Контракт: ANCHOR_PROTOCOL.md § Lobby → room_joined
-        sendJson($connection, $this->buildRoomJoinedPacket($worker->rooms[$roomId], $connection));
+        sendJson($connection, $this->buildRoomJoinedPacket($worker->rooms[$roomId]));
+
+        $this->broadcastRoomList($worker);
     }
 
     /**
@@ -212,6 +240,7 @@ final class LobbyService
 
         // --- 3. Статус комнаты — только 'waiting' ---
         if ($room['status'] !== 'waiting') {
+            lottoStateReject($roomId, $room['status'], 'join_room', 'error.room_not_found');
             sendError($connection, 'error.room_not_found', 'Room is not open for joining');
             return;
         }
@@ -257,20 +286,28 @@ final class LobbyService
             " joined room_id={$roomId} cards_count={$cardsCount}"
         );
 
-        // --- 9. Новому игроку: room_joined ---
-        $hostConnId = $room['host_conn_id'];
-        $hostUsername = isset($room['players'][$hostConnId])
-            ? $room['players'][$hostConnId]['username']
-            : '';
+        // --- 9. Lobby AFK timer + host promotion (1→2 transition only) ---
+        // Must run before room_joined so the joiner receives current host + timeout.
+        $playerCount = count($room['players']);
+        if ($playerCount === 2) {
+            $this->promoteLobbyHost($worker, $roomId);
+            $this->startLobbyAfkTimer($worker, $roomId);
+            $room = &$worker->rooms[$roomId];
+        }
 
-        sendJson($connection, $this->buildRoomJoinedPacket($room, $hostUsername));
+        // --- 10. Новому игроку: room_joined ---
+        sendJson($connection, $this->buildRoomJoinedPacket($room));
 
-        // --- 10. Остальным игрокам: player_joined ---
-        $playerJoinedPacket = [
+        // --- 11. Остальным игрокам: player_joined (with lobby AFK sync fields) ---
+        $playerJoinedPacket = array_merge([
             'type'        => 'player_joined',
             'username'    => $connection->username,
             'cards_count' => $cardsCount,
-        ];
+        ], $this->lobbyHostTimeoutFields($room));
+        $hostUsername = $this->resolveLobbyHostUsername($room);
+        if ($hostUsername !== '') {
+            $playerJoinedPacket['host'] = $hostUsername;
+        }
 
         foreach ($room['players'] as $pid => $player) {
             if ($pid !== $connId && $player['status'] === 'active') {
@@ -278,13 +315,12 @@ final class LobbyService
             }
         }
 
-        // --- 11. Lobby AFK таймер ---
-        // Контракт: ANCHOR_CORE.md § Lobby AFK Timer.
-        // Запускается/рестартуется когда в комнате стало >= 2 игроков.
-        // Предыдущий таймер отменяется перед созданием нового (max 1/room).
-        if (count($room['players']) >= 2) {
-            $this->startLobbyAfkTimer($worker, $roomId);
+        // --- 12. Re-sync lobby AFK countdown for everyone when 3rd+ player joins ---
+        if ($playerCount > 2) {
+            $this->broadcastLobbyAfkSync($room);
         }
+
+        $this->broadcastRoomList($worker);
     }
 
     /**
@@ -293,8 +329,8 @@ final class LobbyService
      * Контракт входного пакета (ANCHOR_PROTOCOL.md § Lobby → leave_room):
      *   {"action": "leave_room"}  — без параметров
      *
-     * Разрешён только в статусе 'waiting' (ANCHOR_CORE.md Part 4 § State Machine).
-     * В статусе 'playing' выход обрабатывается GameService (EPIC-5.x).
+     * Разрешён в статусе 'waiting' (ANCHOR_CORE.md Part 4 § State Machine).
+     * В статусе 'playing' выход делегируется ReconnectService::removePlayerFromGame().
      *
      * Последовательность:
      *   1. Найти комнату игрока
@@ -324,8 +360,14 @@ final class LobbyService
 
         $room = &$worker->rooms[$roomId];
 
-        // --- 3. Только статус 'waiting' ---
-        // В 'playing' выход обрабатывает GameService
+        // --- 3. waiting → LobbyService; playing/apartment → Game removal ---
+        if (in_array($room['status'], ['playing', 'apartment'], true)) {
+            if (isset($worker->reconnectService)) {
+                $worker->reconnectService->removePlayerFromGame($worker, $roomId, $connId, 'leave');
+            }
+            return;
+        }
+
         if ($room['status'] !== 'waiting') {
             return;
         }
@@ -340,14 +382,11 @@ final class LobbyService
             return;
         }
 
-        // --- 4a. Остановить AFK таймер если игроков < 2 ---
-        // Контракт: ANCHOR_CORE.md § Lobby AFK Timer — Destroyed when player count <2.
-        if (count($worker->rooms[$roomId]['players']) < 2) {
-            $this->stopLobbyAfkTimer($worker, $roomId);
-        }
-
-        // --- 5. Передача хоста если ушёл хост ---
-        if ($wasHost) {
+        // --- 4a/5. Host + AFK when membership drops or host leaves ---
+        $remaining = count($worker->rooms[$roomId]['players']);
+        if ($remaining < 2) {
+            $this->suspendLobbyHost($worker, $roomId);
+        } elseif ($wasHost) {
             $this->transferHost($worker, $roomId);
         }
     }
@@ -379,7 +418,7 @@ final class LobbyService
         // player removal"). Симметрично уже корректной
         // ReconnectService::removePlayerFromGame().
         if (!empty($playerEntry['reconnect_timer'])) {
-            Timer::del($playerEntry['reconnect_timer']);
+            lottoTimerDel((int) $playerEntry['reconnect_timer'], 'reconnect', ['room_id' => $roomId, 'conn_id' => $connId]);
         }
 
         // Сохраняем в историю до удаления (ANCHOR_CORE.md Part 4 § Removal Rules,
@@ -390,6 +429,14 @@ final class LobbyService
             'username'   => $playerEntry['username'],
             'total_paid' => $playerEntry['total_paid'],
         ];
+
+        if (($playerEntry['status'] ?? null) === 'active' && isset($playerEntry['connection'])) {
+            sendJson($playerEntry['connection'], [
+                'type'     => 'player_left',
+                'username' => $username,
+                'reason'   => $reason,
+            ]);
+        }
 
         // Удаляем из players
         unset($room['players'][$connId]);
@@ -406,32 +453,42 @@ final class LobbyService
         // Если комната опустела — уничтожаем
         if (empty($room['players'])) {
             $this->roomManager->destroyRoom($worker, $roomId);
-            return;
-        }
+        } else {
+            // Рассылаем player_left оставшимся активным игрокам
+            // Контракт: ANCHOR_PROTOCOL.md § Lobby → player_left
+            $packet = [
+                'type'     => 'player_left',
+                'username' => $username,
+                'reason'   => $reason,
+            ];
 
-        // Рассылаем player_left оставшимся активным игрокам
-        // Контракт: ANCHOR_PROTOCOL.md § Lobby → player_left
-        $packet = [
-            'type'     => 'player_left',
-            'username' => $username,
-            'reason'   => $reason,
-        ];
-
-        foreach ($room['players'] as $player) {
-            if ($player['status'] === 'active') {
-                sendJson($player['connection'], $packet);
+            foreach ($room['players'] as $player) {
+                if ($player['status'] === 'active') {
+                    sendJson($player['connection'], $packet);
+                }
             }
         }
+
+        $this->broadcastRoomList($worker);
     }
 
     /**
-     * Передаёт хост следующему активному игроку по FIFO из drawer_order.
-     * Вызывается когда текущий хост покидает комнату (статус 'waiting').
+     * Передаёт хост следующему активному игроку, идущему СТРОГО ПОСЛЕ
+     * текущего хоста в drawer_order (FIFO по порядку входа в лобби).
+     *
+     * ADR-011: право хоста движется только вперёд по очереди и никогда не
+     * возвращается к уже испробованным кандидатам.
      *
      * Именование: ANCHOR_CORE.md Part 6 § Function Names.
-     * Правило: ANCHOR_CORE.md Part 4 § Host Rules — новый хост = следующий активный FIFO.
+     * Правило: ANCHOR_CORE.md Part 4 § Host Rules — новый хост = следующий
+     * активный FIFO (уточнено ADR-011: "следующий" = дальше по очереди,
+     * не "первый активный, отличный от текущего").
      *
-     * Если активных игроков нет (все disconnected) — destroyRoom().
+     * Если после текущего хоста в очереди не осталось ни одного
+     * неиспробованного активного кандидата — очередь исчерпана (каждый
+     * уже был хостом и не начал игру): комната принудительно закрывается,
+     * все оставшиеся игроки удаляются с reason='afk' (существующий реестр
+     * ANCHOR_CORE.md Part 1 § Removal Reasons — новая причина не вводится).
      */
     public function transferHost(object $worker, int $roomId): void
     {
@@ -441,8 +498,17 @@ final class LobbyService
 
         $room = &$worker->rooms[$roomId];
 
-        // Ищем первого активного игрока из drawer_order (FIFO)
-        foreach ($room['drawer_order'] as $connId) {
+        // Позиция текущего хоста в drawer_order. Ищем кандидата СТРОГО
+        // ПОСЛЕ неё — не с начала массива (это и было причиной бага:
+        // поиск с начала всегда находил первого активного игрока, отличного
+        // от текущего хоста, что приводило к пинг-понгу между двумя первыми
+        // игроками вместо продвижения по очереди).
+        $currentIndex = array_search($room['host_conn_id'], $room['drawer_order'], true);
+        $startIndex   = ($currentIndex === false) ? 0 : $currentIndex + 1;
+        $order        = $room['drawer_order'];
+
+        for ($i = $startIndex; $i < count($order); $i++) {
+            $connId = $order[$i];
             if (
                 isset($room['players'][$connId]) &&
                 $room['players'][$connId]['status'] === 'active'
@@ -450,15 +516,64 @@ final class LobbyService
                 $room['host_conn_id'] = $connId;
                 $newHostUsername = $room['players'][$connId]['username'];
 
+                // Lobby AFK timer checks host.host_activity_at — refresh on promotion so
+                // a player with stale activity is not immediately re-transferred.
+                $room['players'][$connId]['host_activity_at'] = time();
+
+                $this->broadcastHostChanged($room);
+
                 $this->logger->info(
                     "Host transferred in room_id={$roomId} new_host={$newHostUsername}"
                 );
+
+                // Brand-new 120s window for the promoted host (ADR-011).
+                $this->startLobbyAfkTimer($worker, $roomId);
                 return;
             }
         }
 
-        // Нет активных игроков — уничтожаем комнату
-        $this->roomManager->destroyRoom($worker, $roomId);
+        // Очередь исчерпана вперёд по FIFO: либо активных игроков не
+        // осталось вовсе, либо все оставшиеся уже были хостом и не начали
+        // игру (ADR-011: host-candidate queue exhausted).
+        $this->closeRoomAfkExhausted($worker, $roomId);
+    }
+
+    /**
+     * Принудительно удаляет всех оставшихся игроков (reason='afk') и
+     * уничтожает комнату, когда очередь кандидатов на хоста в
+     * transferHost() исчерпана вперёд по FIFO без единого start_game().
+     *
+     * ADR-011. Переиспользует существующий пакет player_left и
+     * существующую причину 'afk' из реестра ANCHOR_CORE.md Part 1 §
+     * Removal Reasons — новых пакетов/причин не вводится (Rule 7).
+     * Экономика не затронута: в 'waiting' total_paid всегда 0
+     * (ANCHOR_CORE.md Part 2 § Reservation Rule), рефанд не требуется.
+     */
+    private function closeRoomAfkExhausted(object $worker, int $roomId): void
+    {
+        if (!isset($worker->rooms[$roomId])) {
+            return;
+        }
+
+        $room = &$worker->rooms[$roomId];
+
+        foreach ($room['players'] as $player) {
+            if (($player['status'] ?? null) === 'active' && isset($player['connection'])) {
+                sendJson($player['connection'], [
+                    'type'     => 'player_left',
+                    'username' => $player['username'],
+                    'reason'   => 'afk',
+                ]);
+            }
+        }
+
+        $this->logger->info(
+            "Lobby AFK: host candidate queue exhausted in room_id={$roomId}, " .
+            'closing room and removing ' . count($room['players']) . ' player(s)'
+        );
+
+        $this->roomManager->destroyRoom($worker, $roomId, 'afk');
+        $this->broadcastRoomList($worker);
     }
 
     // -------------------------------------------------------------------------
@@ -470,10 +585,11 @@ final class LobbyService
      *
      * Контракт: ANCHOR_CORE.md § Lobby AFK Timer.
      *   Owner: room. Interval: 1s repeat. Threshold: LOBBY_HOST_TIMEOUT (120s).
-     *   Action: transferHost() если host.last_action устарел.
+     *   Action: transferHost() если host.host_activity_at устарел.
      *   Max 1 на комнату — предыдущий отменяется перед созданием.
      *
-     * Вызывается из handleJoinRoom() когда count(players) >= 2.
+     * Вызывается из handleJoinRoom() on the 1→2 transition and from
+     * transferHost() after host promotion.
      *
      * @param object $worker
      * @param int    $roomId
@@ -488,11 +604,18 @@ final class LobbyService
 
         // Отменяем предыдущий таймер (max 1/room)
         if (!empty($room['lobby_afk_timer_id'])) {
-            Timer::del($room['lobby_afk_timer_id']);
+            lottoTimerDel((int) $room['lobby_afk_timer_id'], 'lobby_afk', ['room_id' => $roomId]);
             $room['lobby_afk_timer_id'] = null;
         }
 
-        $timerId = Timer::add(1, function () use ($worker, $roomId): void {
+        // Arm the visible 120s window when the lobby AFK timer starts (2nd player seated).
+        $hostConnId = $room['host_conn_id'] ?? null;
+        if ($hostConnId !== null && isset($room['players'][$hostConnId])) {
+            $room['players'][$hostConnId]['host_activity_at'] = time();
+            $this->broadcastHostChanged($room);
+        }
+
+        $timerId = lottoTimerAdd(Constants::afkTickInterval(), function () use ($worker, $roomId): void {
             if (!isset($worker->rooms[$roomId])) {
                 return;
             }
@@ -510,15 +633,15 @@ final class LobbyService
                 return;
             }
 
-            $hostLastAction = $room['players'][$hostConnId]['last_action'];
+            $hostLastActivity = $room['players'][$hostConnId]['host_activity_at'] ?? 0;
 
-            if ((time() - $hostLastAction) >= Constants::LOBBY_HOST_TIMEOUT) {
+            if ((time() - $hostLastActivity) >= Constants::lobbyHostTimeout()) {
                 $this->logger->info(
                     "Lobby AFK: host timed out in room_id={$roomId}, transferring host"
                 );
                 $this->transferHost($worker, $roomId);
             }
-        });
+        }, [], true, 'lobby_afk', ['room_id' => $roomId]);
 
         $room['lobby_afk_timer_id'] = $timerId;
     }
@@ -542,9 +665,138 @@ final class LobbyService
         $room = &$worker->rooms[$roomId];
 
         if (!empty($room['lobby_afk_timer_id'])) {
-            Timer::del($room['lobby_afk_timer_id']);
+            lottoTimerDel((int) $room['lobby_afk_timer_id'], 'lobby_afk', ['room_id' => $roomId]);
             $room['lobby_afk_timer_id'] = null;
         }
+    }
+
+    /**
+     * Promotes the first FIFO player (room creator) to lobby host on the 1→2 transition.
+     */
+    private function promoteLobbyHost(object $worker, int $roomId): void
+    {
+        if (!isset($worker->rooms[$roomId])) {
+            return;
+        }
+
+        $room = &$worker->rooms[$roomId];
+        $firstConnId = $room['drawer_order'][0] ?? null;
+        if ($firstConnId === null || !isset($room['players'][$firstConnId])) {
+            return;
+        }
+
+        $room['host_conn_id'] = $firstConnId;
+        $room['players'][$firstConnId]['host_activity_at'] = time();
+        $this->broadcastHostChanged($room);
+    }
+
+    /**
+     * Records genuine lobby host interaction (ADR-010).
+     * Called from server.php for non-ping actions when the sender is host in waiting.
+     */
+    public function touchLobbyHostActivity(object $worker, int $connId): void
+    {
+        $roomId = $this->roomManager->findRoomIdByConnId($worker, $connId);
+        if ($roomId === null || !isset($worker->rooms[$roomId])) {
+            return;
+        }
+
+        $room = &$worker->rooms[$roomId];
+
+        if (($room['status'] ?? null) !== 'waiting' || count($room['players']) < 2) {
+            return;
+        }
+
+        if (($room['host_conn_id'] ?? null) !== $connId || !isset($room['players'][$connId])) {
+            return;
+        }
+
+        $room['players'][$connId]['host_activity_at'] = time();
+        $this->broadcastHostChanged($room);
+    }
+
+    /**
+     * Drops lobby host privileges when fewer than two players remain (no AFK timer).
+     */
+    private function suspendLobbyHost(object $worker, int $roomId): void
+    {
+        if (!isset($worker->rooms[$roomId])) {
+            return;
+        }
+
+        $this->stopLobbyAfkTimer($worker, $roomId);
+        $this->broadcastHostChanged($worker->rooms[$roomId], '');
+    }
+
+    /**
+     * Re-broadcast host + lobby AFK deadline so every client uses host.host_activity_at.
+     */
+    public function broadcastLobbyAfkSync(array $room): void
+    {
+        if (($room['status'] ?? null) !== 'waiting' || count($room['players'] ?? []) < 2) {
+            return;
+        }
+
+        $this->broadcastHostChanged($room);
+    }
+
+    /**
+     * @param array $room
+     */
+    private function broadcastHostChanged(array $room, ?string $hostUsername = null): void
+    {
+        $hostUsername ??= $this->resolveLobbyHostUsername($room);
+        $packet = [
+            'type' => 'host_changed',
+            'host' => $hostUsername,
+        ];
+        $packet = array_merge($packet, $this->lobbyHostTimeoutFields($room));
+
+        foreach ($room['players'] as $player) {
+            if ($player['status'] === 'active') {
+                sendJson($player['connection'], $packet);
+            }
+        }
+    }
+
+    /**
+     * Host AFK window fields for clients (only when host is assigned, 2+ players).
+     *
+     * @return array<string, int>
+     */
+    private function lobbyHostTimeoutFields(array $room): array
+    {
+        $hostUsername = $this->resolveLobbyHostUsername($room);
+        if ($hostUsername === '') {
+            return [];
+        }
+
+        $hostConnId = $room['host_conn_id'] ?? null;
+        if ($hostConnId === null || !isset($room['players'][$hostConnId])) {
+            return [];
+        }
+
+        return [
+            'host_timeout_start'   => (int) ($room['players'][$hostConnId]['host_activity_at'] ?? 0),
+            'host_timeout_seconds' => Constants::lobbyHostTimeout(),
+        ];
+    }
+
+    /**
+     * Lobby host username is exposed to clients only when >=2 players are seated.
+     */
+    private function resolveLobbyHostUsername(array $room): string
+    {
+        if (count($room['players']) < 2) {
+            return '';
+        }
+
+        $hostConnId = $room['host_conn_id'] ?? null;
+        if ($hostConnId === null || !isset($room['players'][$hostConnId])) {
+            return '';
+        }
+
+        return (string) $room['players'][$hostConnId]['username'];
     }
 
     /**
@@ -563,7 +815,8 @@ final class LobbyService
             'cards'           => [],
             'cards_count'     => $cardsCount,
             'total_paid'      => 0,
-            'last_action'     => time(),
+            'last_action'       => time(),
+            'host_activity_at'  => time(),
             'afk_start'       => null,
             'strikes'         => 0,
             'auto_draws'      => 0,
@@ -578,14 +831,9 @@ final class LobbyService
     /**
      * Строит пакет room_joined для входящего игрока.
      * Контракт: ANCHOR_PROTOCOL.md § Lobby → room_joined.
-     *
-     * @param array         $room  Структура комнаты
-     * @param string|object $host  username хоста (string) или connection хоста (object, для create_room)
      */
-    private function buildRoomJoinedPacket(array $room, string|object $host): array
+    private function buildRoomJoinedPacket(array $room): array
     {
-        $hostUsername = is_object($host) ? $host->username : $host;
-
         $players = [];
         foreach ($room['players'] as $player) {
             $players[] = [
@@ -595,13 +843,13 @@ final class LobbyService
             ];
         }
 
-        return [
+        return array_merge([
             'type'    => 'room_joined',
             'room_id' => $room['room_id'],
-            'host'    => $hostUsername,
+            'host'    => $this->resolveLobbyHostUsername($room),
             'status'  => $room['status'],
             'bank'    => $room['bank'],
             'players' => $players,
-        ];
+        ], $this->lobbyHostTimeoutFields($room));
     }
 }

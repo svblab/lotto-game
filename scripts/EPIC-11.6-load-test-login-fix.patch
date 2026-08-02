@@ -1,0 +1,29 @@
+--- /mnt/user-data/uploads/load_test_runner.php	2026-07-27 20:53:40.118570000 +0000
++++ load_test_runner.php	2026-07-27 20:55:12.047357371 +0000
+@@ -180,6 +180,26 @@
+             logClientMetric($clientLog, 'register', $rtt);
+         }
+ 
++        // register() only creates the account — it does not authenticate
++        // the connection (ANCHOR_PROTOCOL.md / ROADMAP EPIC-1.0 vs 1.1;
++        // ADR-006 lists register/login/reconnect as the auth-exempt set,
++        // but only login sets $connection->userId). Every subsequent
++        // action (create_room, join_room, start_game, draw_barrel...) is
++        // routed through the ADR-006 auth_required guard, so without an
++        // explicit login the connection stays unauthenticated and every
++        // room-related action silently comes back as error.auth_required.
++        // Login unconditionally: on a re-run against a persisted game.db,
++        // register may fail with error.auth_username_taken for an
++        // already-existing username, but login still succeeds.
++        $rtt = $client->sendAction([
++            'action'   => 'login',
++            'username' => $username,
++            'password' => 'testpass123',
++        ]);
++        if ($rtt !== null) {
++            logClientMetric($clientLog, 'login', $rtt);
++        }
++
+         $clients[] = $client;
+     }
+ 

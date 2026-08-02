@@ -114,23 +114,29 @@ echo "----------------------------------------\n";
 // --- СЦЕНАРИЙ 4: Проверка serverLog ---
 echo "[Scenario 4] Testing serverLog()...\n";
 
-// Директория логов должна существовать относительно корня
-if (!is_dir(__DIR__ . '/../../logs')) {
-    mkdir(__DIR__ . '/../../logs', 0777, true);
+$expectedDefaultLog = Logger::defaultLogPath();
+$actualDefaultLog = dirname(__DIR__, 2) . '/logs/server.log';
+if ($expectedDefaultLog !== $actualDefaultLog) {
+    echo "❌ Fail: Logger::defaultLogPath() mismatch.\n";
+    $allPassed = false;
+} else {
+    echo "✅ Success: Logger::defaultLogPath() points to logs/server.log.\n";
 }
 
-$logger = new Logger();
+$tempLog = sys_get_temp_dir() . '/lotto_test_helpers_' . getmypid() . '.log';
+$logger = new Logger($tempLog);
 $uniqueMessage = "Testing serverLog wrapper functionality at " . time();
 
 serverLog($logger, 'INFO', $uniqueMessage);
 
-$logContent = file_get_contents(__DIR__ . '/../../logs/server.log');
-if (strpos($logContent, $uniqueMessage) !== false) {
-    echo "✅ Success: Message successfully written to logs/server.log via wrapper.\n";
+$logContent = is_file($tempLog) ? file_get_contents($tempLog) : '';
+if (is_string($logContent) && strpos($logContent, $uniqueMessage) !== false) {
+    echo "✅ Success: serverLog() wrote to injectable Logger path.\n";
 } else {
-    echo "❌ Fail: Message not found in log file.\n";
+    echo "❌ Fail: Message not found in isolated test log file.\n";
     $allPassed = false;
 }
+@unlink($tempLog);
 echo "----------------------------------------\n";
 
 // --- ИТОГ ---

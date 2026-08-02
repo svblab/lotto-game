@@ -494,7 +494,11 @@ LOTTO_WORKERMAN_PID_FILE env vars for test subprocess isolation.
 Next in Phase 11: EPIC-11.5 Protocol audit, then 11.6 per
 docs/prompt phase 11 detail.md and docs/PHASE_11_REPORT.md.
 
+<<<<<<< HEAD
 - [DONE] EPIC-11.0 Full integration testing (Phase 11 audit, 2026-07-27)
+=======
+- [DONE] EPIC-11.0 Full integration testing (Phase 11 audit — 2026-07-27)
+>>>>>>> cursor/epic-11-1-vps-ws-test-isolation
 Files:
 - tests/Manual/test_admin_ban.php (diff — FIX-11 MockConnection::close())
 - tests/Manual/test_admin_integration.php (diff — FIX-11 SpyConnection::close())
@@ -541,9 +545,6 @@ Verification:
   admin-роутинг (EPIC-10.6) и вся остальная протокольная маршрутизация
   подтверждены рабочими end-to-end на целевой платформе, не только
   статически/на моках.
-
-Next in Phase 11: EPIC-11.1 Memory audit (VPS), then 11.2–11.6 per
-docs/prompt phase 11 detail.md and docs/PHASE_11_REPORT.md.
 
 - [DONE] EPIC-10.1 Packet validation
 Files:

@@ -2,7 +2,8 @@
 
 namespace Lotto\Core;
 
-use Workerman\Timer;
+use function Lotto\Core\lottoTimerDel;
+use function Lotto\Core\lottoStateTransition;
 
 /**
  * RoomManager — EPIC-2.0
@@ -15,7 +16,7 @@ use Workerman\Timer;
  *
  * Публичный контракт (другие модули вызывают только эти методы):
  *   createRoom(object $worker, int $hostConnId, int $maxPlayers, ?string $passwordHash, int $cardsCount): int
- *   destroyRoom(object $worker, int $roomId): void
+ *   destroyRoom(object $worker, int $roomId, ?string $trigger = null): void
  *   findRoomIdByConnId(object $worker, int $connId): ?int
  *   findRoomIdByUserId(object $worker, int $userId): ?int
  *   getTotalPlayerCount(object $worker): int
@@ -85,6 +86,12 @@ final class RoomManager
 
         $this->logger->info("Room created: room_id={$roomId} host_conn_id={$hostConnId} max_players={$maxPlayers}");
 
+        lottoStateTransition($roomId, 'created', 'waiting', 'room_created');
+
+        if (MemoryAudit::isEnabled() && isset($worker->memoryAudit)) {
+            $worker->memoryAudit->snapshot('room_created', $worker, ['room_id' => $roomId]);
+        }
+
         return $roomId;
     }
 
@@ -104,7 +111,7 @@ final class RoomManager
      *
      * Вызов с несуществующим roomId — no-op (безопасно).
      */
-    public function destroyRoom(object $worker, int $roomId): void
+    public function destroyRoom(object $worker, int $roomId, ?string $trigger = null): void
     {
         if (!isset($worker->rooms[$roomId])) {
             return;
@@ -114,25 +121,43 @@ final class RoomManager
 
         // Отменяем room-level таймеры
         if (!empty($room['lobby_afk_timer_id'])) {
-            Timer::del($room['lobby_afk_timer_id']);
+            lottoTimerDel((int) $room['lobby_afk_timer_id'], 'lobby_afk', ['room_id' => $roomId]);
         }
         if (!empty($room['game_afk_timer_id'])) {
-            Timer::del($room['game_afk_timer_id']);
+            lottoTimerDel((int) $room['game_afk_timer_id'], 'game_afk', ['room_id' => $roomId]);
         }
         if (!empty($room['apartment_timer_id'])) {
-            Timer::del($room['apartment_timer_id']);
+            lottoTimerDel((int) $room['apartment_timer_id'], 'apartment', ['room_id' => $roomId]);
         }
 
-        // Отменяем player-level reconnect таймеры
-        foreach ($room['players'] as $player) {
+        foreach ($room['players'] as $connId => $player) {
             if (!empty($player['reconnect_timer'])) {
-                Timer::del($player['reconnect_timer']);
+                lottoTimerDel((int) $player['reconnect_timer'], 'reconnect', [
+                    'room_id' => $roomId,
+                    'conn_id' => $connId,
+                ]);
             }
         }
+
+        $fromStatus = $room['status'] ?? 'waiting';
+        if ($trigger === null) {
+            $trigger = match ($fromStatus) {
+                'waiting'   => 'no_players',
+                'playing'   => 'no_active_players',
+                'apartment' => 'admin_close',
+                'finished'  => 'game_over_cleanup',
+                default     => 'room_destroyed',
+            };
+        }
+        lottoStateTransition($roomId, $fromStatus, 'destroyed', $trigger);
 
         unset($worker->rooms[$roomId]);
 
         $this->logger->info("Room destroyed: room_id={$roomId}");
+
+        if (MemoryAudit::isEnabled() && isset($worker->memoryAudit)) {
+            $worker->memoryAudit->snapshot('room_destroyed', $worker, ['room_id' => $roomId]);
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -162,7 +187,10 @@ final class RoomManager
 
     /**
      * Ищет room_id по user_id игрока.
-     * Используется при reconnect для восстановления состояния.
+     *
+     * Intentionally-retained public utility (EPIC-13.7): zero production callers
+     * as of Phase 13; covered by test_lobby_integration.php. Retained for
+     * future reconnect/admin lookup paths without re-implementing the scan.
      *
      * @return int|null room_id или null если пользователь не в комнате
      */
