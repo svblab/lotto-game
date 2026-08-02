@@ -2,6 +2,34 @@
 
 ## Phase 18 — Client Balance Persistence (2026-08-02)
 
+- [DONE] FIX-26 F2 in-game reconnect QA hotkey + guard fix on page refresh
+Files:
+- public/js/ws.js (diff — `simulateTransportDrop()` closes WS without `intentionalClose`)
+- public/js/app.js (diff — F2 key during `playing`; reconnect guard loads persisted user)
+- public/locales/*.json (diff — `dev.f2Disconnect`, `dev.f2PlayingOnly`)
+- docs/LOCAL_ENVIRONMENT.md (diff — F1/F2 manual reconnect steps)
+- tests/Manual/test_frontend_structure.php (diff — F2 + simulateTransportDrop checks)
+
+Notes: F2 reconnect manual test (playing-phase disconnect within 15s) had no way to
+trigger transport loss without closing the tab (which clears sessionStorage and
+aborts auto-reconnect). F2 simulates a drop while keeping the tab session alive.
+Reconnect guard now calls `ensureUserProfile()` before timing out so F5 refresh
+during a game does not spuriously clear localStorage while `reconnect_state` is
+in flight.
+
+CHANGED:
+- `LottoSocket.simulateTransportDrop()` for QA
+- F2 handler: only when `state.inGame`; toast + auto-reconnect path
+- `startReconnectGuard()`: load persisted profile, 10s timeout, skip clear if user restored
+
+NOT CHANGED:
+- Server reconnect/disconnect logic, 15s playing grace, F1 lobby immediate removal
+
+VERIFICATION:
+- `php tests/Manual/test_frontend_structure.php` — PASS (+2 assertions).
+- MANUAL (F2): 2-player game → press F2 → reconnect overlay → game restored with toast
+  «Session restored»; if your turn, draw button enabled (FIX-17). F2 in lobby shows hint only.
+
 - [DONE] FIX-25 Quick Start pseudo-random room pick when multiple eligible
 Files:
 - public/js/ui.js (diff — `pickQuickStartRoom()` filters + random choice among eligible)

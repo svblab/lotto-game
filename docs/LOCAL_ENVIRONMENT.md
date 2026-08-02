@@ -48,7 +48,15 @@ php scripts/start_server.php start
 Plain `php server.php start` also works after the FIX-15 bootstrap (auto-loads
 SQLite on Windows). Stop with `php scripts/start_server.php stop`.
 
-See `docs/PHASE_11_REPORT.md` for audit status.
+**Manual reconnect QA (browser):**
+- **F1 (lobby):** join a waiting room, close the tab → player is removed from
+  `room_list` immediately; reopening shows lobby without stale membership.
+- **F2 (in-game):** during `playing`, press **F2** to simulate a transport
+  drop (WebSocket closes without logout). Within 15s the client auto-reconnects
+  and `reconnect_state` restores the game screen. F2 does nothing in lobby —
+  reconnect grace applies only after `start_game`.
+
+See `docs/IMPLEMENTATION_STATUS.md` FIX-24 (F1) and FIX-26 (F2).
 
 **Memory audit (EPIC-11.1):** enable with `LOTTO_MEMORY_AUDIT=1`.
 Optional log path: `LOTTO_MEMORY_AUDIT_LOG=/path/to/file.log`.

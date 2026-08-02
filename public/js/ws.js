@@ -82,6 +82,19 @@
       this.reconnectTimer = null;
     }
 
+    /**
+     * Dev/QA: drop transport without intentionalClose so auto-reconnect runs.
+     * Used by manual reconnect test F2 (in-game disconnect within 15s window).
+     */
+    simulateTransportDrop() {
+      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+        return false;
+      }
+      this._stopPing();
+      this.ws.close();
+      return true;
+    }
+
     sendAction(action, extra = {}) {
       const payload = { action, ...extra };
       this._send(payload);

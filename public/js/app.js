@@ -47,15 +47,17 @@
 
   function startReconnectGuard() {
     clearReconnectGuard();
+    ensureUserProfile();
     reconnectGuardTimer = setTimeout(() => {
       reconnectGuardTimer = null;
-      if (!state.user && shouldAttemptReconnect()) {
-        clearClientSession();
-        UI().showReconnecting(false);
-        UI().showScreen('auth');
-        UI().setMessage('#auth-message', I18n().t('errors.auth_invalid_token'), 'error');
-      }
-    }, 6000);
+      if (!shouldAttemptReconnect()) return;
+      ensureUserProfile();
+      if (state.user) return;
+      clearClientSession();
+      UI().showReconnecting(false);
+      UI().showScreen('auth');
+      UI().setMessage('#auth-message', I18n().t('errors.auth_invalid_token'), 'error');
+    }, 10000);
   }
 
   function persistUser(user) {
@@ -692,6 +694,19 @@
       if (!uid) return;
       socket.sendAction('admin_kick_user', { user_id: uid });
     });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'F2' || e.repeat) return;
+      if (!socket?.sessionToken) return;
+      if (!state.inGame) {
+        UI().showToast(I18n().t('dev.f2PlayingOnly'));
+        return;
+      }
+      e.preventDefault();
+      if (socket.simulateTransportDrop()) {
+        UI().showToast(I18n().t('dev.f2Disconnect'));
+      }
+    });
   }
 
   function wireSocket() {
@@ -726,6 +741,7 @@
     });
     socket.on('open', () => {
       if (shouldAttemptReconnect()) {
+        ensureUserProfile();
         const token = localStorage.getItem(STORAGE_TOKEN);
         socket.setSessionToken(token);
         UI().showReconnecting(true);

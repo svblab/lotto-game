@@ -73,6 +73,10 @@
     "message": "Reconnecting…",
     "restored": "Session restored"
   },
+  "dev": {
+    "f2Disconnect": "Simulated disconnect — reconnecting…",
+    "f2PlayingOnly": "F2 reconnect test: start a game first (playing phase only)"
+  },
   "admin": {
     "title": "Server Management",
     "statsHint": "Live stats are unavailable until the server implements admin_stats_data.",

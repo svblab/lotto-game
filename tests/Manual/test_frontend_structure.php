@@ -80,17 +80,34 @@ if ($ws && str_contains($ws, 'PING_INTERVAL_MS = 2500')) {
     fail('ws.js: ping interval 2.5s');
 }
 
-if ($ws && str_contains($ws, "sendAction('reconnect'")) {
-    ok('ws.js: auto reconnect action');
+if ($ws && str_contains($ws, 'RECONNECT_DELAY_MS')) {
+    ok('ws.js: auto reconnect scheduling');
 } else {
-    fail('ws.js: auto reconnect action');
+    fail('ws.js: auto reconnect scheduling');
+}
+
+if ($ws && str_contains($ws, 'simulateTransportDrop')) {
+    ok('ws.js: simulateTransportDrop for F2 QA');
+} else {
+    fail('ws.js: simulateTransportDrop for F2 QA');
 }
 
 $app = @file_get_contents($public . '/js/app.js');
+if ($app && str_contains($app, "sendAction('reconnect'")) {
+    ok('app.js: auto reconnect action on socket open');
+} else {
+    fail('app.js: auto reconnect action on socket open');
+}
 if ($app && str_contains($app, 'animationQueue') && str_contains($app, '>= 3')) {
     ok('app.js: animation queue max 3');
 } else {
     fail('app.js: animation queue max 3');
+}
+
+if ($app && str_contains($app, "e.key !== 'F2'") && str_contains($app, 'simulateTransportDrop')) {
+    ok('app.js: F2 in-game reconnect QA hotkey');
+} else {
+    fail('app.js: F2 in-game reconnect QA hotkey');
 }
 
 echo "\n=== Results: $passed passed, $failed failed ===\n";

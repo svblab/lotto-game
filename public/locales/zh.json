@@ -70,6 +70,10 @@
     "message": "重新连接中…",
     "restored": "会话已恢复"
   },
+  "dev": {
+    "f2Disconnect": "模拟断线 — 正在重新连接…",
+    "f2PlayingOnly": "F2 重连测试：请先开始游戏（仅 playing 阶段）"
+  },
   "admin": {
     "title": "服务器管理",
     "statsHint": "实时统计需服务器实现 admin_stats_data。",

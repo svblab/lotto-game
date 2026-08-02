@@ -70,6 +70,10 @@
     "message": "Reconnexion…",
     "restored": "Session restaurée"
   },
+  "dev": {
+    "f2Disconnect": "Déconnexion simulée — reconnexion…",
+    "f2PlayingOnly": "Test F2 reconnect : commencez un jeu (phase playing uniquement)"
+  },
   "admin": {
     "title": "Administration",
     "statsHint": "Stats indisponibles sans admin_stats_data.",
