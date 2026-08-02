@@ -221,6 +221,11 @@ Priority: Victory > Apartment. If same barrel causes both, victory wins, apartme
 
 ## Last Survivor
 Exactly one active player remains → takes entire bank: `winner.coins += bank; bank = 0`.
+**Qualifying condition (ADR-013):** when the triggering removal reason is `afk`, the
+survivor must have `auto_draws === 0` (no AFK auto-draws this game). If the survivor
+has `auto_draws > 0`, treat as § No Survivors (refund via `handleNoSurvivors()`). Removal
+reasons `disconnect`, `leave`, `refuse`, `kicked`, and `banned` are unaffected — last
+survivor payout applies regardless of the survivor's `auto_draws`.
 
 ## No Survivors
 Zero active players remain → refund all participants (from `all_players_history`) their `total_paid` (including apartment payments). `bank = 0`. Room destroyed.
