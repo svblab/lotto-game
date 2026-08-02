@@ -123,6 +123,7 @@
       await job();
     } finally {
       state.animating = false;
+      syncTurnUiAndAfk();
       drainQueue();
     }
   }
@@ -161,8 +162,6 @@
     state.currentDrawer = pkt.next_drawer;
     state.drawLocked = false;
     UI().renderGameHeader(state.bank, state.currentDrawer, pkt.remaining);
-    UI().setDrawButton(state.isMyTurn && !state.drawLocked, state.isMyTurn);
-    syncTurnUiAndAfk();
 
     if (pkt.is_final) {
       const idx = state.animationQueue.findIndex((j) => j._type === 'game_over');
