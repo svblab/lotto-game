@@ -54,6 +54,7 @@
     "victory": "Victoire",
     "lastSurvivor": "Dernier survivant",
     "winnerLine": "{winner} gagne {prize} pièces ({reason})",
+    "winnersLine": "{winners} se partagent {prize} pièces ({reason})",
     "player": "Joueur",
     "paid": "Payé",
     "received": "Reçu"

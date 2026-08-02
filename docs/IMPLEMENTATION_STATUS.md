@@ -2,6 +2,25 @@
 
 ## Phase 18 — Client Balance Persistence (2026-08-02)
 
+- [DONE] FIX-23 Game-over modal lists all winners on shared victory
+Files:
+- public/js/ui.js (diff — `showGameOver()` derives winners from `statistics[].received > 0`)
+- public/locales/*.json (diff — `game.winnersLine` plural headline, 6 locales)
+
+Notes: `game_over.winner` is a single string (first winner, backward-compat field). Bank/payout
+table was already correct via `statistics`. Modal headline now joins all usernames with
+`received > 0` and shows `final_bank` for multi-winner shared prize total.
+
+CHANGED:
+- `showGameOver()`: multi-winner headline from statistics; `winnersLine` i18n key
+
+NOT CHANGED:
+- `game_over` protocol, `GameFinishService` payout math, statistics table rendering
+
+VERIFICATION:
+- MANUAL: trigger double victory (2+ winners same barrel) — modal headline names all
+  winners and total shared prize matches table sum; single-winner unchanged.
+
 - [DONE] FIX-22 Apartment alert shown immediately (not behind barrel animation)
 Files:
 - public/js/app.js (diff — `onApartmentAlert()` no longer uses `enqueueAnimation`)

@@ -54,6 +54,7 @@
     "victory": "Victoria",
     "lastSurvivor": "Último superviviente",
     "winnerLine": "{winner} gana {prize} monedas ({reason})",
+    "winnersLine": "{winners} reparten {prize} monedas ({reason})",
     "player": "Jugador",
     "paid": "Pagado",
     "received": "Recibido"

@@ -627,9 +627,18 @@
     if (pkt.reason === 'no_survivors') {
       $('#game-over-text').textContent = t('game.noSurvivorsLine');
     } else {
-      $('#game-over-text').textContent = t('game.winnerLine', {
-        winner: pkt.winner,
-        prize: pkt.prize,
+      const winners = (pkt.statistics || [])
+        .filter((s) => (s.received ?? 0) > 0)
+        .map((s) => s.username);
+      const winnerLabel = winners.length > 0 ? winners.join(', ') : (pkt.winner || '');
+      const prizeAmount = winners.length > 1
+        ? (pkt.final_bank ?? pkt.prize ?? 0)
+        : (pkt.prize ?? 0);
+      const lineKey = winners.length > 1 ? 'game.winnersLine' : 'game.winnerLine';
+      $('#game-over-text').textContent = t(lineKey, {
+        winner: winnerLabel,
+        winners: winnerLabel,
+        prize: prizeAmount,
         reason: reasonText,
       });
     }

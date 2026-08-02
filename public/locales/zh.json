@@ -54,6 +54,7 @@
     "victory": "胜利",
     "lastSurvivor": "最后幸存者",
     "winnerLine": "{winner} 赢得 {prize} 金币 ({reason})",
+    "winnersLine": "{winners} 分得 {prize} 金币 ({reason})",
     "player": "玩家",
     "paid": "投入",
     "received": "获得"

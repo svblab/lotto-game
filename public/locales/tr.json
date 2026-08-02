@@ -54,6 +54,7 @@
     "victory": "Zafer",
     "lastSurvivor": "Son hayatta kalan",
     "winnerLine": "{winner} {prize} jeton kazandı ({reason})",
+    "winnersLine": "{winners} {prize} jetonu paylaştı ({reason})",
     "player": "Oyuncu",
     "paid": "Ödenen",
     "received": "Alınan"
