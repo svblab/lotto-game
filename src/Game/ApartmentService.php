@@ -112,14 +112,16 @@ final class ApartmentService
         $room['apartment_fired']     = true;
         $room['apartment_responses'] = [];
 
-        // Контракт Phase 7 tests: required=true для всех НЕ immune игроков.
-        // (immune игроки видят only wait state и не обязаны отвечать).
+        // GAME_RULES.md §5: required only for players with a closed row at trigger time.
+        // Persist onto player['immune'] so getParticipants() stays consistent mid-round.
         $participants = [];
         foreach ($room['players'] as $connId => $player) {
             if (($player['status'] ?? '') !== 'active') {
                 continue;
             }
-            $participants[$connId] = empty($player['immune']);
+            $playerHasLine = $this->hasLine($player);
+            $room['players'][$connId]['immune'] = !$playerHasLine;
+            $participants[$connId] = $playerHasLine;
         }
         return $participants;
     }

@@ -2,6 +2,29 @@
 
 ## Phase 18 — Client Balance Persistence (2026-08-02)
 
+- [DONE] FIX-19 Apartment immunity computed from hasLine() at trigger time
+Files:
+- src/Game/ApartmentService.php (diff — `prepareApartment()` derives required/immune from `hasLine()`, persists `player['immune']`)
+- tests/Manual/test_apartment.php (diff — GROUP 3 real cards/masks; 3-player regression)
+
+Notes: Closes bug where every active player was `required=true` on apartment trigger because
+`prepareApartment()` read stale `player['immune']` (default false) instead of calling
+`hasLine()`. Contradicted GAME_RULES.md §5 «Квартира»: only players with a closed row pay;
+others are immune. `getParticipants()` unchanged — reads persisted `immune` set at prepare time.
+`finishApartment()` post-agree `immune=true` untouched.
+
+CHANGED:
+- `prepareApartment()`: per active player `hasLine()` → `required` + `immune = !hasLine`
+
+NOT CHANGED:
+- `hasLine()`, `shouldTrigger()`, `finishApartment()` post-payment immune, protocol packets,
+  `getParticipants()` logic
+
+VERIFICATION:
+- `php tests/Manual/test_apartment.php` — **51/51 PASS** (was 45; +GROUP 3 hasLine-driven asserts, 3p case).
+- MANUAL VERIFICATION REQUIRED: 2–3 player game, natural apartment trigger — only closed-row
+  player(s) see agree/refuse; others see immune wait screen only.
+
 - [DONE] FIX-18 Persist post-game_over balance to localStorage (client-only)
 Files:
 - public/js/app.js (diff — `onGameOver()` calls `persistUser()` after updating `state.user.coins`)

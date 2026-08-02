@@ -254,17 +254,44 @@ $apt = new ApartmentService($_mockDb, $_mockSt, $_mockLog);
 {
     $h  = makeConn(1, 10, 'host');
     $p2 = makeConn(2, 20, 'p2');
+    $card = makeCardWithClosedRow();
+    $maskClosed = makeMaskWithClosedRow($card);
+    $maskEmpty  = array_fill(0, 3, array_fill(0, 9, false));
+
     $room = makeRoom(1, [1, 2]);
-    $room['players'][1] = makePlayer($h,  1, [], [], false); // not immune
-    $room['players'][2] = makePlayer($p2, 1, [], [], true);  // immune
+    $room['players'][1] = makePlayer($h,  1, [$card], [$maskClosed]);
+    $room['players'][2] = makePlayer($p2, 1, [$card], [$maskEmpty]);
 
     $participants = $apt->prepareApartment($room);
 
     assert_true($room['status'] === 'apartment',      'prepareApartment: status=apartment');
     assert_true($room['apartment_fired'] === true,     'prepareApartment: apartment_fired=true');
     assert_true($room['apartment_responses'] === [],   'prepareApartment: responses empty');
-    assert_true($participants[1] === true,             'prepareApartment: non-immune required=true');
-    assert_true($participants[2] === false,            'prepareApartment: immune required=false');
+    assert_true($participants[1] === true,             'prepareApartment: closed-row player required=true');
+    assert_true($participants[2] === false,            'prepareApartment: no-line player required=false');
+    assert_true($room['players'][1]['immune'] === false, 'prepareApartment: closed-row player immune=false');
+    assert_true($room['players'][2]['immune'] === true,  'prepareApartment: no-line player immune=true');
+}
+
+{
+    $p1 = makeConn(1, 10, 'p1');
+    $p2 = makeConn(2, 20, 'p2');
+    $p3 = makeConn(3, 30, 'p3');
+    $card = makeCardWithClosedRow();
+    $maskClosed = makeMaskWithClosedRow($card);
+    $maskEmpty  = array_fill(0, 3, array_fill(0, 9, false));
+
+    $room = makeRoom(1, [1, 2, 3]);
+    $room['players'][1] = makePlayer($p1, 1, [$card], [$maskClosed]);
+    $room['players'][2] = makePlayer($p2, 1, [$card], [$maskEmpty]);
+    $room['players'][3] = makePlayer($p3, 1, [$card], [$maskEmpty]);
+
+    $participants = $apt->prepareApartment($room);
+
+    assert_true($participants[1] === true,  'prepareApartment 3p: only closed-row player required');
+    assert_true($participants[2] === false, 'prepareApartment 3p: no-line p2 immune');
+    assert_true($participants[3] === false, 'prepareApartment 3p: no-line p3 immune');
+    assert_true(count(array_filter($participants)) === 1, 'prepareApartment 3p: exactly one required');
 }
 
 // ---------------------------------------------------------------------------
@@ -300,9 +327,12 @@ $apt = new ApartmentService($_mockDb, $_mockSt, $_mockLog);
 
     $h  = makeConn(1, 10, 'host');
     $p2 = makeConn(2, 20, 'p2');
+    $card = makeCardWithClosedRow();
+    $maskClosed = makeMaskWithClosedRow($card);
+    $maskEmpty  = array_fill(0, 3, array_fill(0, 9, false));
     $room = makeRoom(1, [1, 2]);
-    $room['players'][1] = makePlayer($h,  1, [], [], false);
-    $room['players'][2] = makePlayer($p2, 1, [], [], true);
+    $room['players'][1] = makePlayer($h,  1, [$card], [$maskClosed]);
+    $room['players'][2] = makePlayer($p2, 1, [$card], [$maskEmpty]);
 
     $participants = $apt->prepareApartment($room);
 
