@@ -475,6 +475,7 @@
         c.map((row) => row.map(() => false))
       ));
       state.currentDrawer = pkt.current_drawer || state.drawerOrder[0] || null;
+      state.isMyTurn = pkt.current_drawer === state.user?.username;
       state.cardIndex = 0;
       UI().showScreen('game');
       UI().renderGameHeader(state.bank, state.currentDrawer, null);
