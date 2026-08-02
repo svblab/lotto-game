@@ -35,7 +35,7 @@ require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
 
 use Lotto\Infrastructure\Database;
 
-const HARD_TIMEOUT_SECONDS = 25;
+const HARD_TIMEOUT_SECONDS = 40;
 
 // =============================================================================
 // Жёсткий watchdog
@@ -181,9 +181,14 @@ function check(bool $cond, string $label): void
 }
 
 // =============================================================================
-// Подготовка тестовых данных: тот же паттерн, что test_login.php/test_register.php
-// — реальная game.db, изолированные префиксом e103_ имена, очистка до/после.
+// Подготовка тестовых данных: изолированная temp SQLite (ws_test_harness),
+// не production game.db — иначе SQLITE_BUSY с lotto-server.service.
 // =============================================================================
+
+require_once __DIR__ . '/ws_test_harness.php';
+
+$projectRoot = dirname(__DIR__, 2);
+wsTestEnsureDatabase($projectRoot);
 
 $db  = new Database();
 $pdo = $db->getPdo();
@@ -198,82 +203,35 @@ $pdo->prepare(
 // Поднимаем server.php (self-healing + вывод в файлы, см. test_server_bootstrap.php)
 // =============================================================================
 
-$projectRoot = dirname(__DIR__, 2);
+$wsPort = wsTestPort();
 
-$stopDescriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
-$stopProcess = @proc_open(['php', $projectRoot . '/server.php', 'stop'], $stopDescriptors, $stopPipes, $projectRoot);
-if (is_resource($stopProcess)) {
-    stream_set_blocking($stopPipes[1], false);
-    stream_set_blocking($stopPipes[2], false);
-    $stopWaited = 0;
-    while ($stopWaited < 5_000_000) {
-        @fread($stopPipes[1], 65536);
-        @fread($stopPipes[2], 65536);
-        if (!proc_get_status($stopProcess)['running']) {
-            break;
-        }
-        usleep(100_000);
-        $stopWaited += 100_000;
-    }
-    foreach ($stopPipes as $p) {
-        if (is_resource($p)) {
-            fclose($p);
-        }
-    }
-    proc_close($stopProcess);
-    usleep(300_000);
-}
-
-$stdoutFile = tempnam(sys_get_temp_dir(), 'lotto_srv_out_');
-$stderrFile = tempnam(sys_get_temp_dir(), 'lotto_srv_err_');
-$descriptors = [0 => ['pipe', 'r'], 1 => ['file', $stdoutFile, 'w'], 2 => ['file', $stderrFile, 'w']];
-
-$process = proc_open(['php', $projectRoot . '/server.php', 'start'], $descriptors, $pipes, $projectRoot);
-if (!is_resource($process)) {
-    fwrite(STDERR, "Failed to start server.php subprocess\n");
+try {
+    $serverCtx = wsTestStartServer($projectRoot);
+} catch (Throwable $e) {
+    fwrite(STDERR, $e->getMessage() . "\n");
     exit(1);
 }
+
+$process = $serverCtx['process'];
+$stdoutFile = $serverCtx['stdoutFile'];
+$stderrFile = $serverCtx['stderrFile'];
 $GLOBALS['__serverProcess'] = $process;
-if (isset($pipes[0]) && is_resource($pipes[0])) {
-    fclose($pipes[0]);
-}
-
-$bound = false;
-for ($i = 0; $i < 50; $i++) {
-    $status = proc_get_status($process);
-    if (!$status['running']) {
-        break;
-    }
-    $probe = @fsockopen('127.0.0.1', 8080, $errno, $errstr, 0.1);
-    if ($probe) {
-        fclose($probe);
-        $bound = true;
-        break;
-    }
-    usleep(100_000);
-}
-
-if (!$bound) {
-    fwrite(STDERR, "server.php did not bind port 8080 in time\n");
-    fwrite(STDERR, "--- stdout ---\n" . @file_get_contents($stdoutFile) . "\n");
-    fwrite(STDERR, "--- stderr ---\n" . @file_get_contents($stderrFile) . "\n");
-    proc_terminate($process, 9);
-    proc_close($process);
-    @unlink($stdoutFile);
-    @unlink($stderrFile);
-    exit(1);
-}
 
 try {
     // =========================================================================
     // TEST 1: register -> auth_result
     // =========================================================================
     echo "TEST 1: register -> auth_result (EPIC-10.3)\n";
-    $c1 = new MiniWSClient('127.0.0.1', 8080);
+    $c1 = new MiniWSClient('127.0.0.1', $wsPort);
     $c1->recvOrNull(); // hello
     $c1->send(json_encode(['action' => 'register', 'username' => 'e103_reguser', 'password' => 'e103pass123']));
     $msg1 = $c1->recvOrNull();
     $data1 = json_decode($msg1 ?? '', true);
+    if (($data1['type'] ?? null) !== 'auth_result') {
+        echo '  [DEBUG] register response: ' . ($msg1 ?? 'null') . "\n";
+        echo '  [DEBUG] LOTTO_DB_PATH=' . ($serverCtx['env']['LOTTO_DB_PATH'] ?? 'n/a') . "\n";
+        echo '  [DEBUG] LOTTO_SERVER_LOG=' . ($serverCtx['env']['LOTTO_SERVER_LOG'] ?? 'n/a') . "\n";
+    }
     check(($data1['type'] ?? null) === 'auth_result', 'type=auth_result');
     check(($data1['success'] ?? null) === true, 'success=true');
     check(($data1['username'] ?? null) === 'e103_reguser', 'username совпадает');
@@ -305,7 +263,7 @@ try {
     // TEST 3: register с уже занятым именем -> error.auth_username_taken
     // =========================================================================
     echo "\nTEST 3: register с занятым username -> error.auth_username_taken\n";
-    $c3 = new MiniWSClient('127.0.0.1', 8080);
+    $c3 = new MiniWSClient('127.0.0.1', $wsPort);
     $c3->recvOrNull();
     $c3->send(json_encode(['action' => 'register', 'username' => 'e103_reguser', 'password' => 'anotherpass']));
     $data3 = json_decode($c3->recvOrNull() ?? '', true);
@@ -317,7 +275,7 @@ try {
     // TEST 4: register с невалидным именем -> error.auth_invalid_username
     // =========================================================================
     echo "\nTEST 4: register с невалидным username -> error.auth_invalid_username\n";
-    $c4 = new MiniWSClient('127.0.0.1', 8080);
+    $c4 = new MiniWSClient('127.0.0.1', $wsPort);
     $c4->recvOrNull();
     $c4->send(json_encode(['action' => 'register', 'username' => 'x', 'password' => 'e103pass123']));
     $data4 = json_decode($c4->recvOrNull() ?? '', true);
@@ -329,7 +287,7 @@ try {
     // не только register)
     // =========================================================================
     echo "\nTEST 5: login с верными данными -> auth_result\n";
-    $c5 = new MiniWSClient('127.0.0.1', 8080);
+    $c5 = new MiniWSClient('127.0.0.1', $wsPort);
     $c5->recvOrNull();
     $c5->send(json_encode(['action' => 'login', 'username' => 'e103_loginuser', 'password' => 'e103pass123']));
     $data5 = json_decode($c5->recvOrNull() ?? '', true);
@@ -349,7 +307,7 @@ try {
     // TEST 7: login с неверным паролем -> error.auth_invalid_credentials
     // =========================================================================
     echo "\nTEST 7: login с неверным паролем -> error.auth_invalid_credentials\n";
-    $c7 = new MiniWSClient('127.0.0.1', 8080);
+    $c7 = new MiniWSClient('127.0.0.1', $wsPort);
     $c7->recvOrNull();
     $c7->send(json_encode(['action' => 'login', 'username' => 'e103_loginuser', 'password' => 'wrongpass']));
     $data7 = json_decode($c7->recvOrNull() ?? '', true);
@@ -361,7 +319,7 @@ try {
     // TEST 8: reconnect с некорректным форматом токена -> error.auth_invalid_token
     // =========================================================================
     echo "\nTEST 8: reconnect с некорректным форматом токена -> error.auth_invalid_token\n";
-    $c8 = new MiniWSClient('127.0.0.1', 8080);
+    $c8 = new MiniWSClient('127.0.0.1', $wsPort);
     $c8->recvOrNull();
     $c8->send(json_encode(['action' => 'reconnect', 'token' => 'not-a-valid-token']));
     $data8 = json_decode($c8->recvOrNull() ?? '', true);
@@ -373,7 +331,7 @@ try {
     // error.auth_invalid_token
     // =========================================================================
     echo "\nTEST 9: reconnect с валидным форматом, но неизвестным токеном -> error.auth_invalid_token\n";
-    $c9 = new MiniWSClient('127.0.0.1', 8080);
+    $c9 = new MiniWSClient('127.0.0.1', $wsPort);
     $c9->recvOrNull();
     $c9->send(json_encode(['action' => 'reconnect', 'token' => bin2hex(random_bytes(16))]));
     $data9 = json_decode($c9->recvOrNull() ?? '', true);
@@ -400,6 +358,7 @@ try {
 
     // Очистка тестовых данных
     $pdo->exec("DELETE FROM users WHERE username LIKE 'e103\\_%' ESCAPE '\\'");
+    wsTestCleanupDatabase();
 }
 
 if (function_exists('pcntl_alarm')) {

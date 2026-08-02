@@ -162,85 +162,35 @@ function check(bool $cond, string $label): void
     }
 }
 
+require_once __DIR__ . '/ws_test_harness.php';
+
+$projectRoot = dirname(__DIR__, 2);
+wsTestEnsureDatabase($projectRoot);
+
 $db  = new Database();
 $pdo = $db->getPdo();
 $pdo->exec("DELETE FROM users WHERE username LIKE 'e104\\_%' ESCAPE '\\'");
 
-$projectRoot = dirname(__DIR__, 2);
+$wsPort = wsTestPort();
 
-$stopDescriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
-$stopProcess = @proc_open(['php', $projectRoot . '/server.php', 'stop'], $stopDescriptors, $stopPipes, $projectRoot);
-if (is_resource($stopProcess)) {
-    stream_set_blocking($stopPipes[1], false);
-    stream_set_blocking($stopPipes[2], false);
-    $stopWaited = 0;
-    while ($stopWaited < 5_000_000) {
-        @fread($stopPipes[1], 65536);
-        @fread($stopPipes[2], 65536);
-        if (!proc_get_status($stopProcess)['running']) {
-            break;
-        }
-        usleep(100_000);
-        $stopWaited += 100_000;
-    }
-    foreach ($stopPipes as $p) {
-        if (is_resource($p)) {
-            fclose($p);
-        }
-    }
-    proc_close($stopProcess);
-}
-
-$stdoutFile = sys_get_temp_dir() . '/lotto_lobby_routing_stdout_' . getmypid() . '.log';
-$stderrFile = sys_get_temp_dir() . '/lotto_lobby_routing_stderr_' . getmypid() . '.log';
-$descriptors = [
-    0 => ['pipe', 'r'],
-    1 => ['file', $stdoutFile, 'w'],
-    2 => ['file', $stderrFile, 'w'],
-];
-
-$process = proc_open(['php', $projectRoot . '/server.php', 'start'], $descriptors, $pipes, $projectRoot);
-if (!is_resource($process)) {
-    fwrite(STDERR, "Failed to start server.php subprocess\n");
+try {
+    $serverCtx = wsTestStartServer($projectRoot);
+} catch (Throwable $e) {
+    fwrite(STDERR, $e->getMessage() . "\n");
     exit(1);
 }
+
+$process = $serverCtx['process'];
+$stdoutFile = $serverCtx['stdoutFile'];
+$stderrFile = $serverCtx['stderrFile'];
 $GLOBALS['__serverProcess'] = $process;
-if (isset($pipes[0]) && is_resource($pipes[0])) {
-    fclose($pipes[0]);
-}
-
-$bound = false;
-for ($i = 0; $i < 50; $i++) {
-    $status = proc_get_status($process);
-    if (!$status['running']) {
-        break;
-    }
-    $probe = @fsockopen('127.0.0.1', 8080, $errno, $errstr, 0.1);
-    if ($probe) {
-        fclose($probe);
-        $bound = true;
-        break;
-    }
-    usleep(100_000);
-}
-
-if (!$bound) {
-    fwrite(STDERR, "server.php did not bind port 8080 in time\n");
-    fwrite(STDERR, "--- stdout ---\n" . @file_get_contents($stdoutFile) . "\n");
-    fwrite(STDERR, "--- stderr ---\n" . @file_get_contents($stderrFile) . "\n");
-    proc_terminate($process, 9);
-    proc_close($process);
-    @unlink($stdoutFile);
-    @unlink($stderrFile);
-    exit(1);
-}
 
 try {
     // =========================================================================
     // TEST 1: register + create_room -> room_joined
     // =========================================================================
     echo "TEST 1: register + create_room -> room_joined (EPIC-10.4)\n";
-    $host = new MiniWSClient('127.0.0.1', 8080);
+    $host = new MiniWSClient('127.0.0.1', $wsPort);
     registerAndAuth($host, 'e104_host', 'e104pass123');
     $host->send(json_encode(['action' => 'create_room', 'max_players' => 4, 'password' => '', 'cards_count' => 1]));
     $data1 = json_decode($host->recvOrNull() ?? '', true);
@@ -274,7 +224,7 @@ try {
     // TEST 3: второй игрок join_room -> room_joined
     // =========================================================================
     echo "\nTEST 3: join_room -> room_joined для второго игрока\n";
-    $joiner = new MiniWSClient('127.0.0.1', 8080);
+    $joiner = new MiniWSClient('127.0.0.1', $wsPort);
     registerAndAuth($joiner, 'e104_joiner', 'e104pass123');
     $joiner->send(json_encode(['action' => 'join_room', 'room_id' => $roomId, 'password' => '', 'cards_count' => 2]));
     $data3 = json_decode($joiner->recvOrNull() ?? '', true);
@@ -307,7 +257,7 @@ try {
     // TEST 6: join несуществующей комнаты -> error.room_not_found
     // =========================================================================
     echo "\nTEST 6: join_room несуществующей комнаты -> error.room_not_found\n";
-    $outsider = new MiniWSClient('127.0.0.1', 8080);
+    $outsider = new MiniWSClient('127.0.0.1', $wsPort);
     registerAndAuth($outsider, 'e104_outsider', 'e104pass123');
     $outsider->send(json_encode(['action' => 'join_room', 'room_id' => 99999, 'password' => '', 'cards_count' => 1]));
     $data6 = json_decode($outsider->recvOrNull() ?? '', true);
@@ -329,7 +279,7 @@ try {
     // TEST 8: room_list без auth -> error.auth_required (guard EPIC-10.2)
     // =========================================================================
     echo "\nTEST 8: room_list без auth -> error.auth_required\n";
-    $anon = new MiniWSClient('127.0.0.1', 8080);
+    $anon = new MiniWSClient('127.0.0.1', $wsPort);
     $anon->recvOrNull(); // hello
     $anon->send(json_encode(['action' => 'room_list']));
     $data8 = json_decode($anon->recvOrNull() ?? '', true);
@@ -357,6 +307,7 @@ try {
     @unlink($stderrFile);
 
     $pdo->exec("DELETE FROM users WHERE username LIKE 'e104\\_%' ESCAPE '\\'");
+    wsTestCleanupDatabase();
 }
 
 if (function_exists('pcntl_alarm')) {

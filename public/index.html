@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Russian Lotto Bingo</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Auth -->
+    <section id="auth-screen" class="screen active">
+      <div class="panel auth-panel">
+        <div class="logo-placeholder" aria-hidden="true"></div>
+        <h1 data-i18n="app.title">Russian Lotto</h1>
+        <div class="lang-row">
+          <button type="button" id="auth-lang-btn" class="icon-btn" title="Language">🌐</button>
+          <button type="button" id="rules-btn-auth" class="icon-btn" title="Rules">?</button>
+        </div>
+        <div class="tabs">
+          <button type="button" class="tab active" data-tab="login" data-i18n="auth.login">Login</button>
+          <button type="button" class="tab" data-tab="register" data-i18n="auth.register">Register</button>
+        </div>
+        <form id="login-form" class="auth-form">
+          <label>
+            <span data-i18n="auth.username">Username</span>
+            <input type="text" id="login-username" autocomplete="username" required minlength="3" maxlength="20">
+          </label>
+          <label>
+            <span data-i18n="auth.password">Password</span>
+            <input type="password" id="login-password" autocomplete="current-password" required minlength="6">
+          </label>
+          <button type="submit" class="btn primary" data-i18n="auth.login">Login</button>
+        </form>
+        <form id="register-form" class="auth-form hidden">
+          <label>
+            <span data-i18n="auth.username">Username</span>
+            <input type="text" id="register-username" autocomplete="username" required minlength="3" maxlength="20">
+          </label>
+          <label>
+            <span data-i18n="auth.password">Password</span>
+            <input type="password" id="register-password" autocomplete="new-password" required minlength="6">
+          </label>
+          <button type="submit" class="btn primary" data-i18n="auth.register">Register</button>
+        </form>
+        <p id="auth-message" class="message" role="alert"></p>
+      </div>
+    </section>
+
+    <!-- Lobby -->
+    <section id="lobby-screen" class="screen">
+      <header class="top-bar">
+        <div class="logo-placeholder small" aria-hidden="true"></div>
+        <div class="user-info">
+          <span id="lobby-username"></span>
+          <span id="lobby-balance" class="coins"></span>
+        </div>
+        <div class="lang-row">
+          <button type="button" id="lobby-lang-btn" class="icon-btn">🌐</button>
+          <button type="button" id="rules-btn-lobby" class="icon-btn">?</button>
+          <button type="button" id="admin-open-btn" class="btn small hidden" data-i18n="admin.title">Admin</button>
+          <button type="button" id="logout-btn" class="btn small" data-i18n="auth.logout">Logout</button>
+        </div>
+      </header>
+
+      <div id="lobby-main" class="lobby-main">
+        <div class="lobby-actions">
+          <button type="button" id="create-room-btn" class="btn primary" data-i18n="lobby.createRoom">Create Room</button>
+          <button type="button" id="quick-start-btn" class="btn" data-i18n="lobby.quickStart">Quick Start</button>
+          <button type="button" id="refresh-rooms-btn" class="btn" data-i18n="lobby.refresh">Refresh</button>
+        </div>
+
+        <div id="create-room-panel" class="sub-panel hidden">
+          <h3 data-i18n="lobby.createRoom">Create Room</h3>
+          <label>
+            <span data-i18n="lobby.maxPlayers">Max players</span>
+            <input type="number" id="create-max-players" min="2" max="10" value="10">
+          </label>
+          <label>
+            <span data-i18n="lobby.password">Password (optional)</span>
+            <input type="password" id="create-password" autocomplete="new-password">
+          </label>
+          <label>
+            <span data-i18n="lobby.cardsCount">Cards</span>
+            <select id="create-cards-count">
+              <option value="1">1</option>
+              <option value="2">2</option>
+            </select>
+          </label>
+          <button type="button" id="create-room-submit" class="btn primary" data-i18n="lobby.createRoom">Create Room</button>
+          <button type="button" id="create-room-cancel" class="btn" data-i18n="common.cancel">Cancel</button>
+        </div>
+
+        <div id="join-room-modal" class="overlay hidden" role="dialog" aria-labelledby="join-room-title">
+          <div class="panel join-room-panel">
+            <header class="join-room-header">
+              <h3 id="join-room-title" data-i18n="lobby.joinRoomTitle">Join room</h3>
+              <button type="button" id="join-room-close-btn" class="icon-btn" data-i18n-aria="common.close" aria-label="Close">✕</button>
+            </header>
+            <label id="join-password-wrap" class="hidden">
+              <span data-i18n="lobby.password">Password</span>
+              <input type="password" id="join-room-password" autocomplete="current-password">
+            </label>
+            <p class="join-room-hint" data-i18n="lobby.selectCards">How many cards?</p>
+            <div class="card-choice" role="group" aria-labelledby="join-room-title">
+              <button type="button" class="card-choice-btn selected" data-cards="1" data-i18n="lobby.oneCard">1 card</button>
+              <button type="button" class="card-choice-btn" data-cards="2" data-i18n="lobby.twoCards">2 cards</button>
+            </div>
+            <div class="join-room-actions">
+              <button type="button" id="join-room-submit" class="btn primary" data-i18n="lobby.join">Join</button>
+              <button type="button" id="join-room-cancel" class="btn" data-i18n="common.cancel">Cancel</button>
+            </div>
+          </div>
+        </div>
+
+        <table id="rooms-table" class="data-table">
+          <thead>
+            <tr>
+              <th data-i18n="lobby.roomId">Room</th>
+              <th data-i18n="lobby.players">Players</th>
+              <th data-i18n="lobby.status">Status</th>
+              <th data-i18n="lobby.password">Lock</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="rooms-tbody"></tbody>
+        </table>
+
+        <div id="room-panel" class="sub-panel hidden">
+          <h3><span data-i18n="lobby.inRoom">In room</span> #<span id="room-id-label"></span></h3>
+          <p><span data-i18n="lobby.host">Host</span>: <strong id="room-host-label"></strong></p>
+          <p><span data-i18n="lobby.bank">Bank</span>: <span id="room-bank-label">0</span></p>
+          <ul id="room-players-list" class="players-list"></ul>
+          <div id="lobby-host-timer" class="lobby-host-timer hidden" aria-live="polite">
+            <div class="afk-countdown-ring">
+              <svg viewBox="0 0 90 90" class="afk-ring-svg" aria-hidden="true">
+                <circle cx="45" cy="45" r="42" class="afk-ring-bg"></circle>
+                <circle id="lobby-host-ring-progress" cx="45" cy="45" r="42" class="afk-ring-progress"></circle>
+              </svg>
+              <span id="lobby-host-countdown" class="afk-countdown-num">120</span>
+            </div>
+          </div>
+          <div class="room-actions">
+            <button type="button" id="start-game-btn" class="btn primary hidden" data-i18n="game.startGame">Start Game</button>
+            <button type="button" id="leave-room-btn" class="btn" data-i18n="lobby.leaveRoom">Leave Room</button>
+          </div>
+        </div>
+      </div>
+      <p id="lobby-message" class="message" role="alert"></p>
+    </section>
+
+    <!-- Game -->
+    <section id="game-screen" class="screen">
+      <header class="top-bar game-top">
+        <div>
+          <span data-i18n="lobby.bank">Bank</span>: <strong id="game-bank">0</strong>
+        </div>
+        <div id="game-drawer-info"></div>
+        <div id="game-remaining"></div>
+        <button type="button" id="leave-game-btn" class="btn small" data-i18n="lobby.leaveRoom">Leave Room</button>
+      </header>
+
+      <div class="game-layout">
+        <aside class="game-sidebar">
+          <h3 data-i18n="game.players">Players</h3>
+          <ul id="game-players-list" class="players-list"></ul>
+        </aside>
+
+        <main class="game-main">
+          <div id="win-chance-bar" class="win-chance">
+            <span data-i18n="game.winChance">Win chance</span>: <strong id="win-chance-value">0%</strong>
+          </div>
+
+          <div id="slot-machine" class="slot-machine" aria-live="polite">
+            <div class="slot-window"><span class="slot-num">—</span></div>
+            <div class="slot-window"><span class="slot-num">—</span></div>
+            <div class="slot-window"><span class="slot-num">—</span></div>
+          </div>
+
+          <div id="drawn-history" class="drawn-history"></div>
+
+          <div id="cards-container" class="cards-container">
+            <button type="button" id="card-prev" class="card-nav" aria-label="Previous card">‹</button>
+            <div id="cards-stack" class="cards-stack"></div>
+            <button type="button" id="card-next" class="card-nav" aria-label="Next card">›</button>
+          </div>
+
+          <div id="afk-timer" class="afk-timer hidden" aria-live="polite">
+            <div class="afk-strikes" aria-label="AFK strikes">
+              <span class="afk-strike pending" data-strike="1" title="Strike 1"></span>
+              <span class="afk-strike pending" data-strike="2" title="Strike 2"></span>
+            </div>
+            <div class="afk-countdown-ring">
+              <svg viewBox="0 0 90 90" class="afk-ring-svg" aria-hidden="true">
+                <circle cx="45" cy="45" r="42" class="afk-ring-bg"></circle>
+                <circle id="afk-ring-progress" cx="45" cy="45" r="42" class="afk-ring-progress"></circle>
+              </svg>
+              <span id="afk-countdown" class="afk-countdown-num">30</span>
+            </div>
+          </div>
+
+          <button type="button" id="draw-barrel-btn" class="btn draw-btn" disabled data-i18n="game.drawBarrel">Draw Barrel</button>
+        </main>
+      </div>
+    </section>
+
+    <!-- Admin -->
+    <section id="admin-panel" class="overlay hidden">
+      <div class="panel admin-panel">
+        <header>
+          <h2 data-i18n="admin.title">Server Management</h2>
+          <button type="button" id="admin-close-btn" class="icon-btn">✕</button>
+        </header>
+        <p class="hint" data-i18n="admin.statsHint">Live stats are unavailable until the server implements admin_stats_data.</p>
+        <div class="admin-section">
+          <h3 data-i18n="admin.moderation">Moderation</h3>
+          <div class="admin-row">
+            <input type="number" id="admin-user-id" placeholder="User ID" min="1">
+            <select id="admin-ban-duration">
+              <option value="1d">1d</option>
+              <option value="3d">3d</option>
+              <option value="permanent" data-i18n="admin.permanent">Permanent</option>
+            </select>
+            <button type="button" id="admin-ban-btn" class="btn small" data-i18n="admin.ban">Ban</button>
+            <button type="button" id="admin-unban-btn" class="btn small" data-i18n="admin.unban">Unban</button>
+            <button type="button" id="admin-kick-btn" class="btn small" data-i18n="admin.kick">Kick</button>
+          </div>
+        </div>
+        <div class="admin-section">
+          <h3 data-i18n="admin.rooms">Active Rooms</h3>
+          <ul id="admin-rooms-list" class="admin-rooms"></ul>
+        </div>
+        <div class="admin-section">
+          <h3 data-i18n="admin.logs">Server Logs (24h)</h3>
+          <button type="button" id="admin-refresh-logs" class="btn small" data-i18n="lobby.refresh">Refresh</button>
+          <pre id="admin-logs" class="logs-box"></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- Modals -->
+    <div id="rules-modal" class="overlay hidden" role="dialog" aria-labelledby="rules-title">
+      <div class="panel rules-panel">
+        <header>
+          <h2 id="rules-title" data-i18n="rules.title">Game Rules</h2>
+          <button type="button" id="rules-close-btn" class="icon-btn">✕</button>
+        </header>
+        <div id="rules-content" class="rules-content"></div>
+      </div>
+    </div>
+
+    <div id="apartment-modal" class="overlay hidden" role="dialog">
+      <div class="panel apartment-panel">
+        <h2 data-i18n="apartment.title">Apartment!</h2>
+        <p id="apartment-text"></p>
+        <div id="apartment-timer" class="apartment-timer">10</div>
+        <div id="apartment-actions" class="apartment-actions hidden">
+          <button type="button" id="apartment-agree" class="btn primary" data-i18n="apartment.agree">Agree (+10)</button>
+          <button type="button" id="apartment-refuse" class="btn" data-i18n="apartment.refuse">Refuse</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="game-over-modal" class="overlay hidden" role="dialog">
+      <div class="panel game-over-panel">
+        <h2 data-i18n="game.gameOver">Game Over</h2>
+        <p id="game-over-text"></p>
+        <table id="game-over-stats" class="data-table"></table>
+        <button type="button" id="game-over-close" class="btn primary" data-i18n="lobby.backToLobby">Back to Lobby</button>
+      </div>
+    </div>
+
+    <div id="reconnect-overlay" class="overlay hidden">
+      <div class="panel reconnect-panel">
+        <p data-i18n="reconnect.message">Reconnecting…</p>
+        <div class="spinner"></div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast hidden" role="status"></div>
+    <div id="lang-picker" class="overlay hidden">
+      <div class="panel lang-panel">
+        <h3 data-i18n="lang.choose">Choose language</h3>
+        <div id="lang-options" class="lang-options"></div>
+        <button type="button" id="lang-close" class="btn" data-i18n="common.close">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/i18n.js?v=4"></script>
+  <script src="js/ws.js?v=4"></script>
+  <script src="js/ui.js?v=10"></script>
+  <script src="js/app.js?v=10"></script>
+</body>
+</html>

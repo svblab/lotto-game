@@ -106,3 +106,224 @@ function serverLog(Logger $logger, string $level, string $message): void
     $logger->write($level, $message);
 }
 
+/**
+ * FIX-14: load isolated test-server paths from LOTTO_TEST_CONFIG JSON.
+ *
+ * Live WS tests write a temp config file and pass its path via env so the
+ * Workerman worker subprocess reliably uses the isolated SQLite DB and temp
+ * log files (putenv alone is not always visible inside forked workers).
+ */
+function lottoRuntimeEnv(string $key): ?string
+{
+    if (isset($GLOBALS['__lotto_runtime_config'][$key])) {
+        $fromGlobals = $GLOBALS['__lotto_runtime_config'][$key];
+        if (is_string($fromGlobals) && $fromGlobals !== '') {
+            return $fromGlobals;
+        }
+    }
+
+    $val = getenv($key);
+    if (is_string($val) && $val !== '') {
+        return $val;
+    }
+
+    if (isset($_ENV[$key]) && is_string($_ENV[$key]) && $_ENV[$key] !== '') {
+        return $_ENV[$key];
+    }
+
+    if (isset($_SERVER[$key]) && is_string($_SERVER[$key]) && $_SERVER[$key] !== '') {
+        return $_SERVER[$key];
+    }
+
+    return null;
+}
+
+/**
+ * EPIC-11.2: register a Workerman timer with optional audit logging.
+ *
+ * @param array<string, scalar|null> $context
+ */
+function lottoTimerAdd(
+    float $interval,
+    callable $cb,
+    array $args = [],
+    bool $persistent = true,
+    string $label = '',
+    array $context = []
+): int {
+    $timerId = 0;
+    $wrapped = function (...$passedArgs) use ($cb, $label, &$timerId, $context, $args) {
+        $audit = $GLOBALS['__lotto_timer_audit'] ?? null;
+        if ($audit instanceof TimerAudit) {
+            $audit->recordFire($label !== '' ? $label : 'anonymous', $timerId, $context);
+        }
+
+        if (!empty($args)) {
+            return $cb(...$args);
+        }
+
+        return $cb(...$passedArgs);
+    };
+
+    $timerId = \Workerman\Timer::add($interval, $wrapped, [], $persistent);
+
+    $audit = $GLOBALS['__lotto_timer_audit'] ?? null;
+    if ($audit instanceof TimerAudit) {
+        $audit->recordAdd($label !== '' ? $label : 'anonymous', $timerId, $interval, $context);
+    }
+
+    return $timerId;
+}
+
+/**
+ * EPIC-11.2: cancel a Workerman timer with optional audit logging.
+ *
+ * @param array<string, scalar|null> $context
+ */
+function lottoTimerDel(int $timerId, string $label = '', array $context = []): bool
+{
+    $audit = $GLOBALS['__lotto_timer_audit'] ?? null;
+    if ($audit instanceof TimerAudit) {
+        $audit->recordDel($label !== '' ? $label : 'anonymous', $timerId, $context);
+    }
+
+    return \Workerman\Timer::del($timerId);
+}
+
+/**
+ * EPIC-11.3: record a financial event when economy audit is enabled.
+ *
+ * @param array<string, scalar|null> $context
+ */
+function lottoEconomyRecord(string $operation, int $userId, int $amount, array $context = []): void
+{
+    $audit = $GLOBALS['__lotto_economy_audit'] ?? null;
+    if ($audit instanceof EconomyAudit) {
+        $audit->record($operation, $userId, $amount, $context);
+    }
+}
+
+/**
+ * EPIC-11.4: record a room state transition when state audit is enabled.
+ *
+ * @param array<string, scalar|null> $context
+ */
+function lottoStateTransition(int $roomId, string $from, string $to, string $trigger, array $context = []): void
+{
+    $audit = $GLOBALS['__lotto_state_audit'] ?? null;
+    if ($audit instanceof StateMachineAudit) {
+        $audit->recordTransition($roomId, $from, $to, $trigger, $context);
+    }
+}
+
+/**
+ * EPIC-11.4: record a rejected action in the current room state.
+ *
+ * @param array<string, scalar|null> $context
+ */
+function lottoStateReject(int $roomId, string $state, string $action, string $code, array $context = []): void
+{
+    $audit = $GLOBALS['__lotto_state_audit'] ?? null;
+    if ($audit instanceof StateMachineAudit) {
+        $audit->recordRejection($roomId, $state, $action, $code, $context);
+    }
+}
+
+/**
+ * EPIC-11.4: record a player state transition when state audit is enabled.
+ *
+ * @param array<string, scalar|null> $context
+ */
+function lottoPlayerStateTransition(
+    int $roomId,
+    int $connId,
+    string $from,
+    string $to,
+    string $trigger,
+    array $context = []
+): void {
+    $audit = $GLOBALS['__lotto_state_audit'] ?? null;
+    if ($audit instanceof StateMachineAudit) {
+        $audit->recordPlayerTransition($roomId, $connId, $from, $to, $trigger, $context);
+    }
+}
+
+/**
+ * Windows dev: load SQLite extensions when php.ini omits them.
+ * Safe no-op on Linux/VPS where pdo_sqlite is always enabled.
+ */
+function lottoBootstrapPhpExtensions(): void
+{
+    if (DIRECTORY_SEPARATOR !== '\\') {
+        return;
+    }
+
+    $extDir = dirname(PHP_BINARY) . DIRECTORY_SEPARATOR . 'ext';
+    if (!is_dir($extDir)) {
+        return;
+    }
+
+    ini_set('extension_dir', $extDir);
+    if (!extension_loaded('sqlite3')) {
+        @dl('php_sqlite3.dll');
+    }
+    if (!extension_loaded('pdo_sqlite')) {
+        @dl('php_pdo_sqlite.dll');
+    }
+}
+
+/**
+ * PHP -d flags for spawning child processes on Windows (proc_open cannot dl()).
+ *
+ * @return list<string>
+ */
+function lottoPhpIniArgs(): array
+{
+    if (DIRECTORY_SEPARATOR !== '\\') {
+        return [];
+    }
+
+    $extDir = dirname(PHP_BINARY) . DIRECTORY_SEPARATOR . 'ext';
+    if (!is_dir($extDir)) {
+        return [];
+    }
+
+    return [
+        '-d',
+        'extension_dir=' . $extDir,
+        '-d',
+        'extension=php_sqlite3.dll',
+        '-d',
+        'extension=php_pdo_sqlite.dll',
+    ];
+}
+
+function lottoApplyTestConfig(): void
+{
+    $configFile = lottoRuntimeEnv('LOTTO_TEST_CONFIG');
+    if ($configFile === null || !is_readable($configFile)) {
+        return;
+    }
+
+    $raw = file_get_contents($configFile);
+    $data = json_decode($raw !== false ? $raw : '', true);
+    if (!is_array($data)) {
+        return;
+    }
+
+    if (!isset($GLOBALS['__lotto_runtime_config']) || !is_array($GLOBALS['__lotto_runtime_config'])) {
+        $GLOBALS['__lotto_runtime_config'] = [];
+    }
+
+    foreach ($data as $key => $value) {
+        if (!is_string($key) || (!is_string($value) && !is_int($value) && !is_float($value))) {
+            continue;
+        }
+        $str = (string) $value;
+        putenv("{$key}={$str}");
+        $_ENV[$key] = $str;
+        $_SERVER[$key] = $str;
+        $GLOBALS['__lotto_runtime_config'][$key] = $str;
+    }
+}
+

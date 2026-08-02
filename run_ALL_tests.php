@@ -7,37 +7,26 @@ declare(strict_types=1);
  *
  * On Windows, enables SQLite extensions when php.ini is absent.
  * Ubuntu/VPS: plain `php` is sufficient (see LOCAL_ENVIRONMENT.md).
+ * Live WS subprocess tests run on all platforms (FIX-15).
  */
+
+require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/src/Core/Helpers.php';
+
+use function Lotto\Core\lottoPhpIniArgs;
 
 $projectRoot = __DIR__;
 $manualDir = $projectRoot . '/tests/Manual';
 $isWindows = DIRECTORY_SEPARATOR === '\\';
 
-$skipOnWindows = [
-    'test_admin_packet_routing.php',
-    'test_auth_packet_routing.php',
-    'test_game_packet_routing.php',
-    'test_lobby_packet_routing.php',
-    'test_packet_validation.php',
-    'test_server_bootstrap.php',
-    'test_session_lifecycle.php',
+$skipAlways = [
     'test_logger.php',
 ];
 
-$phpBinary = PHP_BINARY;
-$args = [];
+$skipOnWindows = [];
 
-if ($isWindows) {
-    $extDir = dirname(PHP_BINARY) . DIRECTORY_SEPARATOR . 'ext';
-    if (is_dir($extDir)) {
-        $args[] = '-d';
-        $args[] = 'extension_dir=' . $extDir;
-        $args[] = '-d';
-        $args[] = 'extension=php_sqlite3.dll';
-        $args[] = '-d';
-        $args[] = 'extension=php_pdo_sqlite.dll';
-    }
-}
+$phpBinary = PHP_BINARY;
+$args = lottoPhpIniArgs();
 
 $files = glob($manualDir . '/test_*.php');
 sort($files);
@@ -48,6 +37,11 @@ $total = 0;
 foreach ($files as $file) {
     $basename = basename($file);
     echo "=== {$basename} ===\n";
+
+    if (in_array($basename, $skipAlways, true)) {
+        echo "SKIP: superseded / removed (see FIX-12 in IMPLEMENTATION_STATUS.md)\n\n";
+        continue;
+    }
 
     if ($isWindows && in_array($basename, $skipOnWindows, true)) {
         echo "SKIP: requires Linux/VPS (live Workerman WebSocket server)\n\n";
@@ -70,7 +64,9 @@ foreach ($files as $file) {
     fclose($pipes[2]);
     $exitCode = proc_close($proc);
 
-    $tail = implode("\n", array_slice(explode("\n", trim($stdout . "\n" . $stderr)), -3));
+    $output = trim($stdout . "\n" . $stderr);
+    $lines  = explode("\n", $output);
+    $tail   = implode("\n", array_slice($lines, $exitCode !== 0 ? -30 : -15));
     echo $tail . "\n";
 
     if ($exitCode !== 0) {

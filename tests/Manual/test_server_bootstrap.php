@@ -220,122 +220,26 @@ function check(bool $cond, string $label): void
 // (см. пояснение в шапке файла — предотвращает deadlock).
 // =============================================================================
 
+require_once __DIR__ . '/ws_test_harness.php';
+
 $projectRoot = dirname(__DIR__, 2);
-
-// -----------------------------------------------------------------------
-// Self-healing: если с прошлого (например, зависшего/прерванного Ctrl+C)
-// прогона остался осиротевший процесс server.php, всё ещё держащий порт
-// 8080 — new proc_open ниже откажется стартовать ("already running",
-// см. Workerman PID-файл), а наш клиент по ошибке подключится к ЧУЖОМУ
-// старому процессу с непредсказуемым поведением. Поэтому ПЕРЕД стартом
-// принудительно гасим любой существующий экземпляр через собственную
-// команду Workerman 'stop' (по PID-файлу) — идемпотентно, безопасно
-// вызывать даже если ничего не запущено (просто ничего не сделает).
-// -----------------------------------------------------------------------
-
-$stopDescriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
-$stopProcess = @proc_open(
-    ['php', $projectRoot . '/server.php', 'stop'],
-    $stopDescriptors,
-    $stopPipes,
-    $projectRoot
-);
-if (is_resource($stopProcess)) {
-    // 'stop' короткоживущий и сам себя завершает — ждём с разумным
-    // потолком, вычитывая пайпы, чтобы не словить тот же deadlock, от
-    // которого чинили основной запуск.
-    stream_set_blocking($stopPipes[1], false);
-    stream_set_blocking($stopPipes[2], false);
-    $stopWaited = 0;
-    while ($stopWaited < 5_000_000) {
-        @fread($stopPipes[1], 65536);
-        @fread($stopPipes[2], 65536);
-        if (!proc_get_status($stopProcess)['running']) {
-            break;
-        }
-        usleep(100_000);
-        $stopWaited += 100_000;
-    }
-    foreach ($stopPipes as $p) {
-        if (is_resource($p)) {
-            fclose($p);
-        }
-    }
-    proc_close($stopProcess);
-    usleep(300_000); // дать ОС время реально освободить порт
-}
-
-$stdoutFile = tempnam(sys_get_temp_dir(), 'lotto_srv_out_');
-$stderrFile = tempnam(sys_get_temp_dir(), 'lotto_srv_err_');
-
-$descriptors = [
-    0 => ['pipe', 'r'],
-    1 => ['file', $stdoutFile, 'w'],
-    2 => ['file', $stderrFile, 'w'],
-];
-
-$process = proc_open(
-    ['php', $projectRoot . '/server.php', 'start'],
-    $descriptors,
-    $pipes,
-    $projectRoot
-);
-
-if (!is_resource($process)) {
-    fwrite(STDERR, "Failed to start server.php subprocess\n");
-    exit(1);
-}
-
-$GLOBALS['__serverProcess'] = $process;
-
-// stdin дочернего процесса нам не нужен — закрываем сразу, чтобы Workerman
-// точно не пытался что-то из него читать/ждать.
-if (isset($pipes[0]) && is_resource($pipes[0])) {
-    fclose($pipes[0]);
-}
-
-// Ждём биндинга порта, опрашивая вместо фиксированного sleep (быстрее и
-// надёжнее на медленных VPS).
-$bound = false;
-for ($i = 0; $i < 50; $i++) { // до 5 секунд (50 * 100ms)
-    $status = proc_get_status($process);
-    if (!$status['running']) {
-        break; // процесс уже упал — незачем ждать дальше
-    }
-    $probe = @fsockopen('127.0.0.1', 8080, $errno, $errstr, 0.1);
-    if ($probe) {
-        fclose($probe);
-        $bound = true;
-        break;
-    }
-    usleep(100_000);
-}
-
-if (!$bound) {
-    $status = proc_get_status($process);
-    $stdoutContent = @file_get_contents($stdoutFile);
-    fwrite(STDERR, "server.php did not bind port 8080 in time (running=" .
-        ($status['running'] ? 'yes' : 'no') . ")\n");
-    if (str_contains($stdoutContent ?? '', 'already running')) {
-        fwrite(STDERR,
-            "\n!!! Обнаружен осиротевший процесс server.php, всё ещё держащий порт 8080,\n" .
-            "!!! и self-healing 'stop' его не погасил. Погасите вручную:\n" .
-            "!!!   cd {$projectRoot} && php server.php stop\n" .
-            "!!! или если это не помогает:\n" .
-            "!!!   pkill -f 'server.php start'\n\n"
-        );
-    }
-    fwrite(STDERR, "--- stdout ---\n" . $stdoutContent . "\n");
-    fwrite(STDERR, "--- stderr ---\n" . @file_get_contents($stderrFile) . "\n");
-    proc_terminate($process, 9);
-    proc_close($process);
-    @unlink($stdoutFile);
-    @unlink($stderrFile);
-    exit(1);
-}
+wsTestEnsureDatabase($projectRoot);
+$wsPort = wsTestPort();
 
 try {
-    $c = new MiniWSClient('127.0.0.1', 8080);
+    $serverCtx = wsTestStartServer($projectRoot);
+} catch (Throwable $e) {
+    fwrite(STDERR, $e->getMessage() . "\n");
+    exit(1);
+}
+
+$process = $serverCtx['process'];
+$stdoutFile = $serverCtx['stdoutFile'];
+$stderrFile = $serverCtx['stderrFile'];
+$GLOBALS['__serverProcess'] = $process;
+
+try {
+    $c = new MiniWSClient('127.0.0.1', $wsPort);
 
     echo "TEST 1: hello сразу после WS handshake\n";
     $msg = $c->recvOrNull();
@@ -378,7 +282,7 @@ try {
     // реальными TCP+WS хендшейками.
     $warmClients = [$c];
     for ($i = 2; $i <= Constants::MAX_TOTAL_PLAYERS; $i++) {
-        $extra = new MiniWSClient('127.0.0.1', 8080);
+        $extra = new MiniWSClient('127.0.0.1', $wsPort);
         $extra->recvOrNull(); // проглатываем hello
         $warmClients[] = $extra;
     }
@@ -390,7 +294,7 @@ try {
     // (MAX_TOTAL_PLAYERS + 1)-е соединение — WS handshake на уровне
     // протокола пройдёт (это делает сам Workerman до onWebSocketConnected),
     // но приложение обязано отклонить его прежде hello.
-    $rejected = new MiniWSClient('127.0.0.1', 8080);
+    $rejected = new MiniWSClient('127.0.0.1', $wsPort);
 
     $frame1 = $rejected->recvFrameOrNull();
     $data7  = json_decode($frame1['payload'] ?? '', true);
@@ -411,7 +315,7 @@ try {
     $rejected->close();
 
     echo "\nTEST 8: register/login/reconnect НЕ блокируются auth_required guard'ом (EPIC-10.2 continuation/ADR-006)\n";
-    $c2 = new MiniWSClient('127.0.0.1', 8080);
+    $c2 = new MiniWSClient('127.0.0.1', $wsPort);
     $c2->recvOrNull(); // hello
     foreach (['register', 'login', 'reconnect'] as $exemptAction) {
         $c2->send(json_encode(['action' => $exemptAction]));
@@ -447,6 +351,7 @@ try {
     proc_close($process);
     @unlink($stdoutFile);
     @unlink($stderrFile);
+    wsTestCleanupDatabase();
 }
 
 if (function_exists('pcntl_alarm')) {

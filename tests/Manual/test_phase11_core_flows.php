@@ -225,6 +225,8 @@ ok('join_room: room has 2 players', count($worker->rooms[$roomId]['players'] ?? 
 $stack['gameHandler']->handleStartGame($hostConn, $worker);
 $gameStarted = $hostConn->packetsOfType('game_started');
 ok('start_game: game_started broadcast', count($gameStarted) >= 1);
+$yourTurn = $hostConn->packetsOfType('your_turn');
+ok('start_game: your_turn to first drawer', count($yourTurn) >= 1);
 ok('start_game: room status is playing', ($worker->rooms[$roomId]['status'] ?? '') === 'playing');
 ok('start_game: each player has cards', isset($worker->rooms[$roomId]['players'])
     && count($worker->rooms[$roomId]['players']) === 2

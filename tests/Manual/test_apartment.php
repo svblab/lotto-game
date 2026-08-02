@@ -7,6 +7,7 @@ declare(strict_types=1);
  * Run: php tests/Manual/test_apartment.php
  */
 
+require_once __DIR__ . '/mock_timer.php';
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/../../src/Core/Helpers.php';
 
@@ -74,6 +75,14 @@ class MockStmts {
                 private object $p;
                 public function __construct(object $p) { $this->p = $p; }
                 public function execute(array $p): void { $this->p->updates[] = ['coins' => $p[0], 'user_id' => $p[1]]; }
+                public function fetch(): false { return false; }
+            };
+        }
+        if ($key === 'add_user_coins') {
+            return new class($parent) {
+                private object $p;
+                public function __construct(object $p) { $this->p = $p; }
+                public function execute(array $p): void { $this->p->updates[] = ['add' => $p[0], 'user_id' => $p[1]]; }
                 public function fetch(): false { return false; }
             };
         }
@@ -153,8 +162,9 @@ function makeSvc(array $users = [], ?MockPDO $pdo = null): array {
     $eng = new LottoEngine();
     $vic = new VictoryService();
     $apt = new ApartmentService($db, $st, $log);
-    $fin = (new ReflectionClass(GameFinishService::class))->newInstanceWithoutConstructor();
+    $fin = new GameFinishService($db, $st, $log);
     $svc = new GameService($db, $st, $eng, $log, $vic, $apt, $fin);
+    $apt->bindGameService($svc);
     return [$svc, $log, $st, $pdo, $apt];
 }
 
@@ -316,6 +326,33 @@ $apt = new ApartmentService($_mockDb, $_mockSt, $_mockLog);
 }
 
 // ---------------------------------------------------------------------------
+// GROUP 5b: triggerApartment cancels game_afk_timer immediately (EPIC-14.3)
+// ---------------------------------------------------------------------------
+
+{
+    $h  = makeConn(1, 10, 'host');
+    $p2 = makeConn(2, 20, 'p2');
+    $worker = new MockWorker();
+    $room = makeRoom(1, [1, 2]);
+    $room['players'][1] = makePlayer($h,  1, [], [], false);
+    $room['players'][2] = makePlayer($p2, 1, [], [], false);
+    $room['game_afk_timer_id'] = MockTimer::add(1.0, fn() => null, true);
+    $worker->rooms[1] = $room;
+
+    $mockGameService = new class {};
+    $apt->triggerApartment($worker->rooms[1], 1, $worker, $mockGameService);
+
+    assert_true(
+        $worker->rooms[1]['game_afk_timer_id'] === null,
+        'triggerApartment: game_afk_timer_id null immediately after transition'
+    );
+    assert_true(
+        MockTimer::$delCount >= 1,
+        'triggerApartment: game_afk timer cancelled via lottoTimerDel'
+    );
+}
+
+// ---------------------------------------------------------------------------
 // GROUP 6: handleApartmentChoice — agree → payment
 // ---------------------------------------------------------------------------
 
@@ -426,6 +463,33 @@ $apt2 = new ApartmentService($_db2, $_st2, $_log2);
     $room['apartment_fired'] = true;
 
     assert_true(!$apt2->shouldTrigger($room), 'Re-trigger: apartment_fired blocks re-trigger');
+}
+
+// ---------------------------------------------------------------------------
+// GROUP 9: removePlayerFromApartment last player — no-survivors refund
+// ---------------------------------------------------------------------------
+
+{
+    $h = makeConn(1, 10, 'solo');
+    $worker = new MockWorker();
+    $pdo = new MockPDO();
+    [$svc, , $st, $pdo, $apt] = makeSvc([10 => ['id' => 10, 'coins' => 100]], $pdo);
+
+    $room = makeRoom(1, [1], 10);
+    $room['status'] = 'apartment';
+    $room['players'][1] = makePlayer($h, 1, [], [], false);
+    $room['players'][1]['total_paid'] = 10;
+    $worker->rooms[1] = $room;
+
+    $apt->removePlayerFromApartment($room, 1, 1, 'refuse', $worker);
+
+    assert_true(!isset($worker->rooms[1]), 'apartment empty-path: room destroyed');
+    assert_true($pdo->committed === true, 'apartment empty-path: refund committed');
+    assert_true(count($st->updates) === 1, 'apartment empty-path: solo refunded');
+    assert_true($st->updates[0]['add'] === 10, 'apartment empty-path: stake returned');
+    $go = $h->sentOfType('game_over');
+    assert_true(count($go) === 1, 'apartment empty-path: game_over sent');
+    assert_true(($go[0]['reason'] ?? '') === 'no_survivors', 'apartment empty-path: no winner');
 }
 
 // ---------------------------------------------------------------------------

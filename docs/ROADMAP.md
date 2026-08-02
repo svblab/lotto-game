@@ -156,10 +156,10 @@ audit surfaces something. Previously numbered Phase 12.0-12.6; reordered
 ahead of Frontend (see note below).
 Status: In progress (EPIC-11.0 started 2026-07-27; see docs/PHASE_11_REPORT.md).
 
-- EPIC-11.0 Full integration testing — IN PROGRESS
-- EPIC-11.1 Memory audit
-- EPIC-11.2 Timer audit
-- EPIC-11.3 Economy audit
+- EPIC-11.0 Full integration testing — DONE
+- EPIC-11.1 Memory audit — IN PROGRESS (instrumentation done; VPS 6h run pending)
+- EPIC-11.2 Timer audit — IN PROGRESS (instrumentation done; VPS accelerated run pending)
+- EPIC-11.3 Economy audit — IN PROGRESS (instrumentation done; VPS live-game run pending)
 - EPIC-11.4 State machine audit
 - EPIC-11.5 Protocol audit
 - EPIC-11.6 Load testing
@@ -181,12 +181,28 @@ Testing (see note below).
 
 ---
 
+# PHASE 13 — GAME AFK WIRING & ORPHANED-METHOD FIXES
+Goal: Wire the implemented-but-unconnected game AFK timer and first-turn
+`your_turn` into production paths; close gaps from the 2026-07-28 orphaned-
+methods audit (docs/AUDIT_ORPHANED_METHODS_2026-07-28.md). Reclaims Phase 13
+number previously skipped (see note below).
+Status: In progress.
+
+- EPIC-13.0 ADR: Game AFK timer wiring decision — Completed
+- EPIC-13.1 Wire first-turn your_turn + AFK arm into handleStartGame()
+- EPIC-13.2 Wire AFK arm into handleDrawBarrel() turn rotation
+- EPIC-13.3 Wire AFK arm into drawer-replacement paths
+- EPIC-13.4 Test corrections + turn-start integration test
+- EPIC-13.5 Apartment early-finish check on kick/ban removal
+- EPIC-13.6 Investigation: reconnect mid-turn drawer turn-signal
+- EPIC-13.7 Cleanup: dead utility RoomManager::findRoomIdByUserId() (optional)
+
+---
+
 # PHASE 14 — RELEASE
 Goal: Production readiness — release candidate through v1.0. Previously
 numbered EPIC-12.7/12.8 (Phase 12's own final two epics); given its own
 phase number once Phase 12 was reassigned to Frontend (see note below).
-Phase 13 is intentionally not used — skipped by explicit project
-decision, not a gap or numbering error.
 
 - EPIC-14.0 Release Candidate
 - EPIC-14.1 Version 1.0 Release — Status: Project Complete
@@ -201,9 +217,8 @@ a client against it, so a protocol change surfaced by an audit doesn't
 mean redoing frontend work. The former Phase 12's last two epics
 (Release Candidate, v1.0 Release) were promoted to their own phase
 (14) once Phase 12 itself was reassigned to Frontend, rather than
-awkwardly living inside the Frontend phase. Phase 13 is deliberately
-skipped entirely — an explicit project decision, not an oversight.
-None of the epics in these three phases were implemented before this
-reorder, so no existing code, test, or commit message references the
-old numbering — this renumbering is documentation-only and carries no
-migration risk.
+awkwardly living inside the Frontend phase. Phase 13 was initially
+skipped (2026-07-26) but reclaimed 2026-07-28 for game AFK wiring
+fixes — see PHASE 13 above. None of the Phase 11/12/14 epics were
+implemented before the 2026-07-26 reorder; that renumbering was
+documentation-only and carries no migration risk.

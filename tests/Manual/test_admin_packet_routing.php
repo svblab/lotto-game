@@ -140,72 +140,28 @@ function check(bool $cond, string $label): void
     }
 }
 
+require_once __DIR__ . '/ws_test_harness.php';
+
+$projectRoot = dirname(__DIR__, 2);
+wsTestEnsureDatabase($projectRoot);
+
 $db  = new Database();
 $pdo = $db->getPdo();
 $pdo->exec("DELETE FROM users WHERE username LIKE 'e106\\_%' ESCAPE '\\'");
 
-$projectRoot = dirname(__DIR__, 2);
+$wsPort = wsTestPort();
 
-$stopDescriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
-$stopProcess = @proc_open(['php', $projectRoot . '/server.php', 'stop'], $stopDescriptors, $stopPipes, $projectRoot);
-if (is_resource($stopProcess)) {
-    stream_set_blocking($stopPipes[1], false);
-    stream_set_blocking($stopPipes[2], false);
-    $stopWaited = 0;
-    while ($stopWaited < 5_000_000) {
-        @fread($stopPipes[1], 65536);
-        @fread($stopPipes[2], 65536);
-        if (!proc_get_status($stopProcess)['running']) break;
-        usleep(100_000);
-        $stopWaited += 100_000;
-    }
-    foreach ($stopPipes as $p) {
-        if (is_resource($p)) fclose($p);
-    }
-    proc_close($stopProcess);
-}
-
-$stdoutFile = sys_get_temp_dir() . '/lotto_admin_routing_stdout_' . getmypid() . '.log';
-$stderrFile = sys_get_temp_dir() . '/lotto_admin_routing_stderr_' . getmypid() . '.log';
-$descriptors = [
-    0 => ['pipe', 'r'],
-    1 => ['file', $stdoutFile, 'w'],
-    2 => ['file', $stderrFile, 'w'],
-];
-
-$process = proc_open(['php', $projectRoot . '/server.php', 'start'], $descriptors, $pipes, $projectRoot);
-if (!is_resource($process)) {
-    fwrite(STDERR, "Failed to start server.php subprocess\n");
+try {
+    $serverCtx = wsTestStartServer($projectRoot);
+} catch (Throwable $e) {
+    fwrite(STDERR, $e->getMessage() . "\n");
     exit(1);
 }
+
+$process = $serverCtx['process'];
+$stdoutFile = $serverCtx['stdoutFile'];
+$stderrFile = $serverCtx['stderrFile'];
 $GLOBALS['__serverProcess'] = $process;
-if (isset($pipes[0]) && is_resource($pipes[0])) {
-    fclose($pipes[0]);
-}
-
-$bound = false;
-for ($i = 0; $i < 50; $i++) {
-    $status = proc_get_status($process);
-    if (!$status['running']) break;
-    $probe = @fsockopen('127.0.0.1', 8080, $errno, $errstr, 0.1);
-    if ($probe) {
-        fclose($probe);
-        $bound = true;
-        break;
-    }
-    usleep(100_000);
-}
-
-if (!$bound) {
-    fwrite(STDERR, "server.php did not bind port 8080 in time\n");
-    fwrite(STDERR, "--- stdout ---\n" . @file_get_contents($stdoutFile) . "\n");
-    fwrite(STDERR, "--- stderr ---\n" . @file_get_contents($stderrFile) . "\n");
-    proc_terminate($process, 9);
-    proc_close($process);
-    @unlink($stdoutFile);
-    @unlink($stderrFile);
-    exit(1);
-}
 
 try {
     // Promote an admin user directly via DB (matches existing admin test
@@ -215,19 +171,19 @@ try {
                "VALUES ('e106_admin', " . $pdo->quote($adminPasswordHash) . ", 500, 1, 0, 0)");
 
     echo "SETUP: admin login, register two regular players\n";
-    $admin = new AdminRoutingClient('127.0.0.1', 8080);
+    $admin = new AdminRoutingClient('127.0.0.1', $wsPort);
     $admin->recvOrNull();
     $admin->send(json_encode(['action' => 'login', 'username' => 'e106_admin', 'password' => 'e106adminpass']));
     $adminAuth = json_decode($admin->recvOrNull() ?? '', true);
     check(($adminAuth['type'] ?? null) === 'auth_result' && ($adminAuth['is_admin'] ?? false) === true, 'admin login succeeds, is_admin=true');
 
-    $p1 = new AdminRoutingClient('127.0.0.1', 8080);
+    $p1 = new AdminRoutingClient('127.0.0.1', $wsPort);
     $p1->recvOrNull();
     $p1->send(json_encode(['action' => 'register', 'username' => 'e106_p1', 'password' => 'e106pass123']));
     $p1Auth = json_decode($p1->recvOrNull() ?? '', true);
     $p1Id = (int)$p1Auth['user_id'];
 
-    $p2 = new AdminRoutingClient('127.0.0.1', 8080);
+    $p2 = new AdminRoutingClient('127.0.0.1', $wsPort);
     $p2->recvOrNull();
     $p2->send(json_encode(['action' => 'register', 'username' => 'e106_p2', 'password' => 'e106pass123']));
     $p2Auth = json_decode($p2->recvOrNull() ?? '', true);
@@ -248,7 +204,7 @@ try {
     // ADR-006, reached before AdminHandler at all)
     // =========================================================================
     echo "\nTEST 2: unauth admin_kick_user -> error.auth_required\n";
-    $anon = new AdminRoutingClient('127.0.0.1', 8080);
+    $anon = new AdminRoutingClient('127.0.0.1', $wsPort);
     $anon->recvOrNull();
     $anon->send(json_encode(['action' => 'admin_kick_user', 'user_id' => $p1Id]));
     $data2 = json_decode($anon->recvOrNull() ?? '', true);
@@ -320,7 +276,7 @@ try {
     // afterward.
     // =========================================================================
     echo "\nTEST 7 (FIX-11): ban while disconnected (mid reconnect-window) blocks the pending reconnect\n";
-    $p3 = new AdminRoutingClient('127.0.0.1', 8080);
+    $p3 = new AdminRoutingClient('127.0.0.1', $wsPort);
     $p3->recvOrNull();
     $p3->send(json_encode(['action' => 'register', 'username' => 'e106_p3', 'password' => 'e106pass123']));
     $p3Auth = json_decode($p3->recvOrNull() ?? '', true);
@@ -337,7 +293,7 @@ try {
     $admin->send(json_encode(['action' => 'admin_ban_user', 'user_id' => $p3Id, 'duration' => '1d']));
     usleep(300_000);
 
-    $p3Back = new AdminRoutingClient('127.0.0.1', 8080);
+    $p3Back = new AdminRoutingClient('127.0.0.1', $wsPort);
     $p3Back->recvOrNull();
     $p3Back->send(json_encode(['action' => 'reconnect', 'token' => $p3Token]));
     $p3ReconnectResp = json_decode($p3Back->recvOrNull() ?? '', true);
@@ -374,7 +330,7 @@ try {
     echo "\nTEST 8: admin_unban_user -> banned user can log in again\n";
     $admin->send(json_encode(['action' => 'admin_unban_user', 'user_id' => $p3Id]));
     usleep(200_000);
-    $p3Relogin = new AdminRoutingClient('127.0.0.1', 8080);
+    $p3Relogin = new AdminRoutingClient('127.0.0.1', $wsPort);
     $p3Relogin->recvOrNull();
     $p3Relogin->send(json_encode(['action' => 'login', 'username' => 'e106_p3', 'password' => 'e106pass123']));
     $p3ReloginResp = json_decode($p3Relogin->recvOrNull() ?? '', true);
@@ -437,6 +393,7 @@ try {
             usleep(200_000);
         }
     }
+    wsTestCleanupDatabase();
 }
 
 if (function_exists('pcntl_alarm')) {

@@ -28,6 +28,11 @@ require_once __DIR__ . '/../../src/Core/Helpers.php';
 
 use Lotto\Admin\AdminService;
 use Lotto\Infrastructure\PreparedStatements;
+use Lotto\Game\ApartmentService;
+use Lotto\Game\GameService;
+use Lotto\Game\LottoEngine;
+use Lotto\Game\VictoryService;
+use Lotto\Game\GameFinishService;
 
 // =============================================================================
 // Test harness
@@ -157,6 +162,10 @@ final class SpyApartmentService
         $this->removeCalls[] = ['roomId' => $roomId, 'connId' => $connId, 'reason' => $reason];
         unset($room['players'][$connId]);
         unset($worker->rooms[$roomId]['players'][$connId]);
+    }
+
+    public function maybeFinishApartmentEarly(array &$room, int $roomId, object $worker): void
+    {
     }
 }
 
@@ -508,6 +517,46 @@ assertEquals(20, $worker->rooms[8]['bank'], 'bank NOT touched after failed trans
 assertEquals(0, count($reconnect8->removeCalls), 'player NOT removed after failed transaction');
 assertTrue(isset($worker->rooms[8]['players'][800]), 'target player remains in room after rollback');
 assertTrue($pdo->inTransaction() === false, 'PDO transaction cleanly rolled back (no dangling transaction)');
+
+// =============================================================================
+// TEST 9 — Kick last pending required voter → apartment finishes early (EPIC-13.5)
+// =============================================================================
+
+echo "\nTEST 9: Kick last pending required voter -> apartment finishes early\n";
+
+$voterPendingId = insertUser($pdo, 'voter_pending', 500, false);
+$voterAgreedId  = insertUser($pdo, 'voter_agreed2', 500, false);
+
+$worker = makeWorker();
+$worker->rooms[9] = makeRoom(9, 900, 'apartment', 30);
+$worker->rooms[9]['apartment_fired'] = true;
+$worker->rooms[9]['_apartment_participants'] = [901 => true, 902 => true];
+$worker->rooms[9]['apartment_responses'] = [902 => 'agree'];
+$worker->rooms[9]['active_drawer_conn_id'] = 901;
+$worker->rooms[9]['drawer_order'] = [901, 902];
+$worker->rooms[9]['bag'] = range(1, 90);
+$worker->rooms[9]['players'][900] = makePlayer($adminId, 'immune_host', 0);
+$worker->rooms[9]['players'][900]['immune'] = true;
+$worker->rooms[9]['players'][901] = makePlayer($voterPendingId, 'voter_pending', 15);
+$worker->rooms[9]['players'][902] = makePlayer($voterAgreedId, 'voter_agreed2', 15);
+
+$aptSvc9 = new ApartmentService($db, $stmts, new FakeLogger());
+$fin9 = (new ReflectionClass(GameFinishService::class))->newInstanceWithoutConstructor();
+$gameSvc9 = new GameService($db, $stmts, new LottoEngine(), new FakeLogger(), new VictoryService(), $aptSvc9, $fin9);
+$aptSvc9->bindGameService($gameSvc9);
+
+$admin9 = new AdminService($stmts, new FakeLogger(), new SpyLobbyService(), new SpyReconnectService(), $aptSvc9, $db);
+
+$connection9 = new SpyConnection();
+$connection9->userId  = $adminId;
+$connection9->isAdmin = true;
+$connection9->id      = 991;
+
+$admin9->handleKickUser(['user_id' => $voterPendingId], $connection9, $worker);
+
+assertEquals('playing', $worker->rooms[9]['status'] ?? null, 'apartment -> playing after kick of last pending voter');
+assertTrue(!isset($worker->rooms[9]['apartment_timer_id']) || $worker->rooms[9]['apartment_timer_id'] === null,
+    'apartment timer not required — early finish');
 
 // =============================================================================
 // Summary

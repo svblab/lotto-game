@@ -50,6 +50,14 @@ class Logger
         $this->logFile = $logDir . '/server.log';
     }
 
+    /**
+     * Default production log path (for tests verifying Logger wiring without writing).
+     */
+    public static function defaultLogPath(): string
+    {
+        return dirname(__DIR__, 2) . '/logs/server.log';
+    }
+
     public function write(string $level, string $message): void
     {
         if (!in_array($level, self::ALLOWED_LEVELS, true)) {

@@ -9,6 +9,11 @@ use Lotto\Core\Logger;
 use Lotto\Infrastructure\Database;
 use Lotto\Infrastructure\PreparedStatements;
 
+use function Lotto\Core\lottoTimerDel;
+
+use function Lotto\Core\lottoEconomyRecord;
+use function Lotto\Core\lottoStateTransition;
+use function Lotto\Core\lottoStateReject;
 use function Lotto\Core\sendError;
 use function Lotto\Core\broadcastToRoom;
 use function Lotto\Core\sendJson;
@@ -47,6 +52,7 @@ final class GameService
     private VictoryService $victory;
     private ApartmentService $apartment;
     private GameFinishService $finishService;
+    private ?ReconnectService $reconnectService = null;
 
     public function __construct(
         object $db,
@@ -64,6 +70,14 @@ final class GameService
         $this->victory   = $victory;
         $this->apartment = $apartment;
         $this->finishService = $finishService;
+    }
+
+    /**
+     * Post-construction wiring (ADR-008): breaks circular dep with ReconnectService.
+     */
+    public function setReconnectService(ReconnectService $reconnectService): void
+    {
+        $this->reconnectService = $reconnectService;
     }
 
     // -------------------------------------------------------------------------
@@ -124,6 +138,7 @@ final class GameService
 
         // Комната должна быть в статусе waiting
         if ($room['status'] !== 'waiting') {
+            lottoStateReject($roomId, $room['status'], 'start_game', 'error.not_your_turn');
             sendError($connection, 'error.not_your_turn', 'Game already started');
             return;
         }
@@ -190,6 +205,12 @@ final class GameService
             }
 
             $pdo->commit();
+
+            foreach ($playerPayments as $pConnId => $payment) {
+                lottoEconomyRecord('stake', $payment['user_id'], -$payment['total_paid'], [
+                    'room_id' => $roomId,
+                ]);
+            }
         } catch (\Throwable $e) {
             $pdo->rollBack();
             $this->logger->error('startGame: transaction failed: ' . $e->getMessage());
@@ -203,6 +224,7 @@ final class GameService
         $room['bag']          = $this->engine->generateBag();
         $room['drawn_numbers'] = [];
         $room['status']       = 'playing';
+        lottoStateTransition($roomId, 'waiting', 'playing', 'start_game');
 
         // Назначить карты каждому активному игроку
         foreach ($activePlayers as $pConnId => $player) {
@@ -234,7 +256,7 @@ final class GameService
 
         // Остановить lobby AFK таймер
         if (!empty($room['lobby_afk_timer_id'])) {
-            \Workerman\Timer::del($room['lobby_afk_timer_id']);
+            lottoTimerDel((int) $room['lobby_afk_timer_id'], 'lobby_afk', ['room_id' => $roomId]);
             $room['lobby_afk_timer_id'] = null;
         }
 
@@ -274,16 +296,11 @@ final class GameService
             }
 
             $playersPayload = [];
-            foreach ($activePlayers as $otherConnId => $other) {
+            foreach ($activePlayers as $otherConnId => $_) {
+                $other = $room['players'][$otherConnId];
+                $masks = $this->buildInitialMasks($other['cards']);
+
                 if ($otherConnId === $pConnId) {
-                    // Свои карты и маски — видны
-                    $masks = array_map(
-                        fn($card) => array_map(
-                            fn($row) => array_map(fn($cell) => false, $row),
-                            $card
-                        ),
-                        $other['cards']
-                    );
                     $playersPayload[] = [
                         'username' => $other['username'],
                         'is_self'  => true,
@@ -291,14 +308,6 @@ final class GameService
                         'masks'    => $masks,
                     ];
                 } else {
-                    // Чужие карты — null, только маски (тоже null по протоколу)
-                    $masks = array_map(
-                        fn($card) => array_map(
-                            fn($row) => array_map(fn($cell) => false, $row),
-                            $card
-                        ),
-                        $other['cards']
-                    );
                     $playersPayload[] = [
                         'username' => $other['username'],
                         'is_self'  => false,
@@ -315,8 +324,26 @@ final class GameService
                 'players'      => $playersPayload,
             ];
 
-            $player['connection']->send(json_encode($packet));
+            sendJson($player['connection'], $packet);
         }
+
+        // EPIC-13.1 — first drawer your_turn + game AFK timer (ADR-008, prompt.md § start)
+        $this->startTurn($room, $worker, $roomId);
+    }
+
+    /**
+     * @param list<list<list<int|null>>> $cards
+     * @return list<list<list<bool>>>
+     */
+    private function buildInitialMasks(array $cards): array
+    {
+        return array_map(
+            fn($card) => array_map(
+                fn($row) => array_map(fn($cell) => false, $row),
+                $card
+            ),
+            $cards
+        );
     }
     // -------------------------------------------------------------------------
     // EPIC-5.0  Send your_turn
@@ -324,9 +351,9 @@ final class GameService
 
     /**
      * Отправить {"type": "your_turn"} текущему drawer'у.
-     * Также сбрасывает afk_start (таймер AFK начинается с этого момента).
+     * AFK-таймер стартует сразу, либо откладывается до turn_ready (после анимации).
      */
-    public function sendYourTurn(array &$room): void
+    public function sendYourTurn(array &$room, bool $deferAfkStart = false): void
     {
         $drawerConnId = $room['active_drawer_conn_id'];
         if (!isset($room['players'][$drawerConnId])) {
@@ -336,8 +363,76 @@ final class GameService
         if ($player['status'] !== 'active') {
             return;
         }
-        $room['players'][$drawerConnId]['afk_start'] = time();
-        $player['connection']->send(json_encode(['type' => 'your_turn']));
+        $room['players'][$drawerConnId]['strikes'] = 0;
+        $autoDraws = (int)($room['players'][$drawerConnId]['auto_draws'] ?? 0);
+        $turnSeconds = Constants::gameAfkStrikeWindowSeconds($autoDraws);
+
+        if ($deferAfkStart) {
+            $room['players'][$drawerConnId]['afk_start'] = null;
+            $packet = [
+                'type'         => 'your_turn',
+                'turn_seconds' => $turnSeconds,
+                'auto_draws'   => $autoDraws,
+            ];
+        } else {
+            $room['players'][$drawerConnId]['afk_start'] = time();
+            $packet = [
+                'type'         => 'your_turn',
+                'afk_start'    => $room['players'][$drawerConnId]['afk_start'],
+                'turn_seconds' => $turnSeconds,
+                'auto_draws'   => $autoDraws,
+            ];
+        }
+
+        $room['players'][$drawerConnId]['connection']->send(json_encode($packet));
+    }
+
+    /**
+     * Клиент завершил анимацию хода — запускаем AFK-таймер drawer'а.
+     */
+    public function handleTurnReady(object $connection, object $worker): void
+    {
+        if (empty($connection->userId)) {
+            sendError($connection, 'error.auth_required', 'Authentication required');
+            return;
+        }
+
+        $connId = $connection->id;
+        $roomId = null;
+        foreach ($worker->rooms as $rid => $room) {
+            if (isset($room['players'][$connId])) {
+                $roomId = (int) $rid;
+                break;
+            }
+        }
+
+        if ($roomId === null) {
+            return;
+        }
+
+        $room = &$worker->rooms[$roomId];
+        if (($room['status'] ?? null) !== 'playing') {
+            return;
+        }
+        if (($room['active_drawer_conn_id'] ?? null) !== $connId) {
+            return;
+        }
+        if (!empty($room['players'][$connId]['afk_start'])) {
+            return;
+        }
+
+        $this->sendYourTurn($room, false);
+    }
+
+    /**
+     * EPIC-13.0/13.1 (ADR-008): atomically notify drawer and arm game AFK timer.
+     */
+    public function startTurn(array &$room, object $worker, int $roomId, bool $deferAfkStart = false): void
+    {
+        $this->sendYourTurn($room, $deferAfkStart);
+        if ($this->reconnectService !== null) {
+            $this->reconnectService->ensureGameAfkTimer($worker, $roomId);
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -399,15 +494,12 @@ final class GameService
      *   1. Auth guard.
      *   2. Найти комнату.
      *   3. Проверки: статус playing, это ход текущего drawer'а.
-     *   4. EPIC-5.2 — извлечь следующий бочонок из bag.
-     *   5. EPIC-5.4 — markNumber(): отметить число на картах drawer'а.
-     *   6. EPIC-5.3 — barrels_drawn broadcast всем активным игрокам.
+     *   4. EPIC-5.2 — извлечь до BARRELS_PER_TURN бочонков из bag, по одному.
+     *   5. После каждого: markNumber(), победа, «Квартира» (остаток хода отменяется).
+     *   6. EPIC-5.3 — barrels_drawn broadcast (1–3 числа).
      *   7. EPIC-5.1 — nextDrawer(), затем sendYourTurn() следующему.
-     *
-     * Победа и апартаменты — делегированы VictoryService / ApartmentService
-     * в последующих фазах. Здесь только механика хода.
      */
-    public function handleDrawBarrel(object $connection, object $worker): void
+    public function handleDrawBarrel(object $connection, object $worker, bool $fromAutoDraw = false): void
     {
         // --- 1. Auth guard ---
         if (empty($connection->userId)) {
@@ -436,6 +528,7 @@ final class GameService
         // --- 3. Проверки ---
 
         if ($room['status'] !== 'playing') {
+            lottoStateReject($roomId, $room['status'], 'draw_barrel', 'error.not_your_turn');
             sendError($connection, 'error.not_your_turn', 'Game is not in playing state');
             return;
         }
@@ -445,75 +538,127 @@ final class GameService
             return;
         }
 
-        // --- 4. EPIC-5.2 Извлечь бочонок из мешка ---
-
         if (empty($room['bag'])) {
-            // Мешок пуст — все числа вышли (не должно случиться до победы)
             $this->logger->warning("Room {$roomId}: bag is empty on draw_barrel");
             return;
         }
 
-        $number = array_shift($room['bag']);
-        $room['drawn_numbers'][] = $number;
-
-        // Сбросить AFK счётчики drawer'а (успешный ручной ход)
+        // Ручной ход сбрасывает AFK-счётчики; автоход сохраняет auto_draws.
         $room['players'][$connId]['afk_start']   = null;
         $room['players'][$connId]['strikes']      = 0;
-        $room['players'][$connId]['auto_draws']   = 0;
         $room['players'][$connId]['last_action']  = time();
+        if (!$fromAutoDraw) {
+            $room['players'][$connId]['auto_draws'] = 0;
+        }
 
-        // --- 5. EPIC-5.4 markNumber — отметить число на картах всех игроков ---
-        // Каждый игрок отмечает вытянутое число на своих картах
-        foreach ($room['players'] as $pConnId => $player) {
-            if ($player['status'] === 'active') {
-                $this->markNumber($room, $pConnId, $number);
+        $drawnThisTurn = [];
+
+        // --- 4–5. EPIC-5.2: до 3 бочонков, обработка каждого по отдельности ---
+        for ($i = 0; $i < Constants::BARRELS_PER_TURN; $i++) {
+            if (empty($room['bag'])) {
+                break;
+            }
+
+            $number = array_shift($room['bag']);
+            $room['drawn_numbers'][] = $number;
+            $drawnThisTurn[] = $number;
+
+            foreach ($room['players'] as $pConnId => $player) {
+                if ($player['status'] === 'active') {
+                    $this->markNumber($room, $pConnId, $number);
+                }
+            }
+
+            $winners = $this->victory->checkAllVictories($room);
+            if (!empty($winners)) {
+                $result = $this->victory->calculatePrize($room['bank'], $winners);
+                $remaining = count($room['bag']);
+                $this->broadcastBarrelsDrawn($room, $drawnThisTurn, null, true, $remaining, false);
+                $this->logger->info(
+                    "Room {$roomId}: barrels [" . implode(', ', $drawnThisTurn) . "] drawn, victory"
+                );
+                $this->finishGame($room, $roomId, $winners, $result['prizes'], $worker);
+                return;
+            }
+
+            if ($this->apartment->shouldTrigger($room)) {
+                $remaining = count($room['bag']);
+                $currentDrawerUsername = $room['players'][$connId]['username'] ?? null;
+                $this->broadcastBarrelsDrawn($room, $drawnThisTurn, $currentDrawerUsername, false, $remaining);
+                $this->logger->info(
+                    "Room {$roomId}: barrels [" . implode(', ', $drawnThisTurn) . "] drawn, apartment"
+                );
+                $this->triggerApartment($room, $roomId, $worker);
+                return;
             }
         }
 
-        // --- 5b. EPIC-6.0/6.1 Victory check (priority: Victory > Apartment) ---
-        $winners = $this->victory->checkAllVictories($room);
-        if (!empty($winners)) {
-            $result = $this->victory->calculatePrize($room['bank'], $winners);
-            $this->finishGame($room, $roomId, $winners, $result['prizes'], $worker);
-            return;
-        }
-
-        // --- 5c. EPIC-7.1 Apartment trigger check ---
-        if ($this->apartment->shouldTrigger($room)) {
-            $this->triggerApartment($room, $roomId, $worker);
-            return; // turn loop paused
-        }
-
         // --- 6. EPIC-5.3 barrels_drawn broadcast ---
-
-        $remaining  = count($room['bag']);
+        $remaining = count($room['bag']);
         $nextDrawer = $this->peekNextDrawer($room);
         $nextDrawerUsername = null;
         if ($nextDrawer !== null && isset($room['players'][$nextDrawer])) {
             $nextDrawerUsername = $room['players'][$nextDrawer]['username'];
         }
 
+        $this->broadcastBarrelsDrawn(
+            $room,
+            $drawnThisTurn,
+            $nextDrawerUsername,
+            $remaining === 0,
+            $remaining
+        );
+
+        $this->logger->info(
+            "Room {$roomId}: barrels [" . implode(', ', $drawnThisTurn) . "] drawn. Remaining: {$remaining}"
+        );
+
+        // --- 7. Передать ход следующему ---
+        $this->nextDrawer($room);
+        $this->startTurn($room, $worker, $roomId, true);
+    }
+
+    /**
+     * Comparative win-chance map for protocol packets (ADR-014).
+     *
+     * @param array<int, array> $players
+     * @return array<string, int>
+     */
+    public function calculateWinChances(array $players): array
+    {
+        return $this->victory->calculateWinChances($players, $this->logger);
+    }
+
+    /**
+     * Разослать barrels_drawn всем активным игрокам комнаты.
+     *
+     * @param int[] $numbers 1–3 вытянутых бочонка текущего хода
+     */
+    private function broadcastBarrelsDrawn(
+        array &$room,
+        array $numbers,
+        ?string $nextDrawerUsername,
+        bool $isFinal,
+        int $remaining,
+        bool $includeWinChances = true
+    ): void {
         $packet = [
             'type'         => 'barrels_drawn',
-            'numbers'      => [$number],
+            'numbers'      => $numbers,
             'remaining'    => $remaining,
             'next_drawer'  => $nextDrawerUsername,
-            'is_final'     => $remaining === 0,
+            'is_final'     => $isFinal,
         ];
+
+        if ($includeWinChances) {
+            $packet['win_chances'] = $this->calculateWinChances($room['players']);
+        }
 
         foreach ($room['players'] as $player) {
             if ($player['status'] === 'active') {
                 $player['connection']->send(json_encode($packet));
             }
         }
-
-        $this->logger->info(
-            "Room {$roomId}: barrel {$number} drawn. Remaining: {$remaining}"
-        );
-
-        // --- 7. Передать ход следующему ---
-        $this->nextDrawer($room);
-        $this->sendYourTurn($room);
     }
 
     // -------------------------------------------------------------------------
@@ -621,6 +766,25 @@ final class GameService
             function () use ($worker, $roomId) {
                 unset($worker->rooms[$roomId]);
             }
+        );
+    }
+
+    /**
+     * Zero active players — refund all participants and destroy the room.
+     */
+    public function handleNoSurvivors(
+        array &$room,
+        int $roomId,
+        object $worker,
+        ?object $notifyConnection = null
+    ): void {
+        $this->finishService->handleNoSurvivors(
+            $room,
+            $roomId,
+            function () use ($worker, $roomId) {
+                unset($worker->rooms[$roomId]);
+            },
+            $notifyConnection
         );
     }
 

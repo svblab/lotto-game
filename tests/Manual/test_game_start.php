@@ -397,12 +397,14 @@ function makeService(array $users, MockPDO $pdo): array {
     assert_true($r['players'][1]['total_paid'] === 10, 'Start: host total_paid=10');
     assert_true($r['players'][2]['total_paid'] === 10, 'Start: p2 total_paid=10');
 
-    // game_started packets sent
-    assert_true(count($host->sent) === 1,          'Start: host received game_started');
-    assert_true(count($p2->sent) === 1,            'Start: p2 received game_started');
+    // game_started + your_turn packets sent (EPIC-13.1)
+    assert_true(count($host->sent) === 2,          'Start: host received game_started + your_turn');
+    assert_true(count($p2->sent) === 1,            'Start: p2 received game_started only');
 
     $hostPkt = $host->sent[0];
     assert_true($hostPkt['type'] === 'game_started',     'Packet: type=game_started');
+    assert_true($host->sent[1]['type'] === 'your_turn', 'Packet: host received your_turn as first drawer');
+    assert_true($r['players'][1]['afk_start'] !== null,  'Start: first drawer afk_start set');
     assert_true($hostPkt['bank'] === 20,                  'Packet: bank=20');
     assert_true(count($hostPkt['drawer_order']) === 2,    'Packet: drawer_order has 2');
     assert_true($hostPkt['drawer_order'][0] === 'host',   'Packet: host first in drawer_order');
@@ -417,6 +419,8 @@ function makeService(array $users, MockPDO $pdo): array {
     }
     assert_true($selfEntry  !== null && $selfEntry['is_self'] === true,   'Packet: host is_self=true');
     assert_true($selfEntry['cards'] !== null,                              'Packet: host cards visible');
+    assert_true(count($selfEntry['cards']) === 1,                        'Packet: host cards count=1');
+    assert_true(count($selfEntry['cards'][0] ?? []) === 3,                'Packet: host card is 3 rows');
     assert_true($otherEntry !== null && $otherEntry['is_self'] === false,  'Packet: p2 is_self=false');
     assert_true($otherEntry['cards'] === null,                             'Packet: p2 cards hidden');
 
@@ -524,7 +528,7 @@ function makeService(array $users, MockPDO $pdo): array {
     $r = $worker->rooms[1];
     assert_true($r['players'][1]['strikes']    === 0,    'AFK: strikes reset to 0');
     assert_true($r['players'][1]['auto_draws'] === 0,    'AFK: auto_draws reset to 0');
-    assert_true($r['players'][1]['afk_start']  === null, 'AFK: afk_start reset to null');
+    assert_true($r['players'][1]['afk_start']  !== null,  'AFK: drawer afk_start set by startTurn');
 }
 
 // ---------------------------------------------------------------------------

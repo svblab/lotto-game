@@ -1,5 +1,12 @@
 <?php
 
+require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/src/Core/Helpers.php';
+
+use function Lotto\Core\lottoBootstrapPhpExtensions;
+
+lottoBootstrapPhpExtensions();
+
 try {
     $dbFile = __DIR__ . '/game.db';
     

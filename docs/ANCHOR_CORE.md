@@ -69,6 +69,7 @@ $room['players'][$connId] = [
   'cards_count' => 1|2,
   'total_paid' => int,
   'last_action' => int,
+  'host_activity_at' => int,
   'afk_start' => null,
   'strikes' => 0,
   'auto_draws' => 0,
@@ -113,7 +114,9 @@ Stored in `drawer_order`:
 5. Queue is cyclic.
 
 ## Room Destruction Rules
-Destroy room if: no players remain | game finished | admin closed room.
+Destroy room if: no players remain | game finished | admin closed room |
+lobby host-candidate queue exhausted (ADR-011 — all seated players timed out
+as host without `start_game`).
 Before destruction: cancel all timers (room + reconnect), remove room from memory.
 
 ## Timer Registry
@@ -218,6 +221,11 @@ Priority: Victory > Apartment. If same barrel causes both, victory wins, apartme
 
 ## Last Survivor
 Exactly one active player remains → takes entire bank: `winner.coins += bank; bank = 0`.
+**Qualifying condition (ADR-013):** when the triggering removal reason is `afk`, the
+survivor must have `auto_draws === 0` (no AFK auto-draws this game). If the survivor
+has `auto_draws > 0`, treat as § No Survivors (refund via `handleNoSurvivors()`). Removal
+reasons `disconnect`, `leave`, `refuse`, `kicked`, and `banned` are unaffected — last
+survivor payout applies regardless of the survivor's `auto_draws`.
 
 ## No Survivors
 Zero active players remain → refund all participants (from `all_players_history`) their `total_paid` (including apartment payments). `bank = 0`. Room destroyed.
@@ -406,20 +414,30 @@ Created: `onWorkerStart`. Destroyed: worker shutdown.
 ## Lobby AFK Timer
 Owner: room. Exists only in `waiting`. Purpose: prevent inactive host.
 Created when: room has `>=2 players` and host responsible for starting.
-Interval: 1s repeat. Check: `time()-host.last_action`. Threshold: 120s.
-Action: transfer host to next active player FIFO.
+Interval: 1s repeat. Check: `time()-host.host_activity_at`. Threshold: 120s.
+`host_activity_at` tracks genuine lobby host interaction only — not updated
+by `ping` (ADR-010); `last_action` remains for connection liveness.
+Action: transfer host to the next active player FIFO — strictly the
+next untried candidate positioned after the current host in
+`drawer_order`. Rotation is forward-only: a player who already held
+host and timed out is never re-selected while any later candidate
+remains untried (ADR-011). If no untried active candidate remains
+after the current host's position, the queue is exhausted: the room is
+destroyed and every remaining player is removed with reason `afk`
+(existing `player_left` packet, existing reason — ANCHOR_CORE.md Part 1
+§ Removal Reasons; no new packet/reason introduced).
 Destroyed when: game starts, room destroyed, or player count <2. Max one per room.
 
 ## Game AFK Timer
 Owner: room. Exists only in `playing`. Count: exactly 1/room. Interval: 1s repeat.
 Tracks: `active_drawer_conn_id`. Created on first `your_turn`, reused after turn change — never recreated.
 
-### Thresholds (measured as `time()-player.afk_start`)
-- 15s: strike=1, warning sent.
-- 25s: strike=2, warning sent.
-- 30s: auto draw, `auto_draws++`, `strikes=0`.
-- `auto_draws>=3`: `removePlayerFromGame(..., 'afk')`.
-- Successful manual draw: `auto_draws=0, strikes=0`.
+### Thresholds (measured as `time()-player.afk_start` per turn; ADR-012)
+- `auto_draws=0`: strike 1 — window **30s** (`LOTTO_GAME_AFK_STRIKE1`) → `afk_warning`, auto-draw, player stays (`auto_draws=1`).
+- `auto_draws=1`: strike 2 — window **15s** (`LOTTO_GAME_AFK_STRIKE2`) → `afk_warning`, auto-draw, player stays (`auto_draws=2`).
+- `auto_draws=2`: strike 3 — window **5s** (`LOTTO_GAME_AFK_STRIKE3`) → `removePlayerFromGame(..., 'afk')` (no auto-draw).
+- Successful manual draw: `strikes=0`, `auto_draws=0`, `afk_start` reset for next drawer via `your_turn`.
+- On turn change: `strikes=0`, `afk_start=time()` for new drawer (`auto_draws` preserved per player).
 Destroyed when room leaves `playing` or room destroyed.
 
 ## Apartment Timer
@@ -513,7 +531,7 @@ Room states: `waiting, playing, apartment, finished`.
 
 ## Player Structure Keys (allowed)
 ```
-user_id, username, cards, cards_count, total_paid, last_action, afk_start,
+user_id, username, cards, cards_count, total_paid, last_action, host_activity_at, afk_start,
 strikes, auto_draws, status, session_token, reconnect_timer, connection, immune
 ```
 Player states: `active, disconnected`.
@@ -544,8 +562,8 @@ Removal reasons: `leave, disconnect, afk, refuse, kicked, banned, admin_close`.
 
 ## Protocol Packet Types (allowed)
 ```
-hello, auth_result, error, room_list, room_joined, player_joined, player_left,
-game_started, your_turn, barrels_drawn, apartment_alert, reconnect_state,
+hello, auth_result, error, room_list, room_joined, player_joined, player_left, host_changed,
+game_started, your_turn, barrels_drawn, afk_warning, apartment_alert, reconnect_state,
 game_over, banned, admin_stats_data, admin_logs_data
 ```
 
