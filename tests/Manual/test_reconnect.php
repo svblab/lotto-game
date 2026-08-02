@@ -122,6 +122,11 @@ class MockGameService
         $this->noSurvivorsCalls++;
         unset($worker->rooms[$roomId]);
     }
+
+    public function calculateWinChances(array $players): array
+    {
+        return (new VictoryService())->calculateWinChances($players);
+    }
 }
 
 function makePlayer(MockConnection $conn, string $status = 'active'): array
@@ -313,6 +318,8 @@ function makeRoom(int $roomId, int $hostConnId): array
     assert_true(count($statePackets) === 1, 'reconnect: reconnect_state sent');
     assert_true($statePackets[0]['status'] === 'playing', 'reconnect_state: status=playing');
     assert_true($statePackets[0]['drawn_all'] === [5, 10], 'reconnect_state: drawn_all restored');
+    assert_true(isset($statePackets[0]['win_chances']), 'reconnect_state: win_chances present');
+    assert_true(is_array($statePackets[0]['win_chances']), 'reconnect_state: win_chances is map');
     assert_true($worker->rooms[3]['players'][103]['afk_start'] !== null, 'reconnect: afk_start armed for active drawer');
     assert_true((time() - (int)$worker->rooms[3]['players'][103]['afk_start']) <= 2, 'reconnect: afk_start freshly set');
 }

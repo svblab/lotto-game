@@ -573,7 +573,7 @@ final class GameService
             if (!empty($winners)) {
                 $result = $this->victory->calculatePrize($room['bank'], $winners);
                 $remaining = count($room['bag']);
-                $this->broadcastBarrelsDrawn($room, $drawnThisTurn, null, true, $remaining);
+                $this->broadcastBarrelsDrawn($room, $drawnThisTurn, null, true, $remaining, false);
                 $this->logger->info(
                     "Room {$roomId}: barrels [" . implode(', ', $drawnThisTurn) . "] drawn, victory"
                 );
@@ -619,6 +619,17 @@ final class GameService
     }
 
     /**
+     * Comparative win-chance map for protocol packets (ADR-014).
+     *
+     * @param array<int, array> $players
+     * @return array<string, int>
+     */
+    public function calculateWinChances(array $players): array
+    {
+        return $this->victory->calculateWinChances($players, $this->logger);
+    }
+
+    /**
      * Разослать barrels_drawn всем активным игрокам комнаты.
      *
      * @param int[] $numbers 1–3 вытянутых бочонка текущего хода
@@ -628,7 +639,8 @@ final class GameService
         array $numbers,
         ?string $nextDrawerUsername,
         bool $isFinal,
-        int $remaining
+        int $remaining,
+        bool $includeWinChances = true
     ): void {
         $packet = [
             'type'         => 'barrels_drawn',
@@ -637,6 +649,10 @@ final class GameService
             'next_drawer'  => $nextDrawerUsername,
             'is_final'     => $isFinal,
         ];
+
+        if ($includeWinChances) {
+            $packet['win_chances'] = $this->calculateWinChances($room['players']);
+        }
 
         foreach ($room['players'] as $player) {
             if ($player['status'] === 'active') {

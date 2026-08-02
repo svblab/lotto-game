@@ -1,5 +1,30 @@
 # Implementation Status — Lotto Game Project
 
+## Phase 16 — Comparative Win-Chance (Server-Side)
+
+- [DONE] EPIC-16.1 Comparative win-chance calculation and protocol wiring (ADR-014)
+Files:
+- docs/ADR/014.md (new)
+- docs/ANCHOR_PROTOCOL.md (diff — `win_chances` on `barrels_drawn` / `reconnect_state`)
+- src/Game/VictoryService.php (diff — `calculateWinChances()`)
+- src/Game/GameService.php (diff — wire into `broadcastBarrelsDrawn()`; passthrough; skip on victory draw)
+- src/Game/ReconnectService.php (diff — `reconnect_state` playing branch)
+- public/js/app.js (diff — opponents use server `win_chances`; self indicator unchanged)
+- tests/Manual/test_victory.php (diff — GROUP 7 unit tests)
+- tests/Manual/test_turn_system.php (diff — GROUP 7 integration)
+- tests/Manual/test_reconnect.php (diff — `MockGameService::calculateWinChances`; reconnect_state assert)
+
+Notes: Fixes silently broken opponent win-chance (~0% always) by moving comparative
+move-distance formula server-side. Informational only — zero changes to victory
+detection, prize calculation, apartment, AFK, economy, or state machine.
+Opponent card numbers remain hidden; only coarse percentage exposed.
+
+VERIFICATION:
+- `php tests/Manual/test_victory.php` — **48/48 PASS** (was 40; +GROUP 3b unit tests).
+- `php tests/Manual/test_turn_system.php` — **47/47 PASS** (was 42; +GROUP 7).
+- `php tests/Manual/test_reconnect.php` — **107/107 PASS** (+2 reconnect_state asserts).
+- `php run_ALL_tests.php` — baseline unchanged; no victory/prize regressions.
+
 ## Phase 15 — AFK Audit Fixes (Fresh Findings)
 
 - [DONE] EPIC-15.4 AFK-cascade last survivor excludes equally idle player (ADR-013)

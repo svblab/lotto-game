@@ -431,6 +431,32 @@ function makeSvc(): array {
 }
 
 // ---------------------------------------------------------------------------
+// GROUP 7: barrels_drawn carries win_chances (ADR-014)
+// ---------------------------------------------------------------------------
+
+{
+    [$svc] = makeSvc();
+    $h  = makeConn(1, 10, 'host');
+    $p2 = makeConn(2, 20, 'p2');
+    $worker = new MockWorker();
+    $room = makeRoom(1, [1, 2]);
+    $room['players'][1] = makePlayer($h);
+    $room['players'][2] = makePlayer($p2);
+    $room['apartment_fired'] = true;
+    $worker->rooms[1] = $room;
+
+    $svc->handleDrawBarrel($h, $worker);
+
+    $pkts = $h->sentOfType('barrels_drawn');
+    assert_true(count($pkts) >= 1, 'win_chances: barrels_drawn sent');
+    $last = $pkts[count($pkts) - 1];
+    assert_true(isset($last['win_chances']), 'win_chances: field present');
+    assert_true(isset($last['win_chances']['host']), 'win_chances: host entry');
+    assert_true(isset($last['win_chances']['p2']), 'win_chances: p2 entry');
+    assert_true(is_int($last['win_chances']['host']), 'win_chances: host is int percent');
+}
+
+// ---------------------------------------------------------------------------
 // RESULTS
 // ---------------------------------------------------------------------------
 

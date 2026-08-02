@@ -328,6 +328,92 @@ $vic = new VictoryService();
 }
 
 // ---------------------------------------------------------------------------
+// GROUP 3b: calculateWinChances (ADR-014 — informational only)
+// ---------------------------------------------------------------------------
+
+function makeCardAndMaskWithMarked(int $markedCount): array
+{
+    $card = makeCompleteCard();
+    $mask = array_map(
+        fn(array $row) => array_map(fn($cell) => false, $row),
+        $card
+    );
+    $marked = 0;
+    for ($row = 0; $row < 3; $row++) {
+        for ($col = 0; $col < 9; $col++) {
+            if ($card[$row][$col] !== null && $marked < $markedCount) {
+                $mask[$row][$col] = true;
+                $marked++;
+            }
+        }
+    }
+    return [$card, $mask];
+}
+
+function makeChancePlayer(string $username, int $markedCount, int $cardsCount = 1, ?int $secondCardMarked = null): array
+{
+    $cards = [];
+    $masks = [];
+    [$c1, $m1] = makeCardAndMaskWithMarked($markedCount);
+    $cards[] = $c1;
+    $masks[] = $m1;
+    if ($cardsCount >= 2) {
+        $second = $secondCardMarked ?? $markedCount;
+        [$c2, $m2] = makeCardAndMaskWithMarked($second);
+        $cards[] = $c2;
+        $masks[] = $m2;
+    }
+    return [
+        'username'    => $username,
+        'cards'       => $cards,
+        'masks'       => $masks,
+        'cards_count' => $cardsCount,
+        'status'      => 'active',
+    ];
+}
+
+{
+    $vic = new VictoryService();
+    $log = new MockLogger();
+
+    $chances = $vic->calculateWinChances([
+        1 => makeChancePlayer('close', 14),
+        2 => makeChancePlayer('far', 0),
+    ], $log);
+    assert_true(($chances['close'] ?? -1) === 83, 'winChance: close player 83%');
+    assert_true(($chances['far'] ?? -1) === 17, 'winChance: far player 17%');
+
+    $chances = $vic->calculateWinChances([
+        1 => makeChancePlayer('a', 6),
+        2 => makeChancePlayer('b', 6),
+    ]);
+    assert_true(($chances['a'] ?? -1) === 50, 'winChance: equal players 50%');
+    assert_true(($chances['b'] ?? -1) === 50, 'winChance: equal players 50% b');
+
+    $chances = $vic->calculateWinChances([
+        1 => makeChancePlayer('dual', 0, 2, 14),
+        2 => makeChancePlayer('solo', 0),
+    ]);
+    assert_true(($chances['dual'] ?? -1) === 83, 'winChance: dual-card uses best card');
+    assert_true(($chances['solo'] ?? -1) === 17, 'winChance: solo vs dual best');
+
+    $chances = $vic->calculateWinChances([
+        1 => makeChancePlayer('p1', 12),
+        2 => makeChancePlayer('p2', 6),
+        3 => makeChancePlayer('p3', 0),
+    ]);
+    assert_true(count($chances) === 3, 'winChance: three players included');
+    assert_true(($chances['p1'] ?? 0) > ($chances['p3'] ?? 100), 'winChance: closer beats farther');
+
+    $chances = $vic->calculateWinChances([
+        1 => makeChancePlayer('done', 15),
+        2 => makeChancePlayer('far', 0),
+    ], $log);
+    assert_true(($chances['done'] ?? -1) === 83, 'winChance: complete card uses sentinel weight');
+    assert_true(count(array_filter($log->logs, fn($e) => $e[0] === 'WARNING')) >= 1, 'winChance: warns on bestMoves=0');
+}
+
+// ---------------------------------------------------------------------------
 // GROUP 4: GameService::finishGame — normal victory
 // ---------------------------------------------------------------------------
 

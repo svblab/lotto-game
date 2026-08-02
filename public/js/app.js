@@ -150,7 +150,7 @@
         UI().renderDrawnHistory(state.drawnAll);
         UI().renderCards(state.myCards, state.myMasks, state.cardIndex, [n]);
         UI().updateWinChance(state.myMasks);
-        updatePlayersWinChance();
+        updatePlayersWinChance(pkt.win_chances);
         await sleep(100);
       } else {
         UI().idleSlot(i);
@@ -318,7 +318,7 @@
       status: 'active',
       cards_count: p.cards?.length || (p.is_self ? state.myCards.length : 1),
       masks: p.masks,
-      winChance: p.is_self ? UI().calcWinChance(state.myMasks) : UI().calcWinChance(p.masks),
+      winChance: p.is_self ? UI().calcWinChance(state.myMasks) : null,
     }));
 
     UI().showScreen('game');
@@ -465,6 +465,17 @@
       UI().renderDrawnHistory(state.drawnAll);
       UI().renderCards(state.myCards, state.myMasks, state.cardIndex, null);
       UI().updateWinChance(state.myMasks);
+      if (pkt.win_chances) {
+        state.players = (state.room?.players || []).map((p) => ({
+          username: p.username,
+          status: p.status || 'active',
+          cards_count: p.cards_count || 1,
+          winChance: p.username === state.user?.username
+            ? UI().calcWinChance(state.myMasks)
+            : (pkt.win_chances[p.username] ?? null),
+        }));
+        UI().renderGamePlayers(state.players);
+      }
       UI().setDrawButton(false, false);
       UI().showToast(I18n().t('reconnect.restored'));
     }
@@ -474,10 +485,13 @@
     UI().setAdminLogs(pkt.lines);
   }
 
-  function updatePlayersWinChance() {
+  function updatePlayersWinChance(serverWinChances) {
     state.players = state.players.map((p) => {
       if (p.username === state.user?.username) {
         return { ...p, winChance: UI().calcWinChance(state.myMasks) };
+      }
+      if (serverWinChances && serverWinChances[p.username] != null) {
+        return { ...p, winChance: serverWinChances[p.username] };
       }
       return p;
     });

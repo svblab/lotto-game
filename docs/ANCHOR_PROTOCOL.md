@@ -240,9 +240,11 @@ Client → Server. Current drawer signals slot animation finished; server sets `
 ### barrels_drawn
 Server → Room
 ```json
-{"type": "barrels_drawn", "numbers": [15, 44, 81], "remaining": 57, "next_drawer": "player2", "is_final": false}
+{"type": "barrels_drawn", "numbers": [15, 44, 81], "remaining": 57, "next_drawer": "player2", "is_final": false, "win_chances": {"player1": 42, "player2": 58}}
 ```
 `numbers`: 1-3 values.
+`win_chances` (optional, ADR-014): comparative move-distance-based win-chance
+percent per `username` (informational only; omitted on victory-ending draw).
 
 ### afk_warning
 Server → Client. Sent to the current drawer when the per-turn timeout is reached.
@@ -314,8 +316,10 @@ Waiting room:
 ```
 Playing:
 ```json
-{"type": "reconnect_state", "status": "playing", "room_id": 5, "bank": 80, "drawn_all": [], "my_cards": []}
+{"type": "reconnect_state", "status": "playing", "room_id": 5, "bank": 80, "drawn_all": [], "my_cards": [], "win_chances": {"player1": 50, "player2": 50}}
 ```
+`win_chances` (optional, ADR-014): same semantics as `barrels_drawn`; included
+for `status === "playing"` so reconnecting clients restore opponent indicators.
 
 ---
 
