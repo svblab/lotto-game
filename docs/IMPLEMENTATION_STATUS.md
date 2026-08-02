@@ -494,36 +494,57 @@ LOTTO_WORKERMAN_PID_FILE env vars for test subprocess isolation.
 Next in Phase 11: EPIC-11.5 Protocol audit, then 11.6 per
 docs/prompt phase 11 detail.md and docs/PHASE_11_REPORT.md.
 
+<<<<<<< HEAD
+- [DONE] EPIC-11.0 Full integration testing (Phase 11 audit, 2026-07-27)
+=======
 - [DONE] EPIC-11.0 Full integration testing (Phase 11 audit — 2026-07-27)
+>>>>>>> cursor/epic-11-1-vps-ws-test-isolation
 Files:
-- server.php (diff — CRITICAL: applied missing EPIC-10.6 AdminHandler wiring +
-  FIX-10 onClose userConnections cleanup; documented as done but never landed)
 - tests/Manual/test_admin_ban.php (diff — FIX-11 MockConnection::close())
 - tests/Manual/test_admin_integration.php (diff — FIX-11 SpyConnection::close())
 - tests/Manual/test_phase11_core_flows.php (новый файл — chained auth→lobby→game flows)
 - run_ALL_tests.php (новый файл — cross-platform runner, SQLite on Windows)
 - docs/PHASE_11_REPORT.md (новый файл — consolidated Phase 11 audit report)
 
+⚠️ CORRECTION (2026-07-27, post-VPS regression): предыдущая версия этой
+записи ошибочно утверждала, что `server.php` был изменён в рамках данного
+Epic для устранения "критического пробела P11-001" (admin_* wiring
+якобы отсутствовал). Это было ложным срабатыванием, полученным на
+Windows-окружении с несинхронизированной локальной копией: реальный
+`server.php` уже содержал полный admin-роутинг с 2026-07-25
+(commit 5ad67d5, EPIC-10.6). Диф коммита 6efede1 (git show --stat)
+подтверждает, что `server.php` в нём НЕ менялся. Rule 22 (Test
+Philosophy) требует, чтобы каждый фикс был подтверждён как
+non-false-positive до занесения в статус; для P11-001 это правило было
+нарушено. Запись исправлена задним числом; сам код admin-роутинга
+подтверждён рабочим (см. Verification ниже) — регрессии по существу нет,
+ошибочной была только атрибуция изменения.
+
 Implemented:
-- Обнаружен и устранён критический пробел P11-001: все admin_* actions
-  (admin_ban_user/admin_unban_user/admin_kick_user/admin_close_room/
-  admin_get_logs) были задокументированы как подключённые в EPIC-10.6, но
-  фактически отсутствовали в server.php — любой admin-пакет получал
-  error.invalid_json. Применена полная wiring-конфигурация из
-  patches/EPIC-10.6-server.patch.
 - FIX-11 mock close() восстановлен в test_admin_ban.php и
   test_admin_integration.php (AdminService::handleBanUser() закрывает
   онлайн-цель — без close() тесты падали Fatal error).
 - Новый test_phase11_core_flows.php: register→login→create_room→join_room→
   start_game, invalid state transitions, rate-limit constants — 17/17 PASSED.
-- docs/PHASE_11_REPORT.md: первый consolidated отчёт Phase 11; EPIC-11.1–
-  11.6 помечены pending (требуют VPS).
+- docs/PHASE_11_REPORT.md: первый consolidated отчёт Phase 11 (требует
+  сверки с CORRECTION выше в части P11-001).
 
-Verification (Windows dev host, php run_ALL_tests.php):
-- 25/25 runnable test files PASSED (8 live-WS subprocess tests SKIP on
-  Windows — Workerman fork; must re-run on Ubuntu VPS per LOCAL_ENVIRONMENT.md)
-- test_protocol_completeness.php: 50/50 PASSED (adminHandler wiring confirmed)
-- test_phase11_core_flows.php: 17/17 PASSED
+Verification:
+- Предварительно (Windows dev host, php run_ALL_tests.php): 25/25
+  runnable test files PASSED, 8 live-WS subprocess tests SKIP
+  (Workerman требует Linux).
+- ОКОНЧАТЕЛЬНО (Ubuntu VPS, root@box-918838:/opt/lotto-game,
+  php run_ALL_tests.php, 2026-07-27): полный регресс всех 31 файлов —
+  **31/31 test files PASSED**, включая все 8 ранее пропущенных live-WS
+  subprocess тестов (test_server_bootstrap 18/18, test_packet_validation
+  11/11, test_auth_packet_routing 18/18, test_lobby_packet_routing
+  23/23, test_game_packet_routing 21/21, test_admin_packet_routing
+  15/15, test_session_lifecycle 6/6, test_protocol_completeness
+  50/50 + 3 known warnings). Это первое подтверждение всей Phase 10/11
+  цепочки на реальном Workerman-процессе с момента EPIC-10.7 —
+  admin-роутинг (EPIC-10.6) и вся остальная протокольная маршрутизация
+  подтверждены рабочими end-to-end на целевой платформе, не только
+  статически/на моках.
 
 - [DONE] EPIC-10.1 Packet validation
 Files:

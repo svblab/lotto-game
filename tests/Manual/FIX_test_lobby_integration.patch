@@ -1,0 +1,80 @@
+--- a/tests/Manual/test_lobby_integration.php
++++ b/tests/Manual/test_lobby_integration.php
+@@ -510,6 +510,67 @@
+ ok('transferHost: AFK refreshes new host last_action on promotion',
+     (time() - $workerAfk->rooms[$afkRoomId]['players'][$afkHost->id]['last_action']) <= 2);
+
++// ─── SUITE 5b: AFK FIFO Rotation (3 players) ────────────────────────────────
++
++echo "\n=== SUITE 5b: AFK FIFO Rotation ===\n";
++
++MockConnection::reset();
++
++[$lsFifo] = makeServices();
++$workerFifo = new MockWorker();
++
++$a = new MockConnection(1, 'A');
++$lsFifo->handleCreateRoom([
++    'max_players' => 4,
++    'password' => '',
++    'cards_count' => 1
++], $a, $workerFifo);
++
++$roomId = (int)$a->lastPacket()['room_id'];
++
++$b = new MockConnection(2, 'B');
++$c = new MockConnection(3, 'C');
++
++$lsFifo->handleJoinRoom([
++    'room_id' => $roomId,
++    'password' => '',
++    'cards_count' => 1
++], $b, $workerFifo);
++
++$lsFifo->handleJoinRoom([
++    'room_id' => $roomId,
++    'password' => '',
++    'cards_count' => 1
++], $c, $workerFifo);
++
++// A timed out
++$workerFifo->rooms[$roomId]['players'][$a->id]['last_action'] = time() - 9999;
++$lsFifo->transferHost($workerFifo, $roomId);
++
++ok(
++    'fifo: first transfer A -> B',
++    $workerFifo->rooms[$roomId]['host_conn_id'] === $b->id
++);
++
++// B timed out
++$workerFifo->rooms[$roomId]['players'][$b->id]['last_action'] = time() - 9999;
++$lsFifo->transferHost($workerFifo, $roomId);
++
++ok(
++    'fifo: second transfer B -> C',
++    $workerFifo->rooms[$roomId]['host_conn_id'] === $c->id
++);
++
++// C timed out
++$workerFifo->rooms[$roomId]['players'][$c->id]['last_action'] = time() - 9999;
++$lsFifo->transferHost($workerFifo, $roomId);
++
++ok(
++    'fifo: third transfer C -> A',
++    $workerFifo->rooms[$roomId]['host_conn_id'] === $a->id
++);
++
++echo "Current host_conn_id:\n";
++var_dump($workerFifo->rooms[$roomId]['host_conn_id']);
++
++echo "Drawer order:\n";
++var_dump($workerFifo->rooms[$roomId]['drawer_order']);
++
++echo "Players last_action:\n";
++foreach ($workerFifo->rooms[$roomId]['players'] as $id => $player) {
++    echo $player['username'] . ' => ' . $player['last_action'] . PHP_EOL;
++}
++
+ // ─── SUITE 6: handleRoomList ─────────────────────────────────────────────────
+ 
+ echo "\n=== SUITE 6: handleRoomList ===\n";
