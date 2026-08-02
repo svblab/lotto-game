@@ -2,28 +2,45 @@
 
 ## Phase 18 — Client Balance Persistence (2026-08-02)
 
-- [DONE] FIX-19 Apartment immunity computed from hasLine() at trigger time
+- [DONE] FIX-21 GAME_RULES.md §5 «Квартира» direction and payment amount corrected
+Files:
+- docs/GAME_RULES.md (diff — swap immune/required categories; 10 → 5 coins)
+
+Notes: Documentation-only correction paired with FIX-20. Prior GAME_RULES.md §5 had
+immunity/payment backwards (source of FIX-19's wrong direction). Payment now matches
+`ApartmentService::APARTMENT_PAYMENT` (5) and ANCHOR_CORE.md.
+
+VERIFICATION:
+- Manual review — immune = closed-row players; required = all others; 5 coins; 10s timer unchanged.
+
+- [DONE] FIX-20 Apartment immunity direction corrected (reversal of FIX-19)
+Files:
+- src/Game/ApartmentService.php (diff — `prepareApartment()`: closed row → immune; no line → required)
+- tests/Manual/test_apartment.php (diff — GROUP 3/5 assertions flipped to match)
+
+Notes: **Direction correction.** FIX-19 correctly wired `hasLine()` but used inverted
+semantics copied from GAME_RULES.md §5 (which was itself backwards). User-confirmed
+correct design (Rule 1 authority): players WITH a closed row earned immunity (triggered
+the event); players WITHOUT must pay APARTMENT_PAYMENT (5). Do NOT revert to FIX-19
+direction even if an old GAME_RULES snapshot suggests otherwise — see FIX-21.
+
+CHANGED:
+- `prepareApartment()`: `immune = hasLine`, `required = !hasLine`
+
+NOT CHANGED:
+- `hasLine()`, `shouldTrigger()`, `finishApartment()` post-agree `immune=true`, payment amount
+
+VERIFICATION:
+- `php tests/Manual/test_apartment.php` — **51/51 PASS** (GROUP 3/5 assertions flipped).
+- MANUAL: closed-row player sees immune wait screen; others see agree/refuse.
+
+- [SUPERSEDED — direction wrong] FIX-19 Apartment immunity computed from hasLine() at trigger time
 Files:
 - src/Game/ApartmentService.php (diff — `prepareApartment()` derives required/immune from `hasLine()`, persists `player['immune']`)
 - tests/Manual/test_apartment.php (diff — GROUP 3 real cards/masks; 3-player regression)
 
-Notes: Closes bug where every active player was `required=true` on apartment trigger because
-`prepareApartment()` read stale `player['immune']` (default false) instead of calling
-`hasLine()`. Contradicted GAME_RULES.md §5 «Квартира»: only players with a closed row pay;
-others are immune. `getParticipants()` unchanged — reads persisted `immune` set at prepare time.
-`finishApartment()` post-agree `immune=true` untouched.
-
-CHANGED:
-- `prepareApartment()`: per active player `hasLine()` → `required` + `immune = !hasLine`
-
-NOT CHANGED:
-- `hasLine()`, `shouldTrigger()`, `finishApartment()` post-payment immune, protocol packets,
-  `getParticipants()` logic
-
-VERIFICATION:
-- `php tests/Manual/test_apartment.php` — **51/51 PASS** (was 45; +GROUP 3 hasLine-driven asserts, 3p case).
-- MANUAL VERIFICATION REQUIRED: 2–3 player game, natural apartment trigger — only closed-row
-  player(s) see agree/refuse; others see immune wait screen only.
+Notes: Introduced `hasLine()`-based immunity (good) but inverted who pays vs who is immune
+(wrong — copied from backwards GAME_RULES.md §5). Corrected by FIX-20/FIX-21.
 
 - [DONE] FIX-18 Persist post-game_over balance to localStorage (client-only)
 Files:
