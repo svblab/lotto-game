@@ -1,5 +1,68 @@
 # Implementation Status — Lotto Game Project
 
+## Phase 17 — Compliance Audit Fixes (2026-08-02)
+
+- [DONE] FIX-17 Reconnecting active drawer restores draw-button UI (client-only)
+Files:
+- public/js/app.js (diff — `onReconnectState()` playing branch sets `state.isMyTurn` from `current_drawer`)
+
+Notes: `reconnect_state.current_drawer` was already correct; `syncTurnUi()` branches
+on `state.isMyTurn`, which was only set by `your_turn`. No protocol change. Server
+AFK re-arm in `ReconnectService::restorePlayerConnection()` unchanged; no in-flight
+auto-draw race — `current_drawer` reflects `active_drawer_conn_id` at reconnect time.
+
+CHANGED:
+- `onReconnectState()` playing: derive `isMyTurn`, then `syncTurnUi()`
+
+NOT CHANGED:
+- `reconnect_state` payload, server reconnect/AFK logic, `your_turn` handler
+
+VERIFICATION:
+- MANUAL VERIFICATION REQUIRED: 2-player game, player A's turn, disconnect tab,
+  reconnect within 15s → draw button visible/enabled; non-drawer sees waiting state.
+- No automated test (client UI).
+
+- [DONE] EPIC-9.3b Host transfer on player removal during apartment state
+Files:
+- src/Game/ApartmentService.php (diff — `removePlayerFromApartment()` host FIFO reassignment + `host_changed` broadcast)
+- tests/Manual/test_apartment.php (diff — GROUP 10 host-refuse scenario)
+
+Notes: Closes KNOWN GAP from EPIC-9.3 (`removePlayerFromApartment` stale `host_conn_id`).
+Mirrors `ReconnectService::removePlayerFromGame()` FIFO-over-`drawer_order` logic.
+`host_changed` broadcast matches `LobbyService` pattern (ADR-009); lobby timeout fields
+omitted — not applicable in apartment phase.
+
+CHANGED:
+- Host reassignment when removed conn was `host_conn_id`
+- `broadcastHostChanged()` / `resolveHostUsername()` private helpers
+
+NOT CHANGED:
+- `removePlayerFromGame()` host path, lobby host transfer, Room/Player structure
+
+VERIFICATION:
+- `php tests/Manual/test_apartment.php` — **45/45 PASS** (was 40; +GROUP 10).
+
+- [DONE] EPIC-17.1 GAME_RULES.md win-chance description aligned with ADR-014
+Files:
+- docs/GAME_RULES.md (diff — §2 comparative win-chance wording)
+
+Notes: Documentation-only. Player-facing language; no formula reproduction.
+
+VERIFICATION:
+- Manual review against ADR-014 § Formula — concept accurate, no new claims.
+
+- [PENDING USER DECISION] EPIC-17.2 Protocol registry cleanup (`admin_stats_data`, `error.banned`)
+Status: Blocked — requires explicit path (implement vs deprecate via ADR). See ISSUE 4 in audit prompt.
+
+- [PROPOSED] ADR-015 GameTurnService extraction draft (GameService file-size policy)
+Files:
+- docs/ADR/015.md (new, Status: Proposed)
+
+Notes: No code extraction in this pass (Epic Isolation). Decomposition proposal only.
+
+VERIFICATION:
+- N/A — written ADR for user review.
+
 ## Phase 16 — Comparative Win-Chance (Server-Side)
 
 - [DONE] EPIC-16.1 Comparative win-chance calculation and protocol wiring (ADR-014)
@@ -807,13 +870,17 @@ Notes:
 - Конструктор AdminService расширен nullable-параметром $db (обратная совместимость
   сохранена — существующие вызовы с 5 аргументами не ломаются)
 
-⚠️ KNOWN GAP:
-removePlayerFromApartment() (ApartmentService) не выполняет host transfer при
+⚠️ KNOWN GAP (RESOLVED EPIC-9.3b, 2026-08-02):
+~~removePlayerFromApartment() (ApartmentService) не выполняет host transfer при
+kick/ban хоста в apartment-состоянии~~ — fixed in EPIC-9.3b.
+
+⚠️ KNOWN GAP (historical, EPIC-9.3):
+removePlayerFromApartment() (ApartmentService) не выполнял host transfer при
 kick/ban хоста в apartment-состоянии, хотя ANCHOR_CORE.md Host Rules называет
 'kicked'/'banned' валидными причинами смены хоста. Тот же пробел присутствует
 и в существующем handleBanUser() для 'waiting' (не исправлялся — вне scope
-EPIC-9.3, Epic Isolation). Требует отдельного Epic на доработку ApartmentService
-и, возможно, LobbyService.
+EPIC-9.3, Epic Isolation). **Apartment path closed EPIC-9.3b; waiting ban path
+still open.**
 
 PHASE 9 — ADMIN: IN PROGRESS (9.0/9.1/9.2/9.3 done, 9.4 Close room next)
 
