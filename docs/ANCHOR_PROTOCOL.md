@@ -316,10 +316,15 @@ Waiting room:
 ```
 Playing:
 ```json
-{"type": "reconnect_state", "status": "playing", "room_id": 5, "bank": 80, "drawn_all": [], "my_cards": [], "win_chances": {"player1": 50, "player2": 50}}
+{"type": "reconnect_state", "status": "playing", "room_id": 5, "bank": 80, "drawn_all": [], "my_cards": [], "win_chances": {"player1": 50, "player2": 50}, "is_my_turn": true, "afk_start": 1704067200, "turn_seconds": 30, "auto_draws": 0}
 ```
 `win_chances` (optional, ADR-014): same semantics as `barrels_drawn`; included
 for `status === "playing"` so reconnecting clients restore opponent indicators.
+`is_my_turn` / `afk_start` / `turn_seconds` / `auto_draws` (ADR-017): included
+when the reconnecting player is the current `active_drawer_conn_id` — same
+semantics as the `your_turn` packet's non-deferred variant (`afk_start` always
+present, no `turn_ready` round-trip expected). Otherwise only `is_my_turn: false`
+is sent (no AFK fields).
 
 ---
 

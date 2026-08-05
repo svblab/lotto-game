@@ -413,6 +413,67 @@ function makeRoom(int $roomId, int $hostConnId): array
 }
 
 // ---------------------------------------------------------------------------
+// GROUP 3d: reconnect as active drawer restores turn fields in reconnect_state
+// ---------------------------------------------------------------------------
+{
+    \MockTimer::reset();
+    $worker = new MockWorker();
+    $lobby = new MockLobbyService();
+    $game = new MockGameService();
+    $svc = new ReconnectService($lobby, $game, new MockLogger());
+
+    $oldDrawer = new MockConnection(9, 90, 'drawer9', 'tok-9');
+    $mate = new MockConnection(10, 91, 'mate10');
+    $newConn = new MockConnection(109, 0, 'new9');
+    $room = makeRoom(9, 9);
+    $room['status'] = 'playing';
+    $room['active_drawer_conn_id'] = 9;
+    $room['drawer_order'] = [9, 10];
+    $room['players'][9] = makePlayer($oldDrawer, 'disconnected');
+    $room['players'][9]['afk_start'] = time() - 5;
+    $room['players'][9]['auto_draws'] = 0;
+    $room['players'][10] = makePlayer($mate, 'active');
+    $worker->rooms[9] = $room;
+
+    $result = $svc->handleReconnect('tok-9', $newConn, $worker);
+    assert_true($result === true, 'reconnect drawer: success=true');
+    $statePackets = $newConn->sentOfType('reconnect_state');
+    assert_true(count($statePackets) === 1, 'reconnect drawer: reconnect_state sent');
+    $pkt = $statePackets[0];
+    assert_true(($pkt['is_my_turn'] ?? false) === true, 'reconnect drawer: is_my_turn=true');
+    assert_true(isset($pkt['afk_start']), 'reconnect drawer: afk_start present');
+    assert_true(
+        (int) ($pkt['turn_seconds'] ?? 0) === \Lotto\Core\Constants::gameAfkStrikeWindowSeconds(0),
+        'reconnect drawer: turn_seconds matches strike1 window'
+    );
+    assert_true((int) ($pkt['auto_draws'] ?? -1) === 0, 'reconnect drawer: auto_draws=0');
+
+    \MockTimer::reset();
+    $worker2 = new MockWorker();
+    $svc2 = new ReconnectService($lobby, $game, new MockLogger());
+
+    $oldMate = new MockConnection(11, 110, 'mate11', 'tok-11');
+    $drawer = new MockConnection(12, 120, 'drawer12');
+    $newMate = new MockConnection(111, 0, 'new11');
+    $room2 = makeRoom(11, 11);
+    $room2['status'] = 'playing';
+    $room2['active_drawer_conn_id'] = 12;
+    $room2['drawer_order'] = [12, 11];
+    $room2['players'][11] = makePlayer($oldMate, 'disconnected');
+    $room2['players'][12] = makePlayer($drawer, 'active');
+    $room2['players'][12]['afk_start'] = time();
+    $worker2->rooms[11] = $room2;
+
+    $result2 = $svc2->handleReconnect('tok-11', $newMate, $worker2);
+    assert_true($result2 === true, 'reconnect non-drawer: success=true');
+    $pkt2 = $newMate->sentOfType('reconnect_state')[0] ?? [];
+    assert_true(($pkt2['is_my_turn'] ?? true) === false, 'reconnect non-drawer: is_my_turn=false');
+    assert_true(!isset($pkt2['afk_start']), 'reconnect non-drawer: no afk_start');
+    assert_true(!isset($pkt2['turn_seconds']), 'reconnect non-drawer: no turn_seconds');
+    assert_true(!isset($pkt2['auto_draws']), 'reconnect non-drawer: no auto_draws');
+}
+
+// ---------------------------------------------------------------------------
 // GROUP 4: game AFK timer — strike 1 auto-draw (player stays)
 // ---------------------------------------------------------------------------
 {

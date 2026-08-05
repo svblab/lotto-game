@@ -512,7 +512,6 @@
         c.map((row) => row.map(() => false))
       ));
       state.currentDrawer = pkt.current_drawer || state.drawerOrder[0] || null;
-      state.isMyTurn = pkt.current_drawer === state.user?.username;
       state.cardIndex = 0;
       UI().showScreen('game');
       UI().renderGameHeader(state.bank, state.currentDrawer, null);
@@ -526,6 +525,18 @@
       UI().renderGamePlayers(state.players);
       if (pkt.win_chances) {
         applyMyWinChance(pkt.win_chances);
+      }
+      if (pkt.is_my_turn) {
+        state.isMyTurn = true;
+        state.pendingTurnPkt = {
+          afk_start: pkt.afk_start,
+          turn_seconds: pkt.turn_seconds,
+          auto_draws: pkt.auto_draws ?? 0,
+        };
+        state.turnReadySent = false;
+      } else {
+        state.isMyTurn = false;
+        state.pendingTurnPkt = null;
       }
       syncTurnUi();
       UI().showToast(I18n().t('reconnect.restored'));

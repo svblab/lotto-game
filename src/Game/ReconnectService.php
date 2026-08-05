@@ -317,6 +317,15 @@ final class ReconnectService
             ? (string) $room['players'][$drawerConnId]['username']
             : '';
 
+        $isMyTurn = ($drawerConnId !== null && $drawerConnId === $connId);
+        $turnFields = ['is_my_turn' => $isMyTurn];
+        if ($isMyTurn && $player !== null) {
+            $autoDraws = (int) ($player['auto_draws'] ?? 0);
+            $turnFields['afk_start']    = $player['afk_start'] ?? time();
+            $turnFields['turn_seconds'] = Constants::gameAfkStrikeWindowSeconds($autoDraws);
+            $turnFields['auto_draws']   = $autoDraws;
+        }
+
         return array_merge($base, [
             'drawn_all'      => $room['drawn_numbers'] ?? [],
             'my_cards'       => $player['cards'] ?? [],
@@ -327,7 +336,7 @@ final class ReconnectService
                 $room['players'],
                 $room['status'] ?? 'playing'
             ),
-        ]);
+        ], $turnFields);
     }
 
     /**
