@@ -338,6 +338,8 @@ function makeSvc(): array {
     assert_true(is_bool($pkt['is_final']),           'DrawBarrel: is_final is bool');
     assert_true($pkt['is_final'] === false,          'DrawBarrel: is_final=false');
     assert_true($pkt['next_drawer'] === 'p2',        'DrawBarrel: next_drawer=p2');
+    assert_true(isset($pkt['bank']),                 'DrawBarrel: bank field present');
+    assert_true((int) $pkt['bank'] === 20,           'DrawBarrel: bank matches room');
 
     // your_turn sent to p2 (next drawer)
     $p2YT = $p2->sentOfType('your_turn');
@@ -455,6 +457,8 @@ function makeSvc(): array {
     assert_true(isset($last['win_chances']['p2']), 'win_chances: p2 entry');
     assert_true(is_numeric($last['win_chances']['host']), 'win_chances: host is numeric percent');
     assert_true(round(array_sum($last['win_chances']), 1) === 100.0, 'win_chances: sum 100%');
+    assert_true(isset($last['bank']), 'barrels_drawn: bank field present');
+    assert_true((int) $last['bank'] === 20, 'barrels_drawn: bank matches room');
 }
 
 // ---------------------------------------------------------------------------

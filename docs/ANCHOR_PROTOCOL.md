@@ -188,6 +188,14 @@ Server → Room
 Sent to every active player in the room whenever `host_conn_id` changes
 (e.g. lobby-AFK host timeout via `transferHost()`). See ADR-009.
 
+### bank_updated
+Server → Room. Sent immediately after the Apartment phase resolves and
+gameplay resumes (not sent on `last_survivor` / `no_survivors` — the bank is
+already final in the following `game_over` packet in those cases).
+```json
+{"type": "bank_updated", "bank": 85}
+```
+
 ---
 
 ## Game Start
@@ -240,9 +248,11 @@ Client → Server. Current drawer signals slot animation finished; server sets `
 ### barrels_drawn
 Server → Room
 ```json
-{"type": "barrels_drawn", "numbers": [15, 44, 81], "remaining": 57, "next_drawer": "player2", "is_final": false, "win_chances": {"player1": 42, "player2": 58}}
+{"type": "barrels_drawn", "numbers": [15, 44, 81], "remaining": 57, "next_drawer": "player2", "is_final": false, "bank": 80, "win_chances": {"player1": 42, "player2": 58}}
 ```
 `numbers`: 1-3 values.
+`bank` (ADR-018): current room bank; included on every draw so the info bar
+stays accurate without waiting for reconnect.
 `win_chances` (optional, ADR-014): comparative exponential win-chance percent per
 `username` (float, one decimal; sum 100%; informational only; omitted on victory-ending draw).
 

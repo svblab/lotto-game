@@ -561,6 +561,89 @@ $apt2 = new ApartmentService($_db2, $_st2, $_log2);
 }
 
 // ---------------------------------------------------------------------------
+// GROUP 11: bank_updated on apartment resume (not last_survivor / no_survivors)
+// ---------------------------------------------------------------------------
+
+{
+    $h  = makeConn(1, 10, 'host');
+    $p2 = makeConn(2, 20, 'p2');
+    $p3 = makeConn(3, 30, 'p3');
+    $worker = new MockWorker();
+    $pdo    = new MockPDO();
+
+    [$svc] = makeSvc([
+        10 => ['id' => 10, 'coins' => 100],
+        20 => ['id' => 20, 'coins' => 100],
+        30 => ['id' => 30, 'coins' => 100],
+    ], $pdo);
+
+    $room = makeRoom(1, [1, 2, 3], 20);
+    $room['players'][1] = makePlayer($h,  1, [], [], false);
+    $room['players'][2] = makePlayer($p2, 1, [], [], false);
+    $room['players'][3] = makePlayer($p3, 1, [], [], true);
+    $room['status']     = 'apartment';
+    $room['apartment_fired'] = true;
+    $room['_apartment_participants'] = [1 => true, 2 => true];
+    $worker->rooms[1] = $room;
+
+    $svc->handleApartmentChoice($h, $worker, 'agree');
+    $svc->handleApartmentChoice($p2, $worker, 'agree');
+
+    assert_true(isset($worker->rooms[1]), 'bank_updated: room exists after resume');
+    $expectedBank = 30;
+    assert_true($worker->rooms[1]['bank'] === $expectedBank, 'bank_updated: bank += 5+5');
+
+    foreach ([$h, $p2, $p3] as $conn) {
+        $pkts = $conn->sentOfType('bank_updated');
+        assert_true(count($pkts) === 1, 'bank_updated: sent to active member ' . $conn->username);
+        assert_true((int) ($pkts[0]['bank'] ?? 0) === $expectedBank, 'bank_updated: correct bank for ' . $conn->username);
+    }
+
+    // last_survivor branch — no bank_updated (game_over carries final bank)
+    $h2  = makeConn(4, 40, 'solo_h');
+    $p2b = makeConn(5, 50, 'solo_p2');
+    $worker2 = new MockWorker();
+    $pdo2 = new MockPDO();
+    [$svc2] = makeSvc([
+        40 => ['id' => 40, 'coins' => 100],
+        50 => ['id' => 50, 'coins' => 100],
+    ], $pdo2);
+
+    $room2 = makeRoom(1, [4, 5], 20);
+    $room2['players'][4] = makePlayer($h2,  1, [], [], false);
+    $room2['players'][5] = makePlayer($p2b, 1, [], [], false);
+    $room2['status'] = 'apartment';
+    $room2['apartment_fired'] = true;
+    $room2['_apartment_participants'] = [4 => true, 5 => true];
+    $worker2->rooms[1] = $room2;
+
+    $svc2->handleApartmentChoice($p2b, $worker2, 'refuse');
+    $svc2->handleApartmentChoice($h2, $worker2, 'agree');
+
+    assert_true(count($h2->sentOfType('bank_updated')) === 0, 'bank_updated: not sent on last_survivor');
+    assert_true(count($h2->sentOfType('game_over')) >= 1, 'bank_updated: game_over on last_survivor');
+
+    // no_survivors branch — no bank_updated
+    $solo = makeConn(6, 60, 'gone');
+    $worker3 = new MockWorker();
+    $pdo3 = new MockPDO();
+    [$svc3, , , , $apt3] = makeSvc([60 => ['id' => 60, 'coins' => 100]], $pdo3);
+
+    $room3 = makeRoom(1, [6], 10);
+    $room3['status'] = 'apartment';
+    $room3['apartment_fired'] = true;
+    $room3['players'][6] = makePlayer($solo, 1, [], [], false);
+    $room3['players'][6]['status'] = 'disconnected';
+    $room3['_apartment_participants'] = [6 => true];
+    $room3['apartment_responses'] = [6 => 'agree'];
+    $worker3->rooms[1] = $room3;
+
+    $apt3->finishApartment($worker3->rooms[1], 1, $worker3, $svc3);
+
+    assert_true(count($solo->sentOfType('bank_updated')) === 0, 'bank_updated: not sent on no_survivors');
+}
+
+// ---------------------------------------------------------------------------
 // RESULTS
 // ---------------------------------------------------------------------------
 

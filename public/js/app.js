@@ -198,6 +198,7 @@
 
     state.currentDrawer = pkt.next_drawer;
     state.drawLocked = false;
+    if (pkt.bank != null) state.bank = pkt.bank;
     UI().renderGameHeader(state.bank, state.currentDrawer, pkt.remaining);
 
     if (pkt.is_final) {
@@ -320,6 +321,12 @@
     state.room.host_timeout_start = pkt.host_timeout_start ?? null;
     state.room.host_timeout_seconds = pkt.host_timeout_seconds ?? null;
     UI().showRoomPanel(state.room, state.user?.username);
+  }
+
+  function onBankUpdated(pkt) {
+    if (pkt.bank == null) return;
+    state.bank = pkt.bank;
+    UI().renderGameHeader(state.bank, state.currentDrawer, null);
   }
 
   function onPlayerLeft(pkt) {
@@ -758,6 +765,7 @@
       barrels_drawn: onBarrelsDrawn,
       afk_warning: onAfkWarning,
       apartment_alert: onApartmentAlert,
+      bank_updated: onBankUpdated,
       game_over: onGameOver,
       reconnect_state: onReconnectState,
       admin_logs_data: onAdminLogs,

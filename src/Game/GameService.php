@@ -648,6 +648,7 @@ final class GameService
             'remaining'    => $remaining,
             'next_drawer'  => $nextDrawerUsername,
             'is_final'     => $isFinal,
+            'bank'         => $room['bank'],
         ];
 
         if ($includeWinChances) {

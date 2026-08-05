@@ -8,6 +8,7 @@ use Lotto\Core\Constants;
 
 use function Lotto\Core\sendError;
 use function Lotto\Core\sendJson;
+use function Lotto\Core\broadcastToRoom;
 use function Lotto\Core\lottoTimerAdd;
 use function Lotto\Core\lottoTimerDel;
 use function Lotto\Core\lottoEconomyRecord;
@@ -503,6 +504,10 @@ final class ApartmentService
         lottoStateTransition($roomId, 'apartment', 'playing', $resumeTrigger);
         $room['status'] = 'playing';
         $this->logger->info("Room {$roomId}: apartment finished, game resumes");
+        broadcastToRoom($room, [
+            'type' => 'bank_updated',
+            'bank' => $room['bank'],
+        ]);
         $gameService->startTurn($room, $worker, $roomId, true);
     }
 
