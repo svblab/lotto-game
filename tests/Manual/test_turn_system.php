@@ -462,6 +462,43 @@ function makeSvc(): array {
 }
 
 // ---------------------------------------------------------------------------
+// GROUP 8: win_chance_history grows per barrels_drawn (ADR-019)
+// ---------------------------------------------------------------------------
+
+{
+    [$svc] = makeSvc();
+    $h  = makeConn(1, 10, 'host');
+    $p2 = makeConn(2, 20, 'p2');
+    $worker = new MockWorker();
+    $room = makeRoom(1, [1, 2]);
+    $room['win_chance_history'] = [];
+    $room['players'][1] = makePlayer($h);
+    $room['players'][2] = makePlayer($p2);
+    $room['apartment_fired'] = true;
+    $worker->rooms[1] = $room;
+
+    $svc->handleDrawBarrel($h, $worker);
+
+    $hist = $worker->rooms[1]['win_chance_history'];
+    assert_true(count($hist) === 1, 'win_chance_history: one entry after first draw');
+    assert_true(($hist[0]['turn_number'] ?? 0) === 1, 'win_chance_history: turn_number=1');
+
+    $pkt = $h->sentOfType('barrels_drawn')[0];
+    assert_true(isset($pkt['win_chances']), 'win_chance_history: barrels_drawn has win_chances');
+    assert_true($hist[0]['chances'] == $pkt['win_chances'], 'win_chance_history: chances match packet');
+
+    $worker->rooms[1]['active_drawer_conn_id'] = 2;
+    $svc->handleTurnReady($p2, $worker);
+    $svc->handleDrawBarrel($p2, $worker);
+
+    $hist2 = $worker->rooms[1]['win_chance_history'];
+    assert_true(count($hist2) === 2, 'win_chance_history: two entries after second draw');
+    assert_true(($hist2[1]['turn_number'] ?? 0) === 2, 'win_chance_history: turn_number=2');
+    $pkt2 = $p2->sentOfType('barrels_drawn');
+    assert_true($hist2[1]['chances'] == $pkt2[count($pkt2) - 1]['win_chances'], 'win_chance_history: second chances match');
+}
+
+// ---------------------------------------------------------------------------
 // RESULTS
 // ---------------------------------------------------------------------------
 

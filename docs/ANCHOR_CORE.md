@@ -48,6 +48,7 @@ $worker->rooms[$roomId] = [
   'apartment_fired' => bool,
   'pause_for_apartment' => bool,
   'apartment_responses' => [],
+  'win_chance_history' => [],
   'game_afk_timer_id' => null,
   'apartment_timer_id' => null,
   'lobby_afk_timer_id' => null,
@@ -523,7 +524,8 @@ RATE_LIMIT_PACKETS_PER_WINDOW, RATE_LIMIT_WINDOW_SECONDS
 ## Room Structure Keys (allowed, no others without ADR)
 ```
 room_id, host_conn_id, bet_per_card, max_players, password_hash, status, bank,
-apartment_fired, pause_for_apartment, apartment_responses, active_drawer_conn_id,
+apartment_fired, pause_for_apartment, apartment_responses, win_chance_history,
+active_drawer_conn_id,
 drawer_order, bag, drawn_numbers, players, all_players_history,
 lobby_afk_timer_id, game_afk_timer_id, apartment_timer_id
 ```

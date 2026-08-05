@@ -293,8 +293,12 @@ or
 ### game_over
 Server → Room
 ```json
-{"type": "game_over", "winner": "player", "reason": "victory", "prize": 120, "final_bank": 120, "statistics": []}
+{"type": "game_over", "winner": "player", "reason": "victory", "prize": 120, "final_bank": 120, "statistics": [], "win_chance_history": [{"turn_number": 1, "chances": {"player": 50}}]}
 ```
+`win_chance_history` (ADR-019): complete server-recorded sequence of `win_chances`
+snapshots for the whole game (one entry per `barrels_drawn` broadcast that included
+`win_chances`), identical for every recipient — replaces prior client-local
+accumulation.
 Statistics entry:
 ```json
 {"username": "player", "paid": 20, "received": 120}
@@ -303,13 +307,13 @@ Statistics entry:
 ### last_survivor
 Server → Room (same `game_over` packet, `reason` differs)
 ```json
-{"type": "game_over", "winner": "player", "reason": "last_survivor", "prize": 80, "final_bank": 80, "statistics": []}
+{"type": "game_over", "winner": "player", "reason": "last_survivor", "prize": 80, "final_bank": 80, "statistics": [], "win_chance_history": [{"turn_number": 1, "chances": {"player": 50}}]}
 ```
 
 ### no_survivors
 Server → Room. Zero active players remain — stakes refunded, no winner, `prize` and `final_bank` are 0.
 ```json
-{"type": "game_over", "winner": "", "reason": "no_survivors", "prize": 0, "final_bank": 0, "statistics": [{"username": "p1", "paid": 10, "received": 10}]}
+{"type": "game_over", "winner": "", "reason": "no_survivors", "prize": 0, "final_bank": 0, "statistics": [{"username": "p1", "paid": 10, "received": 10}], "win_chance_history": []}
 ```
 `received` equals `paid` (stake return, not a prize).
 

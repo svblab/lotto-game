@@ -160,6 +160,7 @@ final class GameFinishService
             'prize'      => $displayPrize,
             'final_bank' => $finalBank,
             'statistics' => $statistics,
+            'win_chance_history' => $room['win_chance_history'] ?? [],
         ];
         $packetJson = json_encode($packet);
 
@@ -255,6 +256,7 @@ final class GameFinishService
             'prize'      => 0,
             'final_bank' => 0,
             'statistics' => $statistics,
+            'win_chance_history' => $room['win_chance_history'] ?? [],
         ]);
 
         foreach ($room['players'] ?? [] as $player) {

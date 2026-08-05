@@ -33,7 +33,6 @@
     immune: false,
     pendingTurnPkt: null,
     turnReadySent: false,
-    winChanceHistory: [],
   };
 
   let socket;
@@ -127,14 +126,6 @@
     return out;
   }
 
-  function recordWinChanceSnapshot(chances) {
-    if (!chances || Object.keys(chances).length === 0) return;
-    state.winChanceHistory.push({
-      turn: state.winChanceHistory.length,
-      chances: { ...chances },
-    });
-  }
-
   function applyMyWinChance(chances) {
     const me = state.user?.username;
     if (me && chances && chances[me] != null) {
@@ -190,7 +181,6 @@
     }
 
     if (pkt.win_chances) {
-      recordWinChanceSnapshot(pkt.win_chances);
       applyMyWinChance(pkt.win_chances);
     }
 
@@ -348,7 +338,6 @@
 
   function onGameStarted(pkt) {
     state.inGame = true;
-    state.winChanceHistory = [];
     if (state.room) {
       state.room.status = 'playing';
       state.room.bank = pkt.bank;
@@ -369,7 +358,6 @@
     }));
 
     const initialChances = buildInitialWinChances(state.drawerOrder);
-    recordWinChanceSnapshot(initialChances);
     applyMyWinChance(initialChances);
 
     UI().showScreen('game');
@@ -460,7 +448,7 @@
   function onGameOver(pkt) {
     const job = async () => {
       UI().hideApartment();
-      UI().showGameOver(pkt, { winChanceHistory: state.winChanceHistory });
+      UI().showGameOver(pkt, { winChanceHistory: pkt.win_chance_history || [] });
       if (pkt.statistics) {
         const me = pkt.statistics.find((s) => s.username === state.user?.username);
         if (me && state.user) {
@@ -591,7 +579,6 @@
     state.myCards = [];
     state.myMasks = [];
     state.players = [];
-    state.winChanceHistory = [];
     state.animationQueue = [];
     state.animating = false;
     UI().resetSlots();

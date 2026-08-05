@@ -652,10 +652,15 @@ final class GameService
         ];
 
         if ($includeWinChances) {
-            $packet['win_chances'] = $this->calculateWinChances(
+            $winChances = $this->calculateWinChances(
                 $room['players'],
                 $room['status'] ?? 'playing'
             );
+            $packet['win_chances'] = $winChances;
+            $room['win_chance_history'][] = [
+                'turn_number' => count($room['win_chance_history'] ?? []) + 1,
+                'chances'     => $winChances,
+            ];
         }
 
         foreach ($room['players'] as $player) {

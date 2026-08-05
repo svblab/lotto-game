@@ -484,6 +484,8 @@ function makeChancePlayer(string $username, int $markedCount, int $cardsCount = 
 
     // Statistics present
     assert_true(is_array($pkts[0]['statistics']), 'finishGame: statistics is array');
+    assert_true(isset($pkts[0]['win_chance_history']), 'finishGame: win_chance_history present');
+    assert_true(is_array($pkts[0]['win_chance_history']), 'finishGame: win_chance_history is array');
 }
 
 // ---------------------------------------------------------------------------
@@ -601,6 +603,28 @@ function makeChancePlayer(string $username, int $markedCount, int $cardsCount = 
     // Real DB: bank (20) credited to host (490 -> 510)
     $hostCoinsAfter = (int)$realPdo->query("SELECT coins FROM users WHERE id = 10")->fetch()['coins'];
     assert_true($hostCoinsAfter === 510, 'Integration: payout committed (coins 490 -> 510)');
+
+    $barrelsPkts = $h->sentOfType('barrels_drawn');
+    $lastWithChances = null;
+    foreach ($barrelsPkts as $bp) {
+        if (isset($bp['win_chances'])) {
+            $lastWithChances = $bp;
+        }
+    }
+    assert_true($lastWithChances !== null, 'Integration: at least one barrels_drawn with win_chances');
+    $hist = $goPackets[0]['win_chance_history'] ?? null;
+    assert_true(is_array($hist), 'Integration: game_over win_chance_history is array');
+    $withChancesCount = 0;
+    foreach ($barrelsPkts as $bp) {
+        if (isset($bp['win_chances'])) {
+            $withChancesCount++;
+        }
+    }
+    assert_true(count($hist) === $withChancesCount, 'Integration: history count matches win_chances draws');
+    assert_true(
+        ($hist[count($hist) - 1]['chances'] ?? null) == $lastWithChances['win_chances'],
+        'Integration: last history chances match last barrels_drawn'
+    );
 }
 
 // ---------------------------------------------------------------------------

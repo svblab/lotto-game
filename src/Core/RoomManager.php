@@ -73,6 +73,7 @@ final class RoomManager
             'apartment_fired'       => false,
             'pause_for_apartment'   => false,
             'apartment_responses'   => [],
+            'win_chance_history'    => [],
             'game_afk_timer_id'     => null,
             'apartment_timer_id'    => null,
             'lobby_afk_timer_id'    => null,

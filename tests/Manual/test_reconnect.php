@@ -816,6 +816,8 @@ function makeRoom(int $roomId, int $hostConnId): array
     assert_true(($go[0]['reason'] ?? '') === 'no_survivors', 'no survivors: reason=no_survivors');
     assert_true(($go[0]['prize'] ?? -1) === 0, 'no survivors: no prize');
     assert_true(($go[0]['winner'] ?? 'x') === '', 'no survivors: no winner');
+    assert_true(isset($go[0]['win_chance_history']), 'no survivors: win_chance_history present');
+    assert_true(is_array($go[0]['win_chance_history']), 'no survivors: win_chance_history is array');
 }
 
 // ---------------------------------------------------------------------------
