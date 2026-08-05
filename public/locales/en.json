@@ -49,6 +49,7 @@
     "remaining": "Barrels left",
     "online": "Online",
     "disconnected": "Away",
+    "removed": "Left",
     "afkWarning": "AFK warning ({strike}/2) — draw soon!",
     "gameOver": "Game Over",
     "victory": "Victory",

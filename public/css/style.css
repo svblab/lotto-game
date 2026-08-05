@@ -241,6 +241,7 @@ label span { display: block; margin-bottom: 0.25rem; font-size: 0.9rem; color: v
 }
 .status-online { color: var(--success); }
 .status-disconnected { color: var(--danger); }
+.status-removed { color: var(--text-muted); font-style: italic; }
 
 /* Game */
 .game-layout {

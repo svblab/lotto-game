@@ -207,8 +207,15 @@
     ul.innerHTML = '';
     players.forEach((p) => {
       const li = document.createElement('li');
-      const statusCls = p.status === 'disconnected' ? 'status-disconnected' : 'status-online';
-      const statusText = p.status === 'disconnected' ? t('game.disconnected') : t('game.online');
+      let statusCls = 'status-online';
+      let statusText = t('game.online');
+      if (p.status === 'disconnected') {
+        statusCls = 'status-disconnected';
+        statusText = t('game.disconnected');
+      } else if (p.status === 'removed') {
+        statusCls = 'status-removed';
+        statusText = t('game.removed');
+      }
       let extra = p.cards_count ? ` (${p.cards_count} ${t('lobby.cards')})` : '';
       if (showChance && p.winChance != null) extra += ` — ${p.winChance}%`;
       li.innerHTML = `<span>${p.username}${extra}</span><span class="${statusCls}">${statusText}</span>`;

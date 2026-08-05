@@ -179,6 +179,18 @@ Server → Room
 {"type": "player_left", "username": "player", "reason": "leave"}
 ```
 
+### player_status_changed
+Server → Room (playing only). Live roster status update when a player's
+connection state changes without full removal — disconnect (Away) or reconnect
+(back Online). Full removal still uses `player_left`; the client converts that
+to a ghost entry (`status: "removed"`, ADR-021).
+```json
+{"type": "player_status_changed", "username": "player", "status": "disconnected"}
+```
+`status`: `"disconnected"` when a playing player loses connection (before the
+reconnect-timeout removal); `"active"` when they reconnect. Sent only to
+`status === "active"` players via `broadcastToRoom()`.
+
 ### host_changed
 Server → Room
 ```json

@@ -269,6 +269,34 @@ function makeRoom(int $roomId, int $hostConnId): array
 }
 
 // ---------------------------------------------------------------------------
+// GROUP 1c: playing disconnect broadcasts player_status_changed to room
+// ---------------------------------------------------------------------------
+{
+    \MockTimer::reset();
+    $worker = new MockWorker();
+    $lobby = new MockLobbyService();
+    $game = new MockGameService();
+    $svc = new ReconnectService($lobby, $game, new MockLogger());
+
+    $conn = new MockConnection(16, 160, 'dc16', 'tok-16');
+    $mate = new MockConnection(17, 170, 'mate17', 'tok-17');
+    $room = makeRoom(16, 16);
+    $room['status'] = 'playing';
+    $room['players'][16] = makePlayer($conn, 'active');
+    $room['players'][17] = makePlayer($mate, 'active');
+    $worker->rooms[16] = $room;
+
+    $svc->handleDisconnect($conn, $worker);
+
+    $statusPkts = $mate->sentOfType('player_status_changed');
+    assert_true(count($statusPkts) === 1, 'disconnect broadcast: player_status_changed sent to mate');
+    assert_true(($statusPkts[0]['username'] ?? '') === 'dc16', 'disconnect broadcast: username correct');
+    assert_true(($statusPkts[0]['status'] ?? '') === 'disconnected', 'disconnect broadcast: status=disconnected');
+    $selfPkts = $conn->sentOfType('player_status_changed');
+    assert_true(count($selfPkts) === 0, 'disconnect broadcast: disconnected player not notified (inactive)');
+}
+
+// ---------------------------------------------------------------------------
 // GROUP 1b: waiting disconnect -> immediate removePlayerFromLobby (no reconnect)
 // ---------------------------------------------------------------------------
 {
@@ -478,6 +506,34 @@ function makeRoom(int $roomId, int $hostConnId): array
     assert_true(!isset($pkt2['afk_start']), 'reconnect non-drawer: no afk_start');
     assert_true(!isset($pkt2['turn_seconds']), 'reconnect non-drawer: no turn_seconds');
     assert_true(!isset($pkt2['auto_draws']), 'reconnect non-drawer: no auto_draws');
+}
+
+// ---------------------------------------------------------------------------
+// GROUP 3f: reconnect from disconnected broadcasts player_status_changed
+// ---------------------------------------------------------------------------
+{
+    \MockTimer::reset();
+    $worker = new MockWorker();
+    $lobby = new MockLobbyService();
+    $game = new MockGameService();
+    $svc = new ReconnectService($lobby, $game, new MockLogger());
+
+    $oldConn = new MockConnection(18, 180, 'recon18', 'tok-18');
+    $mate = new MockConnection(19, 190, 'mate19', 'tok-19');
+    $newConn = new MockConnection(118, 0, 'new18');
+    $room = makeRoom(18, 18);
+    $room['status'] = 'playing';
+    $room['drawer_order'] = [18, 19];
+    $room['players'][18] = makePlayer($oldConn, 'disconnected');
+    $room['players'][19] = makePlayer($mate, 'active');
+    $worker->rooms[18] = $room;
+
+    $result = $svc->handleReconnect('tok-18', $newConn, $worker);
+    assert_true($result === true, 'reconnect status broadcast: success=true');
+    $statusPkts = $mate->sentOfType('player_status_changed');
+    assert_true(count($statusPkts) === 1, 'reconnect status broadcast: player_status_changed sent to mate');
+    assert_true(($statusPkts[0]['username'] ?? '') === 'recon18', 'reconnect status broadcast: username correct');
+    assert_true(($statusPkts[0]['status'] ?? '') === 'active', 'reconnect status broadcast: status=active');
 }
 
 // ---------------------------------------------------------------------------

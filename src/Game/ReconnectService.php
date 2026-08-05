@@ -7,6 +7,7 @@ namespace Lotto\Game;
 use Lotto\Core\Constants;
 
 use function Lotto\Core\sendJson;
+use function Lotto\Core\broadcastToRoom;
 use function Lotto\Core\lottoTimerAdd;
 use function Lotto\Core\lottoTimerDel;
 use function Lotto\Core\lottoPlayerStateTransition;
@@ -72,6 +73,12 @@ final class ReconnectService
         $room['players'][$connId]['status'] = 'disconnected';
         lottoPlayerStateTransition($roomId, $connId, 'active', 'disconnected', 'connection_lost');
         $room['players'][$connId]['connection'] = $connection;
+
+        broadcastToRoom($room, [
+            'type'     => 'player_status_changed',
+            'username' => $room['players'][$connId]['username'],
+            'status'   => 'disconnected',
+        ]);
 
         if (!empty($room['players'][$connId]['reconnect_timer'])) {
             lottoTimerDel((int) $room['players'][$connId]['reconnect_timer'], 'reconnect', [
@@ -253,6 +260,14 @@ final class ReconnectService
 
         $this->bindConnectionToPlayer($connection, $player, $token, $worker);
         sendJson($connection, $this->buildReconnectState($room, $newConnId));
+
+        if ($wasDisconnected && ($room['status'] ?? null) === 'playing') {
+            broadcastToRoom($room, [
+                'type'     => 'player_status_changed',
+                'username' => $player['username'],
+                'status'   => 'active',
+            ]);
+        }
 
         return true;
     }

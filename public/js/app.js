@@ -313,6 +313,14 @@
     UI().showRoomPanel(state.room, state.user?.username);
   }
 
+  function onPlayerStatusChanged(pkt) {
+    if (!state.inGame) return;
+    const idx = state.players.findIndex((p) => p.username === pkt.username);
+    if (idx === -1) return;
+    state.players[idx] = { ...state.players[idx], status: pkt.status };
+    UI().renderGamePlayers(state.players);
+  }
+
   function onBankUpdated(pkt) {
     if (pkt.bank == null) return;
     state.bank = pkt.bank;
@@ -331,7 +339,14 @@
     state.room.players = state.room.players.filter((p) => p.username !== pkt.username);
     UI().showRoomPanel(state.room, state.user?.username);
     if (state.inGame) {
-      state.players = state.players.filter((p) => p.username !== pkt.username);
+      const idx = state.players.findIndex((p) => p.username === pkt.username);
+      if (idx !== -1) {
+        state.players[idx] = {
+          ...state.players[idx],
+          status: 'removed',
+          reason: pkt.reason ?? null,
+        };
+      }
       UI().renderGamePlayers(state.players);
     }
   }
@@ -747,6 +762,7 @@
       room_joined: onRoomJoined,
       player_joined: onPlayerJoined,
       host_changed: onHostChanged,
+      player_status_changed: onPlayerStatusChanged,
       player_left: onPlayerLeft,
       game_started: onGameStarted,
       your_turn: onYourTurn,
