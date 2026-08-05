@@ -590,7 +590,7 @@ game_over, banned, admin_stats_data, admin_logs_data
 ```
 register, login, reconnect, ping, room_list, create_room, join_room, leave_room,
 start_game, draw_barrel, apartment_choice, admin_ban_user, admin_unban_user,
-admin_kick_user, admin_close_room, admin_get_logs
+admin_kick_user, admin_close_room, admin_get_logs, admin_get_stats
 ```
 
 ## Logging

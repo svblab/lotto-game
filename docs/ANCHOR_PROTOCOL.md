@@ -393,8 +393,14 @@ Client → Server
 {"action": "admin_get_logs"}
 ```
 
+### admin_get_stats
+Client → Server
+```json
+{"action": "admin_get_stats"}
+```
+
 ### admin_stats_data
-Server → Client
+Server → Client. Emitted only in response to `admin_get_stats`.
 ```json
 {"type": "admin_stats_data", "online": 0, "memory_mb": 0, "rooms": []}
 ```

@@ -15,7 +15,7 @@
  * всем модулям.
  *
  * EPIC-10.6 (Admin packet routing): admin_ban_user/admin_unban_user/
- * admin_kick_user/admin_close_room/admin_get_logs подключены к
+ * admin_kick_user/admin_close_room/admin_get_logs/admin_get_stats подключены к
  * AdminHandler (AdminService уже существовал, Phase 9 — здесь только
  * dependency wiring и routing, никакой новой admin-логики). AdminService
  * принимает 7 nullable-зависимостей — все семь подключены здесь (см.
@@ -528,6 +528,7 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
         'admin_kick_user'  => $worker->adminHandler->handleKickUser($data, $connection, $worker),
         'admin_close_room' => $worker->adminHandler->handleCloseRoom($data, $connection, $worker),
         'admin_get_logs'   => $worker->adminHandler->handleGetLogs($data, $connection),
+        'admin_get_stats'  => $worker->adminHandler->handleGetStats($data, $connection, $worker),
         default            => sendError($connection, 'error.invalid_json', "Unknown or not-yet-wired action: {$action}"),
     };
 

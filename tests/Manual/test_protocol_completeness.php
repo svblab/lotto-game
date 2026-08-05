@@ -151,10 +151,6 @@ foreach ($declaredPackets as $packet) {
     if ($count > 0) {
         check(true, "packet type '{$packet}' emitted ({$count} site(s))");
     } else {
-        // KNOWN GAP (see IMPLEMENTATION_STATUS.md): admin_stats_data is
-        // declared but was never assigned an Epic. Not a regression —
-        // recorded as a warning, not a failure, so this test doesn't
-        // block on an already-documented, deliberately-deferred gap.
         warn("packet type '{$packet}' declared in ANCHOR_CORE.md but NEVER emitted anywhere — see KNOWN GAPS in IMPLEMENTATION_STATUS.md if this is expected");
     }
 }

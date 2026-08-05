@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Lotto\Admin;
 
+use Lotto\Core\MemoryAudit;
 use function Lotto\Core\sendJson;
 use function Lotto\Core\sendError;
 use function Lotto\Core\lottoEconomyRecord;
@@ -457,6 +458,44 @@ final class AdminService
         if ($this->lobbyService !== null) {
             $this->lobbyService->broadcastRoomList($worker);
         }
+    }
+
+    /**
+     * EPIC-23.0: admin stats snapshot.
+     *
+     * Input:
+     * {"action":"admin_get_stats"}
+     *
+     * Output:
+     * {"type":"admin_stats_data","online":0,"memory_mb":0,"rooms":[]}
+     */
+    public function handleGetStats(array $data, object $connection, object $worker): void
+    {
+        if (!$this->assertAdmin($connection)) {
+            return;
+        }
+
+        if ($this->roomManager === null) {
+            sendError(
+                $connection,
+                'error.invalid_json',
+                'RoomManager is not configured'
+            );
+            return;
+        }
+
+        $stats = MemoryAudit::collect($worker);
+        $rooms = [];
+        foreach ($worker->rooms ?? [] as $room) {
+            $rooms[] = $this->roomManager->buildRoomListEntry($room);
+        }
+
+        sendJson($connection, [
+            'type'      => 'admin_stats_data',
+            'online'    => $stats['user_connections'],
+            'memory_mb' => (int) round($stats['mem_bytes'] / (1024 * 1024)),
+            'rooms'     => $rooms,
+        ]);
     }
 
     /**

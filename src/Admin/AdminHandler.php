@@ -8,7 +8,8 @@ namespace Lotto\Admin;
  * AdminHandler — EPIC-10.6
  *
  * Обрабатывает WebSocket-пакеты администрирования: admin_ban_user,
- * admin_unban_user, admin_kick_user, admin_close_room, admin_get_logs.
+ * admin_unban_user, admin_kick_user, admin_close_room, admin_get_logs,
+ * admin_get_stats.
  * Транслирует входящие пакеты ANCHOR_PROTOCOL.md в вызовы AdminService
  * (Phase 9 — бизнес-логика уже реализована и покрыта тестами). Никакой
  * новой бизнес-логики здесь нет — только маршрутизация, тот же паттерн,
@@ -73,5 +74,13 @@ final class AdminHandler
     public function handleGetLogs(array $data, object $connection): void
     {
         $this->adminService->handleGetLogs($data, $connection);
+    }
+
+    /**
+     * {"action": "admin_get_stats"}
+     */
+    public function handleGetStats(array $data, object $connection, object $worker): void
+    {
+        $this->adminService->handleGetStats($data, $connection, $worker);
     }
 }
