@@ -61,6 +61,15 @@ $worker->rooms[$roomId] = [
 ];
 ```
 
+**Reserved keys (ADR-022):** present on every room created by `RoomManager` but
+not read by production logic — kept for snapshot/fixture compatibility (same
+pattern as `error.banned` in ADR-007):
+
+- `bet_per_card` — initialized to `Constants::BET_PER_CARD` (10). Stake
+  calculation uses the constant directly, not this field.
+- `pause_for_apartment` — always `false`. Apartment pause is represented by
+  `status === 'apartment'`; this flag is never toggled in production.
+
 ## Player Structure
 ```php
 $room['players'][$connId] = [
@@ -529,6 +538,14 @@ active_drawer_conn_id,
 drawer_order, bag, drawn_numbers, players, all_players_history,
 lobby_afk_timer_id, game_afk_timer_id, apartment_timer_id
 ```
+Reserved (ADR-022): `bet_per_card`, `pause_for_apartment` — see § Room Structure
+reserved keys above; remain in the registry but are not consumed at runtime.
+
+Test-only hook (ADR-022): `_apartment_participants` — leading underscore by
+convention; never created by production code paths, only read defensively by
+`ApartmentService::getParticipants()` if a test harness has already set it.
+Not part of the production room lifecycle.
+
 Room states: `waiting, playing, apartment, finished`.
 
 ## Player Structure Keys (allowed)
