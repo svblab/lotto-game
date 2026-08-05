@@ -544,6 +544,8 @@ final class ApartmentService
             'user_id'    => $userId,
             'username'   => $player['username'],
             'total_paid' => $player['total_paid'],
+            'cards_count' => (int) ($player['cards_count'] ?? 1),
+            'reason'     => $reason,
         ];
 
         if (($player['status'] ?? null) === 'active' && isset($player['connection'])) {

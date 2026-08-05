@@ -105,9 +105,13 @@ final class FailingStatementsProxy
 final class SpyRoomManager
 {
     public array $destroyCalls = [];
+    public ?array $lastHistory = null;
 
     public function destroyRoom(object $worker, int $roomId): void
     {
+        if (isset($worker->rooms[$roomId])) {
+            $this->lastHistory = $worker->rooms[$roomId]['all_players_history'] ?? null;
+        }
         $this->destroyCalls[] = $roomId;
         unset($worker->rooms[$roomId]);
     }
@@ -269,6 +273,8 @@ $admin2->handleCloseRoom(['room_id' => 2], $conn2, $worker);
 assertEquals($coinsBefore3 + 20, getCoins($pdo, $p3), 'p3 refunded 100% of total_paid');
 assertEquals($coinsBefore4 + 20, getCoins($pdo, $p4), 'p4 refunded 100% of total_paid');
 assertEquals(1, count($roomManager2->destroyCalls), 'destroyRoom called once for playing room');
+assertEquals(1, $roomManager2->lastHistory[200]['cards_count'] ?? -1, 'admin close: snapshotted cards_count=1');
+assertTrue($roomManager2->lastHistory[200]['reason'] === null, 'admin close: snapshotted reason=null');
 
 // =============================================================================
 // TEST 3 — Рефанд включает игроков, УЖЕ удалённых ранее (all_players_history)

@@ -460,6 +460,10 @@ ok('leaveRoom: all_players_history username correct',
     ($worker->rooms[$roomId]['all_players_history'][$joiner->id]['username'] ?? '') === 'joiner');
 ok('leaveRoom: all_players_history total_paid = 0',
     ($worker->rooms[$roomId]['all_players_history'][$joiner->id]['total_paid'] ?? -1) === 0);
+ok('leaveRoom: all_players_history cards_count',
+    ($worker->rooms[$roomId]['all_players_history'][$joiner->id]['cards_count'] ?? -1) === 1);
+ok('leaveRoom: all_players_history reason = leave',
+    ($worker->rooms[$roomId]['all_players_history'][$joiner->id]['reason'] ?? '') === 'leave');
 
 [$ls2] = makeServices();
 $w2   = new MockWorker();

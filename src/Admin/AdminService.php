@@ -391,6 +391,8 @@ final class AdminService
                     'user_id'    => $player['user_id'],
                     'username'   => $player['username'],
                     'total_paid' => $player['total_paid'],
+                    'cards_count' => (int) ($player['cards_count'] ?? 1),
+                    'reason'     => null,
                 ];
             }
         }

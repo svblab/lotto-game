@@ -459,6 +459,14 @@ $apt = new ApartmentService($_mockDb, $_mockSt, $_mockLog);
     $r = $worker->rooms[1];
     assert_true(!isset($r['players'][2]),           'Refuse: p2 removed from players');
     assert_true(!in_array(2, $r['drawer_order']),   'Refuse: p2 removed from drawer_order');
+    assert_true(
+        ($worker->rooms[1]['all_players_history'][2]['cards_count'] ?? -1) === 1,
+        'Refuse: history cards_count=1'
+    );
+    assert_true(
+        ($worker->rooms[1]['all_players_history'][2]['reason'] ?? '') === 'refuse',
+        'Refuse: history reason=refuse'
+    );
 
     // player_left sent to remaining
     $hLeft = $h->sentOfType('player_left');

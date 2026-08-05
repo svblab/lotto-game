@@ -428,6 +428,8 @@ final class LobbyService
             'user_id'    => $playerEntry['user_id'],
             'username'   => $playerEntry['username'],
             'total_paid' => $playerEntry['total_paid'],
+            'cards_count' => (int) ($playerEntry['cards_count'] ?? 1),
+            'reason'     => $reason,
         ];
 
         if (($playerEntry['status'] ?? null) === 'active' && isset($playerEntry['connection'])) {

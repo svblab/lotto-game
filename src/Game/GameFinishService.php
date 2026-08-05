@@ -302,6 +302,8 @@ final class GameFinishService
                     'user_id'    => $player['user_id'] ?? 0,
                     'username'   => $player['username'] ?? 'unknown',
                     'total_paid' => $player['total_paid'] ?? 0,
+                    'cards_count' => (int) ($player['cards_count'] ?? 1),
+                    'reason'     => null,
                 ];
             }
         }

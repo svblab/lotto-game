@@ -102,6 +102,7 @@ class MockGameService
         string $reason = 'victory'
     ): void {
         $this->finishCalls++;
+        $this->lastHistory = $room['all_players_history'] ?? null;
         unset($worker->rooms[$roomId]);
     }
 
@@ -116,6 +117,7 @@ class MockGameService
     }
 
     public int $noSurvivorsCalls = 0;
+    public ?array $lastHistory = null;
 
     public function handleNoSurvivors(array &$room, int $roomId, object $worker, ?object $notifyConnection = null): void
     {
@@ -203,11 +205,16 @@ function makeRefundGameService(MockPDO $pdo, MockStmts $st): object
     $fin = new GameFinishService($db, $st, $log);
     return new class($fin) extends MockGameService {
         private GameFinishService $fin;
+        public ?array $lastHistory = null;
         public function __construct(GameFinishService $fin) { $this->fin = $fin; }
     public function handleNoSurvivors(array &$room, int $roomId, object $worker, ?object $notifyConnection = null): void
     {
         $this->noSurvivorsCalls++;
-        $this->fin->handleNoSurvivors($room, $roomId, function () use ($worker, $roomId) {
+        $self = $this;
+        $this->fin->handleNoSurvivors($room, $roomId, function () use ($worker, $roomId, $self) {
+            if (isset($worker->rooms[$roomId])) {
+                $self->lastHistory = $worker->rooms[$roomId]['all_players_history'] ?? null;
+            }
             unset($worker->rooms[$roomId]);
         }, $notifyConnection);
     }
@@ -697,6 +704,16 @@ function makeRoom(int $roomId, int $hostConnId): array
 
         $svc->removePlayerFromGame($worker, $roomId, $leaverConn, $reason);
 
+        assert_true(
+            ($game->lastHistory[$leaverConn]['cards_count'] ?? -1) === 1,
+            "{$reason}: history cards_count=1"
+        );
+        assert_true(
+            ($game->lastHistory[$leaverConn]['reason'] ?? '') === $reason,
+            "{$reason}: history reason matches removal"
+        );
+        $game->lastHistory = null;
+
         assert_true($game->finishCalls >= 1, "{$reason}: last_survivor still pays bank");
         assert_true($game->noSurvivorsCalls === 0, "{$reason}: no refund path");
         assert_true(!isset($worker->rooms[$roomId]), "{$reason}: room destroyed");
@@ -818,6 +835,23 @@ function makeRoom(int $roomId, int $hostConnId): array
     assert_true(($go[0]['winner'] ?? 'x') === '', 'no survivors: no winner');
     assert_true(isset($go[0]['win_chance_history']), 'no survivors: win_chance_history present');
     assert_true(is_array($go[0]['win_chance_history']), 'no survivors: win_chance_history is array');
+    assert_true(is_array($game->lastHistory), 'no survivors: history captured');
+    assert_true(
+        ($game->lastHistory[100]['reason'] ?? '') === 'leave',
+        'no survivors: leaver history reason=leave'
+    );
+    assert_true(
+        ($game->lastHistory[100]['cards_count'] ?? -1) === 1,
+        'no survivors: leaver history cards_count=1'
+    );
+    assert_true(
+        ($game->lastHistory[200]['reason'] ?? null) === null,
+        'no survivors: disconnected snapshot reason=null'
+    );
+    assert_true(
+        ($game->lastHistory[200]['cards_count'] ?? -1) === 1,
+        'no survivors: disconnected snapshot cards_count=1'
+    );
 }
 
 // ---------------------------------------------------------------------------
