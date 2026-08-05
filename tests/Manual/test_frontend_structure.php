@@ -129,5 +129,37 @@ if ($app && str_contains($app, 'hasPersistedSession') && str_contains($app, 'ret
     fail('app.js: reconnect uses persisted localStorage token');
 }
 
+if ($html && str_contains($html, 'id="admin-online"') && str_contains($html, 'id="admin-memory"')) {
+    ok('index.html: admin live stats elements');
+} else {
+    fail('index.html: admin live stats elements');
+}
+
+if ($html && !str_contains($html, 'admin.statsHint')) {
+    ok('index.html: admin.statsHint removed');
+} else {
+    fail('index.html: admin.statsHint removed');
+}
+
+$adminI18nKeys = ['liveStats', 'online', 'memory'];
+foreach (['en', 'ru', 'es', 'fr', 'zh', 'tr'] as $lang) {
+    $localePath = $public . "/locales/$lang.json";
+    $localeData = json_decode((string)file_get_contents($localePath), true);
+    if (!is_array($localeData)) {
+        fail("locale admin keys: $lang", 'invalid JSON');
+        continue;
+    }
+    $admin = $localeData['admin'] ?? [];
+    $missing = array_filter($adminI18nKeys, static fn($k) => !isset($admin[$k]));
+    if ($missing === []) {
+        ok("locale admin keys: $lang");
+    } else {
+        fail("locale admin keys: $lang", 'missing ' . implode(', ', $missing));
+    }
+    if (isset($admin['statsHint'])) {
+        fail("locale admin keys: $lang", 'statsHint still present');
+    }
+}
+
 echo "\n=== Results: $passed passed, $failed failed ===\n";
 exit($failed > 0 ? 1 : 0);

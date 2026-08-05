@@ -221,7 +221,11 @@
           <h2 data-i18n="admin.title">Server Management</h2>
           <button type="button" id="admin-close-btn" class="icon-btn">✕</button>
         </header>
-        <p class="hint" data-i18n="admin.statsHint">Live stats are unavailable until the server implements admin_stats_data.</p>
+        <div class="admin-section admin-stats">
+          <h3 data-i18n="admin.liveStats">Live Stats</h3>
+          <p><span data-i18n="admin.online">Online</span>: <span id="admin-online">—</span></p>
+          <p><span data-i18n="admin.memory">Memory</span>: <span id="admin-memory">—</span> MB</p>
+        </div>
         <div class="admin-section">
           <h3 data-i18n="admin.moderation">Moderation</h3>
           <div class="admin-row">

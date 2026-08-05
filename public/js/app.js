@@ -558,6 +558,10 @@
     UI().setAdminLogs(pkt.lines);
   }
 
+  function onAdminStats(pkt) {
+    UI().setAdminStats(pkt.online, pkt.memory_mb);
+  }
+
   // --- User actions ---
   function guardAlreadyInRoom() {
     if (!state.room) return false;
@@ -718,6 +722,7 @@
     UI().$('#admin-open-btn')?.addEventListener('click', () => {
       UI().toggleOverlay('#admin-panel', true);
       socket.sendAction('admin_get_logs');
+      socket.sendAction('admin_get_stats');
       socket.sendAction('room_list');
     });
     UI().$('#admin-close-btn')?.addEventListener('click', () => UI().toggleOverlay('#admin-panel', false));
@@ -773,6 +778,7 @@
       game_over: onGameOver,
       reconnect_state: onReconnectState,
       admin_logs_data: onAdminLogs,
+      admin_stats_data: onAdminStats,
     };
     Object.entries(handlers).forEach(([type, fn]) => socket.on(type, fn));
 

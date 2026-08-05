@@ -79,7 +79,9 @@
   },
   "admin": {
     "title": "Sunucu yönetimi",
-    "statsHint": "Canlı istatistikler admin_stats_data olmadan kullanılamaz.",
+    "liveStats": "Canlı İstatistikler",
+    "online": "Çevrimiçi",
+    "memory": "Bellek",
     "moderation": "Moderasyon",
     "permanent": "Kalıcı",
     "ban": "Yasakla",

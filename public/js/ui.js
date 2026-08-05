@@ -841,6 +841,13 @@
     if (el) el.textContent = (lines || []).join('\n') || '—';
   }
 
+  function setAdminStats(online, memoryMb) {
+    const onlineEl = $('#admin-online');
+    const memEl = $('#admin-memory');
+    if (onlineEl) onlineEl.textContent = online ?? '—';
+    if (memEl) memEl.textContent = memoryMb ?? '—';
+  }
+
   // --- Rules ---
   function renderRules() {
     const box = $('#rules-content');
@@ -935,6 +942,7 @@
     showGameOver,
     renderAdminRooms,
     setAdminLogs,
+    setAdminStats,
     renderRules,
     renderLangPicker,
     showReconnecting,

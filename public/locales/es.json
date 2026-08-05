@@ -79,7 +79,9 @@
   },
   "admin": {
     "title": "Administración",
-    "statsHint": "Estadísticas en vivo no disponibles hasta admin_stats_data.",
+    "liveStats": "Estadísticas en vivo",
+    "online": "En línea",
+    "memory": "Memoria",
     "moderation": "Moderación",
     "permanent": "Permanente",
     "ban": "Ban",

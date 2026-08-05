@@ -79,7 +79,9 @@
   },
   "admin": {
     "title": "服务器管理",
-    "statsHint": "实时统计需服务器实现 admin_stats_data。",
+    "liveStats": "实时统计",
+    "online": "在线",
+    "memory": "内存",
     "moderation": "管理",
     "permanent": "永久",
     "ban": "封禁",

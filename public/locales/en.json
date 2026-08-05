@@ -82,7 +82,9 @@
   },
   "admin": {
     "title": "Server Management",
-    "statsHint": "Live stats are unavailable until the server implements admin_stats_data.",
+    "liveStats": "Live Stats",
+    "online": "Online",
+    "memory": "Memory",
     "moderation": "Moderation",
     "permanent": "Permanent",
     "ban": "Ban",
