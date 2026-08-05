@@ -481,6 +481,69 @@ function makeRoom(int $roomId, int $hostConnId): array
 }
 
 // ---------------------------------------------------------------------------
+// GROUP 3e: reconnect into playing room with removed player — players roster
+// ---------------------------------------------------------------------------
+{
+    \MockTimer::reset();
+    $worker = new MockWorker();
+    $lobby = new MockLobbyService();
+    $game = new MockGameService();
+    $svc = new ReconnectService($lobby, $game, new MockLogger());
+
+    $removed = new MockConnection(13, 130, 'removed13', 'tok-13');
+    $survivor = new MockConnection(14, 140, 'survivor14', 'tok-14');
+    $reconnect = new MockConnection(15, 150, 'reconnect15', 'tok-15');
+    $newConn = new MockConnection(115, 0, 'new15');
+    $room = makeRoom(13, 14);
+    $room['status'] = 'playing';
+    $room['drawer_order'] = [14, 13, 15];
+    $room['active_drawer_conn_id'] = 14;
+    $room['players'][13] = makePlayer($removed, 'active');
+    $room['players'][14] = makePlayer($survivor, 'active');
+    $room['players'][14]['cards_count'] = 2;
+    $room['players'][15] = makePlayer($reconnect, 'active');
+    $room['players'][15]['cards_count'] = 1;
+    $worker->rooms[13] = $room;
+
+    $svc->removePlayerFromGame($worker, 13, 13, 'afk');
+
+    assert_true(!isset($worker->rooms[13]['players'][13]), 'roster ghost: removed player absent from players');
+    assert_true(isset($worker->rooms[13]), 'roster ghost: game continues with 2 active players');
+    assert_true(
+        ($worker->rooms[13]['all_players_history'][13]['reason'] ?? '') === 'afk',
+        'roster ghost: history reason=afk'
+    );
+    assert_true(
+        ($worker->rooms[13]['all_players_history'][13]['cards_count'] ?? -1) === 1,
+        'roster ghost: history cards_count=1'
+    );
+
+    $svc->handleDisconnect($reconnect, $worker);
+    assert_true($worker->rooms[13]['players'][15]['status'] === 'disconnected', 'roster ghost: reconnect target disconnected');
+
+    $result = $svc->handleReconnect('tok-15', $newConn, $worker);
+    assert_true($result === true, 'roster ghost: reconnect success');
+    $pkt = $newConn->sentOfType('reconnect_state')[0] ?? [];
+    assert_true(isset($pkt['players']), 'roster ghost: players key present');
+    $players = $pkt['players'];
+    assert_true(count($players) === 3, 'roster ghost: 3 roster entries (2 present + 1 ghost)');
+
+    $byName = [];
+    foreach ($players as $p) {
+        $byName[$p['username']] = $p;
+    }
+    assert_true(isset($byName['survivor14']), 'roster ghost: survivor present');
+    assert_true(($byName['survivor14']['status'] ?? '') === 'active', 'roster ghost: survivor status=active');
+    assert_true(($byName['survivor14']['cards_count'] ?? -1) === 2, 'roster ghost: survivor cards_count=2');
+    assert_true(isset($byName['reconnect15']), 'roster ghost: reconnecting player present');
+    assert_true(($byName['reconnect15']['status'] ?? '') === 'active', 'roster ghost: reconnecting player status=active after restore');
+    assert_true(isset($byName['removed13']), 'roster ghost: removed player as ghost');
+    assert_true(($byName['removed13']['status'] ?? '') === 'removed', 'roster ghost: ghost status=removed');
+    assert_true(($byName['removed13']['reason'] ?? '') === 'afk', 'roster ghost: ghost reason echoes history');
+    assert_true(($byName['removed13']['cards_count'] ?? -1) === 1, 'roster ghost: ghost cards_count from history');
+}
+
+// ---------------------------------------------------------------------------
 // GROUP 4: game AFK timer — strike 1 auto-draw (player stays)
 // ---------------------------------------------------------------------------
 {

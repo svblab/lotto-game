@@ -327,6 +327,10 @@ final class ReconnectService
         }
 
         return array_merge($base, [
+            'players'        => array_merge(
+                $this->buildLobbyPlayersList($room),
+                $this->buildGamePlayersGhosts($room)
+            ),
             'drawn_all'      => $room['drawn_numbers'] ?? [],
             'my_cards'       => $player['cards'] ?? [],
             'my_masks'       => $player['masks'] ?? [],
@@ -337,6 +341,26 @@ final class ReconnectService
                 $room['status'] ?? 'playing'
             ),
         ], $turnFields);
+    }
+
+    /**
+     * @return list<array{username: string, cards_count: int, status: string, reason: ?string}>
+     */
+    private function buildGamePlayersGhosts(array $room): array
+    {
+        $ghosts = [];
+        foreach ($room['all_players_history'] ?? [] as $connId => $entry) {
+            if (isset($room['players'][$connId])) {
+                continue; // still present in the room — already covered by buildLobbyPlayersList()
+            }
+            $ghosts[] = [
+                'username'    => (string) ($entry['username'] ?? ''),
+                'cards_count' => (int) ($entry['cards_count'] ?? 1),
+                'status'      => 'removed',
+                'reason'      => $entry['reason'] ?? null,
+            ];
+        }
+        return $ghosts;
     }
 
     /**

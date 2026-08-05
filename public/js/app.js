@@ -497,7 +497,7 @@
         host: pkt.host ?? state.room?.host ?? '',
         status: 'playing',
         bank: pkt.bank || 0,
-        players: state.room?.players || [],
+        players: pkt.players || [],
       };
       state.bank = pkt.bank || 0;
       state.drawerOrder = pkt.drawer_order || [];
@@ -512,10 +512,11 @@
       UI().renderGameHeader(state.bank, state.currentDrawer, null);
       UI().renderDrawnHistory(state.drawnAll);
       UI().renderCards(state.myCards, state.myMasks, state.cardIndex, null);
-      state.players = (state.room?.players || []).map((p) => ({
+      state.players = (pkt.players || []).map((p) => ({
         username: p.username,
         status: p.status || 'active',
         cards_count: p.cards_count || 1,
+        reason: p.reason ?? null,
       }));
       UI().renderGamePlayers(state.players);
       if (pkt.win_chances) {

@@ -330,8 +330,14 @@ Waiting room:
 ```
 Playing:
 ```json
-{"type": "reconnect_state", "status": "playing", "room_id": 5, "bank": 80, "drawn_all": [], "my_cards": [], "win_chances": {"player1": 50, "player2": 50}, "is_my_turn": true, "afk_start": 1704067200, "turn_seconds": 30, "auto_draws": 0}
+{"type": "reconnect_state", "status": "playing", "room_id": 5, "bank": 80, "drawn_all": [], "my_cards": [], "players": [{"username": "player1", "cards_count": 1, "status": "active"}, {"username": "player2", "cards_count": 2, "status": "removed", "reason": "disconnect"}], "win_chances": {"player1": 50, "player2": 50}, "is_my_turn": true, "afk_start": 1704067200, "turn_seconds": 30, "auto_draws": 0}
 ```
+`players` (playing, ADR-020): roster of every player who has been part of this
+game — currently active/disconnected players (`status: "active"|"disconnected"`)
+plus a ghost entry per fully-removed player (`status: "removed"`, `reason`: the
+original removal reason, or `null` for bulk end-of-game snapshots) — kept until
+the room is destroyed, so a reconnecting client always sees who played, not just
+who remains.
 `win_chances` (optional, ADR-014): same semantics as `barrels_drawn`; included
 for `status === "playing"` so reconnecting clients restore opponent indicators.
 `is_my_turn` / `afk_start` / `turn_seconds` / `auto_draws` (ADR-017): included
