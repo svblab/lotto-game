@@ -287,7 +287,11 @@
       clearClientSession();
       UI().showReconnecting(false);
       UI().showScreen('auth');
-      UI().setMessage('#auth-message', I18n().translateError(pkt), 'error');
+      const superseded = String(pkt.message ?? '').toLowerCase().includes('superseded');
+      const msg = superseded
+        ? I18n().t('errors.auth_session_superseded')
+        : I18n().translateError(pkt);
+      UI().setMessage('#auth-message', msg, 'error');
       return;
     }
     const msg = I18n().translateError(pkt);
@@ -373,7 +377,13 @@
   }
 
   function onPlayerLeft(pkt) {
-    if (pkt.username === state.user?.username) {
+    const myUserId = state.user?.id;
+    if (
+      myUserId != null &&
+      pkt.user_id != null &&
+      pkt.user_id === myUserId &&
+      state.room
+    ) {
       if (['kicked', 'banned', 'admin_close', 'afk', 'refuse', 'leave', 'disconnect'].includes(pkt.reason)) {
         resetToLobby();
         UI().showToast(I18n().t('lobby.leftReason', { reason: pkt.reason }));

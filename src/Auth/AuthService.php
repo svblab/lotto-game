@@ -83,12 +83,10 @@ class AuthService
      *
      * @param string $username
      * @param string $password
-     * @param object|null $worker Объект воркера для проверки активных соединений (EPIC-1.3)
-     * @param mixed $connection Экземпляр соединения пользователя (EPIC-1.3)
      * @return array Контракт EPIC-1.1 + session_token на верхнем уровне
      * @throws Exception
      */
-    public function login(string $username, string $password, $worker = null, $connection = 'mock_connection'): array
+    public function login(string $username, string $password): array
     {
         try {
             // Шаг 1: Проверить входные данные на валидность формы
@@ -136,27 +134,8 @@ class AuthService
                 throw new Exception('Generated session token is invalid');
             }
 
-            // EPIC-1.3: Single Session Protection
-            $userId = (int)$user['id'];
-            if ($worker !== null) {
-                if (isset($worker->userConnections[$userId])) {
-                    $existing = $worker->userConnections[$userId];
-                    $existingLive = false;
-                    foreach ($worker->connections ?? [] as $liveConnection) {
-                        if ($liveConnection === $existing) {
-                            $existingLive = true;
-                            break;
-                        }
-                    }
-                    if ($existingLive && $existing !== $connection) {
-                        throw new Exception('User already logged in');
-                    }
-                    if (!$existingLive) {
-                        unset($worker->userConnections[$userId]);
-                    }
-                }
-                $worker->userConnections[$userId] = $connection;
-            }
+            // EPIC-1.3 / FIX-30: single-session enforcement lives in
+            // AuthHandler::claimUserSession() — not here.
 
             // Шаг 8: Записать лог об успешном входе (Уровень INFO)
             $this->safeLog('INFO', "User login: {$username}");

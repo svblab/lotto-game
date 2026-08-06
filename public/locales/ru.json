@@ -123,6 +123,7 @@
     "auth_username_taken": "Имя уже занято",
     "auth_invalid_username": "Неверный формат имени или пароля",
     "auth_invalid_token": "Сессия истекла — войдите снова",
+    "auth_session_superseded": "Вход выполнен в другом окне — войдите снова",
     "room_not_found": "Комната не найдена",
     "not_your_turn": "Не ваш ход",
     "server_full": "Сервер переполнен",

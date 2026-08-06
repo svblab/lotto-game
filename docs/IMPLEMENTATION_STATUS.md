@@ -1,5 +1,30 @@
 # Implementation Status — Lotto Game Project
 
+## Phase 18 — FIX-30 Multi-session auth hardening (2026-08-06)
+
+- [DONE] FIX-30 Concurrent multi-session auth bug (single account, multiple browsers)
+Files:
+- src/Auth/AuthHandler.php (diff — `claimUserSession()`, evict superseded connections)
+- src/Auth/AuthService.php (diff — session registry moved out of `login()`)
+- server.php (diff — ownership-safe `userConnections` cleanup on `onClose`)
+- src/Lobby/LobbyService.php (diff — one seat per `user_id`, `user_id` on `player_left`)
+- src/Game/ReconnectService.php (diff — `rebindSeat()`, `user_id` on `player_left`)
+- public/js/app.js (diff — `player_left` by `user_id`; superseded session message)
+- public/locales/en.json, ru.json (diff — `auth_session_superseded`)
+- tests/Manual/test_single_session.php, test_session_lifecycle.php, test_multi_session.php
+- docs/ADR/001.md, docs/ANCHOR_PROTOCOL.md
+
+Notes: ADR-001 amended — newest login/reconnect wins (evict prior live session) instead
+of reject-only second login. Prevents dual authenticated sockets and duplicate room
+seats; `player_left` no longer resets unrelated clients with the same username.
+
+VERIFICATION:
+- `php tests/Manual/test_single_session.php` — PASS
+- `php tests/Manual/test_session_lifecycle.php` — PASS
+- `php tests/Manual/test_multi_session.php` — PASS
+- MANUAL: Browser A login → close → Browser B login → reopen A → only one session;
+  leave from one client does not spuriously reset the other.
+
 ## Phase 18 — Client Balance Persistence (2026-08-02)
 
 - [DONE] FIX-29 Browser-reopen reconnect + SVG line chart (game-over)

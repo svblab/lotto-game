@@ -580,7 +580,13 @@ $worker->onClose = function ($connection) use ($worker): void {
     // (см. AuthHandler::handleReconnect()/ReconnectService::handleReconnect(),
     // FIX-10).
     if (($connection->userId ?? null) !== null) {
-        unset($worker->userConnections[$connection->userId]);
+        $userId = (int) $connection->userId;
+        if (
+            isset($worker->userConnections[$userId])
+            && $worker->userConnections[$userId] === $connection
+        ) {
+            unset($worker->userConnections[$userId]);
+        }
     }
 
     if (isset($worker->memoryAudit)) {

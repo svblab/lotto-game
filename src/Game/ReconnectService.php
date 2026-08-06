@@ -137,6 +137,24 @@ final class ReconnectService
     }
 
     /**
+     * Re-keys an active seat onto a new connection (FIX-30 one-seat-per-user safety net).
+     */
+    public function rebindSeat(
+        object $worker,
+        int $roomId,
+        int $oldConnId,
+        object $connection,
+        string $token
+    ): bool {
+        if (!isset($worker->rooms[$roomId]['players'][$oldConnId])) {
+            return false;
+        }
+
+        $room = &$worker->rooms[$roomId];
+        return $this->restorePlayerConnection($worker, $roomId, $room, $oldConnId, $connection, $token);
+    }
+
+    /**
      * EPIC-8.2: восстановление disconnected игрока по session token.
      *
      * FIX-9 (обнаружено при подключении EPIC-10.5, т.е. при первом реальном
@@ -559,11 +577,11 @@ final class ReconnectService
         ];
 
         if (($player['status'] ?? null) === 'active' && isset($player['connection'])) {
-            sendJson($player['connection'], [
-                'type'     => 'player_left',
-                'username' => $player['username'],
-                'reason'   => $reason,
-            ]);
+            sendJson($player['connection'], $this->buildPlayerLeftPacket(
+                (string) $player['username'],
+                (int) ($player['user_id'] ?? 0),
+                $reason
+            ));
         }
 
         unset($room['players'][$connId]);
@@ -571,13 +589,14 @@ final class ReconnectService
             array_filter($room['drawer_order'], fn($id) => $id !== $connId)
         );
 
+        $leftPacket = $this->buildPlayerLeftPacket(
+            (string) $player['username'],
+            (int) ($player['user_id'] ?? 0),
+            $reason
+        );
         foreach ($room['players'] as $p) {
             if (($p['status'] ?? null) === 'active') {
-                $p['connection']->send(json_encode([
-                    'type'     => 'player_left',
-                    'username' => $player['username'],
-                    'reason'   => $reason,
-                ]));
+                $p['connection']->send(json_encode($leftPacket));
             }
         }
 
@@ -649,6 +668,23 @@ final class ReconnectService
             }
         }
         return null;
+    }
+
+    /**
+     * @return array{type: string, username: string, user_id?: int, reason: string}
+     */
+    private function buildPlayerLeftPacket(string $username, int $userId, string $reason): array
+    {
+        $packet = [
+            'type'     => 'player_left',
+            'username' => $username,
+            'reason'   => $reason,
+        ];
+        if ($userId > 0) {
+            $packet['user_id'] = $userId;
+        }
+
+        return $packet;
     }
 }
 

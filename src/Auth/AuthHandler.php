@@ -75,7 +75,7 @@ final class AuthHandler
 
        // Авто-логин: регистрация завершена, сразу создаём сессию
        try {
-           $result = $this->authService->login($username, $password, $worker, $connection);
+           $result = $this->authService->login($username, $password);
        } catch (Exception $e) {
            // Теоретически невозможно сразу после успешного register(),
            // но защищаемся на случай race condition или внутренней ошибки БД.
@@ -84,8 +84,7 @@ final class AuthHandler
            return;
        }
 
-       $this->storeSession($worker, $result['session_token'], $result['user']['id']);
-       $this->bindConnection($connection, $result['user'], $result['session_token']);
+       $this->claimUserSession($worker, (int) $result['user']['id'], $connection, $result['session_token'], $result['user'], true);
        $this->sendAuthResult($connection, $result);
    }
 
@@ -107,7 +106,7 @@ final class AuthHandler
        }
 
        try {
-           $result = $this->authService->login($username, $password, $worker, $connection);
+           $result = $this->authService->login($username, $password);
        } catch (Exception $e) {
            $msg = $e->getMessage();
 
@@ -123,8 +122,7 @@ final class AuthHandler
            return;
        }
 
-       $this->storeSession($worker, $result['session_token'], $result['user']['id']);
-       $this->bindConnection($connection, $result['user'], $result['session_token']);
+       $this->claimUserSession($worker, (int) $result['user']['id'], $connection, $result['session_token'], $result['user'], true);
        $this->sendAuthResult($connection, $result);
    }
 
@@ -132,7 +130,7 @@ final class AuthHandler
     * Обрабатывает пакет {"action": "reconnect"}.
     *
     * Успех  → восстанавливает $worker->userConnections[$userId] И
-    *          связывает Connection Runtime Fields через bindConnection()
+    *          связывает Connection Runtime Fields через claimUserSession()
     *          (FIX-10 — до этого фикса $connection->userId никогда не
     *          устанавливался здесь, что оставляло реконнекчённое
     *          соединение фактически неаутентифицированным для guard'а
@@ -188,25 +186,7 @@ final class AuthHandler
            return;
        }
 
-       // ADR-001: reject reconnect when another live connection already owns
-       // this account (e.g. second browser window sharing localStorage token).
-       $liveOwner = $this->findLiveConnectionForUser($worker, $userId);
-       if ($liveOwner !== null && $liveOwner !== $connection) {
-           sendError($connection, 'error.auth_invalid_token', 'Session superseded');
-           return;
-       }
-
-       // Drop stale registry entries left behind when onClose did not run in time.
-       if (isset($worker->userConnections[$userId]) && $liveOwner === null) {
-           unset($worker->userConnections[$userId]);
-       }
-
-       // Восстанавливаем маппинг соединения в worker-памяти
-       $worker->userConnections[$userId] = $connection;
-
-       // FIX-10: реальная аутентификация соединения — идентично тому, что
-       // register()/login() уже делают через bindConnection().
-       $this->bindConnection($connection, $user, $token);
+       $this->claimUserSession($worker, $userId, $connection, $token, $user, false);
 
        $this->logger->write('INFO', "Reconnect validated: user_id={$userId}");
 
@@ -237,24 +217,152 @@ final class AuthHandler
        ]);
    }
 
-   // -------------------------------------------------------------------------
-   // Private helpers
-   // -------------------------------------------------------------------------
-
    /**
-    * Сохраняет session_token → user_id в worker-памяти.
-    * Инициализирует $worker->sessionTokens если массив ещё не создан.
-    *
-    * ADR-001: login/register invalidates all previous tokens for this user
-    * so a stale browser tab cannot reconnect after a fresh login elsewhere.
+    * ADR-001 / FIX-30: единая точка принятия сессии после login/register/reconnect.
+    * Новейший успешный login/reconnect выигрывает — все другие live-соединения
+    * того же user_id выселяются (room removal + error.auth_invalid_token + close).
     */
-   private function storeSession(object $worker, string $token, int $userId): void
-   {
+   public function claimUserSession(
+       object $worker,
+       int $userId,
+       object $newConnection,
+       string $token,
+       array $user,
+       bool $freshLogin = false
+   ): void {
+       foreach ($this->findAllLiveConnectionsForUser($worker, $userId, $newConnection) as $oldConnection) {
+           $this->evictConnection($worker, $oldConnection, $userId);
+       }
+
+       if ($freshLogin && isset($worker->lobbyService)) {
+           $worker->lobbyService->removeExistingSeatForUser($worker, $userId, 'disconnect');
+       }
+
+       if (isset($worker->userConnections[$userId])) {
+           $registered = $worker->userConnections[$userId];
+           if ($registered !== $newConnection && !$this->isConnectionLive($worker, $registered)) {
+               unset($worker->userConnections[$userId]);
+           }
+       }
+
        if (!isset($worker->sessionTokens)) {
            $worker->sessionTokens = [];
        }
        $this->revokeTokensForUser($worker, $userId);
        $worker->sessionTokens[$token] = $userId;
+       $worker->userConnections[$userId] = $newConnection;
+       $this->bindConnection($newConnection, $user, $token);
+
+       $connId = $newConnection->id ?? 'null';
+       $this->logger->write('INFO', "Session claimed: user_id={$userId} conn_id={$connId}");
+   }
+
+   // -------------------------------------------------------------------------
+   // Private helpers
+   // -------------------------------------------------------------------------
+
+   /**
+    * Evicts a superseded live connection: remove from room, notify, clear auth, close.
+    */
+   private function evictConnection(object $worker, object $oldConnection, int $userId): void
+   {
+       $oldConnId = $oldConnection->id ?? 'null';
+       $this->logger->write(
+           'INFO',
+           "Evicting superseded session: user_id={$userId} old_conn_id={$oldConnId}"
+       );
+
+       $this->removeConnectionFromRoom($worker, $oldConnection, $userId);
+
+       sendError($oldConnection, 'error.auth_invalid_token', 'Session superseded');
+       $oldConnection->userId       = null;
+       $oldConnection->username     = null;
+       $oldConnection->isAdmin      = false;
+       $oldConnection->sessionToken = null;
+
+       if (isset($worker->userConnections[$userId]) && $worker->userConnections[$userId] === $oldConnection) {
+           unset($worker->userConnections[$userId]);
+       }
+
+       $oldConnection->close();
+   }
+
+   /**
+    * Removes the evicted connection's room seat (by conn_id or user_id fallback).
+    */
+   private function removeConnectionFromRoom(object $worker, object $connection, int $userId): void
+   {
+       if (!isset($worker->roomManager) || !isset($worker->lobbyService) || !isset($worker->reconnectService)) {
+           return;
+       }
+
+       $connId = (int) ($connection->id ?? 0);
+       $roomId = $worker->roomManager->findRoomIdByConnId($worker, $connId);
+
+       if ($roomId === null && $userId > 0) {
+           $roomId = $worker->roomManager->findRoomIdByUserId($worker, $userId);
+           if ($roomId !== null && isset($worker->rooms[$roomId]['players'])) {
+               foreach ($worker->rooms[$roomId]['players'] as $playerConnId => $player) {
+                   if ((int) ($player['user_id'] ?? 0) === $userId) {
+                       $connId = (int) $playerConnId;
+                       break;
+                   }
+               }
+           }
+       }
+
+       if ($roomId === null || !isset($worker->rooms[$roomId]['players'][$connId])) {
+           return;
+       }
+
+       $status = $worker->rooms[$roomId]['status'] ?? 'waiting';
+       if ($status === 'waiting') {
+           $worker->lobbyService->removePlayerFromLobby($worker, $roomId, $connId, 'disconnect');
+           return;
+       }
+
+       $worker->reconnectService->removePlayerFromGame($worker, $roomId, $connId, 'disconnect');
+   }
+
+   /**
+    * @return list<object>
+    */
+   private function findAllLiveConnectionsForUser(object $worker, int $userId, object $exceptConnection): array
+   {
+       $found = [];
+
+       foreach ($worker->connections ?? [] as $liveConnection) {
+           if ($liveConnection === $exceptConnection) {
+               continue;
+           }
+           if ((int) ($liveConnection->userId ?? 0) === $userId) {
+               $found[] = $liveConnection;
+           }
+       }
+
+       if (isset($worker->userConnections[$userId])) {
+           $registered = $worker->userConnections[$userId];
+           if (
+               $registered !== $exceptConnection
+               && $this->isConnectionLive($worker, $registered)
+               && !in_array($registered, $found, true)
+           ) {
+               $found[] = $registered;
+           }
+       }
+
+       return $found;
+   }
+
+   private function isConnectionLive(object $worker, object $connection): bool
+   {
+       foreach ($worker->connections ?? [] as $liveConnection) {
+           if ($liveConnection === $connection) {
+               return true;
+           }
+       }
+
+       return false;
    }
 
    /**
@@ -271,26 +379,6 @@ final class AuthHandler
                unset($worker->sessionTokens[$existingToken]);
            }
        }
-   }
-
-   /**
-    * Returns the live connection registered for $userId, or null if the slot
-    * is empty or only points at a connection that has already disconnected.
-    */
-   private function findLiveConnectionForUser(object $worker, int $userId): ?object
-   {
-       if (!isset($worker->userConnections[$userId])) {
-           return null;
-       }
-
-       $registered = $worker->userConnections[$userId];
-       foreach ($worker->connections ?? [] as $liveConnection) {
-           if ($liveConnection === $registered) {
-               return $registered;
-           }
-       }
-
-       return null;
    }
 
    /**

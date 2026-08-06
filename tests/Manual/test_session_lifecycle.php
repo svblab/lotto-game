@@ -225,11 +225,9 @@ try {
     $b2->close();
 
     // =========================================================================
-    // TEST 3: regression guard — concurrent double-login still rejected
-    // while the FIRST connection remains open (FIX-10 must not weaken
-    // ADR-001's single-active-session policy).
+    // TEST 3: FIX-30 — concurrent double-login evicts first (newest wins)
     // =========================================================================
-    echo "\nTEST 3: concurrent double-login still rejected (ADR-001 regression guard)\n";
+    echo "\nTEST 3: concurrent double-login evicts first connection (FIX-30)\n";
     $c1 = new SessionLifecycleClient('127.0.0.1', $wsPort);
     $c1->recvOrNull();
     $c1->send(json_encode(['action' => 'register', 'username' => 'fix10_user3', 'password' => 'fix10pass123']));
@@ -241,8 +239,14 @@ try {
     $c2->send(json_encode(['action' => 'login', 'username' => 'fix10_user3', 'password' => 'fix10pass123']));
     $dupLogin = json_decode($c2->recvOrNull() ?? '', true);
     check(
-        ($dupLogin['type'] ?? null) === 'error',
-        'second login rejected while first connection c1 is still open'
+        ($dupLogin['type'] ?? null) === 'auth_result',
+        'second login succeeds and takes session (newest wins)'
+    );
+    $evictedPkt = json_decode($c1->recvOrNull(1.0) ?? '', true);
+    check(
+        ($evictedPkt['type'] ?? null) === 'error'
+        && ($evictedPkt['code'] ?? null) === 'error.auth_invalid_token',
+        'first connection receives session superseded error'
     );
     $c1->close();
     $c2->close();
@@ -284,9 +288,21 @@ try {
     $d4->send(json_encode(['action' => 'reconnect', 'token' => $liveToken]));
     $dupReconnect = json_decode($d4->recvOrNull() ?? '', true);
     check(
-        ($dupReconnect['type'] ?? null) === 'error'
-        && ($dupReconnect['code'] ?? null) === 'error.auth_invalid_token',
-        'reconnect rejected while another live connection holds the session'
+        ($dupReconnect['type'] ?? null) === 'auth_result',
+        'reconnect evicts prior live session and succeeds for new connection'
+    );
+    $d2Evicted = null;
+    for ($i = 0; $i < 5; $i++) {
+        $pkt = json_decode($d2->recvOrNull(0.5) ?? '', true);
+        if (is_array($pkt) && ($pkt['type'] ?? null) === 'error') {
+            $d2Evicted = $pkt;
+            break;
+        }
+    }
+    check(
+        ($d2Evicted['type'] ?? null) === 'error'
+        && ($d2Evicted['code'] ?? null) === 'error.auth_invalid_token',
+        'prior live connection receives superseded error on reconnect takeover'
     );
     $d4->close();
     $d2->close();

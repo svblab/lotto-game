@@ -176,8 +176,10 @@ When ≥2 players are seated, includes current lobby host AFK deadline (`host.la
 ### player_left
 Server → Room
 ```json
-{"type": "player_left", "username": "player", "reason": "leave"}
+{"type": "player_left", "username": "player", "reason": "leave", "user_id": 15}
 ```
+`user_id` (optional additive field, FIX-30): identifies the removed seat so clients
+can distinguish self-removal from another connection sharing the same username.
 
 ### player_status_changed
 Server → Room (playing only). Live roster status update when a player's

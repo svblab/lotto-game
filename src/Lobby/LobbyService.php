@@ -150,11 +150,8 @@ final class LobbyService
             return;
         }
 
-        // ADR-001: one seat per user — reject duplicate connection in another room.
-        if ($this->roomManager->findRoomIdByUserId($worker, (int) $connection->userId) !== null) {
-            sendError($connection, 'error.auth_invalid_credentials', 'Already in a room');
-            return;
-        }
+        // ADR-001 / FIX-30: clear any stale seat before creating a new room.
+        $this->removeExistingSeatForUser($worker, (int) $connection->userId, 'disconnect');
 
         // --- 3. Лимит игроков ---
         $totalPlayers = $this->roomManager->getTotalPlayerCount($worker);
@@ -244,10 +241,28 @@ final class LobbyService
 
         $room = &$worker->rooms[$roomId];
 
-        // ADR-001: same user_id cannot occupy two seats (duplicate browser windows).
-        if ($this->hasDuplicateSeatForUser($worker, (int) $connection->userId, (int) $connection->id)) {
-            sendError($connection, 'error.auth_invalid_credentials', 'Already in a room');
+        $userId = (int) $connection->userId;
+        $connId = (int) $connection->id;
+        $existingConnId = $this->findConnIdForUserInRoom($room, $userId);
+
+        if ($existingConnId !== null && $existingConnId !== $connId) {
+            if (isset($worker->reconnectService)) {
+                $worker->reconnectService->rebindSeat(
+                    $worker,
+                    $roomId,
+                    $existingConnId,
+                    $connection,
+                    (string) ($connection->sessionToken ?? '')
+                );
+            }
+            sendJson($connection, $this->buildRoomJoinedPacket($worker->rooms[$roomId]));
             return;
+        }
+
+        $otherRoomId = $this->roomManager->findRoomIdByUserId($worker, $userId);
+        if ($otherRoomId !== null && $otherRoomId !== $roomId) {
+            $this->removeExistingSeatForUser($worker, $userId, 'disconnect');
+            $room = &$worker->rooms[$roomId];
         }
 
         // --- 3. Статус комнаты — только 'waiting' ---
@@ -445,11 +460,11 @@ final class LobbyService
         ];
 
         if (($playerEntry['status'] ?? null) === 'active' && isset($playerEntry['connection'])) {
-            sendJson($playerEntry['connection'], [
-                'type'     => 'player_left',
-                'username' => $username,
-                'reason'   => $reason,
-            ]);
+            sendJson($playerEntry['connection'], $this->buildPlayerLeftPacket(
+                $username,
+                (int) ($playerEntry['user_id'] ?? 0),
+                $reason
+            ));
         }
 
         // Удаляем из players
@@ -470,11 +485,7 @@ final class LobbyService
         } else {
             // Рассылаем player_left оставшимся активным игрокам
             // Контракт: ANCHOR_PROTOCOL.md § Lobby → player_left
-            $packet = [
-                'type'     => 'player_left',
-                'username' => $username,
-                'reason'   => $reason,
-            ];
+            $packet = $this->buildPlayerLeftPacket($username, (int) ($playerEntry['user_id'] ?? 0), $reason);
 
             foreach ($room['players'] as $player) {
                 if ($player['status'] === 'active') {
@@ -573,11 +584,11 @@ final class LobbyService
 
         foreach ($room['players'] as $player) {
             if (($player['status'] ?? null) === 'active' && isset($player['connection'])) {
-                sendJson($player['connection'], [
-                    'type'     => 'player_left',
-                    'username' => $player['username'],
-                    'reason'   => 'afk',
-                ]);
+                sendJson($player['connection'], $this->buildPlayerLeftPacket(
+                    (string) $player['username'],
+                    (int) ($player['user_id'] ?? 0),
+                    'afk'
+                ));
             }
         }
 
@@ -830,6 +841,62 @@ final class LobbyService
         }
 
         return false;
+    }
+
+    /**
+     * Removes the user's room seat if present (one seat per user_id).
+     */
+    public function removeExistingSeatForUser(object $worker, int $userId, string $reason): void
+    {
+        $roomId = $this->roomManager->findRoomIdByUserId($worker, $userId);
+        if ($roomId === null || !isset($worker->rooms[$roomId]['players'])) {
+            return;
+        }
+
+        foreach ($worker->rooms[$roomId]['players'] as $connId => $player) {
+            if ((int) ($player['user_id'] ?? 0) !== $userId) {
+                continue;
+            }
+
+            $status = $worker->rooms[$roomId]['status'] ?? 'waiting';
+            if ($status === 'waiting') {
+                $this->removePlayerFromLobby($worker, $roomId, (int) $connId, $reason);
+            } elseif (isset($worker->reconnectService)) {
+                $worker->reconnectService->removePlayerFromGame($worker, $roomId, (int) $connId, $reason);
+            }
+            return;
+        }
+    }
+
+    /**
+     * @return int|null conn_id of an existing seat for $userId in $room
+     */
+    private function findConnIdForUserInRoom(array $room, int $userId): ?int
+    {
+        foreach ($room['players'] as $connId => $player) {
+            if ((int) ($player['user_id'] ?? 0) === $userId) {
+                return (int) $connId;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array{type: string, username: string, user_id: int, reason: string}
+     */
+    private function buildPlayerLeftPacket(string $username, int $userId, string $reason): array
+    {
+        $packet = [
+            'type'     => 'player_left',
+            'username' => $username,
+            'reason'   => $reason,
+        ];
+        if ($userId > 0) {
+            $packet['user_id'] = $userId;
+        }
+
+        return $packet;
     }
 
     /**
