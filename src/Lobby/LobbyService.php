@@ -150,6 +150,12 @@ final class LobbyService
             return;
         }
 
+        // ADR-001: one seat per user — reject duplicate connection in another room.
+        if ($this->roomManager->findRoomIdByUserId($worker, (int) $connection->userId) !== null) {
+            sendError($connection, 'error.auth_invalid_credentials', 'Already in a room');
+            return;
+        }
+
         // --- 3. Лимит игроков ---
         $totalPlayers = $this->roomManager->getTotalPlayerCount($worker);
         if ($totalPlayers >= Constants::MAX_TOTAL_PLAYERS) {
@@ -237,6 +243,12 @@ final class LobbyService
         }
 
         $room = &$worker->rooms[$roomId];
+
+        // ADR-001: same user_id cannot occupy two seats (duplicate browser windows).
+        if ($this->hasDuplicateSeatForUser($worker, (int) $connection->userId, (int) $connection->id)) {
+            sendError($connection, 'error.auth_invalid_credentials', 'Already in a room');
+            return;
+        }
 
         // --- 3. Статус комнаты — только 'waiting' ---
         if ($room['status'] !== 'waiting') {
@@ -799,6 +811,25 @@ final class LobbyService
         }
 
         return (string) $room['players'][$hostConnId]['username'];
+    }
+
+    /**
+     * True when the same user_id is already seated via a different connection.
+     */
+    private function hasDuplicateSeatForUser(object $worker, int $userId, int $connId): bool
+    {
+        $roomId = $this->roomManager->findRoomIdByUserId($worker, $userId);
+        if ($roomId === null) {
+            return false;
+        }
+
+        foreach ($worker->rooms[$roomId]['players'] as $playerConnId => $player) {
+            if ((int) ($player['user_id'] ?? 0) === $userId && (int) $playerConnId !== $connId) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

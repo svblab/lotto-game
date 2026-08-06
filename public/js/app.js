@@ -83,7 +83,7 @@
   }
 
   function shouldAttemptReconnect() {
-    return hasPersistedSession();
+    return hasPersistedSession() && sessionStorage.getItem(STORAGE_ACTIVE) === '1';
   }
 
   function clearStoredSession() {

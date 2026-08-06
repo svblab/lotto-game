@@ -188,6 +188,16 @@ final class AuthHandler
            return;
        }
 
+       // ADR-001: reject reconnect when another live connection already owns
+       // this account (e.g. second browser window sharing localStorage token).
+       if (isset($worker->userConnections[$userId])) {
+           $existing = $worker->userConnections[$userId];
+           if ($existing !== $connection) {
+               sendError($connection, 'error.auth_invalid_token', 'Session superseded');
+               return;
+           }
+       }
+
        // Восстанавливаем маппинг соединения в worker-памяти
        $worker->userConnections[$userId] = $connection;
 
@@ -231,13 +241,33 @@ final class AuthHandler
    /**
     * Сохраняет session_token → user_id в worker-памяти.
     * Инициализирует $worker->sessionTokens если массив ещё не создан.
+    *
+    * ADR-001: login/register invalidates all previous tokens for this user
+    * so a stale browser tab cannot reconnect after a fresh login elsewhere.
     */
    private function storeSession(object $worker, string $token, int $userId): void
    {
        if (!isset($worker->sessionTokens)) {
            $worker->sessionTokens = [];
        }
+       $this->revokeTokensForUser($worker, $userId);
        $worker->sessionTokens[$token] = $userId;
+   }
+
+   /**
+    * Removes every session token mapped to $userId from worker memory.
+    */
+   private function revokeTokensForUser(object $worker, int $userId): void
+   {
+       if (empty($worker->sessionTokens)) {
+           return;
+       }
+
+       foreach ($worker->sessionTokens as $existingToken => $mappedUserId) {
+           if ((int) $mappedUserId === $userId) {
+               unset($worker->sessionTokens[$existingToken]);
+           }
+       }
    }
 
    /**

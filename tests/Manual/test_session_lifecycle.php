@@ -26,6 +26,8 @@ declare(strict_types=1);
  *           weaken the single-active-session policy, ADR-001 — it should
  *           only release the slot on genuine disconnect, not allow
  *           simultaneous sessions).
+ *   TEST 4: stale reconnect token rejected after fresh login elsewhere;
+ *           second reconnect rejected while the first live session exists.
  *
  * Run: php tests/Manual/test_session_lifecycle.php
  */
@@ -244,6 +246,50 @@ try {
     );
     $c1->close();
     $c2->close();
+
+    // =========================================================================
+    // TEST 4: stale token + duplicate reconnect blocked (ADR-001 hardening)
+    // =========================================================================
+    echo "\nTEST 4: stale reconnect rejected; second live reconnect rejected\n";
+    $d1 = new SessionLifecycleClient('127.0.0.1', $wsPort);
+    $d1->recvOrNull();
+    $d1->send(json_encode(['action' => 'register', 'username' => 'fix10_user4', 'password' => 'fix10pass123']));
+    $reg4 = json_decode($d1->recvOrNull() ?? '', true);
+    $staleToken = $reg4['session_token'] ?? null;
+    check(is_string($staleToken) && $staleToken !== '', 'register: stale token captured');
+    $d1->close();
+    usleep(1_000_000);
+
+    $d2 = new SessionLifecycleClient('127.0.0.1', $wsPort);
+    $d2->recvOrNull();
+    $d2->send(json_encode(['action' => 'login', 'username' => 'fix10_user4', 'password' => 'fix10pass123']));
+    $login4 = json_decode($d2->recvOrNull() ?? '', true);
+    $liveToken = $login4['session_token'] ?? null;
+    check(($login4['type'] ?? null) === 'auth_result', 'fresh login succeeds after prior disconnect');
+    check(is_string($liveToken) && $liveToken !== $staleToken, 'fresh login issues a new session token');
+
+    $d3 = new SessionLifecycleClient('127.0.0.1', $wsPort);
+    $d3->recvOrNull();
+    $d3->send(json_encode(['action' => 'reconnect', 'token' => $staleToken]));
+    $staleReconnect = json_decode($d3->recvOrNull() ?? '', true);
+    check(
+        ($staleReconnect['type'] ?? null) === 'error'
+        && ($staleReconnect['code'] ?? null) === 'error.auth_invalid_token',
+        'reconnect with pre-login token rejected'
+    );
+    $d3->close();
+
+    $d4 = new SessionLifecycleClient('127.0.0.1', $wsPort);
+    $d4->recvOrNull();
+    $d4->send(json_encode(['action' => 'reconnect', 'token' => $liveToken]));
+    $dupReconnect = json_decode($d4->recvOrNull() ?? '', true);
+    check(
+        ($dupReconnect['type'] ?? null) === 'error'
+        && ($dupReconnect['code'] ?? null) === 'error.auth_invalid_token',
+        'reconnect rejected while another live connection holds the session'
+    );
+    $d4->close();
+    $d2->close();
 } catch (\Throwable $e) {
     fwrite(STDERR, "Exception during test: " . $e->getMessage() . "\n");
     fwrite(STDERR, "--- server stdout ---\n" . @file_get_contents($stdoutFile) . "\n");
