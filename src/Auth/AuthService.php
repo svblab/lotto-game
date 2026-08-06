@@ -139,9 +139,21 @@ class AuthService
             // EPIC-1.3: Single Session Protection
             $userId = (int)$user['id'];
             if ($worker !== null) {
-                if (isset($worker->userConnections[$userId])
-                    && $worker->userConnections[$userId] !== $connection) {
-                    throw new Exception('User already logged in');
+                if (isset($worker->userConnections[$userId])) {
+                    $existing = $worker->userConnections[$userId];
+                    $existingLive = false;
+                    foreach ($worker->connections ?? [] as $liveConnection) {
+                        if ($liveConnection === $existing) {
+                            $existingLive = true;
+                            break;
+                        }
+                    }
+                    if ($existingLive && $existing !== $connection) {
+                        throw new Exception('User already logged in');
+                    }
+                    if (!$existingLive) {
+                        unset($worker->userConnections[$userId]);
+                    }
                 }
                 $worker->userConnections[$userId] = $connection;
             }

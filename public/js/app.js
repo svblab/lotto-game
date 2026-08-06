@@ -11,6 +11,8 @@
   const STORAGE_TOKEN = 'lotto_session_token';
   const STORAGE_USER = 'lotto_user_profile';
   const STORAGE_ACTIVE = 'lotto_active_ws';
+  const STORAGE_TAB_ID = 'lotto_tab_id';
+  const STORAGE_OWNER_TAB = 'lotto_active_tab_id';
 
   const state = {
     user: null,
@@ -78,15 +80,58 @@
     return !!localStorage.getItem(STORAGE_TOKEN);
   }
 
-  function markActiveSession() {
+  function ensureTabId() {
+    let tabId = sessionStorage.getItem(STORAGE_TAB_ID);
+    if (!tabId) {
+      tabId = (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`);
+      sessionStorage.setItem(STORAGE_TAB_ID, tabId);
+    }
+    return tabId;
+  }
+
+  function isSessionOwnerTab() {
+    const tabId = sessionStorage.getItem(STORAGE_TAB_ID);
+    const ownerTabId = localStorage.getItem(STORAGE_OWNER_TAB);
+    return !!tabId && tabId === ownerTabId;
+  }
+
+  function claimSessionOwnership() {
+    const tabId = ensureTabId();
     sessionStorage.setItem(STORAGE_ACTIVE, '1');
+    localStorage.setItem(STORAGE_OWNER_TAB, tabId);
+  }
+
+  function markActiveSession() {
+    claimSessionOwnership();
   }
 
   function shouldAttemptReconnect() {
-    return hasPersistedSession() && sessionStorage.getItem(STORAGE_ACTIVE) === '1';
+    return hasPersistedSession()
+      && sessionStorage.getItem(STORAGE_ACTIVE) === '1'
+      && isSessionOwnerTab();
+  }
+
+  function relinquishSessionToOtherTab() {
+    sessionStorage.removeItem(STORAGE_ACTIVE);
+    state.user = null;
+    state.room = null;
+    state.inGame = false;
+    if (socket) {
+      socket.setSessionToken(null);
+      socket.cancelReconnect?.();
+      socket.intentionalClose = true;
+      socket.disconnect();
+      socket.intentionalClose = false;
+      socket.connect();
+    }
+    UI().showReconnecting(false);
+    UI().showScreen('auth');
   }
 
   function clearStoredSession() {
+    if (isSessionOwnerTab()) {
+      localStorage.removeItem(STORAGE_OWNER_TAB);
+    }
     localStorage.removeItem(STORAGE_TOKEN);
     localStorage.removeItem(STORAGE_USER);
     sessionStorage.removeItem(STORAGE_ACTIVE);
@@ -820,7 +865,14 @@
     await I18n().load(I18n().detectLang());
     UI().bindJoinRoomModal();
     bindEvents();
-    if (hasPersistedSession()) {
+    window.addEventListener('storage', (e) => {
+      if (e.key !== STORAGE_OWNER_TAB && e.key !== STORAGE_TOKEN) return;
+      if (e.key === STORAGE_TOKEN && e.newValue === e.oldValue) return;
+      if (!isSessionOwnerTab()) {
+        relinquishSessionToOtherTab();
+      }
+    });
+    if (shouldAttemptReconnect()) {
       ensureUserProfile();
       UI().showReconnecting(true);
     } else {

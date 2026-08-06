@@ -190,12 +190,15 @@ final class AuthHandler
 
        // ADR-001: reject reconnect when another live connection already owns
        // this account (e.g. second browser window sharing localStorage token).
-       if (isset($worker->userConnections[$userId])) {
-           $existing = $worker->userConnections[$userId];
-           if ($existing !== $connection) {
-               sendError($connection, 'error.auth_invalid_token', 'Session superseded');
-               return;
-           }
+       $liveOwner = $this->findLiveConnectionForUser($worker, $userId);
+       if ($liveOwner !== null && $liveOwner !== $connection) {
+           sendError($connection, 'error.auth_invalid_token', 'Session superseded');
+           return;
+       }
+
+       // Drop stale registry entries left behind when onClose did not run in time.
+       if (isset($worker->userConnections[$userId]) && $liveOwner === null) {
+           unset($worker->userConnections[$userId]);
        }
 
        // Восстанавливаем маппинг соединения в worker-памяти
@@ -268,6 +271,26 @@ final class AuthHandler
                unset($worker->sessionTokens[$existingToken]);
            }
        }
+   }
+
+   /**
+    * Returns the live connection registered for $userId, or null if the slot
+    * is empty or only points at a connection that has already disconnected.
+    */
+   private function findLiveConnectionForUser(object $worker, int $userId): ?object
+   {
+       if (!isset($worker->userConnections[$userId])) {
+           return null;
+       }
+
+       $registered = $worker->userConnections[$userId];
+       foreach ($worker->connections ?? [] as $liveConnection) {
+           if ($liveConnection === $registered) {
+               return $registered;
+           }
+       }
+
+       return null;
    }
 
    /**
