@@ -35,6 +35,7 @@ use Lotto\Game\VictoryService;
 use Lotto\Game\ApartmentService;
 use Lotto\Game\GameFinishService;
 use Lotto\Game\GameService;
+use Lotto\Game\GameTurnService;
 use Lotto\Game\GameHandler;
 
 $passed = 0;
@@ -149,6 +150,12 @@ function buildStack(PDO $pdo): array
     $victoryService = new VictoryService();
     $apartmentService = new ApartmentService($db, $statements, $logger);
     $gameFinishService = new GameFinishService($db, $statements, $logger);
+    $gameTurnService = new GameTurnService(
+        $logger,
+        $victoryService,
+        $apartmentService,
+        $gameFinishService
+    );
     $gameService = new GameService(
         $db,
         $statements,
@@ -156,7 +163,8 @@ function buildStack(PDO $pdo): array
         $logger,
         $victoryService,
         $apartmentService,
-        $gameFinishService
+        $gameFinishService,
+        $gameTurnService
     );
     $gameHandler = new GameHandler($gameService);
 

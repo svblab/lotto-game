@@ -14,6 +14,7 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/../../src/Core/Helpers.php';
 
 use Lotto\Game\GameService;
+use Lotto\Game\GameTurnService;
 use Lotto\Game\LottoEngine;
 use Lotto\Game\VictoryService;
 use Lotto\Game\ApartmentService;
@@ -235,7 +236,8 @@ function makeService(array $users, MockPDO $pdo): array {
     // — уже принятый в проекте паттерн для этого случая, см.
     // tests/Manual/test_apartment.php и tests/Manual/test_turn_system.php.
     $fin   = (new \ReflectionClass(\Lotto\Game\GameFinishService::class))->newInstanceWithoutConstructor();
-    $svc   = new GameService($db, $stmts, $eng, $log, $vic, $apt, $fin);
+    $turn  = new GameTurnService($log, $vic, $apt, $fin);
+    $svc   = new GameService($db, $stmts, $eng, $log, $vic, $apt, $fin, $turn);
     return [$svc, $log, $stmts, $pdo];
 }
 

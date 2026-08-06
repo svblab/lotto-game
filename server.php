@@ -129,6 +129,7 @@ use Lotto\Game\LottoEngine;
 use Lotto\Game\VictoryService;
 use Lotto\Game\ApartmentService;
 use Lotto\Game\GameFinishService;
+use Lotto\Game\GameTurnService;
 use Lotto\Game\GameService;
 use Lotto\Game\GameHandler;
 use Lotto\Game\ReconnectService;
@@ -195,6 +196,12 @@ $worker->onWorkerStart = function (Worker $worker): void {
     $victoryService = new VictoryService();
     $apartmentService  = new ApartmentService($worker->db, $statements, $worker->logger);
     $gameFinishService = new GameFinishService($worker->db, $statements, $worker->logger);
+    $gameTurnService = new GameTurnService(
+        $worker->logger,
+        $victoryService,
+        $apartmentService,
+        $gameFinishService
+    );
     $worker->gameService = new GameService(
         $worker->db,
         $statements,
@@ -202,7 +209,8 @@ $worker->onWorkerStart = function (Worker $worker): void {
         $worker->logger,
         $victoryService,
         $apartmentService,
-        $gameFinishService
+        $gameFinishService,
+        $gameTurnService
     );
     $apartmentService->bindGameService($worker->gameService);
     $worker->gameHandler = new GameHandler($worker->gameService);
@@ -218,6 +226,7 @@ $worker->onWorkerStart = function (Worker $worker): void {
     );
     // EPIC-13.1 (ADR-008): post-construction wiring for startTurn() AFK arm.
     $worker->gameService->setReconnectService($worker->reconnectService);
+    $gameTurnService->setReconnectService($worker->reconnectService);
 
     // EPIC-10.6 (Admin packet routing): AdminService уже реализован
     // (Phase 9) — здесь только сборка зависимостей и подключение к

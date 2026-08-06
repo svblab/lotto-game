@@ -12,6 +12,7 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/../../src/Core/Helpers.php';
 
 use Lotto\Game\GameService;
+use Lotto\Game\GameTurnService;
 use Lotto\Game\LottoEngine;
 use Lotto\Game\VictoryService;
 use Lotto\Game\ApartmentService;
@@ -186,9 +187,11 @@ function makePlayer(TIntMockConnection $conn, int $cardsCount = 1): array
     $vic = new VictoryService();
     $apt = new ApartmentService($db, $stmts, $log);
     $fin = (new ReflectionClass(GameFinishService::class))->newInstanceWithoutConstructor();
-    $game = new GameService($db, $stmts, $eng, $log, $vic, $apt, $fin);
+    $turn = new GameTurnService($log, $vic, $apt, $fin);
+    $game = new GameService($db, $stmts, $eng, $log, $vic, $apt, $fin, $turn);
     $reconnect = new ReconnectService(new TIntMockLobby(), $game, $log);
     $game->setReconnectService($reconnect);
+    $turn->setReconnectService($reconnect);
 
     $game->handleStartGame($host, $worker);
 
@@ -228,7 +231,8 @@ function makePlayer(TIntMockConnection $conn, int $cardsCount = 1): array
     $vic = new VictoryService();
     $apt = new ApartmentService($db, $stmts, $log);
     $fin = (new ReflectionClass(GameFinishService::class))->newInstanceWithoutConstructor();
-    $game = new GameService($db, $stmts, $eng, $log, $vic, $apt, $fin);
+    $turn = new GameTurnService($log, $vic, $apt, $fin);
+    $game = new GameService($db, $stmts, $eng, $log, $vic, $apt, $fin, $turn);
     // Deliberately no setReconnectService() — mirrors test_game_start.php / test_turn_system.php
 
     $game->handleStartGame($host, $worker);

@@ -30,6 +30,7 @@ use Lotto\Admin\AdminService;
 use Lotto\Infrastructure\PreparedStatements;
 use Lotto\Game\ApartmentService;
 use Lotto\Game\GameService;
+use Lotto\Game\GameTurnService;
 use Lotto\Game\LottoEngine;
 use Lotto\Game\VictoryService;
 use Lotto\Game\GameFinishService;
@@ -542,7 +543,8 @@ $worker->rooms[9]['players'][902] = makePlayer($voterAgreedId, 'voter_agreed2', 
 
 $aptSvc9 = new ApartmentService($db, $stmts, new FakeLogger());
 $fin9 = (new ReflectionClass(GameFinishService::class))->newInstanceWithoutConstructor();
-$gameSvc9 = new GameService($db, $stmts, new LottoEngine(), new FakeLogger(), new VictoryService(), $aptSvc9, $fin9);
+$turn9 = new GameTurnService(new FakeLogger(), new VictoryService(), $aptSvc9, $fin9);
+$gameSvc9 = new GameService($db, $stmts, new LottoEngine(), new FakeLogger(), new VictoryService(), $aptSvc9, $fin9, $turn9);
 $aptSvc9->bindGameService($gameSvc9);
 
 $admin9 = new AdminService($stmts, new FakeLogger(), new SpyLobbyService(), new SpyReconnectService(), $aptSvc9, $db);

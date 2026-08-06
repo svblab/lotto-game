@@ -14,6 +14,7 @@ require_once __DIR__ . '/../../src/Core/Helpers.php';
 use Lotto\Game\ReconnectService;
 use Lotto\Game\GameFinishService;
 use Lotto\Game\GameService;
+use Lotto\Game\GameTurnService;
 use Lotto\Game\LottoEngine;
 use Lotto\Game\VictoryService;
 use Lotto\Game\ApartmentService;
@@ -680,7 +681,11 @@ function makeRoom(int $roomId, int $hostConnId): array
     $db = new MockDatabase($pdo);
     $st = new MockStmts();
     $log = new MockLogger();
-    $gs = new GameService($db, $st, new LottoEngine(), $log, new VictoryService(), new ApartmentService($db, $st, $log), new GameFinishService($db, $st, $log));
+    $vic = new VictoryService();
+    $apt = new ApartmentService($db, $st, $log);
+    $fin = new GameFinishService($db, $st, $log);
+    $turn = new GameTurnService($log, $vic, $apt, $fin);
+    $gs = new GameService($db, $st, new LottoEngine(), $log, $vic, $apt, $fin, $turn);
     $gs->sendYourTurn($room, false);
 
     $turnPkts = $conn->sentOfType('your_turn');

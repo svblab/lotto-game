@@ -15,6 +15,7 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/../../src/Core/Helpers.php';
 
 use Lotto\Game\GameService;
+use Lotto\Game\GameTurnService;
 use Lotto\Game\LottoEngine;
 use Lotto\Game\VictoryService;
 use Lotto\Game\ApartmentService;
@@ -192,7 +193,8 @@ function makeSvc(array $users = [], ?MockPDO $pdo = null, ?\PDO $realPdo = null)
     });
     $fin       = new \Lotto\Game\GameFinishService($realDb, $realStmts, $realLog);
 
-    $svc  = new GameService($db, $st, $eng, $log, $vic, $apt, $fin);
+    $turn      = new \Lotto\Game\GameTurnService($realLog, $vic, $apt, $fin);
+    $svc  = new GameService($db, $st, $eng, $log, $vic, $apt, $fin, $turn);
     return [$svc, $log, $st, $pdo, $vic];
 }
 
