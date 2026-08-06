@@ -16,6 +16,7 @@ require_once __DIR__ . '/../../src/Core/Helpers.php';
 
 use Lotto\Game\GameService;
 use Lotto\Game\GameTurnService;
+use Lotto\Game\GameFinishService;
 use Lotto\Game\LottoEngine;
 use Lotto\Game\VictoryService;
 use Lotto\Game\ApartmentService;
@@ -488,6 +489,19 @@ function makeChancePlayer(string $username, int $markedCount, int $cardsCount = 
     assert_true(is_array($pkts[0]['statistics']), 'finishGame: statistics is array');
     assert_true(isset($pkts[0]['win_chance_history']), 'finishGame: win_chance_history present');
     assert_true(is_array($pkts[0]['win_chance_history']), 'finishGame: win_chance_history is array');
+
+    $hostStat = null;
+    $p2Stat = null;
+    foreach ($pkts[0]['statistics'] as $stat) {
+        if (($stat['username'] ?? '') === 'host') {
+            $hostStat = $stat;
+        }
+        if (($stat['username'] ?? '') === 'p2') {
+            $p2Stat = $stat;
+        }
+    }
+    assert_true($hostStat !== null && ($hostStat['coins'] ?? null) === 120, 'finishGame: host statistics coins matches DB');
+    assert_true($p2Stat !== null && ($p2Stat['coins'] ?? null) === 100, 'finishGame: p2 statistics coins matches DB');
 }
 
 // ---------------------------------------------------------------------------
@@ -627,6 +641,94 @@ function makeChancePlayer(string $username, int $markedCount, int $cardsCount = 
         ($hist[count($hist) - 1]['chances'] ?? null) == $lastWithChances['win_chances'],
         'Integration: last history chances match last barrels_drawn'
     );
+
+    $hostStat = null;
+    foreach ($goPackets[0]['statistics'] as $stat) {
+        if (($stat['username'] ?? '') === 'host') {
+            $hostStat = $stat;
+        }
+    }
+    assert_true($hostStat !== null && ($hostStat['coins'] ?? null) === 510, 'Integration: host statistics coins matches DB');
+}
+
+// ---------------------------------------------------------------------------
+// GROUP 7: handleNoSurvivors — statistics coins after refund
+// ---------------------------------------------------------------------------
+
+{
+    $h = makeConn(1, 10, 'host');
+    $p2 = makeConn(2, 20, 'p2');
+    $worker = new MockWorker();
+
+    $realPdo = new \PDO('sqlite::memory:');
+    $realPdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+    $realPdo->exec("CREATE TABLE users (
+        id INTEGER PRIMARY KEY,
+        username TEXT NOT NULL,
+        password_hash TEXT NOT NULL DEFAULT 'x',
+        coins INTEGER NOT NULL DEFAULT 500,
+        is_admin INTEGER NOT NULL DEFAULT 0,
+        banned_until INTEGER NOT NULL DEFAULT 0,
+        last_daily_bonus INTEGER NOT NULL DEFAULT 0
+    )");
+    $realPdo->exec("INSERT INTO users (id, username, coins) VALUES (10, 'host', 90)");
+    $realPdo->exec("INSERT INTO users (id, username, coins) VALUES (20, 'p2', 90)");
+
+    $realDb = new Database($realPdo);
+    $realStmts = new PreparedStatements($realPdo);
+    $realLog = new \Lotto\Core\Logger(sys_get_temp_dir() . '/lotto_test_victory_nosurv_' . getmypid() . '.log');
+    register_shutdown_function(function () {
+        @unlink(sys_get_temp_dir() . '/lotto_test_victory_nosurv_' . getmypid() . '.log');
+    });
+    $fin = new GameFinishService($realDb, $realStmts, $realLog);
+
+    $room = makeRoom(1, [1, 2], 20);
+    $room['players'][1] = makePlayer($h);
+    $room['players'][2] = makePlayer($p2);
+    $room['all_players_history'] = [
+        1 => [
+            'user_id' => 10,
+            'username' => 'host',
+            'total_paid' => 10,
+            'cards_count' => 1,
+            'reason' => null,
+        ],
+        2 => [
+            'user_id' => 20,
+            'username' => 'p2',
+            'total_paid' => 10,
+            'cards_count' => 1,
+            'reason' => null,
+        ],
+    ];
+    $worker->rooms[1] = $room;
+
+    $fin->handleNoSurvivors($worker->rooms[1], 1, function () use ($worker) {
+        unset($worker->rooms[1]);
+    });
+
+    assert_true(!isset($worker->rooms[1]), 'handleNoSurvivors: room destroyed');
+    assert_true((int)$realPdo->query("SELECT coins FROM users WHERE id = 10")->fetch()['coins'] === 100,
+        'handleNoSurvivors: host refunded in DB (90 -> 100)');
+    assert_true((int)$realPdo->query("SELECT coins FROM users WHERE id = 20")->fetch()['coins'] === 100,
+        'handleNoSurvivors: p2 refunded in DB (90 -> 100)');
+
+    $pkts = $h->sentOfType('game_over');
+    assert_true(count($pkts) === 1, 'handleNoSurvivors: game_over sent');
+    assert_true(($pkts[0]['reason'] ?? '') === 'no_survivors', 'handleNoSurvivors: reason=no_survivors');
+
+    $hostStat = null;
+    $p2Stat = null;
+    foreach ($pkts[0]['statistics'] as $stat) {
+        if (($stat['username'] ?? '') === 'host') {
+            $hostStat = $stat;
+        }
+        if (($stat['username'] ?? '') === 'p2') {
+            $p2Stat = $stat;
+        }
+    }
+    assert_true($hostStat !== null && ($hostStat['coins'] ?? null) === 100, 'handleNoSurvivors: host statistics coins matches DB');
+    assert_true($p2Stat !== null && ($p2Stat['coins'] ?? null) === 100, 'handleNoSurvivors: p2 statistics coins matches DB');
 }
 
 // ---------------------------------------------------------------------------

@@ -116,6 +116,7 @@ final class GameFinishService
                 'username'   => $hist['username'] ?? 'unknown',
                 'paid'       => $hist['total_paid'] ?? 0,
                 'received'   => $prizes[$hist['conn_id'] ?? -1] ?? 0,
+                '_user_id'   => (int) ($hist['user_id'] ?? 0),
             ];
         }
 
@@ -135,10 +136,27 @@ final class GameFinishService
                         'username'   => $username,
                         'paid'       => $player['total_paid'] ?? 0,
                         'received'   => $prizes[$connId] ?? 0,
+                        '_user_id'   => (int) ($player['user_id'] ?? 0),
                     ];
                 }
             }
         }
+
+        // ADR-016 §1: attach authoritative post-transaction balance per player.
+        // Read-only — does not affect payout amounts or transaction boundaries.
+        foreach ($statistics as &$stat) {
+            $uid = $stat['_user_id'];
+            unset($stat['_user_id']);
+            if ($uid > 0) {
+                $userStmt = $this->stmts->get('user_by_id');
+                $userStmt->execute([$uid]);
+                $row = $userStmt->fetch();
+                if ($row !== false) {
+                    $stat['coins'] = (int) $row['coins'];
+                }
+            }
+        }
+        unset($stat);
 
         // --- ВЫЧИСЛЕНИЕ ДАННЫХ ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ ПАКЕТА ---
         $winnerUsername = 'unknown';
@@ -226,6 +244,7 @@ final class GameFinishService
                     'username' => $username,
                     'paid'     => $refundAmount,
                     'received' => $refundAmount,
+                    '_user_id' => $uid,
                 ];
 
                 $room['all_players_history'][$connId]['total_paid'] = 0;
@@ -236,6 +255,22 @@ final class GameFinishService
             $this->logger->error("Room {$roomId}: handleNoSurvivors refund failed: " . $e->getMessage());
             return;
         }
+
+        // ADR-016 §1: attach authoritative post-transaction balance per player.
+        // Read-only — does not affect payout amounts or transaction boundaries.
+        foreach ($statistics as &$stat) {
+            $uid = $stat['_user_id'];
+            unset($stat['_user_id']);
+            if ($uid > 0) {
+                $userStmt = $this->stmts->get('user_by_id');
+                $userStmt->execute([$uid]);
+                $row = $userStmt->fetch();
+                if ($row !== false) {
+                    $stat['coins'] = (int) $row['coins'];
+                }
+            }
+        }
+        unset($stat);
 
         $burned = max(0, $bankBefore - $totalRefunded);
         if ($burned > 0) {
