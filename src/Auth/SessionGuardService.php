@@ -56,8 +56,31 @@ final class SessionGuardService
         $worker->userConnections[$userId] = $newConnection;
         $this->bindConnection($newConnection, $user, $token);
 
+        // EPIC-028: belt-and-suspenders — catch any live socket still bound to
+        // $userId after the primary eviction pass (e.g. join_room rebindSeat or
+        // ReconnectService::bindConnectionToPlayer racing a stale owner).
+        foreach ($worker->connections ?? [] as $liveConnection) {
+            if ($liveConnection === $newConnection) {
+                continue;
+            }
+            if ((int) ($liveConnection->userId ?? 0) === $userId) {
+                $this->evictConnection($worker, $liveConnection, $userId);
+            }
+        }
+
         $connId = $newConnection->id ?? 'null';
         $this->logger->write('INFO', "Session claimed: user_id={$userId} conn_id={$connId}");
+    }
+
+    /**
+     * Evicts every other live socket currently bound to $userId.
+     * Used by lobby rebind after the room seat is already re-keyed.
+     */
+    public function evictOtherLiveSessions(object $worker, int $userId, object $keepConnection): void
+    {
+        foreach ($this->findAllLiveConnectionsForUser($worker, $userId, $keepConnection) as $oldConnection) {
+            $this->evictConnection($worker, $oldConnection, $userId);
+        }
     }
 
     /**
@@ -111,6 +134,11 @@ final class SessionGuardService
         }
 
         if ($roomId === null || !isset($worker->rooms[$roomId]['players'][$connId])) {
+            return;
+        }
+
+        $player = $worker->rooms[$roomId]['players'][$connId];
+        if (isset($player['connection']) && $player['connection'] !== $connection) {
             return;
         }
 

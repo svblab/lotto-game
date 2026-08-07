@@ -247,6 +247,7 @@ final class LobbyService
         $existingConnId = $this->findConnIdForUserInRoom($room, $userId);
 
         if ($existingConnId !== null && $existingConnId !== $connId) {
+            $oldConnection = $room['players'][$existingConnId]['connection'] ?? null;
             if (isset($worker->reconnectService)) {
                 $worker->reconnectService->rebindSeat(
                     $worker,
@@ -255,6 +256,14 @@ final class LobbyService
                     $connection,
                     (string) ($connection->sessionToken ?? '')
                 );
+            }
+            if (
+                isset($worker->sessionGuard)
+                && $oldConnection !== null
+                && $oldConnection !== $connection
+                && (int) ($oldConnection->userId ?? 0) === $userId
+            ) {
+                $worker->sessionGuard->evictOtherLiveSessions($worker, $userId, $connection);
             }
             sendJson($connection, $this->buildRoomJoinedPacket($worker->rooms[$roomId]));
             return;

@@ -181,6 +181,7 @@ $worker->onWorkerStart = function (Worker $worker): void {
     $sessionService = new SessionService();
     $authService    = new AuthService($worker->db, $statements, $worker->logger, $sessionService);
     $sessionGuardService = new SessionGuardService($worker->logger);
+    $worker->sessionGuard = $sessionGuardService;
     $worker->authHandler = new AuthHandler($authService, $sessionService, $worker->logger, $sessionGuardService);
 
     // EPIC-10.4 (Lobby packet routing): LobbyService уже реализован
@@ -593,6 +594,13 @@ $worker->onClose = function ($connection) use ($worker): void {
             unset($worker->userConnections[$userId]);
         }
     }
+
+    // EPIC-028: clear Connection Runtime Fields so a lingering closed socket
+    // cannot remain discoverable as authenticated during the next claim pass.
+    $connection->userId       = null;
+    $connection->username     = null;
+    $connection->isAdmin      = false;
+    $connection->sessionToken = null;
 
     if (isset($worker->memoryAudit)) {
         $worker->memoryAudit->snapshot('connection_close', $worker, [
