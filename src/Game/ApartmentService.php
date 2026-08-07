@@ -466,6 +466,13 @@ final class ApartmentService
                     $upd = $this->stmts->get('update_user_coins');
                     $upd->execute([$newCoins, $userId]);
 
+                    if (isset($room['players'][$connId]['connection'])) {
+                        sendJson($room['players'][$connId]['connection'], [
+                            'type'  => 'balance_updated',
+                            'coins' => $newCoins,
+                        ]);
+                    }
+
                     $room['bank']                           += self::APARTMENT_PAYMENT;
                     $room['players'][$connId]['total_paid'] += self::APARTMENT_PAYMENT;
                     $room['players'][$connId]['immune']      = true;

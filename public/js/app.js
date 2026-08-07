@@ -376,6 +376,13 @@
     UI().renderGameHeader(state.bank, state.currentDrawer, null);
   }
 
+  function onBalanceUpdated(pkt) {
+    if (pkt.coins == null || !state.user) return;
+    state.user.coins = pkt.coins;
+    persistUser(state.user);
+    UI().updateLobbyUser(state.user);
+  }
+
   function onPlayerLeft(pkt) {
     const myUserId = state.user?.id;
     if (
@@ -839,6 +846,7 @@
       afk_warning: onAfkWarning,
       apartment_alert: onApartmentAlert,
       bank_updated: onBankUpdated,
+      balance_updated: onBalanceUpdated,
       game_over: onGameOver,
       reconnect_state: onReconnectState,
       admin_logs_data: onAdminLogs,

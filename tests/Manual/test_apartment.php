@@ -609,6 +609,15 @@ $apt2 = new ApartmentService($_db2, $_st2, $_log2);
         assert_true((int) ($pkts[0]['bank'] ?? 0) === $expectedBank, 'bank_updated: correct bank for ' . $conn->username);
     }
 
+    $hBalancePkts  = $h->sentOfType('balance_updated');
+    $p2BalancePkts = $p2->sentOfType('balance_updated');
+    $p3BalancePkts = $p3->sentOfType('balance_updated');
+    assert_true(count($hBalancePkts) === 1, 'balance_updated: paying host receives own balance');
+    assert_true((int) ($hBalancePkts[0]['coins'] ?? 0) === 95, 'balance_updated: host post-payment coins');
+    assert_true(count($p2BalancePkts) === 1, 'balance_updated: paying p2 receives own balance');
+    assert_true((int) ($p2BalancePkts[0]['coins'] ?? 0) === 95, 'balance_updated: p2 post-payment coins');
+    assert_true(count($p3BalancePkts) === 0, 'balance_updated: non-paying immune player does NOT receive others balance');
+
     // last_survivor branch — no bank_updated (game_over carries final bank)
     $h2  = makeConn(4, 40, 'solo_h');
     $p2b = makeConn(5, 50, 'solo_p2');

@@ -295,6 +295,11 @@ $worker->rooms[3]['all_players_history'][300] = [
     'total_paid' => 10,
 ];
 
+$leftConn = new SpyConnection();
+$activeConn = $worker->rooms[3]['players'][301]['connection'];
+$worker->userConnections[$p5] = $leftConn;
+$worker->userConnections[$p6] = $activeConn;
+
 $roomManager3 = new SpyRoomManager();
 $admin3 = new AdminService($stmts, new FakeLogger(), null, null, null, $db, $roomManager3);
 
@@ -306,6 +311,18 @@ $admin3->handleCloseRoom(['room_id' => 3], $conn3, $worker);
 
 assertEquals($coinsBefore5 + 10, getCoins($pdo, $p5), 'previously-removed player (left_earlier) IS refunded');
 assertEquals($coinsBefore6 + 30, getCoins($pdo, $p6), 'still-active player IS refunded');
+$leftBalancePkts = array_values(array_filter(
+    $leftConn->sent,
+    fn($p) => ($p['type'] ?? '') === 'balance_updated'
+));
+assertEquals(1, count($leftBalancePkts), 'left_earlier receives balance_updated via userConnections lookup');
+assertEquals(500, $leftBalancePkts[0]['coins'] ?? null, 'left_earlier balance_updated carries post-refund coins');
+$activeBalancePkts = array_values(array_filter(
+    $activeConn->sent,
+    fn($p) => ($p['type'] ?? '') === 'balance_updated'
+));
+assertEquals(1, count($activeBalancePkts), 'still-active player receives balance_updated');
+assertEquals(500, $activeBalancePkts[0]['coins'] ?? null, 'still-active balance_updated carries post-refund coins');
 
 // =============================================================================
 // TEST 4 — Уведомление активных игроков (player_left, reason=admin_close)

@@ -341,6 +341,9 @@ $worker = makeWorker();
 $worker->rooms[3] = makeRoom(3, 400, 'playing', 40); // bank = 20+20
 $worker->rooms[3]['players'][400] = makePlayer($hostPId, 'host_p', 20);
 $worker->rooms[3]['players'][401] = makePlayer($targetPId, 'target_p', 20);
+$targetConn = $worker->rooms[3]['players'][401]['connection'];
+$hostConn   = $worker->rooms[3]['players'][400]['connection'];
+$worker->userConnections[$targetPId] = $targetConn;
 
 $lobby3     = new SpyLobbyService();
 $reconnect3 = new SpyReconnectService();
@@ -361,6 +364,17 @@ assertEquals(20, $worker->rooms[3]['bank'], 'bank decremented by total_paid');
 assertEquals(1, count($reconnect3->removeCalls), 'removePlayerFromGame called once');
 assertEquals('kicked', $reconnect3->removeCalls[0]['reason'] ?? null, 'reason=kicked passed to ReconnectService');
 assertEquals(401, $reconnect3->removeCalls[0]['connId'] ?? null, 'correct connId passed to ReconnectService');
+$targetBalancePkts = array_values(array_filter(
+    $targetConn->sent,
+    fn($p) => ($p['type'] ?? '') === 'balance_updated'
+));
+assertEquals(1, count($targetBalancePkts), 'kicked player receives balance_updated via direct sendJson');
+assertEquals(500, $targetBalancePkts[0]['coins'] ?? null, 'balance_updated carries post-refund coins');
+$hostBalancePkts = array_values(array_filter(
+    $hostConn->sent,
+    fn($p) => ($p['type'] ?? '') === 'balance_updated'
+));
+assertEquals(0, count($hostBalancePkts), 'room mate does NOT receive kicked player balance_updated');
 
 // =============================================================================
 // TEST 4 — Kick из apartment с рефандом: делегирование в ApartmentService

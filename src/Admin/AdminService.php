@@ -308,6 +308,16 @@ final class AdminService
             // total_paid из истории — двойной рефанд, нарушение
             // Economic Integrity Rule (ANCHOR_CORE.md Part 2).
             $room['players'][$connId]['total_paid'] = 0;
+
+            $balanceStmt = $this->stmts->get('user_by_id');
+            $balanceStmt->execute([$targetUserId]);
+            $freshRow = $balanceStmt->fetch();
+            if ($freshRow !== false && isset($worker->userConnections[$targetUserId])) {
+                sendJson($worker->userConnections[$targetUserId], [
+                    'type'  => 'balance_updated',
+                    'coins' => (int) $freshRow['coins'],
+                ]);
+            }
         }
 
         // --- Structural removal, delegated by room status ---
@@ -426,6 +436,22 @@ final class AdminService
             }
             sendError($connection, 'error.invalid_json', 'Failed to process room close refund');
             return;
+        }
+
+        foreach ($room['all_players_history'] as $hist) {
+            $userId = (int) ($hist['user_id'] ?? 0);
+            if ($userId <= 0 || !isset($worker->userConnections[$userId])) {
+                continue;
+            }
+            $balanceStmt = $this->stmts->get('user_by_id');
+            $balanceStmt->execute([$userId]);
+            $freshRow = $balanceStmt->fetch();
+            if ($freshRow !== false) {
+                sendJson($worker->userConnections[$userId], [
+                    'type'  => 'balance_updated',
+                    'coins' => (int) $freshRow['coins'],
+                ]);
+            }
         }
 
         $room['bank'] = 0;

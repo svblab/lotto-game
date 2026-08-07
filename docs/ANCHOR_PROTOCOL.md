@@ -210,6 +210,16 @@ already final in the following `game_over` packet in those cases).
 {"type": "bank_updated", "bank": 85}
 ```
 
+### balance_updated
+Server → single Client (NOT a room broadcast — see `bank_updated` for the
+shared room total). Sent whenever the server changes a specific player's
+`users.coins` outside of `game_over` / `reconnect_state` (kick refund,
+`admin_close_room` refund, Apartment payment) and that player has a live
+connection to notify.
+```json
+{"type": "balance_updated", "coins": 615}
+```
+
 ---
 
 ## Game Start
