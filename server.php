@@ -124,6 +124,7 @@ use Lotto\Auth\AuthService;
 use Lotto\Auth\AuthHandler;
 use Lotto\Core\RoomManager;
 use Lotto\Lobby\LobbyService;
+use Lotto\Lobby\LobbyHostService;
 use Lotto\Lobby\LobbyHandler;
 use Lotto\Game\LottoEngine;
 use Lotto\Game\VictoryService;
@@ -184,7 +185,8 @@ $worker->onWorkerStart = function (Worker $worker): void {
     // (EPIC-2.x) — здесь только сборка зависимостей и подключение к
     // router'у, никакой новой lobby-логики.
     $worker->roomManager  = new RoomManager($worker->logger);
-    $worker->lobbyService = new LobbyService($worker->roomManager, $worker->logger);
+    $lobbyHostService = new LobbyHostService($worker->roomManager, $worker->logger);
+    $worker->lobbyService = new LobbyService($worker->roomManager, $worker->logger, $lobbyHostService);
     $worker->lobbyHandler = new LobbyHandler($worker->lobbyService);
 
     // EPIC-10.5 (Game packet routing): GameService/VictoryService/

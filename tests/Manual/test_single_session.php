@@ -10,6 +10,7 @@ use Lotto\Auth\SessionService;
 use Lotto\Auth\AuthService;
 use Lotto\Auth\AuthHandler;
 use Lotto\Lobby\LobbyService;
+use Lotto\Lobby\LobbyHostService;
 use Lotto\Game\ReconnectService;
 use Lotto\Game\GameService;
 
@@ -60,7 +61,8 @@ try {
     $authHandler = new AuthHandler($authService, $sessionService, $logger);
 
     $roomManager = new RoomManager($logger);
-    $lobbyService = new LobbyService($roomManager, $logger);
+    $lobbyHostService = new LobbyHostService($roomManager, $logger);
+    $lobbyService = new LobbyService($roomManager, $logger, $lobbyHostService);
 
   // Minimal GameService stub for ReconnectService constructor
     $gameServiceStub = new class {

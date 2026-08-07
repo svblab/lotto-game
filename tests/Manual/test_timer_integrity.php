@@ -34,6 +34,7 @@ require_once __DIR__ . '/../../src/Core/Helpers.php';
 use Lotto\Core\RoomManager;
 use Lotto\Core\Logger;
 use Lotto\Lobby\LobbyService;
+use Lotto\Lobby\LobbyHostService;
 use Lotto\Game\ApartmentService;
 use Lotto\Game\GameFinishService;
 use Lotto\Game\ReconnectService;
@@ -121,7 +122,8 @@ $worker1->rooms[1]['players'][101] = makePlayer(20, 'victim', $timerId, 'disconn
 
 $logger = new FakeLogger();
 $roomManager = new RoomManager($logger);
-$lobbyService = new LobbyService($roomManager, $logger);
+$lobbyHostService = new LobbyHostService($roomManager, $logger);
+$lobbyService = new LobbyService($roomManager, $logger, $lobbyHostService);
 
 $lobbyService->removePlayerFromLobby($worker1, 1, 101, 'kicked');
 

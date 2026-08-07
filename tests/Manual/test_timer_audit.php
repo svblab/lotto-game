@@ -28,6 +28,7 @@ use Lotto\Core\RoomManager;
 use Lotto\Core\TimerAudit;
 use Lotto\Game\ReconnectService;
 use Lotto\Lobby\LobbyService;
+use Lotto\Lobby\LobbyHostService;
 
 $passed = 0;
 $failed = 0;
@@ -305,7 +306,9 @@ $worker5->rooms[2]['players'][200] = makePlayer(new SpyConnection(200, 30, 'host
 $worker5->rooms[2]['players'][201] = makePlayer(new SpyConnection(201, 40, 'guest'));
 
 $roomManager5 = new RoomManager(new FakeLogger());
-$lobbyService = new LobbyService($roomManager5, new FakeLogger());
+$logger5 = new FakeLogger();
+$lobbyHostService5 = new LobbyHostService($roomManager5, $logger5);
+$lobbyService = new LobbyService($roomManager5, $logger5, $lobbyHostService5);
 
 $joinRef = new ReflectionClass(LobbyService::class);
 $startMethod = $joinRef->getMethod('startLobbyAfkTimer');
@@ -315,10 +318,11 @@ $startMethod->invoke($lobbyService, $worker5, 2);
 $timerId = $worker5->rooms[2]['lobby_afk_timer_id'] ?? null;
 assertTrue($timerId !== null && isset(\MockTimer::$active[$timerId]), 'lobby AFK timer started with 2 players');
 
-$stopMethod = $joinRef->getMethod('stopLobbyAfkTimer');
+$hostRef = new ReflectionClass(LobbyHostService::class);
+$stopMethod = $hostRef->getMethod('stopLobbyAfkTimer');
 $stopMethod->setAccessible(true);
 unset($worker5->rooms[2]['players'][201]);
-$stopMethod->invoke($lobbyService, $worker5, 2);
+$stopMethod->invoke($lobbyHostService5, $worker5, 2);
 
 assertTrue(!isset(\MockTimer::$active[$timerId]), 'lobby AFK timer stopped when player removed');
 

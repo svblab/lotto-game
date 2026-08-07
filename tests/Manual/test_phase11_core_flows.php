@@ -29,6 +29,7 @@ use Lotto\Core\Logger;
 use Lotto\Core\RoomManager;
 use Lotto\Core\Constants;
 use Lotto\Lobby\LobbyService;
+use Lotto\Lobby\LobbyHostService;
 use Lotto\Lobby\LobbyHandler;
 use Lotto\Game\LottoEngine;
 use Lotto\Game\VictoryService;
@@ -144,7 +145,8 @@ function buildStack(PDO $pdo): array
     $authService = new AuthService($db, $statements, $logger, $sessionService);
     $authHandler = new AuthHandler($authService, $sessionService, $logger);
     $roomManager = new RoomManager($logger);
-    $lobbyService = new LobbyService($roomManager, $logger);
+    $lobbyHostService = new LobbyHostService($roomManager, $logger);
+    $lobbyService = new LobbyService($roomManager, $logger, $lobbyHostService);
     $lobbyHandler = new LobbyHandler($lobbyService);
     $lottoEngine = new LottoEngine();
     $victoryService = new VictoryService();

@@ -28,6 +28,7 @@ require_once $autoload;
 require_once dirname(__DIR__, 2) . '/src/Core/Helpers.php';
 
 use Lotto\Lobby\LobbyService;
+use Lotto\Lobby\LobbyHostService;
 use Lotto\Core\RoomManager;
 use Lotto\Core\Logger;
 use Lotto\Core\Constants;
@@ -149,7 +150,8 @@ function makeServices(): array
 {
     $logger       = makeLogger();
     $roomManager  = new RoomManager($logger);
-    $lobbyService = new LobbyService($roomManager, $logger);
+    $lobbyHostService = new LobbyHostService($roomManager, $logger);
+    $lobbyService = new LobbyService($roomManager, $logger, $lobbyHostService);
     return [$lobbyService, $roomManager];
 }
 

@@ -53,6 +53,7 @@ use Lotto\Game\VictoryService;
 use Lotto\Infrastructure\PreparedStatements;
 use Lotto\Lobby\LobbyHandler;
 use Lotto\Lobby\LobbyService;
+use Lotto\Lobby\LobbyHostService;
 
 use function Lotto\Core\lottoPlayerStateTransition;
 use function Lotto\Core\lottoStateReject;
@@ -161,7 +162,8 @@ function buildStack(PDO $pdo): array
     $authService = new AuthService($db, $statements, $logger, $sessionService);
     $authHandler = new AuthHandler($authService, $sessionService, $logger);
     $roomManager = new RoomManager($logger);
-    $lobbyService = new LobbyService($roomManager, $logger);
+    $lobbyHostService = new LobbyHostService($roomManager, $logger);
+    $lobbyService = new LobbyService($roomManager, $logger, $lobbyHostService);
     $lobbyHandler = new LobbyHandler($lobbyService);
     $lottoEngine = new LottoEngine();
     $victoryService = new VictoryService();
