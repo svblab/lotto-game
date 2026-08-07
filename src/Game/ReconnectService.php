@@ -299,14 +299,19 @@ final class ReconnectService
         string $token,
         object $worker
     ): void {
-        $connection->userId       = $player['user_id'];
+        $userId = (int) ($player['user_id'] ?? 0);
+        if ($userId > 0 && isset($worker->sessionGuard)) {
+            $worker->sessionGuard->evictOtherLiveSessions($worker, $userId, $connection);
+        }
+
+        $connection->userId       = $userId;
         $connection->username     = $player['username'];
         $connection->sessionToken = $token;
 
         if (!isset($worker->userConnections)) {
             $worker->userConnections = [];
         }
-        $worker->userConnections[(int)$player['user_id']] = $connection;
+        $worker->userConnections[$userId] = $connection;
     }
 
     /**

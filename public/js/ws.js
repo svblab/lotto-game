@@ -22,6 +22,7 @@
       this.pingTimer = null;
       this.reconnectTimer = null;
       this.sessionToken = null;
+      this.sessionInvalidated = false;
       this.intentionalClose = false;
       this.connected = false;
     }
@@ -75,6 +76,15 @@
 
     setSessionToken(token) {
       this.sessionToken = token || null;
+      if (token) {
+        this.sessionInvalidated = false;
+      }
+    }
+
+    invalidateSession() {
+      this.sessionInvalidated = true;
+      this.sessionToken = null;
+      this.cancelReconnect();
     }
 
     cancelReconnect() {
@@ -129,7 +139,7 @@
       this.connected = false;
       this._stopPing();
       this.emit('close', { code: ev.code, reason: ev.reason });
-      if (!this.intentionalClose && this.sessionToken) {
+      if (!this.intentionalClose && this.sessionToken && !this.sessionInvalidated) {
         this.emit('reconnecting');
         clearTimeout(this.reconnectTimer);
         this.reconnectTimer = setTimeout(() => this.connect(), RECONNECT_DELAY_MS);

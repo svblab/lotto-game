@@ -143,8 +143,7 @@
     state.room = null;
     state.inGame = false;
     if (socket) {
-      socket.setSessionToken(null);
-      socket.cancelReconnect?.();
+      socket.invalidateSession?.();
     }
   }
 

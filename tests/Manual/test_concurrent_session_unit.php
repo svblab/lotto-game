@@ -126,6 +126,10 @@ function simulateProductionOnClose(object $connection, object $worker): void
             unset($worker->userConnections[$userId]);
         }
     }
+    $connection->userId       = null;
+    $connection->username     = null;
+    $connection->isAdmin      = false;
+    $connection->sessionToken = null;
     $worker->connections = array_values(array_filter(
         $worker->connections,
         static fn($c) => $c !== $connection

@@ -458,6 +458,21 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
         return;
     }
 
+    // EPIC-028.1: on every authenticated action, evict any other live socket for
+    // this user_id (closes the dual-live window where reconnect + fresh login
+    // both stay bound — e.g. client auto-reconnect after superseded close).
+    if (
+        ($connection->userId ?? null) !== null
+        && isset($worker->sessionGuard)
+        && !in_array($action, $authExemptActions, true)
+    ) {
+        $worker->sessionGuard->evictOtherLiveSessions(
+            $worker,
+            (int) $connection->userId,
+            $connection
+        );
+    }
+
     // EPIC-10.4: guard «уже в комнате» для create_room/join_room.
     // LobbyService::handleCreateRoom() документирует эту проверку как
     // ответственность router'а — один раз здесь, не в каждом хендлере.

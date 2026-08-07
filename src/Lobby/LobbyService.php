@@ -144,6 +144,14 @@ final class LobbyService
             return;
         }
 
+        if (isset($worker->sessionGuard)) {
+            $worker->sessionGuard->evictOtherLiveSessions(
+                $worker,
+                (int) $connection->userId,
+                $connection
+            );
+        }
+
         // --- 2. Лимит комнат ---
         $roomCount = isset($worker->rooms) ? count($worker->rooms) : 0;
         if ($roomCount >= Constants::MAX_ROOMS) {
@@ -244,28 +252,7 @@ final class LobbyService
 
         $userId = (int) $connection->userId;
         $connId = (int) $connection->id;
-        $existingConnId = $this->findConnIdForUserInRoom($room, $userId);
-
-        if ($existingConnId !== null && $existingConnId !== $connId) {
-            $oldConnection = $room['players'][$existingConnId]['connection'] ?? null;
-            if (isset($worker->reconnectService)) {
-                $worker->reconnectService->rebindSeat(
-                    $worker,
-                    $roomId,
-                    $existingConnId,
-                    $connection,
-                    (string) ($connection->sessionToken ?? '')
-                );
-            }
-            if (
-                isset($worker->sessionGuard)
-                && $oldConnection !== null
-                && $oldConnection !== $connection
-                && (int) ($oldConnection->userId ?? 0) === $userId
-            ) {
-                $worker->sessionGuard->evictOtherLiveSessions($worker, $userId, $connection);
-            }
-            sendJson($connection, $this->buildRoomJoinedPacket($worker->rooms[$roomId]));
+        if ($this->tryRebindExistingSeatForUser($worker, $roomId, $connection, $userId, $connId)) {
             return;
         }
 
@@ -312,7 +299,10 @@ final class LobbyService
         }
 
         // --- 8. Добавление игрока ---
-        $connId = $connection->id;
+        $connId = (int) $connection->id;
+        if ($this->tryRebindExistingSeatForUser($worker, $roomId, $connection, $userId, $connId)) {
+            return;
+        }
         $room['players'][$connId] = $this->buildPlayerEntry($connection, $cardsCount);
 
         // Добавляем в конец drawer_order (ANCHOR_CORE.md § Drawer Order Rules: FIFO)
@@ -607,6 +597,49 @@ final class LobbyService
             }
             return;
         }
+    }
+
+    /**
+     * Re-keys an existing seat for $userId onto $connection when another conn_id
+     * already holds the seat. Returns true when handled (caller must return).
+     */
+    private function tryRebindExistingSeatForUser(
+        object $worker,
+        int $roomId,
+        object $connection,
+        int $userId,
+        int $connId
+    ): bool {
+        if (!isset($worker->rooms[$roomId])) {
+            return false;
+        }
+
+        $existingConnId = $this->findConnIdForUserInRoom($worker->rooms[$roomId], $userId);
+        if ($existingConnId === null || $existingConnId === $connId) {
+            return false;
+        }
+
+        $oldConnection = $worker->rooms[$roomId]['players'][$existingConnId]['connection'] ?? null;
+        if (isset($worker->reconnectService)) {
+            $worker->reconnectService->rebindSeat(
+                $worker,
+                $roomId,
+                $existingConnId,
+                $connection,
+                (string) ($connection->sessionToken ?? '')
+            );
+        }
+        if (
+            isset($worker->sessionGuard)
+            && $oldConnection !== null
+            && $oldConnection !== $connection
+            && (int) ($oldConnection->userId ?? 0) === $userId
+        ) {
+            $worker->sessionGuard->evictOtherLiveSessions($worker, $userId, $connection);
+        }
+        sendJson($connection, $this->buildRoomJoinedPacket($worker->rooms[$roomId]));
+
+        return true;
     }
 
     /**

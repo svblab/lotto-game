@@ -32,6 +32,18 @@ Automated investigation (EPIC-028.0) showed:
   socket after `rebindSeat`, the `user_id` fallback located the **re-keyed**
   seat (bound to the winning connection) and removed it from the lobby instead
   of no-oping — because the old `conn_id` was no longer in the room map.
+- **EPIC-028.1 follow-up:** even with EPIC-028.0, production logs (2026-08-07
+  21:16–21:17) still showed `Reconnect validated` followed by the same
+  `user_id` creating and joining one room as two players. Root causes:
+  1. **No per-action enforcement** — dual-live sockets could persist between
+     `claimUserSession()` calls if eviction was missed or the client
+     auto-reconnected after `error.auth_invalid_token` (WebSocket `close`
+     scheduled reconnect before the error packet cleared `sessionToken`).
+  2. **`ReconnectService::bindConnectionToPlayer()`** bound `userConnections`
+     without evicting other live sockets (lobby/reconnect seam).
+  3. **`join_room` new-player path** could add a second seat if the rebind
+     branch was skipped — defensive rebind check added immediately before
+     player insertion.
 
 `ReconnectService::bindConnectionToPlayer()` setting `userConnections` without
 going through eviction was safe only when `claimUserSession()` had already run
@@ -60,6 +72,21 @@ binding the second socket.
    seat via `user_id` fallback, verify the player entry's `connection` object
    matches the socket being evicted; skip removal if the seat was already
    re-keyed to another live connection.
+
+6. **EPIC-028.1 — `server.php` router** — call
+   `evictOtherLiveSessions()` on every authenticated action (except
+   register/login/reconnect/ping) so any surviving dual-live socket is closed
+   before lobby/game handlers run.
+
+7. **`ReconnectService::bindConnectionToPlayer()`** — call
+   `evictOtherLiveSessions()` before binding.
+
+8. **`LobbyService::handleCreateRoom()` / `handleJoinRoom()`** — call
+   `evictOtherLiveSessions()` at entry; `tryRebindExistingSeatForUser()`
+   guard before adding a new player row.
+
+9. **Client (`ws.js` / `app.js`)** — `invalidateSession()` prevents
+   auto-reconnect after `error.auth_invalid_token` / superseded close.
 
 No protocol or packet contract changes.
 

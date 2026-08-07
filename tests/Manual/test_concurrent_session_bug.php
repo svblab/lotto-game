@@ -330,6 +330,87 @@ try {
         'evicted tab2 cannot add duplicate seat (type=' . ($tab2Join['type'] ?? 'null') . ', dupSeats=' . $dupSeats . ')'
     );
 
+    echo "\nSCENARIO 5: production log sequence (fresh login + shared-token reconnect, create+join)\n";
+
+    $prodA = new CsbClient('127.0.0.1', $wsPort);
+    $prodA->recv();
+    csbRegister($prodA, 'csb_prod2', $password);
+    $prodA->close();
+    usleep(500_000);
+
+    $prodB = new CsbClient('127.0.0.1', $wsPort);
+    $prodB->recv();
+    csbRegister($prodB, 'csb_prod1', $password);
+    csbLogin($prodB, 'csb_prod2', $password);
+    $prodB->close();
+    usleep(500_000);
+
+    $prodFresh = new CsbClient('127.0.0.1', $wsPort);
+    $prodFresh->recv();
+    $freshLogin = csbLogin($prodFresh, 'csb_prod2', $password);
+    $currentToken = $freshLogin['session_token'] ?? null;
+    csbCheck(
+        ($freshLogin['type'] ?? null) === 'auth_result' && is_string($currentToken) && $currentToken !== '',
+        'fresh login after both windows closed'
+    );
+
+    $prodRc = new CsbClient('127.0.0.1', $wsPort);
+    $prodRc->recv();
+    $rcOk = csbReconnect($prodRc, $currentToken);
+    csbCheck(
+        in_array($rcOk['type'] ?? '', ['auth_result', 'reconnect_state'], true),
+        'reconnect with current shared token succeeds'
+    );
+    $freshEvicted = null;
+    for ($i = 0; $i < 8; $i++) {
+        $pkt = $prodFresh->recv(0.4);
+        if (is_array($pkt) && ($pkt['type'] ?? null) === 'error') {
+            $freshEvicted = $pkt;
+            break;
+        }
+    }
+    csbCheck(
+        ($freshEvicted['code'] ?? null) === 'error.auth_invalid_token',
+        'fresh-login socket evicted when reconnect claims shared token'
+    );
+
+    $prodRc->send(json_encode(['action' => 'create_room', 'max_players' => 4, 'password' => '', 'cards_count' => 1]));
+    $prodCreate = $prodRc->recv(2.0);
+    $prodRoomId = (int) ($prodCreate['room_id'] ?? 0);
+    csbCheck(($prodCreate['type'] ?? null) === 'room_joined' && $prodRoomId > 0, 'reconnect socket creates room');
+
+    $prodFresh2 = new CsbClient('127.0.0.1', $wsPort);
+    $prodFresh2->recv();
+    $staleJoinLogin = csbLogin($prodFresh2, 'csb_prod2', $password);
+    $joinToken = $staleJoinLogin['session_token'] ?? $currentToken;
+    csbCheck(($staleJoinLogin['type'] ?? null) === 'auth_result', 'second fresh login for join attempt');
+    $prodFresh2->send(json_encode([
+        'action' => 'join_room',
+        'room_id' => $prodRoomId,
+        'password' => '',
+        'cards_count' => 2,
+    ]));
+    $joinPkt = null;
+    for ($i = 0; $i < 8; $i++) {
+        $pkt = $prodFresh2->recv(1.0);
+        if (is_array($pkt) && in_array($pkt['type'] ?? '', ['room_joined', 'error'], true)) {
+            $joinPkt = $pkt;
+            break;
+        }
+    }
+    $prodSeatCount = 0;
+    if (is_array($joinPkt) && ($joinPkt['type'] ?? null) === 'room_joined') {
+        foreach ($joinPkt['players'] ?? [] as $p) {
+            if (($p['username'] ?? '') === 'csb_prod2') {
+                $prodSeatCount++;
+            }
+        }
+    }
+    csbCheck(
+        $prodSeatCount <= 1,
+        'same user_id cannot occupy two seats after create+join (seats=' . $prodSeatCount . ')'
+    );
+
     echo "\nSCENARIO 4: reconnect-before-login — fresh login must evict reconnect session\n";
 
     $early = new CsbClient('127.0.0.1', $wsPort);
@@ -375,6 +456,9 @@ try {
         'evicted reconnect socket cannot create room afterward'
     );
 
+    $prodFresh->close();
+    $prodFresh2->close();
+    $prodRc->close();
     $tab1->close();
     $tab2->close();
     $tab1b->close();
