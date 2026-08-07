@@ -103,6 +103,11 @@ if ($app && str_contains($app, 'animationQueue') && str_contains($app, '>= 3')) 
 } else {
     fail('app.js: animation queue max 3');
 }
+if ($app && str_contains($app, 'me.coins != null') && !str_contains($app, 'me.paid + me.received')) {
+    ok('app.js: onGameOver uses authoritative coins only (no arithmetic fallback)');
+} else {
+    fail('app.js: onGameOver uses authoritative coins only (no arithmetic fallback)');
+}
 
 if ($app && str_contains($app, "e.key !== 'F2'") && str_contains($app, 'simulateTransportDrop')) {
     ok('app.js: F2 in-game reconnect QA hotkey');

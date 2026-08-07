@@ -328,9 +328,8 @@ Statistics entry:
 {"username": "player", "paid": 20, "received": 120, "coins": 610}
 ```
 `coins` (ADR-016 §1): the player's actual post-transaction `users.coins` balance,
-read from the database after the payout/refund commits — not derived from
-`paid`/`received`. Present whenever the player's `user_id` was resolvable;
-absent otherwise (client falls back to local arithmetic).
+read from the database after the payout/refund commits. Always present when the
+player's `user_id` was resolvable (the normal case).
 
 ### last_survivor
 Server → Room (same `game_over` packet, `reason` differs)

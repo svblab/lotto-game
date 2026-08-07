@@ -502,6 +502,8 @@ function makeChancePlayer(string $username, int $markedCount, int $cardsCount = 
     }
     assert_true($hostStat !== null && ($hostStat['coins'] ?? null) === 120, 'finishGame: host statistics coins matches DB');
     assert_true($p2Stat !== null && ($p2Stat['coins'] ?? null) === 100, 'finishGame: p2 statistics coins matches DB');
+    assert_true(array_key_exists('coins', $hostStat), 'finishGame: host statistics includes authoritative coins');
+    assert_true(array_key_exists('coins', $p2Stat), 'finishGame: p2 statistics includes authoritative coins');
 }
 
 // ---------------------------------------------------------------------------

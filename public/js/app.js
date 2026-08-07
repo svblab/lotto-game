@@ -528,12 +528,8 @@
       UI().showGameOver(pkt, { winChanceHistory: pkt.win_chance_history || [] });
       if (pkt.statistics) {
         const me = pkt.statistics.find((s) => s.username === state.user?.username);
-        if (me && state.user) {
-          if (me.coins != null) {
-            state.user.coins = me.coins;
-          } else {
-            state.user.coins = (state.user.coins || 0) - me.paid + me.received;
-          }
+        if (me && state.user && me.coins != null) {
+          state.user.coins = me.coins;
           persistUser(state.user);
         }
         UI().updateLobbyUser(state.user);
