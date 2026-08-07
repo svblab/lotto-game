@@ -122,6 +122,7 @@ use Lotto\Infrastructure\PreparedStatements;
 use Lotto\Auth\SessionService;
 use Lotto\Auth\AuthService;
 use Lotto\Auth\AuthHandler;
+use Lotto\Auth\SessionGuardService;
 use Lotto\Core\RoomManager;
 use Lotto\Lobby\LobbyService;
 use Lotto\Lobby\LobbyHostService;
@@ -179,7 +180,8 @@ $worker->onWorkerStart = function (Worker $worker): void {
     $statements     = new PreparedStatements($worker->db->getPdo());
     $sessionService = new SessionService();
     $authService    = new AuthService($worker->db, $statements, $worker->logger, $sessionService);
-    $worker->authHandler = new AuthHandler($authService, $sessionService, $worker->logger);
+    $sessionGuardService = new SessionGuardService($worker->logger);
+    $worker->authHandler = new AuthHandler($authService, $sessionService, $worker->logger, $sessionGuardService);
 
     // EPIC-10.4 (Lobby packet routing): LobbyService уже реализован
     // (EPIC-2.x) — здесь только сборка зависимостей и подключение к

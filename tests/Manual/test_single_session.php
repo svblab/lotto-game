@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../../vendor/autoload.php';
+require_once __DIR__ . '/../../src/Core/Helpers.php';
 
 use Lotto\Infrastructure\Database;
 use Lotto\Infrastructure\PreparedStatements;
@@ -9,6 +10,7 @@ use Lotto\Core\RoomManager;
 use Lotto\Auth\SessionService;
 use Lotto\Auth\AuthService;
 use Lotto\Auth\AuthHandler;
+use Lotto\Auth\SessionGuardService;
 use Lotto\Lobby\LobbyService;
 use Lotto\Lobby\LobbyHostService;
 use Lotto\Game\ReconnectService;
@@ -25,10 +27,16 @@ function makeMockConnection(int $id): object
         public $isAdmin = false;
         public $sessionToken = null;
         public bool $closed = false;
+        public array $sentMessages = [];
 
         public function __construct(int $id)
         {
             $this->id = $id;
+        }
+
+        public function send(string $msg): void
+        {
+            $this->sentMessages[] = $msg;
         }
 
         public function close(): void
@@ -58,7 +66,8 @@ try {
     });
     $sessionService = new SessionService();
     $authService = new AuthService($db, $statements, $logger, $sessionService);
-    $authHandler = new AuthHandler($authService, $sessionService, $logger);
+    $sessionGuard = new SessionGuardService($logger);
+    $authHandler = new AuthHandler($authService, $sessionService, $logger, $sessionGuard);
 
     $roomManager = new RoomManager($logger);
     $lobbyHostService = new LobbyHostService($roomManager, $logger);
@@ -99,7 +108,7 @@ try {
     // --- Scenario 1: first login claims session ---
     echo "[Scenario 1] First login claims session...\n";
     $res1 = $authService->login('single_user', 'password123');
-    $authHandler->claimUserSession($worker, $userId, $conn1, $res1['session_token'], $res1['user'], true);
+    $sessionGuard->claimUserSession($worker, $userId, $conn1, $res1['session_token'], $res1['user'], true);
 
     if ($res1['success'] === true && $worker->userConnections[$userId] === $conn1 && $conn1->userId === $userId) {
         echo "✅ Success: First login registered connection.\n";
@@ -112,7 +121,7 @@ try {
     // --- Scenario 2: second live login evicts first (newest wins) ---
     echo "[Scenario 2] Second login evicts first live connection...\n";
     $res2 = $authService->login('single_user', 'password123');
-    $authHandler->claimUserSession($worker, $userId, $conn2, $res2['session_token'], $res2['user'], true);
+    $sessionGuard->claimUserSession($worker, $userId, $conn2, $res2['session_token'], $res2['user'], true);
 
     if ($conn1->closed && $worker->userConnections[$userId] === $conn2 && $conn2->userId === $userId) {
         echo "✅ Success: Second login evicted first; newest session owns account.\n";
@@ -129,7 +138,7 @@ try {
     $worker->connections[] = $conn3;
 
     $res3 = $authService->login('single_user', 'password123');
-    $authHandler->claimUserSession($worker, $userId, $conn3, $res3['session_token'], $res3['user'], true);
+    $sessionGuard->claimUserSession($worker, $userId, $conn3, $res3['session_token'], $res3['user'], true);
 
     if ($res3['success'] === true && $worker->userConnections[$userId] === $conn3) {
         echo "✅ Success: Login succeeded after prior owner disconnected.\n";

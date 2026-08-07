@@ -37,6 +37,7 @@ require __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/../../src/Core/Helpers.php';
 
 use Lotto\Auth\AuthHandler;
+use Lotto\Auth\SessionGuardService;
 use Lotto\Auth\AuthService;
 use Lotto\Auth\SessionService;
 use Lotto\Core\Logger;
@@ -160,7 +161,8 @@ function buildStack(PDO $pdo): array
     $sessionService = new SessionService();
     $db = new TestDatabase($pdo);
     $authService = new AuthService($db, $statements, $logger, $sessionService);
-    $authHandler = new AuthHandler($authService, $sessionService, $logger);
+    $sessionGuard = new SessionGuardService($logger);
+    $authHandler = new AuthHandler($authService, $sessionService, $logger, $sessionGuard);
     $roomManager = new RoomManager($logger);
     $lobbyHostService = new LobbyHostService($roomManager, $logger);
     $lobbyService = new LobbyService($roomManager, $logger, $lobbyHostService);
