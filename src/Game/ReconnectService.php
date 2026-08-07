@@ -25,15 +25,18 @@ final class ReconnectService
     private object $lobbyService;
     private object $gameService;
     private object $logger;
+    private ?object $stmts;
 
     public function __construct(
         object $lobbyService,
         object $gameService,
-        object $logger
+        object $logger,
+        ?object $stmts = null
     ) {
         $this->lobbyService = $lobbyService;
         $this->gameService  = $gameService;
         $this->logger       = $logger;
+        $this->stmts        = $stmts;
     }
 
     /**
@@ -320,6 +323,15 @@ final class ReconnectService
             'room_id'   => $room['room_id'],
             'bank'      => $room['bank'] ?? 0,
         ];
+
+        if ($this->stmts !== null && $player !== null && (int) ($player['user_id'] ?? 0) > 0) {
+            $userStmt = $this->stmts->get('user_by_id');
+            $userStmt->execute([(int) $player['user_id']]);
+            $row = $userStmt->fetch();
+            if ($row !== false) {
+                $base['coins'] = (int) $row['coins'];
+            }
+        }
 
         if ($status === 'waiting') {
             $payload = [

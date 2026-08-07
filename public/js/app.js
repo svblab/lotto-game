@@ -547,6 +547,11 @@
       UI().setMessage('#auth-message', I18n().t('errors.auth_invalid_token'), 'error');
       return;
     }
+    if (pkt.coins != null && state.user) {
+      state.user.coins = pkt.coins;
+      persistUser(state.user);
+      UI().updateLobbyUser(state.user);
+    }
     if (pkt.status === 'waiting') {
       state.inGame = false;
       state.room = {

@@ -222,7 +222,8 @@ $worker->onWorkerStart = function (Worker $worker): void {
     $worker->reconnectService = new ReconnectService(
         $worker->lobbyService,
         $worker->gameService,
-        $worker->logger
+        $worker->logger,
+        $statements
     );
     // EPIC-13.1 (ADR-008): post-construction wiring for startTurn() AFK arm.
     $worker->gameService->setReconnectService($worker->reconnectService);

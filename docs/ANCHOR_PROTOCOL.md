@@ -344,12 +344,17 @@ Server → Client. Reconnect is forbidden during apartment state.
 
 Waiting room:
 ```json
-{"type": "reconnect_state", "status": "waiting", "room_id": 5, "bank": 0, "drawn_all": [], "my_cards": null}
+{"type": "reconnect_state", "status": "waiting", "room_id": 5, "bank": 0, "coins": 490, "drawn_all": [], "my_cards": null}
 ```
 Playing:
 ```json
-{"type": "reconnect_state", "status": "playing", "room_id": 5, "bank": 80, "drawn_all": [], "my_cards": [], "players": [{"username": "player1", "cards_count": 1, "status": "active"}, {"username": "player2", "cards_count": 2, "status": "removed", "reason": "disconnect"}], "win_chances": {"player1": 50, "player2": 50}, "is_my_turn": true, "afk_start": 1704067200, "turn_seconds": 30, "auto_draws": 0}
+{"type": "reconnect_state", "status": "playing", "room_id": 5, "bank": 80, "coins": 490, "drawn_all": [], "my_cards": [], "players": [{"username": "player1", "cards_count": 1, "status": "active"}, {"username": "player2", "cards_count": 2, "status": "removed", "reason": "disconnect"}], "win_chances": {"player1": 50, "player2": 50}, "is_my_turn": true, "afk_start": 1704067200, "turn_seconds": 30, "auto_draws": 0}
 ```
+`coins` (ADR-016 §2): the reconnecting player's current `users.coins` balance,
+read fresh from the database — resyncs any change that happened while disconnected
+(daily bonus, admin adjustment, etc.) that the client would otherwise not see until
+an unrelated packet happened to refresh it. Present when the player's `user_id`
+was resolvable and DB access was available; absent otherwise.
 `players` (playing, ADR-020): roster of every player who has been part of this
 game — currently active/disconnected players (`status: "active"|"disconnected"`)
 plus a ghost entry per fully-removed player (`status: "removed"`, `reason`: the
