@@ -225,29 +225,6 @@ final class AuthHandler
    // -------------------------------------------------------------------------
 
    /**
-    * FIX-8: связывает Connection Runtime Fields (ANCHOR_CORE.md § Connection
-    * Runtime Fields) с только что аутентифицированным пользователем.
-    *
-    * AuthService::login() сохраняет только $worker->userConnections[$userId]
-    * — САМ $connection->userId никогда не устанавливался нигде в register/
-    * login до этого фикса (в отличие от ReconnectService::attemptReconnect(),
-    * который для СВОЕГО сценария это делает). Без этого метода
-    * error.auth_required guard (EPIC-10.2 continuation/ADR-006) блокировал
-    * бы КАЖДОЕ действие только что залогинившегося пользователя — клиент
-    * получал бы auth_result, но был бы фактически неавторизован на уровне
-    * соединения.
-    *
-    * @param array{id:int, username:string, coins:int, is_admin:bool} $user
-    */
-   private function bindConnection(object $connection, array $user, string $token): void
-   {
-       $connection->userId       = (int)$user['id'];
-       $connection->username     = (string)$user['username'];
-       $connection->isAdmin      = (bool)$user['is_admin'];
-       $connection->sessionToken = $token;
-   }
-
-   /**
     * Отправляет пакет auth_result.
     * Контракт: ANCHOR_PROTOCOL.md § Authentication → auth_result
     *
