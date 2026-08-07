@@ -510,6 +510,65 @@ function makeRoom(int $roomId, int $hostConnId): array
 }
 
 // ---------------------------------------------------------------------------
+// GROUP 3g: reconnect_state coins (EPIC-025.1 / ADR-016 §2)
+// ---------------------------------------------------------------------------
+{
+    \MockTimer::reset();
+    $worker = new MockWorker();
+    $lobby = new MockLobbyService();
+    $game = new MockGameService();
+    $st = new MockStmts([30 => ['coins' => 735]]);
+    $svc = new ReconnectService($lobby, $game, new MockLogger(), $st);
+
+    $oldConn = new MockConnection(3, 30, 'p3', 'tok-coins-playing');
+    $newConn = new MockConnection(303, 0, 'new-coins-playing');
+    $room = makeRoom(303, 3);
+    $room['status'] = 'playing';
+    $room['drawn_numbers'] = [7, 14];
+    $room['players'][3] = makePlayer($oldConn, 'disconnected');
+    $worker->rooms[303] = $room;
+
+    $result = $svc->handleReconnect('tok-coins-playing', $newConn, $worker);
+    assert_true($result === true, 'reconnect coins playing: success=true');
+    $pkt = $newConn->sentOfType('reconnect_state')[0] ?? [];
+    assert_true(($pkt['status'] ?? '') === 'playing', 'reconnect coins playing: status=playing');
+    assert_true(($pkt['coins'] ?? null) === 735, 'reconnect_state playing: coins from DB');
+
+    \MockTimer::reset();
+    $worker2 = new MockWorker();
+    $st2 = new MockStmts([60 => ['coins' => 620]]);
+    $svc2 = new ReconnectService($lobby, $game, new MockLogger(), $st2);
+
+    $oldConn2 = new MockConnection(6, 60, 'p6', 'tok-coins-waiting');
+    $newConn2 = new MockConnection(606, 0, 'new-coins-waiting');
+    $room2 = makeRoom(606, 6);
+    $room2['status'] = 'waiting';
+    $room2['host_conn_id'] = 6;
+    $room2['players'][6] = makePlayer($oldConn2, 'active');
+    $room2['players'][7] = makePlayer(new MockConnection(7, 61, 'p7'), 'active');
+    $worker2->rooms[606] = $room2;
+
+    $result2 = $svc2->handleReconnect('tok-coins-waiting', $newConn2, $worker2);
+    assert_true($result2 === true, 'reconnect coins waiting: success=true');
+    $pkt2 = $newConn2->sentOfType('reconnect_state')[0] ?? [];
+    assert_true(($pkt2['status'] ?? '') === 'waiting', 'reconnect coins waiting: status=waiting');
+    assert_true(($pkt2['coins'] ?? null) === 620, 'reconnect_state waiting: coins from DB');
+
+    $svcNoDb = new ReconnectService($lobby, $game, new MockLogger());
+    $roomPlaying = makeRoom(707, 707);
+    $roomPlaying['status'] = 'playing';
+    $roomPlaying['players'][707] = makePlayer(new MockConnection(707, 707, 'solo707', 'tok-solo'), 'active');
+    $pktNoDbPlaying = $svcNoDb->buildReconnectState($roomPlaying, 707);
+    assert_true(!isset($pktNoDbPlaying['coins']), 'reconnect_state playing: coins omitted without stmts');
+
+    $roomWaiting = makeRoom(808, 808);
+    $roomWaiting['status'] = 'waiting';
+    $roomWaiting['players'][808] = makePlayer(new MockConnection(808, 808, 'solo808', 'tok-solo2'), 'active');
+    $pktNoDbWaiting = $svcNoDb->buildReconnectState($roomWaiting, 808);
+    assert_true(!isset($pktNoDbWaiting['coins']), 'reconnect_state waiting: coins omitted without stmts');
+}
+
+// ---------------------------------------------------------------------------
 // GROUP 3f: reconnect from disconnected broadcasts player_status_changed
 // ---------------------------------------------------------------------------
 {
