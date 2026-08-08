@@ -88,6 +88,9 @@ final class AuthHandler
        }
 
        $this->sessionGuard->claimUserSession($worker, (int) $result['user']['id'], $connection, $result['session_token'], $result['user'], true);
+       $connId = $connection->id ?? 'null';
+       $userId = (int) $result['user']['id'];
+       $this->logger->write('INFO', "User login: {$result['user']['username']} user_id={$userId} conn_id={$connId}");
        $this->sendAuthResult($connection, $result);
    }
 
@@ -126,6 +129,9 @@ final class AuthHandler
        }
 
        $this->sessionGuard->claimUserSession($worker, (int) $result['user']['id'], $connection, $result['session_token'], $result['user'], true);
+       $connId = $connection->id ?? 'null';
+       $userId = (int) $result['user']['id'];
+       $this->logger->write('INFO', "User login: {$result['user']['username']} user_id={$userId} conn_id={$connId}");
        $this->sendAuthResult($connection, $result);
    }
 
@@ -191,7 +197,8 @@ final class AuthHandler
 
        $this->sessionGuard->claimUserSession($worker, $userId, $connection, $token, $user, false);
 
-       $this->logger->write('INFO', "Reconnect validated: user_id={$userId}");
+       $connId = $connection->id ?? 'null';
+       $this->logger->write('INFO', "Reconnect validated: user_id={$userId} conn_id={$connId}");
 
        // Пакет reconnect_state формирует ReconnectService (EPIC-8.0), если
        // у пользователя есть активная комната (server.php вызывает его

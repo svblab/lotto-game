@@ -136,9 +136,7 @@ class AuthService
 
             // EPIC-1.3 / FIX-30: single-session enforcement lives in
             // AuthHandler::claimUserSession() — not here.
-
-            // Шаг 8: Записать лог об успешном входе (Уровень INFO)
-            $this->safeLog('INFO', "User login: {$username}");
+            // Login audit log (with conn_id) is written in AuthHandler after claim.
 
             // EPIC-1.2: Возврат существующего контракта с добавлением session_token
             return [

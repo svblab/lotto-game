@@ -33,8 +33,10 @@ final class SessionGuardService
         array $user,
         bool $freshLogin = false
     ): void {
+        $newConnId = $newConnection->id ?? 'null';
+
         foreach ($this->findAllLiveConnectionsForUser($worker, $userId, $newConnection) as $oldConnection) {
-            $this->evictConnection($worker, $oldConnection, $userId);
+            $this->evictConnection($worker, $oldConnection, $userId, 'primary', $newConnection);
         }
 
         if ($freshLogin && isset($worker->lobbyService)) {
@@ -63,13 +65,17 @@ final class SessionGuardService
             if ($liveConnection === $newConnection) {
                 continue;
             }
-            if ((int) ($liveConnection->userId ?? 0) === $userId) {
-                $this->evictConnection($worker, $liveConnection, $userId);
+            if ($this->connectionBelongsToUser($worker, $liveConnection, $userId)) {
+                $this->logger->write(
+                    'INFO',
+                    "Post-bind sweep evicting: user_id={$userId} old_conn_id=" .
+                    ($liveConnection->id ?? 'null') . " new_conn_id={$newConnId}"
+                );
+                $this->evictConnection($worker, $liveConnection, $userId, 'post-bind-sweep', $newConnection);
             }
         }
 
-        $connId = $newConnection->id ?? 'null';
-        $this->logger->write('INFO', "Session claimed: user_id={$userId} conn_id={$connId}");
+        $this->logger->write('INFO', "Session claimed: user_id={$userId} conn_id={$newConnId}");
     }
 
     /**
@@ -79,20 +85,83 @@ final class SessionGuardService
     public function evictOtherLiveSessions(object $worker, int $userId, object $keepConnection): void
     {
         foreach ($this->findAllLiveConnectionsForUser($worker, $userId, $keepConnection) as $oldConnection) {
-            $this->evictConnection($worker, $oldConnection, $userId);
+            $this->evictConnection($worker, $oldConnection, $userId, 'action-guard', $keepConnection);
         }
+    }
+
+    /**
+     * Idempotent onClose cleanup for Connection Runtime Fields (EPIC-028).
+     * Mirrors server.php $worker->onClose — use in tests for exact parity.
+     */
+    public function handleConnectionClose(object $connection, object $worker): void
+    {
+        if (!empty($connection->lottoCloseProcessed)) {
+            $connId = $connection->id ?? 'null';
+            $this->logger->write(
+                'INFO',
+                "Connection closed duplicate conn_id={$connId} user_id=null reason=" .
+                (!empty($connection->lottoEvicted) ? 'post-eviction' : 'already-cleared')
+            );
+            return;
+        }
+
+        $connId = $connection->id ?? 'null';
+        $userIdForLog = $connection->userId ?? null;
+        $reason = 'unauthenticated';
+        if ($userIdForLog !== null) {
+            $reason = 'normal';
+        } elseif (!empty($connection->lottoEvicted)) {
+            $reason = 'post-eviction';
+        }
+
+        $this->logger->write(
+            'INFO',
+            'Connection closed conn_id=' . $connId .
+            ' user_id=' . ($userIdForLog ?? 'null') .
+            " reason={$reason}"
+        );
+
+        $connection->lottoCloseProcessed = true;
+
+        if (isset($worker->reconnectService)) {
+            $worker->reconnectService->handleDisconnect($connection, $worker);
+        }
+
+        if (($connection->userId ?? null) !== null) {
+            $userId = (int) $connection->userId;
+            if (
+                isset($worker->userConnections[$userId])
+                && $worker->userConnections[$userId] === $connection
+            ) {
+                unset($worker->userConnections[$userId]);
+            }
+        }
+
+        $connection->userId       = null;
+        $connection->username     = null;
+        $connection->isAdmin      = false;
+        $connection->sessionToken = null;
     }
 
     /**
      * Evicts a superseded live connection: remove from room, notify, clear auth, close.
      */
-    private function evictConnection(object $worker, object $oldConnection, int $userId): void
-    {
+    private function evictConnection(
+        object $worker,
+        object $oldConnection,
+        int $userId,
+        string $pass = 'primary',
+        ?object $newConnection = null
+    ): void {
         $oldConnId = $oldConnection->id ?? 'null';
+        $newConnId = $newConnection !== null ? ($newConnection->id ?? 'null') : 'null';
         $this->logger->write(
             'INFO',
-            "Evicting superseded session: user_id={$userId} old_conn_id={$oldConnId}"
+            "Evicting superseded session: user_id={$userId} old_conn_id={$oldConnId}" .
+            " new_conn_id={$newConnId} pass={$pass}"
         );
+
+        $oldConnection->lottoEvicted = true;
 
         $this->removeConnectionFromRoom($worker, $oldConnection, $userId);
 
@@ -162,7 +231,7 @@ final class SessionGuardService
             if ($liveConnection === $exceptConnection) {
                 continue;
             }
-            if ((int) ($liveConnection->userId ?? 0) === $userId) {
+            if ($this->connectionBelongsToUser($worker, $liveConnection, $userId)) {
                 $found[] = $liveConnection;
             }
         }
@@ -178,7 +247,48 @@ final class SessionGuardService
             }
         }
 
+        foreach ($worker->rooms ?? [] as $room) {
+            foreach ($room['players'] ?? [] as $player) {
+                if ((int) ($player['user_id'] ?? 0) !== $userId) {
+                    continue;
+                }
+                $seatConnection = $player['connection'] ?? null;
+                if (
+                    $seatConnection !== null
+                    && $seatConnection !== $exceptConnection
+                    && $this->isConnectionLive($worker, $seatConnection)
+                    && !in_array($seatConnection, $found, true)
+                ) {
+                    $found[] = $seatConnection;
+                }
+            }
+        }
+
         return $found;
+    }
+
+    /**
+     * True when $connection is still authenticated as $userId by any server signal.
+     * Catches sockets whose userId was cleared by a racing onClose but sessionToken
+     * or room-seat reference still ties them to the account (EPIC-028.2).
+     */
+    private function connectionBelongsToUser(object $worker, object $connection, int $userId): bool
+    {
+        if ((int) ($connection->userId ?? 0) === $userId) {
+            return true;
+        }
+
+        $token = $connection->sessionToken ?? null;
+        if (
+            is_string($token)
+            && $token !== ''
+            && isset($worker->sessionTokens[$token])
+            && (int) $worker->sessionTokens[$token] === $userId
+        ) {
+            return true;
+        }
+
+        return false;
     }
 
     private function isConnectionLive(object $worker, object $connection): bool

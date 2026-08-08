@@ -580,46 +580,14 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
 // -----------------------------------------------------------------------
 
 $worker->onClose = function ($connection) use ($worker): void {
-    $worker->logger->info(
-        'Connection closed (userId=' . ($connection->userId ?? 'null') . ')'
-    );
-    $worker->reconnectService->handleDisconnect($connection, $worker);
-
-    // FIX-10: $worker->userConnections никогда и нигде не очищался (ни
-    // здесь, ни в removePlayerFromLobby/Game/Apartment, ни при истечении
-    // reconnect-таймера) — единственный код, который его трогал, это
-    // register/login (устанавливает) и reconnect (перезаписывает). Пока
-    // ReconnectService::handleDisconnect() выше не влияет на этот маппинг,
-    // AuthService::login()'s single-session guard (`isset(...)`) навсегда
-    // блокировал бы login тем же аккаунтом после ЛЮБОГО дисконнекта —
-    // особенно для игрока, ещё не состоящего ни в одной комнате (для него
-    // reconnect в принципе не может найти совпадение и восстановить
-    // сессию). Снятие занятости слота здесь не мешает намеренному
-    // reconnect-пути (ADR-001 § reconnect как единственный штатный способ
-    // восстановления): reconnect работает независимо от этого маппинга —
-    // по $worker->sessionTokens + совпадению session_token внутри комнаты
-    // (см. AuthHandler::handleReconnect()/ReconnectService::handleReconnect(),
-    // FIX-10).
-    if (($connection->userId ?? null) !== null) {
-        $userId = (int) $connection->userId;
-        if (
-            isset($worker->userConnections[$userId])
-            && $worker->userConnections[$userId] === $connection
-        ) {
-            unset($worker->userConnections[$userId]);
-        }
+    if (isset($worker->sessionGuard)) {
+        $worker->sessionGuard->handleConnectionClose($connection, $worker);
     }
-
-    // EPIC-028: clear Connection Runtime Fields so a lingering closed socket
-    // cannot remain discoverable as authenticated during the next claim pass.
-    $connection->userId       = null;
-    $connection->username     = null;
-    $connection->isAdmin      = false;
-    $connection->sessionToken = null;
 
     if (isset($worker->memoryAudit)) {
         $worker->memoryAudit->snapshot('connection_close', $worker, [
-            'user_id' => $connection->userId ?? null,
+            'conn_id' => $connection->id ?? null,
+            'user_id' => null,
         ]);
     }
 };

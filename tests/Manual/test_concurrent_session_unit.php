@@ -46,6 +46,8 @@ function makeMockConnection(int $id): object
         public $isAdmin = false;
         public $sessionToken = null;
         public bool $closed = false;
+        public bool $lottoEvicted = false;
+        public bool $lottoCloseProcessed = false;
         public array $sent = [];
 
         public function __construct(int $id)
@@ -115,21 +117,9 @@ function makeStack(PDO $pdo): array
     return [$authService, $authHandler, $sessionGuard, $lobbyService, $reconnectService, $roomManager];
 }
 
-function simulateProductionOnClose(object $connection, object $worker): void
+function simulateProductionOnClose(object $connection, object $worker, SessionGuardService $sessionGuard): void
 {
-    if (($connection->userId ?? null) !== null) {
-        $userId = (int) $connection->userId;
-        if (
-            isset($worker->userConnections[$userId])
-            && $worker->userConnections[$userId] === $connection
-        ) {
-            unset($worker->userConnections[$userId]);
-        }
-    }
-    $connection->userId       = null;
-    $connection->username     = null;
-    $connection->isAdmin      = false;
-    $connection->sessionToken = null;
+    $sessionGuard->handleConnectionClose($connection, $worker);
     $worker->connections = array_values(array_filter(
         $worker->connections,
         static fn($c) => $c !== $connection
@@ -168,6 +158,7 @@ $worker = (object) [
     'roomManager' => $roomManager,
     'lobbyService' => $lobbyService,
     'reconnectService' => $reconnectService,
+    'sessionGuard' => $sessionGuard,
     'authHandler' => $authHandler,
 ];
 
@@ -175,7 +166,7 @@ $loginA = $authHandler->handleLogin(['username' => 'unit_x', 'password' => 'pass
 $tokenA = $worker->sessionTokens ? array_key_first($worker->sessionTokens) : null;
 unitCheck($tokenA !== null && $connA->userId === $userId, 'A login binds userId');
 
-simulateProductionOnClose($connA, $worker);
+simulateProductionOnClose($connA, $worker, $sessionGuard);
 unitCheck(!isset($worker->userConnections[$userId]), 'onClose clears userConnections slot');
 
 $worker->connections[] = $connB;
@@ -204,6 +195,7 @@ $worker2 = (object) [
     'roomManager' => $roomManager,
     'lobbyService' => $lobbyService,
     'reconnectService' => $reconnectService,
+    'sessionGuard' => $sessionGuard,
     'authHandler' => $authHandler,
 ];
 
@@ -228,6 +220,7 @@ $worker3 = (object) [
     'roomManager' => $roomManager,
     'lobbyService' => $lobbyService,
     'reconnectService' => $reconnectService,
+    'sessionGuard' => $sessionGuard,
     'authHandler' => $authHandler,
 ];
 

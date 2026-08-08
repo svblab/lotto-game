@@ -112,3 +112,63 @@ No protocol or packet contract changes.
 
 **Compatibility:** Internal bugfix only — no ANCHOR_PROTOCOL.md /
 ANCHOR_CORE.md contract changes.
+
+## Addendum — 2026-08-08 rapid relogin reproduction (EPIC-028.2)
+
+### New evidence
+
+Production log `2026-08-08 03:09–03:13` (user `test5` / `user_id=501`): seven
+fresh **login** cycles (no `reconnect` action), then the same `user_id` both
+**created** room 1 and **joined** it as a second occupant (`cards_count=2`).
+Reproduces across **different browser engines** (e.g. Chrome + Firefox) but
+not same-engine profiles (main + incognito), pointing to cross-engine WebSocket
+teardown timing rather than a pure deterministic server bug.
+
+Logs lacked `conn_id` on login/close lines, making it impossible to correlate
+which sockets were live at `03:13:02` / `03:13:06`.
+
+### Investigation
+
+Automated `tests/Manual/test_rapid_relogin_stress.php` models:
+
+- 7× login → onClose cycles
+- login while prior socket still in `$worker->connections` (late TCP teardown)
+- zombie socket with `userId` cleared but `sessionToken` still mapped
+- duplicate `onClose` (explains `Connection closed userId=null` mid-sequence)
+
+**Ruled out:** late `onClose` clearing fields on the *winning* connection when
+`userConnections[$userId]` already points at a newer socket (`===` guard is
+correct).
+
+**Root cause (additional path, EPIC-028.2):** `findAllLiveConnectionsForUser()`
+only matched `$connection->userId`. When a browser engine delays TCP teardown,
+`onClose` can clear `userId` on a socket that is **still in**
+`$worker->connections` while another engine's fresh login has already claimed
+the account. The stale socket was invisible to the primary eviction pass. If
+the stale client UI still held session state and sent lobby packets, dual-live
+auth could persist until create/join.
+
+Secondary signal: `userId=null` close lines are **post-eviction** or
+**never-authenticated** sockets hitting idempotent `onClose` — not a separate
+corruption bug.
+
+### Additional decisions (EPIC-028.2)
+
+1. **Auth lifecycle logging** — all login/reconnect/close/eviction lines include
+   `conn_id=`; eviction logs include `pass=` (`primary` | `post-bind-sweep` |
+   `action-guard`) and `new_conn_id=`.
+2. **`connectionBelongsToUser()`** — eviction discovery also matches
+   `sessionToken` still present in `$worker->sessionTokens`, plus live room-seat
+   `connection` references for the `user_id`.
+3. **`SessionGuardService::handleConnectionClose()`** — extracted from
+   `server.php` `onClose` (idempotent via `lottoCloseProcessed`, logs
+   `reason=normal|post-eviction|unauthenticated`).
+4. **`test_rapid_relogin_stress.php`** — regression harness for this path.
+
+### Honest limit
+
+The new unit test **does not** reproduce two authenticated sockets both
+successfully completing create+join in one process — with EPIC-028.2 discovery
+rules, the stale socket is evicted or blocked at `auth_required`. The
+production failure required **conn_id logging** on the next manual repro to
+confirm whether a remaining gap exists outside these paths.
