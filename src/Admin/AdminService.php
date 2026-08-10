@@ -525,6 +525,79 @@ final class AdminService
     }
 
     /**
+     * Admin user directory for moderation UI.
+     *
+     * Input:
+     * {"action":"admin_get_users","search":"alice","online_only":false,"banned_only":false,"limit":200}
+     *
+     * Output:
+     * {"type":"admin_users_data","users":[{"id":1,"username":"alice","coins":500,"is_admin":false,"banned_until":0,"online":true,"room_id":7}]}
+     */
+    public function handleGetUsers(array $data, object $connection, object $worker): void
+    {
+        if (!$this->assertAdmin($connection)) {
+            return;
+        }
+        if ($this->stmts === null) {
+            sendError($connection, 'error.invalid_json', 'Admin statements storage is not configured');
+            return;
+        }
+
+        $search = trim((string)($data['search'] ?? ''));
+        if (strlen($search) > 64) {
+            $search = substr($search, 0, 64);
+        }
+        $onlineOnly = !empty($data['online_only']);
+        $bannedOnly = !empty($data['banned_only']);
+        $limit = isset($data['limit']) ? (int)$data['limit'] : 200;
+        $limit = max(1, min(500, $limit));
+
+        $stmt = $this->stmts->get('users_admin_list');
+        $stmt->execute([$search, $search, $bannedOnly ? 1 : 0, $limit]);
+        $rows = $stmt->fetchAll();
+        if (!is_array($rows)) {
+            $rows = [];
+        }
+
+        $now = time();
+        $onlineIds = array_map('intval', array_keys($worker->userConnections ?? []));
+        $roomByUser = $this->buildUserRoomMap($worker);
+        $users = [];
+
+        foreach ($rows as $row) {
+            $userId = (int)($row['id'] ?? 0);
+            if ($userId <= 0) {
+                continue;
+            }
+            $isOnline = in_array($userId, $onlineIds, true);
+            if ($onlineOnly && !$isOnline) {
+                continue;
+            }
+
+            $entry = [
+                'id'           => $userId,
+                'username'     => (string)($row['username'] ?? ''),
+                'coins'        => (int)($row['coins'] ?? 0),
+                'is_admin'     => (int)($row['is_admin'] ?? 0) === 1,
+                'banned_until' => (int)($row['banned_until'] ?? 0),
+                'online'       => $isOnline,
+            ];
+            if ($isOnline && isset($roomByUser[$userId])) {
+                $entry['room_id'] = $roomByUser[$userId];
+            }
+            if ($entry['banned_until'] > $now) {
+                $entry['banned'] = true;
+            }
+            $users[] = $entry;
+        }
+
+        sendJson($connection, [
+            'type'  => 'admin_users_data',
+            'users' => $users,
+        ]);
+    }
+
+    /**
      * EPIC-9.5: logs access.
      *
      * Input:
@@ -566,6 +639,20 @@ final class AdminService
             'permanent' => 4102444800,
             default => null,
         };
+    }
+
+    private function buildUserRoomMap(object $worker): array
+    {
+        $map = [];
+        foreach (($worker->rooms ?? []) as $roomId => $room) {
+            foreach (($room['players'] ?? []) as $player) {
+                $uid = (int)($player['user_id'] ?? 0);
+                if ($uid > 0) {
+                    $map[$uid] = (int)$roomId;
+                }
+            }
+        }
+        return $map;
     }
 
     private function findPlayerMembership(object $worker, int $userId): ?array

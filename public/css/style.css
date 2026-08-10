@@ -734,6 +734,31 @@ label span { display: block; margin-bottom: 0.25rem; font-size: 0.9rem; color: v
 .admin-panel header { display: flex; justify-content: space-between; align-items: center; }
 .admin-row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
 .admin-row input { width: 100px; }
+.admin-user-picker { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.75rem; }
+.admin-user-search { width: 100%; max-width: 100%; }
+.admin-filters { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: center; font-size: 0.85rem; }
+.admin-filter { display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; }
+.admin-user-select {
+  width: 100%;
+  min-height: 10rem;
+  font-family: inherit;
+  font-size: 0.9rem;
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--text);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: var(--radius);
+  padding: 0.35rem;
+}
+.admin-user-select option { padding: 0.25rem 0.35rem; }
+.admin-user-info {
+  margin: 0;
+  padding: 0.5rem 0.65rem;
+  border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.2);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+.admin-actions { margin-top: 0.25rem; }
 .logs-box {
   background: #111;
   color: #0f0;

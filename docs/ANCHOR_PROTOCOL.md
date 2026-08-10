@@ -433,10 +433,22 @@ Client → Server
 {"action": "admin_get_stats"}
 ```
 
+### admin_get_users
+Client → Server
+```json
+{"action": "admin_get_users", "search": "alice", "online_only": false, "banned_only": false, "limit": 200}
+```
+
 ### admin_stats_data
 Server → Client. Emitted only in response to `admin_get_stats`.
 ```json
 {"type": "admin_stats_data", "online": 0, "memory_mb": 0, "rooms": []}
+```
+
+### admin_users_data
+Server → Client. Emitted only in response to `admin_get_users`.
+```json
+{"type": "admin_users_data", "users": [{"id": 1, "username": "alice", "coins": 500, "is_admin": false, "banned_until": 0, "online": true, "room_id": 7, "banned": false}]}
 ```
 
 ### admin_logs_data

@@ -672,6 +672,20 @@
     UI().setAdminStats(pkt.online, pkt.memory_mb);
   }
 
+  function onAdminUsers(pkt) {
+    UI().renderAdminUserPicker(pkt.users || []);
+  }
+
+  function requestAdminUsers() {
+    socket.sendAction('admin_get_users', {
+      search: UI().$('#admin-user-search')?.value?.trim() || '',
+      online_only: UI().$('#admin-filter-online')?.checked || false,
+      banned_only: UI().$('#admin-filter-banned')?.checked || false,
+    });
+  }
+
+  let adminUserSearchTimer = null;
+
   // --- User actions ---
   function guardAlreadyInRoom() {
     if (!state.room) return false;
@@ -835,23 +849,37 @@
       socket.sendAction('admin_get_logs');
       socket.sendAction('admin_get_stats');
       socket.sendAction('room_list');
+      requestAdminUsers();
     });
     UI().$('#admin-close-btn')?.addEventListener('click', () => UI().toggleOverlay('#admin-panel', false));
     UI().$('#admin-refresh-logs')?.addEventListener('click', () => socket.sendAction('admin_get_logs'));
+    UI().$('#admin-refresh-users')?.addEventListener('click', () => requestAdminUsers());
+    UI().$('#admin-user-search')?.addEventListener('input', () => {
+      clearTimeout(adminUserSearchTimer);
+      adminUserSearchTimer = setTimeout(() => requestAdminUsers(), 300);
+    });
+    UI().$('#admin-filter-online')?.addEventListener('change', () => requestAdminUsers());
+    UI().$('#admin-filter-banned')?.addEventListener('change', () => requestAdminUsers());
+    UI().$('#admin-user-select')?.addEventListener('change', (e) => {
+      UI().updateAdminUserInfo(parseInt(e.target.value, 10) || 0);
+    });
     UI().$('#admin-ban-btn')?.addEventListener('click', () => {
-      const uid = parseInt(UI().$('#admin-user-id').value, 10);
+      const uid = UI().getSelectedAdminUserId();
       if (!uid) return;
       socket.sendAction('admin_ban_user', { user_id: uid, duration: UI().$('#admin-ban-duration').value });
+      setTimeout(() => requestAdminUsers(), 400);
     });
     UI().$('#admin-unban-btn')?.addEventListener('click', () => {
-      const uid = parseInt(UI().$('#admin-user-id').value, 10);
+      const uid = UI().getSelectedAdminUserId();
       if (!uid) return;
       socket.sendAction('admin_unban_user', { user_id: uid });
+      setTimeout(() => requestAdminUsers(), 400);
     });
     UI().$('#admin-kick-btn')?.addEventListener('click', () => {
-      const uid = parseInt(UI().$('#admin-user-id').value, 10);
+      const uid = UI().getSelectedAdminUserId();
       if (!uid) return;
       socket.sendAction('admin_kick_user', { user_id: uid });
+      setTimeout(() => requestAdminUsers(), 400);
     });
 
     document.addEventListener('keydown', (e) => {
@@ -891,6 +919,7 @@
       reconnect_state: onReconnectState,
       admin_logs_data: onAdminLogs,
       admin_stats_data: onAdminStats,
+      admin_users_data: onAdminUsers,
     };
     Object.entries(handlers).forEach(([type, fn]) => socket.on(type, fn));
 

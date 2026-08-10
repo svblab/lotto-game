@@ -867,6 +867,78 @@
     if (memEl) memEl.textContent = memoryMb ?? '—';
   }
 
+  let adminUsersCache = [];
+
+  function formatAdminUserLabel(user) {
+    const t = global.LottoI18n.t;
+    const badges = [];
+    if (user.online) badges.push(t('admin.badgeOnline'));
+    if (user.banned || (user.banned_until && user.banned_until > Math.floor(Date.now() / 1000))) {
+      badges.push(t('admin.badgeBanned'));
+    }
+    if (user.is_admin) badges.push(t('admin.badgeAdmin'));
+    const badgeStr = badges.length ? ` [${badges.join(', ')}]` : '';
+    return `${user.username} (#${user.id})${badgeStr}`;
+  }
+
+  function renderAdminUserPicker(users, selectedId) {
+    adminUsersCache = users || [];
+    const select = $('#admin-user-select');
+    if (!select) return;
+    const t = global.LottoI18n.t;
+    const prev = selectedId != null ? String(selectedId) : select.value;
+    select.innerHTML = '';
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = t('admin.selectUser');
+    select.appendChild(placeholder);
+    adminUsersCache.forEach((user) => {
+      const opt = document.createElement('option');
+      opt.value = String(user.id);
+      opt.textContent = formatAdminUserLabel(user);
+      select.appendChild(opt);
+    });
+    if (prev && select.querySelector(`option[value="${prev}"]`)) {
+      select.value = prev;
+    }
+    updateAdminUserInfo(select.value ? parseInt(select.value, 10) : 0);
+  }
+
+  function updateAdminUserInfo(userId) {
+    const info = $('#admin-user-info');
+    if (!info) return;
+    const t = global.LottoI18n.t;
+    if (!userId) {
+      info.classList.add('hidden');
+      info.textContent = '';
+      return;
+    }
+    const user = adminUsersCache.find((u) => u.id === userId);
+    if (!user) {
+      info.classList.add('hidden');
+      info.textContent = '';
+      return;
+    }
+    const parts = [
+      `${t('auth.username')}: ${user.username}`,
+      `ID: ${user.id}`,
+      `${t('admin.coins')}: ${user.coins}`,
+    ];
+    if (user.online) parts.push(t('admin.badgeOnline'));
+    if (user.room_id) parts.push(`${t('lobby.inRoom')} #${user.room_id}`);
+    if (user.banned || (user.banned_until && user.banned_until > Math.floor(Date.now() / 1000))) {
+      parts.push(t('admin.badgeBanned'));
+    }
+    if (user.is_admin) parts.push(t('admin.badgeAdmin'));
+    info.textContent = parts.join(' · ');
+    info.classList.remove('hidden');
+  }
+
+  function getSelectedAdminUserId() {
+    const val = $('#admin-user-select')?.value;
+    return val ? parseInt(val, 10) : 0;
+  }
+
   // --- Rules ---
   function renderRules() {
     const box = $('#rules-content');
@@ -998,6 +1070,9 @@
     renderAdminRooms,
     setAdminLogs,
     setAdminStats,
+    renderAdminUserPicker,
+    updateAdminUserInfo,
+    getSelectedAdminUserId,
     renderRules,
     renderLangPicker,
     showReconnecting,

@@ -49,7 +49,9 @@ class PreparedStatements
         
         'ban_user' => "UPDATE users SET banned_until = ? WHERE id = ?",
         
-        'unban_user' => "UPDATE users SET banned_until = 0 WHERE id = ?"
+        'unban_user' => "UPDATE users SET banned_until = 0 WHERE id = ?",
+
+        'users_admin_list' => "SELECT id, username, coins, is_admin, banned_until FROM users WHERE (? = '' OR LOWER(username) LIKE '%' || LOWER(?) || '%') AND (? = 0 OR banned_until > strftime('%s','now')) ORDER BY username COLLATE NOCASE ASC LIMIT ?"
     ];
 
     /**

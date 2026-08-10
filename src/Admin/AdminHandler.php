@@ -69,6 +69,14 @@ final class AdminHandler
     }
 
     /**
+     * {"action": "admin_get_users", "search": "alice", "online_only": false, "banned_only": false}
+     */
+    public function handleGetUsers(array $data, object $connection, object $worker): void
+    {
+        $this->adminService->handleGetUsers($data, $connection, $worker);
+    }
+
+    /**
      * {"action": "admin_get_logs"}
      */
     public function handleGetLogs(array $data, object $connection): void

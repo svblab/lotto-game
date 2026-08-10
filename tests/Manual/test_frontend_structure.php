@@ -153,13 +153,37 @@ if ($html && str_contains($html, 'id="admin-online"') && str_contains($html, 'id
     fail('index.html: admin live stats elements');
 }
 
+if ($html && str_contains($html, 'id="admin-user-select"') && str_contains($html, 'id="admin-user-search"')) {
+    ok('index.html: admin user picker elements');
+} else {
+    fail('index.html: admin user picker elements');
+}
+
+if ($html && !str_contains($html, 'id="admin-user-id"')) {
+    ok('index.html: admin-user-id removed');
+} else {
+    fail('index.html: admin-user-id removed');
+}
+
+if ($ui && str_contains($ui, 'renderAdminUserPicker') && str_contains($ui, 'getSelectedAdminUserId')) {
+    ok('ui.js: admin user picker helpers');
+} else {
+    fail('ui.js: admin user picker helpers');
+}
+
+if ($app && str_contains($app, 'admin_get_users') && str_contains($app, 'admin_users_data')) {
+    ok('app.js: admin_get_users wired');
+} else {
+    fail('app.js: admin_get_users wired');
+}
+
 if ($html && !str_contains($html, 'admin.statsHint')) {
     ok('index.html: admin.statsHint removed');
 } else {
     fail('index.html: admin.statsHint removed');
 }
 
-$adminI18nKeys = ['liveStats', 'online', 'memory'];
+$adminI18nKeys = ['liveStats', 'online', 'memory', 'searchUser', 'selectUser', 'onlineOnly', 'bannedOnly'];
 foreach (['en', 'ru', 'es', 'fr', 'zh', 'tr'] as $lang) {
     $localePath = $public . "/locales/$lang.json";
     $localeData = json_decode((string)file_get_contents($localePath), true);

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Russian Lotto Bingo</title>
-  <link rel="stylesheet" href="css/style.css?v=12">
+  <link rel="stylesheet" href="css/style.css?v=13">
 </head>
 <body>
   <div id="app">
@@ -247,8 +247,19 @@
         </div>
         <div class="admin-section">
           <h3 data-i18n="admin.moderation">Moderation</h3>
-          <div class="admin-row">
-            <input type="number" id="admin-user-id" placeholder="User ID" min="1">
+          <div class="admin-user-picker">
+            <input type="search" id="admin-user-search" class="admin-user-search" data-i18n-placeholder="admin.searchUser" placeholder="Search by username" autocomplete="off">
+            <div class="admin-filters">
+              <label class="admin-filter"><input type="checkbox" id="admin-filter-online"> <span data-i18n="admin.onlineOnly">Online only</span></label>
+              <label class="admin-filter"><input type="checkbox" id="admin-filter-banned"> <span data-i18n="admin.bannedOnly">Banned only</span></label>
+              <button type="button" id="admin-refresh-users" class="btn small" data-i18n="admin.refreshUsers">Refresh</button>
+            </div>
+            <select id="admin-user-select" class="admin-user-select" size="8">
+              <option value="" data-i18n="admin.selectUser">— select user —</option>
+            </select>
+            <p id="admin-user-info" class="admin-user-info hidden" aria-live="polite"></p>
+          </div>
+          <div class="admin-row admin-actions">
             <select id="admin-ban-duration">
               <option value="1d">1d</option>
               <option value="3d">3d</option>
@@ -334,7 +345,7 @@
 
   <script src="js/i18n.js?v=4"></script>
   <script src="js/ws.js?v=4"></script>
-  <script src="js/ui.js?v=12"></script>
-  <script src="js/app.js?v=12"></script>
+  <script src="js/ui.js?v=13"></script>
+  <script src="js/app.js?v=13"></script>
 </body>
 </html>

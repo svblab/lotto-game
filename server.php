@@ -559,6 +559,7 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
         'admin_close_room' => $worker->adminHandler->handleCloseRoom($data, $connection, $worker),
         'admin_get_logs'   => $worker->adminHandler->handleGetLogs($data, $connection),
         'admin_get_stats'  => $worker->adminHandler->handleGetStats($data, $connection, $worker),
+        'admin_get_users'  => $worker->adminHandler->handleGetUsers($data, $connection, $worker),
         default            => sendError($connection, 'error.invalid_json', "Unknown or not-yet-wired action: {$action}"),
     };
 
