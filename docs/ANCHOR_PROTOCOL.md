@@ -156,7 +156,7 @@ Client → Server
 ```
 
 ### room_joined
-Server → Client
+Server → Client. `players[]` includes each seated player's `cards_count` (public); card numbers do not exist until `start_game`.
 ```json
 {"type": "room_joined", "room_id": 7, "host": "player1", "status": "waiting", "bank": 0, "players": [], "host_timeout_start": 1704067150, "host_timeout_seconds": 120}
 ```
@@ -231,18 +231,25 @@ Client → Server. Host only.
 ```
 
 ### game_started
-Server → Room. Own cards visible only to owner; foreign cards never contain numbers.
+Server → Room (per-player payload).
+
+**Card visibility (all phases):**
+- `cards_count` is visible to every client for every player in the roster (lobby and in-game).
+- Card **numbers** (`cards` array) are visible only to the owning player (`is_self: true`).
+- Foreign entries use `cards: null`; opponents receive only `masks` (mark state, no numbers).
+
 ```json
 {"type": "game_started", "bank": 40, "drawer_order": ["host", "player2", "player3"], "players": []}
 ```
 Player entry, self:
 ```json
-{"username": "player", "is_self": true, "cards": [], "masks": []}
+{"username": "player", "is_self": true, "cards_count": 2, "cards": [], "masks": []}
 ```
 Player entry, others:
 ```json
-{"username": "player2", "is_self": false, "cards": null, "masks": []}
+{"username": "player2", "is_self": false, "cards_count": 1, "cards": null, "masks": []}
 ```
+`masks` length equals `cards_count` for every entry; foreign `masks` start all-`false` and do not reveal card numbers.
 
 ---
 
@@ -301,7 +308,12 @@ Server → Room
 `required`: `true = must answer`, `false = immune`
 
 ### apartment_choice
-Client → Server
+Client → Server. May be sent multiple times per player until the apartment timer expires; the **last** choice before expiry is final.
+
+`agree` — record intent to pay 5 coins when the phase ends (payment not taken until timer expiry).
+
+`refuse` — record intent to leave when the phase ends (removal not applied until timer expiry).
+
 ```json
 {"action": "apartment_choice", "choice": "agree"}
 ```
@@ -309,6 +321,8 @@ or
 ```json
 {"action": "apartment_choice", "choice": "refuse"}
 ```
+
+The apartment phase always runs for the full `time_left` window. Game resumes only after the apartment timer fires (or the room is destroyed).
 
 ---
 
@@ -355,7 +369,7 @@ Waiting room:
 ```json
 {"type": "reconnect_state", "status": "waiting", "room_id": 5, "bank": 0, "coins": 490, "drawn_all": [], "my_cards": null}
 ```
-Playing:
+Playing (`my_cards` / `my_masks` — own cards only; `players[].cards_count` visible for all):
 ```json
 {"type": "reconnect_state", "status": "playing", "room_id": 5, "bank": 80, "coins": 490, "drawn_all": [], "my_cards": [], "players": [{"username": "player1", "cards_count": 1, "status": "active"}, {"username": "player2", "cards_count": 2, "status": "removed", "reason": "disconnect"}], "win_chances": {"player1": 50, "player2": 50}, "is_my_turn": true, "afk_start": 1704067200, "turn_seconds": 30, "auto_draws": 0}
 ```

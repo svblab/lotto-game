@@ -67,7 +67,7 @@
   },
   "apartment": {
     "title": "Apartment!",
-    "required": "A row is complete! Pay 10 coins to continue or refuse.",
+    "required": "A row is complete! Pay 10 coins to continue or refuse. You can change your choice until the timer ends.",
     "immune": "Waiting for other players to decide…",
     "agree": "Agree (+10)",
     "refuse": "Refuse"

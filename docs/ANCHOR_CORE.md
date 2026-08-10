@@ -188,10 +188,10 @@ Bank belongs to the room — not host, drawer, or winner — until game end.
 Triggers at most once per game. Required (non-immune) player who chooses `agree` adds `5 coins` to bank: `bank += 5; player.total_paid += 5`. Transaction required.
 
 ## Apartment Refusal
-Causes removal (reason `refuse`). Already-paid coins remain in bank — no refund.
+Final choice `refuse` causes removal (reason `refuse`) when the apartment phase ends. Already-paid coins remain in bank — no refund.
 
 ## Apartment Timeout
-Equivalent to `refuse`.
+Equivalent to `refuse` for players who never sent a choice. Players who sent `agree` or `refuse` may change their choice until the timer expires; only the last choice counts.
 
 ## Disconnect
 No refund. Player remains eligible for reconnect.
@@ -365,7 +365,7 @@ Transitions: `apartment detected → apartment`; `winner found → finished`; `l
 
 **apartment**: Apartment event active, loop paused, no barrel drawing, waiting on required responses.
 Allowed: `apartment_choice, ping`. Forbidden: `draw_barrel, start_game, join_room`. Reconnect forbidden.
-Transitions: `all required responses received → playing`; `apartment timer expired → playing`; `winner found → finished`; `last survivor → finished`; `admin_close_room → destroyed`.
+Transitions: `apartment timer expired → playing`; `winner found → finished`; `last survivor → finished`; `admin_close_room → destroyed`.
 
 **finished**: Result finalized, prizes distributed, no gameplay. Allowed: none. Immediately destroyed.
 Transition: `finished → destroyed`.
@@ -452,8 +452,8 @@ Destroyed when room leaves `playing` or room destroyed.
 
 ## Apartment Timer
 Owner: room. Exists only in `apartment`. Max 1/room. Created on apartment start. Duration: 10s single-shot.
-Purpose: limit response time. Expiration: unanswered required players → `refuse`; game resumes/finishes per state machine.
-Destroyed when: all required responses received, room destroyed, or expires.
+Purpose: limit response time and keep all clients in sync. Expiration: unanswered required players → `refuse`; all recorded refusals applied; agreeing players charged; game resumes/finishes per state machine.
+Destroyed when: timer expires (`finishApartment`), room destroyed, or admin closes room. Not destroyed early when all players have answered.
 
 ## Reconnect Timer
 Owner: player. Exists only for `disconnected`. Created on connection loss when `room.state ∈ {waiting, playing}`.

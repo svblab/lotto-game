@@ -43,7 +43,17 @@ class MockConnection {
     public function lastSent(): ?array { return end($this->sent) ?: null; }
 }
 
-class MockWorker { public array $rooms = []; }
+class MockWorker {
+    public array $rooms = [];
+    public object $lobbyService;
+
+    public function __construct()
+    {
+        $this->lobbyService = new class {
+            public function broadcastRoomList(object $worker): void {}
+        };
+    }
+}
 
 class MockPDO {
     public bool $committed = false; public bool $rolledBack = false;
@@ -394,7 +404,7 @@ $apt = new ApartmentService($_mockDb, $_mockSt, $_mockLog);
     $worker = new MockWorker();
     $pdo    = new MockPDO();
 
-    [$svc, $log, $st] = makeSvc([
+    [$svc, , , $pdo, $apt] = makeSvc([
         10 => ['id' => 10, 'coins' => 100],
         20 => ['id' => 20, 'coins' => 100],
     ], $pdo);
@@ -407,17 +417,22 @@ $apt = new ApartmentService($_mockDb, $_mockSt, $_mockLog);
     $room['_apartment_participants'] = [1 => true, 2 => true];
     $worker->rooms[1] = $room;
 
-    // h agrees, p2 agrees → finishApartment triggered
+    // h agrees, p2 agrees → still apartment until timer
     $svc->handleApartmentChoice($h, $worker, 'agree');
 
-    // After h agrees (1/2), game still in apartment
     if (isset($worker->rooms[1])) {
         assert_true($worker->rooms[1]['status'] === 'apartment', 'Choice: after 1 agree still apartment');
     }
 
     $svc->handleApartmentChoice($p2, $worker, 'agree');
 
-    // After both agree → finishApartment → status=playing
+    if (isset($worker->rooms[1])) {
+        assert_true($worker->rooms[1]['status'] === 'apartment', 'Choice: both agree still apartment until timer');
+    }
+
+    $apt->onApartmentTimeout($worker->rooms[1], 1, $worker, $svc);
+
+    // After timer → finishApartment → status=playing
     if (isset($worker->rooms[1])) {
         assert_true($worker->rooms[1]['status'] === 'playing', 'Choice: both agree → playing');
         assert_true($worker->rooms[1]['bank'] === 30,          'Choice: bank += 5+5 = 30');
@@ -440,7 +455,7 @@ $apt = new ApartmentService($_mockDb, $_mockSt, $_mockLog);
     $worker = new MockWorker();
     $pdo    = new MockPDO();
 
-    [$svc] = makeSvc([
+    [$svc, , , , $apt] = makeSvc([
         10 => ['id' => 10, 'coins' => 100],
         20 => ['id' => 20, 'coins' => 100],
         30 => ['id' => 30, 'coins' => 100],
@@ -455,11 +470,23 @@ $apt = new ApartmentService($_mockDb, $_mockSt, $_mockLog);
     $room['_apartment_participants'] = [1 => true, 2 => true, 3 => true];
     $worker->rooms[1] = $room;
 
-    // p2 refuses → removed
+    // p2 refuses → recorded, still in room until timer
     $svc->handleApartmentChoice($p2, $worker, 'refuse');
 
     $r = $worker->rooms[1];
-    assert_true(!isset($r['players'][2]),           'Refuse: p2 removed from players');
+    assert_true(isset($r['players'][2]),           'Refuse: p2 still in room until timer');
+    assert_true(($r['apartment_responses'][2] ?? '') === 'refuse', 'Refuse: response recorded');
+
+    // h and p3 agree
+    $svc->handleApartmentChoice($h, $worker, 'agree');
+    $svc->handleApartmentChoice($p3, $worker, 'agree');
+
+    assert_true($worker->rooms[1]['status'] === 'apartment', 'Refuse+Agree: still apartment until timer');
+
+    $apt->onApartmentTimeout($worker->rooms[1], 1, $worker, $svc);
+
+    $r = $worker->rooms[1];
+    assert_true(!isset($r['players'][2]),           'Refuse: p2 removed after timer');
     assert_true(!in_array(2, $r['drawer_order']),   'Refuse: p2 removed from drawer_order');
     assert_true(
         ($worker->rooms[1]['all_players_history'][2]['cards_count'] ?? -1) === 1,
@@ -470,18 +497,56 @@ $apt = new ApartmentService($_mockDb, $_mockSt, $_mockLog);
         'Refuse: history reason=refuse'
     );
 
-    // player_left sent to remaining
+    // player_left sent to remaining and to removed player (with user_id for client self-removal)
     $hLeft = $h->sentOfType('player_left');
     assert_true(count($hLeft) === 1,                'Refuse: player_left sent to host');
     assert_true($hLeft[0]['reason'] === 'refuse',   'Refuse: reason=refuse');
-
-    // h and p3 agree → finish
-    $svc->handleApartmentChoice($h, $worker, 'agree');
-    $svc->handleApartmentChoice($p3, $worker, 'agree');
+    $p2Left = $p2->sentOfType('player_left');
+    assert_true(count($p2Left) === 1,               'Refuse: player_left sent to removed player');
+    assert_true(($p2Left[0]['user_id'] ?? 0) === 20, 'Refuse: removed player packet has user_id');
 
     if (isset($worker->rooms[1])) {
         assert_true($worker->rooms[1]['status'] === 'playing', 'Refuse+Agree: game resumes');
         assert_true($worker->rooms[1]['bank'] === 40,          'Refuse+Agree: bank += 5+5=40');
+    }
+}
+
+// ---------------------------------------------------------------------------
+// GROUP 7b: handleApartmentChoice — change decision before timer
+// ---------------------------------------------------------------------------
+
+{
+    $h  = makeConn(1, 10, 'host');
+    $p2 = makeConn(2, 20, 'p2');
+    $worker = new MockWorker();
+    $pdo    = new MockPDO();
+
+    [$svc, , , , $apt] = makeSvc([
+        10 => ['id' => 10, 'coins' => 100],
+        20 => ['id' => 20, 'coins' => 100],
+    ], $pdo);
+
+    $room = makeRoom(1, [1, 2], 20);
+    $room['players'][1] = makePlayer($h,  1, [], [], false);
+    $room['players'][2] = makePlayer($p2, 1, [], [], false);
+    $room['status']     = 'apartment';
+    $room['apartment_fired'] = true;
+    $room['_apartment_participants'] = [1 => true, 2 => true];
+    $worker->rooms[1] = $room;
+
+    $svc->handleApartmentChoice($p2, $worker, 'refuse');
+    $svc->handleApartmentChoice($p2, $worker, 'agree');
+    assert_true(isset($worker->rooms[1]['players'][2]), 'Change: refuse→agree keeps player in room');
+    assert_true(($worker->rooms[1]['apartment_responses'][2] ?? '') === 'agree', 'Change: last choice wins');
+
+    $svc->handleApartmentChoice($h, $worker, 'agree');
+    $apt->onApartmentTimeout($worker->rooms[1], 1, $worker, $svc);
+
+    if (isset($worker->rooms[1])) {
+        assert_true(isset($worker->rooms[1]['players'][2]), 'Change: p2 stays after final agree');
+        assert_true($worker->rooms[1]['status'] === 'playing', 'Change: game resumes');
+    } else {
+        fail('Change: room should exist after agree+agree');
     }
 }
 
@@ -581,7 +646,7 @@ $apt2 = new ApartmentService($_db2, $_st2, $_log2);
     $worker = new MockWorker();
     $pdo    = new MockPDO();
 
-    [$svc] = makeSvc([
+    [$svc, , , , $apt] = makeSvc([
         10 => ['id' => 10, 'coins' => 100],
         20 => ['id' => 20, 'coins' => 100],
         30 => ['id' => 30, 'coins' => 100],
@@ -598,6 +663,7 @@ $apt2 = new ApartmentService($_db2, $_st2, $_log2);
 
     $svc->handleApartmentChoice($h, $worker, 'agree');
     $svc->handleApartmentChoice($p2, $worker, 'agree');
+    $apt->onApartmentTimeout($worker->rooms[1], 1, $worker, $svc);
 
     assert_true(isset($worker->rooms[1]), 'bank_updated: room exists after resume');
     $expectedBank = 30;
@@ -623,7 +689,7 @@ $apt2 = new ApartmentService($_db2, $_st2, $_log2);
     $p2b = makeConn(5, 50, 'solo_p2');
     $worker2 = new MockWorker();
     $pdo2 = new MockPDO();
-    [$svc2] = makeSvc([
+    [$svc2, , , , $apt2] = makeSvc([
         40 => ['id' => 40, 'coins' => 100],
         50 => ['id' => 50, 'coins' => 100],
     ], $pdo2);
@@ -638,6 +704,7 @@ $apt2 = new ApartmentService($_db2, $_st2, $_log2);
 
     $svc2->handleApartmentChoice($p2b, $worker2, 'refuse');
     $svc2->handleApartmentChoice($h2, $worker2, 'agree');
+    $apt2->onApartmentTimeout($worker2->rooms[1], 1, $worker2, $svc2);
 
     assert_true(count($h2->sentOfType('bank_updated')) === 0, 'bank_updated: not sent on last_survivor');
     assert_true(count($h2->sentOfType('game_over')) >= 1, 'bank_updated: game_over on last_survivor');

@@ -131,7 +131,7 @@ connection
 
     barrels_drawn: числа + остаток мешка + next_drawer + is_final
 
-    game_started: своя карточка полностью, чужие — username + пустая маска
+    game_started: своя карточка полностью (числа + маска), чужие — username + cards_count + пустая маска без чисел
 
     три отдельные функции: removePlayerFromLobby / removePlayerFromGame / removePlayerFromApartment
 
@@ -144,7 +144,7 @@ connection
 
     Генерация карточек (по cards_count) и мешка. Рассылка game_started.
 
-    game_started содержит: своя карточка полностью (числа + пустая маска), чужие игроки — только username + пустая маска без чисел.
+    game_started содержит: своя карточка полностью (числа + пустая маска), чужие игроки — username, cards_count (1 или 2) и пустая маска без чисел (cards: null).
 
     Формирование drawer_order (первый — хост, далее FIFO). Установка active_drawer_conn_id = drawer_order[0]. Отправка your_turn. Запуск AFK-таймера.
 
@@ -235,15 +235,15 @@ unset(worker−>rooms[worker−>rooms[roomId]);
 
 Обработка apartment_choice:
 
-    'agree': проверить coins >= 5 в БД. Если нет — принудительный 'refuse'. Если да — списать 5 монет, добавить в bank и total_paid.
+    agree / refuse — записываются в apartment_responses; игрок может менять выбор до истечения apartment_timer_id.
 
-    'refuse' или таймаут → removePlayerFromApartment(..., 'refuse'). Ставка сгорает в банке.
+    Отказ и оплата применяются только при завершении фазы (таймер). agree — списать 5 монет (транзакция), bank += 5. refuse → removePlayerFromApartment(..., 'refuse'). Ставка сгорает в банке.
 
     immune = true во время паузы: при дисконнекте — немедленный removePlayerFromApartment(..., 'disconnect') без Reconnect-окна.
 
-    Досрочное снятие паузы: все обязанные ответили или удалены → отменить apartment_timer_id, status = 'playing', сбросить pause_for_apartment. Передать очередь следующему по drawer_order, отправить your_turn.
+    Фаза всегда длится до истечения apartment_timer_id. Досрочное снятие паузы при «все ответили» отключено. По таймеру: применить отказы, списать agree, status = 'playing', отправить your_turn.
 
-    При удалении обязанного игрока (immune = false) — проверить досрочное снятие паузы.
+    При удалении обязанного игрока админом — только проверка на zero survivors; досрочного завершения фазы нет.
 
 Механизм Reconnect:
 
@@ -356,7 +356,7 @@ unset(worker−>rooms[worker−>rooms[roomId]);
 
     Анимация бочонков: 3 окошка «слот-машины», размытый барабан, остановка слева направо с шагом 0.5 сек. Совпавшие числа — золотой импульс, закрытие фишкой.
 
-    apartment_alert: модальное окно после завершения анимации бочонков. Таймер 10 сек. immune = false — кнопки «Согласен» / «Отказаться». immune = true — текст ожидания. Таймаут → автоотправка refuse.
+    apartment_alert: модальное окно после завершения анимации бочонков. Таймер 10 сек. immune = false — кнопки «Согласен» / «Отказаться», выбор можно менять до конца таймера. immune = true — текст ожидания. Таймаут без выбора → автоотправка refuse. Окно закрывается по истечении таймера или при bank_updated после фазы.
 
     Если is_final: true в barrels_drawn — после завершения анимации немедленно извлечь game_over из очереди.
 

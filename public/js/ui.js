@@ -216,7 +216,7 @@
         statusCls = 'status-removed';
         statusText = t('game.removed');
       }
-      let extra = p.cards_count ? ` (${p.cards_count} ${t('lobby.cards')})` : '';
+      let extra = p.cards_count != null ? ` (${p.cards_count} ${t('lobby.cards')})` : '';
       if (showChance && p.winChance != null) extra += ` — ${p.winChance}%`;
       li.innerHTML = `<span>${p.username}${extra}</span><span class="${statusCls}">${statusText}</span>`;
       ul.appendChild(li);
@@ -741,13 +741,25 @@
   }
 
   // --- Apartment ---
-  function showApartment(required, timeLeft, onAgree, onRefuse, onTimeout) {
+  function showApartment(required, timeLeft, handlers = {}) {
+    const { onChoice, onTimeout } = handlers;
     const t = global.LottoI18n.t;
     toggleOverlay('#apartment-modal', true);
     $('#apartment-text').textContent = required
       ? t('apartment.required')
       : t('apartment.immune');
     $('#apartment-actions').classList.toggle('hidden', !required);
+    const agreeBtn = $('#apartment-agree');
+    const refuseBtn = $('#apartment-refuse');
+    let selected = null;
+    const setSelected = (choice) => {
+      selected = choice;
+      agreeBtn?.classList.toggle('selected', choice === 'agree');
+      refuseBtn?.classList.toggle('selected', choice === 'refuse');
+      onChoice?.(choice);
+    };
+    agreeBtn?.classList.remove('selected');
+    refuseBtn?.classList.remove('selected');
     let left = timeLeft || 10;
     $('#apartment-timer').textContent = left;
     clearInterval(global._aptTimer);
@@ -757,19 +769,13 @@
       if (left <= 0) {
         clearInterval(global._aptTimer);
         toggleOverlay('#apartment-modal', false);
-        if (required) onTimeout?.();
+        if (required && selected === null) {
+          onTimeout?.();
+        }
       }
     }, 1000);
-    $('#apartment-agree').onclick = () => {
-      clearInterval(global._aptTimer);
-      toggleOverlay('#apartment-modal', false);
-      onAgree?.();
-    };
-    $('#apartment-refuse').onclick = () => {
-      clearInterval(global._aptTimer);
-      toggleOverlay('#apartment-modal', false);
-      onRefuse?.();
-    };
+    agreeBtn.onclick = () => setSelected('agree');
+    refuseBtn.onclick = () => setSelected('refuse');
   }
 
   function hideApartment() {

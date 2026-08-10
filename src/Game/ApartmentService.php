@@ -161,17 +161,17 @@ final class ApartmentService
     }
 
     /**
-     * EPIC-13.5: after any apartment removal, finish early if all required answered.
-     * Reuses refuse-path logic from handleApartmentChoice().
+     * EPIC-13.5: after apartment removal, re-check survivors only.
+     * Apartment phase always runs until the apartment timer expires.
      */
     public function maybeFinishApartmentEarly(array &$room, int $roomId, object $worker): void
     {
         if ($this->gameService === null || ($room['status'] ?? null) !== 'apartment') {
             return;
         }
-        $participants = $this->getParticipants($room);
-        if ($this->allRequiredAnswered($room, $participants)) {
-            $this->finishApartment($room, $roomId, $worker, $this->gameService);
+        $active = array_filter($room['players'] ?? [], fn($p) => ($p['status'] ?? null) === 'active');
+        if (count($active) === 0) {
+            $this->gameService->handleNoSurvivors($room, $roomId, $worker);
         }
     }
 
@@ -336,20 +336,11 @@ final class ApartmentService
             return; // immune — молча игнорируем
         }
 
-        if (isset($room['apartment_responses'][$connId])) {
-            return; // уже ответил
+        if ($choice !== 'agree' && $choice !== 'refuse') {
+            return;
         }
 
         $this->recordResponse($room, $connId, $choice);
-
-        if ($choice === 'refuse') {
-            $this->removePlayerFromApartment($room, $roomId, $connId, 'refuse', $worker);
-            if (!isset($worker->rooms[$roomId])) return;
-        }
-
-        if ($this->allRequiredAnswered($room, $participants)) {
-            $this->finishApartment($room, $roomId, $worker, $gameService);
-        }
     }
 
     /**
@@ -366,8 +357,6 @@ final class ApartmentService
 
         foreach ($this->getPendingRequired($room, $participants) as $connId) {
             $this->recordResponse($room, $connId, 'refuse');
-            $this->removePlayerFromApartment($room, $roomId, $connId, 'refuse', $worker);
-            if (!isset($worker->rooms[$roomId])) return;
         }
 
         $this->finishApartment($room, $roomId, $worker, $gameService, 'apartment_timeout');
@@ -387,10 +376,14 @@ final class ApartmentService
         object $gameService,
         string $resumeTrigger = 'apartment_complete'
     ): void {
-        // Остановить таймер
         if (!empty($room['apartment_timer_id'])) {
             lottoTimerDel((int) $room['apartment_timer_id'], 'apartment', ['room_id' => $roomId]);
             $room['apartment_timer_id'] = null;
+        }
+
+        $this->applyDeferredRefusals($room, $roomId, $worker);
+        if (!isset($worker->rooms[$roomId])) {
+            return;
         }
 
         $participants = $this->getParticipants($room);
@@ -556,11 +549,11 @@ final class ApartmentService
         ];
 
         if (($player['status'] ?? null) === 'active' && isset($player['connection'])) {
-            sendJson($player['connection'], [
-                'type'     => 'player_left',
-                'username' => $player['username'],
-                'reason'   => $reason,
-            ]);
+            sendJson($player['connection'], $this->buildPlayerLeftPacket(
+                $player['username'],
+                $userId,
+                $reason
+            ));
         }
 
         unset($room['players'][$connId]);
@@ -569,13 +562,10 @@ final class ApartmentService
             array_filter($room['drawer_order'], fn($id) => $id !== $connId)
         );
 
+        $leftPacket = $this->buildPlayerLeftPacket($player['username'], $userId, $reason);
         foreach ($room['players'] as $p) {
             if ($p['status'] === 'active') {
-                $p['connection']->send(json_encode([
-                    'type'     => 'player_left',
-                    'username' => $player['username'],
-                    'reason'   => $reason,
-                ]));
+                sendJson($p['connection'], $leftPacket);
             }
         }
 
@@ -612,6 +602,52 @@ final class ApartmentService
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
+
+    /**
+     * Remove players whose final apartment choice is refuse.
+     * Deferred from handleApartmentChoice so votes can be changed until timer expiry.
+     */
+    private function applyDeferredRefusals(array &$room, int $roomId, object $worker): void
+    {
+        $participants = $this->getParticipants($room);
+        $toRemove = [];
+        foreach ($participants as $connId => $required) {
+            if (!$required) {
+                continue;
+            }
+            if (($room['apartment_responses'][$connId] ?? '') !== 'refuse') {
+                continue;
+            }
+            if (!isset($room['players'][$connId])) {
+                continue;
+            }
+            if (($room['players'][$connId]['status'] ?? null) !== 'active') {
+                continue;
+            }
+            $toRemove[] = $connId;
+        }
+
+        foreach ($toRemove as $connId) {
+            $this->removePlayerFromApartment($room, $roomId, $connId, 'refuse', $worker);
+            if (!isset($worker->rooms[$roomId])) {
+                return;
+            }
+        }
+    }
+
+    private function buildPlayerLeftPacket(string $username, int $userId, string $reason): array
+    {
+        $packet = [
+            'type'     => 'player_left',
+            'username' => $username,
+            'reason'   => $reason,
+        ];
+        if ($userId > 0) {
+            $packet['user_id'] = $userId;
+        }
+
+        return $packet;
+    }
 
     private function broadcastHostChanged(array $room): void
     {

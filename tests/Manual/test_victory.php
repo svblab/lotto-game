@@ -431,6 +431,41 @@ function makeChancePlayer(string $username, int $markedCount, int $cardsCount = 
 }
 
 // ---------------------------------------------------------------------------
+// GROUP 4b: victory statistics exclude lobby leavers (pre-start roster)
+// ---------------------------------------------------------------------------
+
+{
+    $room = makeRoom(1, [1, 2], 20);
+    $room['all_players_history'][3] = [
+        'user_id'    => 30,
+        'username'   => 'leaver',
+        'total_paid' => 0,
+        'cards_count' => 1,
+        'reason'     => 'leave',
+    ];
+    $room['game_roster'] = [
+        1 => ['user_id' => 10, 'username' => 'host'],
+        2 => ['user_id' => 20, 'username' => 'p2'],
+    ];
+    $room['players'][1] = ['username' => 'host', 'user_id' => 10, 'total_paid' => 10];
+    $room['players'][2] = ['username' => 'p2', 'user_id' => 20, 'total_paid' => 10];
+
+    $_db  = new MockDatabase(new MockPDO());
+    $_st  = new MockStmts();
+    $_log = new MockLogger();
+    $finish = new GameFinishService($_db, $_st, $_log);
+    $method = new ReflectionMethod($finish, 'buildVictoryStatistics');
+    $method->setAccessible(true);
+    $stats = $method->invoke($finish, $room, [1 => 20]);
+    $names = array_map(static fn($s) => $s['username'] ?? '', $stats);
+
+    assert_true(count($names) === 2, 'statistics: roster players only');
+    assert_true(in_array('host', $names, true), 'statistics: host included');
+    assert_true(in_array('p2', $names, true), 'statistics: p2 included');
+    assert_true(!in_array('leaver', $names, true), 'statistics: lobby leaver excluded');
+}
+
+// ---------------------------------------------------------------------------
 // GROUP 4: GameService::finishGame — normal victory
 // ---------------------------------------------------------------------------
 

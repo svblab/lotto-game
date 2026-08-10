@@ -83,6 +83,7 @@ final class RoomManager
             'drawn_numbers'         => [],
             'players'               => [],
             'all_players_history'   => [],
+            'game_roster'           => [],
         ];
 
         $this->logger->info("Room created: room_id={$roomId} host_conn_id={$hostConnId} max_players={$maxPlayers}");

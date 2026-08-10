@@ -229,6 +229,14 @@ final class GameService
         $room['status']       = 'playing';
         lottoStateTransition($roomId, 'waiting', 'playing', 'start_game');
 
+        $room['game_roster'] = [];
+        foreach ($activePlayers as $pConnId => $player) {
+            $room['game_roster'][$pConnId] = [
+                'user_id'  => (int) $player['user_id'],
+                'username' => (string) $player['username'],
+            ];
+        }
+
         // Назначить карты каждому активному игроку
         foreach ($activePlayers as $pConnId => $player) {
             $cards = [];
@@ -292,7 +300,7 @@ final class GameService
         );
 
         // Разослать каждому игроку персональный пакет
-        // (свои карты видны только себе — ANCHOR_PROTOCOL.md § Game Start)
+        // (свои карты видны только себе; cards_count — всем — ANCHOR_PROTOCOL.md § Game Start)
         foreach ($room['players'] as $pConnId => $player) {
             if ($player['status'] !== 'active') {
                 continue;
@@ -305,17 +313,19 @@ final class GameService
 
                 if ($otherConnId === $pConnId) {
                     $playersPayload[] = [
-                        'username' => $other['username'],
-                        'is_self'  => true,
-                        'cards'    => $other['cards'],
-                        'masks'    => $masks,
+                        'username'    => $other['username'],
+                        'is_self'     => true,
+                        'cards'       => $other['cards'],
+                        'masks'       => $masks,
+                        'cards_count' => (int) $other['cards_count'],
                     ];
                 } else {
                     $playersPayload[] = [
-                        'username' => $other['username'],
-                        'is_self'  => false,
-                        'cards'    => null,
-                        'masks'    => $masks,
+                        'username'    => $other['username'],
+                        'is_self'     => false,
+                        'cards'       => null,
+                        'masks'       => $masks,
+                        'cards_count' => (int) $other['cards_count'],
                     ];
                 }
             }

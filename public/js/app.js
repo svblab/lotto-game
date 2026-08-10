@@ -33,6 +33,7 @@
     nextDrawer: null,
     isMyTurn: false,
     immune: false,
+    inApartment: false,
     pendingTurnPkt: null,
     turnReadySent: false,
   };
@@ -408,6 +409,10 @@
   function onBankUpdated(pkt) {
     if (pkt.bank == null) return;
     state.bank = pkt.bank;
+    if (state.inApartment) {
+      state.inApartment = false;
+      UI().hideApartment();
+    }
     UI().renderGameHeader(state.bank, state.currentDrawer, null);
   }
 
@@ -420,12 +425,12 @@
 
   function onPlayerLeft(pkt) {
     const myUserId = state.user?.id;
-    if (
-      myUserId != null &&
-      pkt.user_id != null &&
-      pkt.user_id === myUserId &&
-      state.room
-    ) {
+    const isSelfRemoval = state.room && (
+      (myUserId != null && pkt.user_id != null && pkt.user_id === myUserId)
+      || (pkt.username && pkt.username === state.user?.username
+        && ['kicked', 'banned', 'admin_close', 'afk', 'refuse', 'leave', 'disconnect'].includes(pkt.reason))
+    );
+    if (isSelfRemoval) {
       if (['kicked', 'banned', 'admin_close', 'afk', 'refuse', 'leave', 'disconnect'].includes(pkt.reason)) {
         resetToLobby();
         UI().showToast(I18n().t('lobby.leftReason', { reason: pkt.reason }));
@@ -466,7 +471,7 @@
     state.players = (pkt.players || []).map((p) => ({
       username: p.username,
       status: 'active',
-      cards_count: p.cards?.length || (p.is_self ? state.myCards.length : 1),
+      cards_count: p.cards_count ?? p.cards?.length ?? p.masks?.length ?? 1,
     }));
 
     const initialChances = buildInitialWinChances(state.drawerOrder);
@@ -488,6 +493,11 @@
   }
 
   function syncTurnUi() {
+    if (state.inApartment) {
+      UI().hideTurnControls();
+      return;
+    }
+
     if (state.animating || state.drawLocked) {
       UI().hideTurnControls();
       return;
@@ -546,15 +556,13 @@
   }
 
   function onApartmentAlert(pkt) {
+    state.inApartment = true;
     state.immune = !pkt.required;
     // Server apartment timer starts on send — do not queue behind barrel animation.
-    UI().showApartment(
-      pkt.required,
-      pkt.time_left || 10,
-      () => socket.sendAction('apartment_choice', { choice: 'agree' }),
-      () => socket.sendAction('apartment_choice', { choice: 'refuse' }),
-      () => socket.sendAction('apartment_choice', { choice: 'refuse' })
-    );
+    UI().showApartment(pkt.required, pkt.time_left || 10, {
+      onChoice: (choice) => socket.sendAction('apartment_choice', { choice }),
+      onTimeout: () => socket.sendAction('apartment_choice', { choice: 'refuse' }),
+    });
   }
 
   function onGameOver(pkt) {
@@ -697,6 +705,7 @@
 
   function resetToLobby() {
     state.inGame = false;
+    state.inApartment = false;
     state.room = null;
     state.myCards = [];
     state.myMasks = [];

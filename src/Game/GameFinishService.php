@@ -109,38 +109,7 @@ final class GameFinishService
         $room['status'] = 'finished';
         $room['bank']   = 0;
 
-        $statistics = [];
-        $history = $room['all_players_history'] ?? [];
-        foreach ($history as $hist) {
-            $statistics[] = [
-                'username'   => $hist['username'] ?? 'unknown',
-                'paid'       => $hist['total_paid'] ?? 0,
-                'received'   => $prizes[$hist['conn_id'] ?? -1] ?? 0,
-                '_user_id'   => (int) ($hist['user_id'] ?? 0),
-            ];
-        }
-
-        // Дозапись текущих игроков, если их по какой-то причине не оказалось в истории
-        if (isset($room['players']) && is_array($room['players'])) {
-            foreach ($room['players'] as $connId => $player) {
-                $username = $player['username'] ?? 'unknown';
-                $inHistory = false;
-                foreach ($statistics as $s) {
-                    if ($s['username'] === $username) {
-                        $inHistory = true;
-                        break;
-                    }
-                }
-                if (!$inHistory) {
-                    $statistics[] = [
-                        'username'   => $username,
-                        'paid'       => $player['total_paid'] ?? 0,
-                        'received'   => $prizes[$connId] ?? 0,
-                        '_user_id'   => (int) ($player['user_id'] ?? 0),
-                    ];
-                }
-            }
-        }
+        $statistics = $this->buildVictoryStatistics($room, $prizes);
 
         // ADR-016 §1: attach authoritative post-transaction balance per player.
         // Read-only — does not affect payout amounts or transaction boundaries.
@@ -322,6 +291,90 @@ final class GameFinishService
 
         $this->cancelRoomTimers($room, $roomId);
         $roomDestroyer();
+    }
+
+    /**
+     * @param array<string, mixed> $room
+     * @param array<int, int>      $prizes
+     * @return list<array{username: string, paid: int, received: int, _user_id: int}>
+     */
+    private function buildVictoryStatistics(array $room, array $prizes): array
+    {
+        $roster = $room['game_roster'] ?? [];
+        if (!empty($roster)) {
+            $statistics = [];
+            foreach ($roster as $connId => $entry) {
+                if (!is_array($entry)) {
+                    continue;
+                }
+                $statistics[] = $this->buildStatEntry($room, (int) $connId, $entry, $prizes);
+            }
+
+            return $statistics;
+        }
+
+        // Fallback for legacy/direct finishGame calls: only players who actually staked.
+        $statistics = [];
+        $seen = [];
+        foreach ($room['all_players_history'] ?? [] as $connId => $hist) {
+            if ((int) ($hist['total_paid'] ?? 0) <= 0) {
+                continue;
+            }
+            $username = (string) ($hist['username'] ?? 'unknown');
+            $seen[$username] = true;
+            $statistics[] = [
+                'username' => $username,
+                'paid'     => (int) ($hist['total_paid'] ?? 0),
+                'received' => $prizes[$connId] ?? 0,
+                '_user_id' => (int) ($hist['user_id'] ?? 0),
+            ];
+        }
+        foreach ($room['players'] ?? [] as $connId => $player) {
+            $username = (string) ($player['username'] ?? 'unknown');
+            if (isset($seen[$username])) {
+                continue;
+            }
+            $statistics[] = [
+                'username' => $username,
+                'paid'     => (int) ($player['total_paid'] ?? 0),
+                'received' => $prizes[$connId] ?? 0,
+                '_user_id' => (int) ($player['user_id'] ?? 0),
+            ];
+        }
+
+        return $statistics;
+    }
+
+    /**
+     * @param array<string, mixed> $room
+     * @param array<string, mixed> $rosterEntry
+     * @param array<int, int>      $prizes
+     * @return array{username: string, paid: int, received: int, _user_id: int}
+     */
+    private function buildStatEntry(array $room, int $connId, array $rosterEntry, array $prizes): array
+    {
+        $username = (string) ($rosterEntry['username'] ?? 'unknown');
+        $userId   = (int) ($rosterEntry['user_id'] ?? 0);
+        $paid     = 0;
+
+        if (isset($room['players'][$connId])) {
+            $player   = $room['players'][$connId];
+            $username = (string) ($player['username'] ?? $username);
+            $userId   = (int) ($player['user_id'] ?? $userId);
+            $paid     = (int) ($player['total_paid'] ?? 0);
+        } elseif (isset($room['all_players_history'][$connId])) {
+            $hist     = $room['all_players_history'][$connId];
+            $username = (string) ($hist['username'] ?? $username);
+            $userId   = (int) ($hist['user_id'] ?? $userId);
+            $paid     = (int) ($hist['total_paid'] ?? 0);
+        }
+
+        return [
+            'username' => $username,
+            'paid'     => $paid,
+            'received' => $prizes[$connId] ?? 0,
+            '_user_id' => $userId,
+        ];
     }
 
     /**

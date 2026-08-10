@@ -462,6 +462,9 @@ function makeService(array $users, MockPDO $pdo): array {
 
     $r = $worker->rooms[1];
     assert_true($r['bank'] === 40, 'Economy: 2+2 cards → bank=40');
+    assert_true(count($r['game_roster'] ?? []) === 2, 'startGame: game_roster snapshot count');
+    assert_true(($r['game_roster'][1]['username'] ?? '') === 'host', 'startGame: game_roster host');
+    assert_true(($r['game_roster'][2]['username'] ?? '') === 'p2', 'startGame: game_roster p2');
     assert_true(count($r['players'][1]['cards']) === 2, 'Cards: host has 2 cards');
     assert_true(count($r['players'][2]['cards']) === 2, 'Cards: p2 has 2 cards');
 
