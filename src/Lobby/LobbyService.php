@@ -86,7 +86,7 @@ final class LobbyService
 
     /**
      * Рассылает актуальный room_list всем аутентифицированным клиентам.
-     * Вызывается после create/join/leave/destroy, чтобы лобби синхронизировалось
+     * Вызывается после create/join/leave/destroy/game finish, чтобы лобби синхронизировалось
      * без ручного запроса room_list.
      */
     public function broadcastRoomList(object $worker): void

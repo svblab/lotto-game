@@ -451,6 +451,7 @@ final class GameService
             $reason,
             function () use ($worker, $roomId) {
                 unset($worker->rooms[$roomId]);
+                $worker->lobbyService->broadcastRoomList($worker);
             }
         );
     }
@@ -469,6 +470,7 @@ final class GameService
             $roomId,
             function () use ($worker, $roomId) {
                 unset($worker->rooms[$roomId]);
+                $worker->lobbyService->broadcastRoomList($worker);
             },
             $notifyConnection
         );
