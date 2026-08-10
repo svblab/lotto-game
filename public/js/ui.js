@@ -881,6 +881,42 @@
     toggleOverlay('#reconnect-overlay', show);
   }
 
+  let supersededCountdownTimer = null;
+
+  function hideSessionSupersededOverlay() {
+    toggleOverlay('#session-superseded-overlay', false);
+    if (supersededCountdownTimer) {
+      clearInterval(supersededCountdownTimer);
+      supersededCountdownTimer = null;
+    }
+  }
+
+  function showSessionSupersededOverlay(reasonText, seconds, tFn) {
+    hideSessionSupersededOverlay();
+    const reasonEl = $('#session-superseded-reason');
+    const waitEl = $('#session-superseded-wait');
+    if (!reasonEl || !waitEl) return;
+
+    reasonEl.textContent = reasonText;
+    let remaining = seconds;
+    const updateWait = () => {
+      waitEl.textContent = tFn('session.supersededDoNotTouch', { seconds: remaining });
+    };
+    updateWait();
+    toggleOverlay('#session-superseded-overlay', true);
+
+    supersededCountdownTimer = setInterval(() => {
+      remaining -= 1;
+      if (remaining <= 0) {
+        clearInterval(supersededCountdownTimer);
+        supersededCountdownTimer = null;
+        updateWait();
+        return;
+      }
+      updateWait();
+    }, 1000);
+  }
+
   // --- Pure helpers (testable) ---
   function markNumberOnCards(cards, masks, number) {
     const col = number === 90 ? 8 : Math.floor((number - 1) / 10);
@@ -946,6 +982,8 @@
     renderRules,
     renderLangPicker,
     showReconnecting,
+    showSessionSupersededOverlay,
+    hideSessionSupersededOverlay,
     calcWinChance,
     countMarked,
     markNumberOnCards,

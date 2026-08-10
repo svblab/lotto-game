@@ -34,6 +34,7 @@ $screenIds = [
     'apartment-modal',
     'game-over-modal',
     'reconnect-overlay',
+    'session-superseded-overlay',
 ];
 
 $passed = 0;
@@ -132,6 +133,18 @@ if ($app && str_contains($app, 'hasPersistedSession') && str_contains($app, 'ret
     ok('app.js: reconnect uses persisted localStorage token');
 } else {
     fail('app.js: reconnect uses persisted localStorage token');
+}
+
+if ($app && str_contains($app, 'handleSessionSuperseded') && str_contains($app, 'location.reload()')) {
+    ok('app.js: superseded session shows wait overlay then reloads');
+} else {
+    fail('app.js: superseded session shows wait overlay then reloads');
+}
+
+if ($ui && str_contains($ui, 'showSessionSupersededOverlay')) {
+    ok('ui.js: session superseded overlay with countdown');
+} else {
+    fail('ui.js: session superseded overlay with countdown');
 }
 
 if ($html && str_contains($html, 'id="admin-online"') && str_contains($html, 'id="admin-memory"')) {

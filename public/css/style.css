@@ -584,6 +584,20 @@ label span { display: block; margin-bottom: 0.25rem; font-size: 0.9rem; color: v
 }
 
 .reconnect-panel { text-align: center; }
+.session-superseded-panel {
+  text-align: center;
+  max-width: 420px;
+  border-color: var(--danger, #c44);
+}
+.session-superseded-reason {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+.session-superseded-wait {
+  font-size: 0.95rem;
+  opacity: 0.9;
+}
 .spinner {
   width: 40px;
   height: 40px;

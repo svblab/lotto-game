@@ -73,6 +73,9 @@
     "message": "Reconnexion…",
     "restored": "Session restaurée"
   },
+  "session": {
+    "supersededDoNotTouch": "Ne touchez à rien — la page s'actualisera dans {seconds} s."
+  },
   "dev": {
     "f2Disconnect": "Déconnexion simulée — reconnexion…",
     "f2PlayingOnly": "Test F2 reconnect : commencez un jeu (phase playing uniquement)"

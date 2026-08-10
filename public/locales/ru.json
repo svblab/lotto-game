@@ -76,6 +76,9 @@
     "message": "Переподключение…",
     "restored": "Сессия восстановлена"
   },
+  "session": {
+    "supersededDoNotTouch": "Сейчас ничего не трогайте — страница обновится через {seconds} с."
+  },
   "dev": {
     "f2Disconnect": "Имитация обрыва — переподключение…",
     "f2PlayingOnly": "Тест F2 reconnect: сначала начните игру (только фаза playing)"

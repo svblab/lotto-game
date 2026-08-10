@@ -73,6 +73,9 @@
     "message": "Yeniden bağlanılıyor…",
     "restored": "Oturum geri yüklendi"
   },
+  "session": {
+    "supersededDoNotTouch": "Şimdi dokunmayın — sayfa {seconds} sn. içinde yenilenecek."
+  },
   "dev": {
     "f2Disconnect": "Bağlantı kesildi (simülasyon) — yeniden bağlanılıyor…",
     "f2PlayingOnly": "F2 reconnect testi: önce oyuna başlayın (yalnızca playing)"

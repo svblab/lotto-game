@@ -39,6 +39,9 @@
 
   let socket;
   let reconnectGuardTimer = null;
+  let supersededReloadTimer = null;
+
+  const SUPERSEDED_RELOAD_MS = 10000;
 
   function clearReconnectGuard() {
     if (reconnectGuardTimer) {
@@ -135,6 +138,38 @@
     localStorage.removeItem(STORAGE_TOKEN);
     localStorage.removeItem(STORAGE_USER);
     sessionStorage.removeItem(STORAGE_ACTIVE);
+  }
+
+  function clearSupersededReload() {
+    if (supersededReloadTimer) {
+      clearTimeout(supersededReloadTimer);
+      supersededReloadTimer = null;
+    }
+    UI().hideSessionSupersededOverlay?.();
+  }
+
+  function handleSessionSuperseded() {
+    clearReconnectGuard();
+    clearSupersededReload();
+    clearClientSession();
+    if (socket) {
+      socket.intentionalClose = true;
+      socket.disconnect();
+    }
+    UI().showReconnecting(false);
+    UI().showScreen('auth');
+
+    const msg = I18n().t('errors.auth_session_superseded');
+    UI().showSessionSupersededOverlay(
+      msg,
+      SUPERSEDED_RELOAD_MS / 1000,
+      (key, params) => I18n().t(key, params),
+    );
+
+    supersededReloadTimer = setTimeout(() => {
+      supersededReloadTimer = null;
+      location.reload();
+    }, SUPERSEDED_RELOAD_MS);
   }
 
   function clearClientSession() {
@@ -282,15 +317,16 @@
 
   function onError(pkt) {
     if ((pkt.code ?? '') === 'error.auth_invalid_token') {
+      const superseded = String(pkt.message ?? '').toLowerCase().includes('superseded');
+      if (superseded) {
+        handleSessionSuperseded();
+        return;
+      }
       clearReconnectGuard();
       clearClientSession();
       UI().showReconnecting(false);
       UI().showScreen('auth');
-      const superseded = String(pkt.message ?? '').toLowerCase().includes('superseded');
-      const msg = superseded
-        ? I18n().t('errors.auth_session_superseded')
-        : I18n().translateError(pkt);
-      UI().setMessage('#auth-message', msg, 'error');
+      UI().setMessage('#auth-message', I18n().translateError(pkt), 'error');
       return;
     }
     const msg = I18n().translateError(pkt);
