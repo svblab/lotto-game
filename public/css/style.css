@@ -236,22 +236,129 @@ label span { display: block; margin-bottom: 0.25rem; font-size: 0.9rem; color: v
 .players-list li {
   display: flex;
   justify-content: space-between;
-  padding: 0.35rem 0;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
   border-bottom: 1px solid rgba(255,255,255,0.1);
+  font-size: 0.95rem;
 }
+.players-list li:last-child { border-bottom: none; }
+
+/* Collapsible players list (room + in-game) */
+.players-dropdown {
+  margin-bottom: 0.75rem;
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+.players-dropdown-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.85rem;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  touch-action: manipulation;
+  font-weight: 600;
+  color: var(--gold-glow);
+}
+.players-dropdown-toggle::-webkit-details-marker { display: none; }
+.players-dropdown-toggle::after {
+  content: '';
+  width: 0.45rem;
+  height: 0.45rem;
+  margin-left: auto;
+  border-right: 2px solid var(--gold);
+  border-bottom: 2px solid var(--gold);
+  transform: rotate(45deg);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+.players-dropdown[open] .players-dropdown-toggle::after {
+  transform: rotate(-135deg);
+  margin-top: 0.2rem;
+}
+.players-dropdown-label { flex: 1; }
+.players-dropdown-badge {
+  min-width: 1.5rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: var(--gold);
+  color: var(--felt-dark);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: center;
+}
+.players-dropdown-body {
+  padding: 0 0.85rem 0.65rem;
+  border-top: 1px solid rgba(212, 175, 55, 0.2);
+}
+
+.room-panel { padding: 0.85rem; }
+.room-panel-head { margin-bottom: 0.65rem; }
+.room-panel-title { margin-bottom: 0.5rem; font-size: 1.05rem; }
+.room-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin: 0;
+}
+.room-meta-item {
+  padding: 0.45rem 0.55rem;
+  border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.2);
+}
+.room-meta-item dt {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.room-meta-item dd {
+  margin: 0.15rem 0 0;
+  font-weight: 600;
+  font-size: 0.95rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.room-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.room-actions .btn { flex: 1; min-width: 0; }
+
 .status-online { color: var(--success); }
 .status-disconnected { color: var(--danger); }
 .status-removed { color: var(--text-muted); font-style: italic; }
 
 /* Game */
 .game-layout {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
   max-width: 1100px;
   margin: 0 auto;
 }
-.game-top { font-size: 0.9rem; }
+.game-main { min-width: 0; }
+.game-top-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  flex: 1;
+  min-width: 0;
+}
+.game-top-stat {
+  font-size: 0.82rem;
+  line-height: 1.3;
+}
+.game-players-dropdown { margin-bottom: 0.5rem; }
+.game-top { font-size: 0.9rem; align-items: flex-start; }
 
 .win-chance {
   padding: 0.5rem 0.75rem;
@@ -643,8 +750,60 @@ label span { display: block; margin-bottom: 0.25rem; font-size: 0.9rem; color: v
 .lang-options button { width: 100%; }
 
 /* Breakpoints */
+@supports (padding: env(safe-area-inset-top)) {
+  .screen {
+    padding-left: calc(1rem + env(safe-area-inset-left));
+    padding-right: calc(1rem + env(safe-area-inset-right));
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+  .top-bar {
+    margin-left: calc(-1rem - env(safe-area-inset-left));
+    margin-right: calc(-1rem - env(safe-area-inset-right));
+    padding-left: calc(0.75rem + env(safe-area-inset-left));
+    padding-right: calc(0.75rem + env(safe-area-inset-right));
+    padding-top: calc(0.65rem + env(safe-area-inset-top));
+  }
+  .toast {
+    bottom: calc(1.5rem + env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 430px) {
+  html { font-size: 15px; }
+  .screen { padding-top: 0.5rem; }
+  .lobby-actions .btn { flex: 1 1 calc(50% - 0.25rem); min-width: 0; }
+  .lobby-actions .btn:first-child { flex-basis: 100%; }
+  .data-table { font-size: 0.82rem; }
+  .data-table th, .data-table td { padding: 0.4rem 0.35rem; }
+  .slot-window { width: 4rem; height: 4rem; }
+  .slot-num { font-size: 1.5rem; }
+  .cards-stack { max-width: min(100%, 360px); }
+  .lotto-card { font-size: 10px; }
+  .lotto-card td { height: 1.85rem; }
+  .draw-btn { max-width: 100%; }
+  .room-panel { margin-bottom: 0.75rem; }
+  .lobby-host-timer { margin-top: 0.5rem; }
+}
+
 @media (min-width: 768px) {
-  .game-layout { grid-template-columns: 200px 1fr; }
+  .game-layout {
+    display: grid;
+    grid-template-columns: minmax(200px, 240px) 1fr;
+    gap: 1rem;
+    align-items: start;
+  }
+  .game-players-dropdown {
+    grid-column: 1;
+    grid-row: 1;
+    margin-bottom: 0;
+    position: sticky;
+    top: 0.5rem;
+  }
+  .game-main {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+  }
   .lotto-card { font-size: 12px; }
   .lotto-card td { height: 2.25rem; }
   .cards-stack { max-width: 400px; }

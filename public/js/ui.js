@@ -198,12 +198,24 @@
       hideLobbyHostCountdown();
     }
     renderPlayerList('#room-players-list', room.players || [], false);
+    syncPlayersDropdownOpen('#room-players-dropdown');
+  }
+
+  function syncPlayersDropdownOpen(dropdownSelector) {
+    const details = $(dropdownSelector);
+    if (!details) return;
+    if (window.matchMedia('(min-width: 768px)').matches) {
+      details.open = true;
+    }
   }
 
   function renderPlayerList(selector, players, showChance) {
     const ul = $(selector);
     if (!ul) return;
     const t = global.LottoI18n.t;
+    const dropdown = ul.closest('.players-dropdown');
+    const badge = dropdown?.querySelector('.players-dropdown-badge');
+    if (badge) badge.textContent = String(players.length);
     ul.innerHTML = '';
     players.forEach((p) => {
       const li = document.createElement('li');
@@ -586,6 +598,7 @@
 
   function renderGamePlayers(players) {
     renderPlayerList('#game-players-list', players, false);
+    syncPlayersDropdownOpen('#game-players-dropdown');
   }
 
   /** Dark red (0%) → bright blue (100%) for the personal win-chance bar. */

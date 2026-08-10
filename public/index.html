@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Russian Lotto Bingo</title>
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=12">
 </head>
 <body>
   <div id="app">
@@ -126,11 +126,27 @@
           <tbody id="rooms-tbody"></tbody>
         </table>
 
-        <div id="room-panel" class="sub-panel hidden">
-          <h3><span data-i18n="lobby.inRoom">In room</span> #<span id="room-id-label"></span></h3>
-          <p><span data-i18n="lobby.host">Host</span>: <strong id="room-host-label"></strong></p>
-          <p><span data-i18n="lobby.bank">Bank</span>: <span id="room-bank-label">0</span></p>
-          <ul id="room-players-list" class="players-list"></ul>
+        <div id="room-panel" class="sub-panel room-panel hidden">
+          <div class="room-panel-head">
+            <h3 class="room-panel-title"><span data-i18n="lobby.inRoom">In room</span> #<span id="room-id-label"></span></h3>
+            <dl class="room-meta">
+              <div class="room-meta-item">
+                <dt data-i18n="lobby.host">Host</dt>
+                <dd id="room-host-label"></dd>
+              </div>
+              <div class="room-meta-item">
+                <dt data-i18n="lobby.bank">Bank</dt>
+                <dd><span id="room-bank-label">0</span></dd>
+              </div>
+            </dl>
+          </div>
+          <details id="room-players-dropdown" class="players-dropdown">
+            <summary class="players-dropdown-toggle">
+              <span class="players-dropdown-label" data-i18n="lobby.players">Players</span>
+              <span id="room-players-count" class="players-dropdown-badge">0</span>
+            </summary>
+            <ul id="room-players-list" class="players-list players-dropdown-body"></ul>
+          </details>
           <div id="lobby-host-timer" class="lobby-host-timer hidden" aria-live="polite">
             <div class="afk-countdown-ring">
               <svg viewBox="0 0 90 90" class="afk-ring-svg" aria-hidden="true">
@@ -152,19 +168,22 @@
     <!-- Game -->
     <section id="game-screen" class="screen">
       <header class="top-bar game-top">
-        <div>
-          <span data-i18n="lobby.bank">Bank</span>: <strong id="game-bank">0</strong>
+        <div class="game-top-stats">
+          <span class="game-top-stat"><span data-i18n="lobby.bank">Bank</span>: <strong id="game-bank">0</strong></span>
+          <span id="game-drawer-info" class="game-top-stat"></span>
+          <span id="game-remaining" class="game-top-stat"></span>
         </div>
-        <div id="game-drawer-info"></div>
-        <div id="game-remaining"></div>
         <button type="button" id="leave-game-btn" class="btn small" data-i18n="lobby.leaveRoom">Leave Room</button>
       </header>
 
       <div class="game-layout">
-        <aside class="game-sidebar">
-          <h3 data-i18n="game.players">Players</h3>
-          <ul id="game-players-list" class="players-list"></ul>
-        </aside>
+          <details id="game-players-dropdown" class="players-dropdown game-players-dropdown">
+            <summary class="players-dropdown-toggle">
+              <span class="players-dropdown-label" data-i18n="game.players">Players</span>
+              <span id="game-players-count" class="players-dropdown-badge">0</span>
+            </summary>
+            <ul id="game-players-list" class="players-list players-dropdown-body"></ul>
+          </details>
 
         <main class="game-main">
           <div id="win-chance-bar" class="win-chance" aria-live="polite">
@@ -315,7 +334,7 @@
 
   <script src="js/i18n.js?v=4"></script>
   <script src="js/ws.js?v=4"></script>
-  <script src="js/ui.js?v=11"></script>
-  <script src="js/app.js?v=11"></script>
+  <script src="js/ui.js?v=12"></script>
+  <script src="js/app.js?v=12"></script>
 </body>
 </html>
