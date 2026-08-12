@@ -62,31 +62,121 @@ sudo systemctl enable lotto-server
 sudo systemctl start lotto-server
 ```
 
-## 3. SSL (wss)
+## 3. SSL (wss) — TLS через reverse proxy (ADR-027)
+
+Workerman слушает **plain** WebSocket на `127.0.0.1:8080` (или `LOTTO_WS_PORT`).
+TLS/WSS завершается **внешним** reverse proxy (nginx или Caddy) — не в PHP-воркере.
+Это снижает нагрузку на VPS 1 CPU / 512 МБ и не требует перезапуска игрового
+процесса при обновлении сертификата.
+
+### 3.1. Сертификат Let's Encrypt
 
 ```bash
 sudo apt install -y certbot
+# Если nginx ещё не слушает 80 — standalone; иначе используйте certbot --nginx
 sudo certbot certonly --standalone -d your-domain.com
 ```
 
-Создайте `config/ssl.php`:
+### 3.2. nginx (рекомендуется)
 
-```php
-<?php
-return [
-    'ssl' => [
-        'local_cert'  => '/etc/letsencrypt/live/your-domain.com/fullchain.pem',
-        'local_pk'    => '/etc/letsencrypt/live/your-domain.com/privkey.pem',
-        'verify_peer' => false,
-    ],
-    'port' => 8443,
-];
+Создайте `/etc/nginx/sites-available/lotto-game`:
+
+```nginx
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name your-domain.com;
+
+    ssl_certificate     /etc/letsencrypt/live/your-domain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
+
+    root /opt/lotto-game/public;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    location /ws {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+}
+
+server {
+    listen 80;
+    server_name your-domain.com;
+    return 301 https://$host$request_uri;
+}
 ```
 
-Автообновление (crontab):
+```bash
+sudo ln -s /etc/nginx/sites-available/lotto-game /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+**Клиент (`public/index.html`)** — для production за HTTPS:
+
+```html
+<meta name="lotto-ws-port" content="">
+<meta name="lotto-ws-path" content="/ws">
+```
+
+Браузер подключится к `wss://your-domain.com/ws` (порт 443 по умолчанию).
+
+### 3.3. Caddy (альтернатива)
+
+`/etc/caddy/Caddyfile`:
+
+```caddy
+your-domain.com {
+    root * /opt/lotto-game/public
+    file_server
+    try_files {path} /index.html
+
+    reverse_proxy /ws 127.0.0.1:8080
+}
+```
 
 ```bash
-0 3 * * * certbot renew --quiet && systemctl restart lotto-server
+sudo systemctl reload caddy
+```
+
+Те же meta-теги `lotto-ws-port=""` и `lotto-ws-path="/ws"` в `index.html`.
+
+### 3.4. Firewall
+
+```bash
+# Публично: 80/443 (proxy). Workerman 8080 — только localhost.
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw deny 8080/tcp
+```
+
+Убедитесь, что `lotto-server.service` (раздел 2) запущен и слушает `8080`.
+
+### 3.5. Локальная разработка (без TLS)
+
+По умолчанию в `index.html`: `lotto-ws-port="8080"`, `lotto-ws-path=""`.
+Клиент подключается к `ws://localhost:8080`. Reverse proxy не нужен.
+
+### 3.6. Автообновление сертификата
+
+```bash
+# crontab root — перезагрузка proxy, НЕ lotto-server
+0 3 * * * certbot renew --quiet && systemctl reload nginx
 ```
 
 ## 4. Логи и бэкап

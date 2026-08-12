@@ -1,5 +1,32 @@
 # Implementation Status — Lotto Game Project
 
+## TLS/WSS documentation-vs-code fix (2026-08-12)
+
+- [DONE] Close TLS/WSS documentation-vs-code mismatch (ADR-027)
+Files:
+- docs/ADR/027-reverse-proxy-tls-termination.md (new — reverse-proxy TLS decision)
+- README.md (diff — §3 rewritten: nginx/Caddy WSS via proxy; `config/ssl.php` removed)
+- public/index.html (diff — `lotto-ws-port` / `lotto-ws-path` deploy meta tags)
+- public/js/ws.js (diff — `resolveWsUrl()` reads meta; no hardcoded `:8080` on HTTPS)
+- tests/Manual/test_ws_url_resolution.php (new — URL resolution + README/ADR checks)
+
+Notes: Chose **option (b) reverse-proxy TLS termination** over native Workerman TLS
+(lower RAM/CPU risk on 1 CPU / 500 MB VPS; avoids growing `server.php`; cert renew
+reloads proxy only). `server.php` unchanged — still plain `websocket://0.0.0.0:8080`.
+Production clients use `wss://host/ws` (443) when meta tags set per README §3.
+
+CHANGED:
+- README SSL section meaning: **was** native Workerman `config/ssl.php` on port 8443;
+  **now** external nginx/Caddy terminates TLS, worker stays plain WS on 8080.
+- Client transport URL derivation from deploy meta + page protocol.
+
+NOT CHANGED:
+- `server.php` bootstrap, protocol packets, Handlers/Services business logic.
+
+VERIFICATION:
+- `php tests/Manual/test_ws_url_resolution.php` — PASS
+- Full suite: `php run_ALL_tests.php` (see run below).
+
 ## Phase 18 — FIX-30 Multi-session auth hardening (2026-08-06)
 
 - [DONE] FIX-30 Concurrent multi-session auth bug (single account, multiple browsers)

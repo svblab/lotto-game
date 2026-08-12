@@ -8,10 +8,45 @@
   const PING_INTERVAL_MS = 2500;
   const RECONNECT_DELAY_MS = 1500;
 
-  function resolveWsUrl() {
+  /**
+   * Read deploy-time WS endpoint hints from index.html meta tags (ADR-027).
+   * @returns {{ portAttr: string|null, path: string }}
+   */
+  function readWsDeployConfig() {
+    const doc = global.document;
+    if (!doc) {
+      return { portAttr: null, path: '' };
+    }
+    const portMeta = doc.querySelector('meta[name="lotto-ws-port"]');
+    const pathMeta = doc.querySelector('meta[name="lotto-ws-path"]');
+    return {
+      portAttr: portMeta ? portMeta.getAttribute('content') : null,
+      path: (pathMeta?.getAttribute('content') || '').trim(),
+    };
+  }
+
+  /**
+   * Build WebSocket URL from page origin + deploy meta (ADR-027).
+   * HTTP dev default: ws://host:8080. HTTPS behind reverse proxy: wss://host/ws
+   * when lotto-ws-port is empty and lotto-ws-path is "/ws".
+   */
+  function resolveWsUrl(deployConfig) {
+    const cfg = deployConfig ?? readWsDeployConfig();
     const host = global.location?.hostname || 'localhost';
-    const proto = global.location?.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${proto}//${host}:8080`;
+    const isHttps = global.location?.protocol === 'https:';
+    const proto = isHttps ? 'wss:' : 'ws:';
+
+    let portSuffix = '';
+    if (cfg.portAttr !== null && cfg.portAttr !== '') {
+      portSuffix = ':' + cfg.portAttr;
+    } else if (cfg.portAttr === null && !isHttps) {
+      portSuffix = ':8080';
+    }
+
+    const path = cfg.path;
+    const pathSuffix = path ? (path.startsWith('/') ? path : '/' + path) : '';
+
+    return `${proto}//${host}${portSuffix}${pathSuffix}`;
   }
 
   class LottoSocket {
@@ -165,6 +200,7 @@
 
   global.LottoWS = {
     LottoSocket,
+    readWsDeployConfig,
     resolveWsUrl,
     PING_INTERVAL_MS,
   };

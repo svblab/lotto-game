@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <!-- Deploy-time WebSocket endpoint (README §3, ADR-027). Dev: port 8080.
+       Production HTTPS: set lotto-ws-port to "" and lotto-ws-path to "/ws". -->
+  <meta name="lotto-ws-port" content="8080">
+  <meta name="lotto-ws-path" content="">
   <title>Russian Lotto Bingo</title>
   <link rel="stylesheet" href="css/style.css?v=13">
 </head>
