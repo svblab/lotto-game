@@ -48,7 +48,11 @@ final class AdminService
      *
      * Условия доступа:
      * 1) пользователь аутентифицирован (userId установлен),
-     * 2) пользователь имеет флаг администратора (isAdmin === true/1).
+     * 2) SQLite users.is_admin = 1 (authoritative; connection flag may be stale),
+     * 3) пользователь не забанен (banned_until <= now).
+     *
+     * После демоушена/бана в БД сбрасывает $connection->isAdmin = false для
+     * быстрого отказа на последующих действиях без повторного чтения SQLite.
      *
      * @return bool true если доступ разрешён
      */
@@ -59,8 +63,32 @@ final class AdminService
             return false;
         }
 
-        $isAdmin = ($connection->isAdmin ?? false);
-        if ($isAdmin !== true && (int)$isAdmin !== 1) {
+        $isAdminFlag = $connection->isAdmin ?? false;
+        if ($isAdminFlag !== true && (int)$isAdminFlag !== 1) {
+            sendError($connection, 'error.not_your_turn', 'Admin access required');
+            return false;
+        }
+
+        $authFields = $this->fetchUserAuthFields((int)$connection->userId);
+        if ($authFields === null) {
+            return true;
+        }
+
+        if ($authFields === false) {
+            $connection->isAdmin = false;
+            sendError($connection, 'error.not_your_turn', 'Admin access required');
+            return false;
+        }
+
+        $bannedUntil = (int)($authFields['banned_until'] ?? 0);
+        if ($bannedUntil > time()) {
+            $connection->isAdmin = false;
+            sendJson($connection, ['type' => 'banned', 'until' => $bannedUntil]);
+            return false;
+        }
+
+        if ((int)($authFields['is_admin'] ?? 0) !== 1) {
+            $connection->isAdmin = false;
             sendError($connection, 'error.not_your_turn', 'Admin access required');
             return false;
         }
@@ -639,6 +667,27 @@ final class AdminService
             'permanent' => 4102444800,
             default => null,
         };
+    }
+
+    /**
+     * @return array<string, mixed>|false|null false = user not found; null = DB check skipped
+     */
+    private function fetchUserAuthFields(int $userId): array|false|null
+    {
+        if ($this->stmts === null) {
+            return null;
+        }
+
+        try {
+            $stmt = $this->stmts->get('user_auth_fields_by_id');
+        } catch (\Throwable) {
+            return null;
+        }
+
+        $stmt->execute([$userId]);
+        $row = $stmt->fetch();
+
+        return $row === false ? false : $row;
     }
 
     private function buildUserRoomMap(object $worker): array

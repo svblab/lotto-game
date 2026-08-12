@@ -1,5 +1,29 @@
 # Implementation Status — Lotto Game Project
 
+## Admin assertAdmin SQLite freshness (2026-08-12)
+
+- [DONE] `AdminService::assertAdmin()` re-reads `users.is_admin` and
+  `banned_until` from SQLite via `user_auth_fields_by_id` on each admin action.
+Files:
+- src/Admin/AdminService.php (`fetchUserAuthFields()`, demotion/ban sync)
+- tests/Manual/test_admin_auth.php (groups 4–6: demotion, still-admin, banned)
+
+Notes: Stale `$connection->isAdmin` cleared on demotion/ban; subsequent calls
+fail fast without DB. Client sees `error.not_your_turn` on demotion (no hint);
+active ban uses existing `banned` packet. One SQLite read per admin action when
+`isAdmin` is true — acceptable (admin panel is low-frequency, not polled in a
+tight loop).
+
+CHANGED:
+- Admin guard authoritative against SQLite
+
+NOT CHANGED:
+- AdminHandler, register/login flows, game/lobby handlers
+
+VERIFICATION:
+- `php tests/Manual/test_admin_auth.php`
+- `php run_ALL_tests.php`
+
 ## EPIC-5a — Per-username login lockout (ADR-028) (2026-08-12)
 
 - [DONE] RAM-only `LoginThrottleService`; wired into `AuthService` / `server.php`;
