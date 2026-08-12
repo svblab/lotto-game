@@ -9,6 +9,13 @@ use Lotto\Core\Logger;
 
 class AuthService
 {
+    /**
+     * Precomputed bcrypt (cost 10) for constant-time login on unknown usernames.
+     * password_verify() result is discarded — only its timing is used.
+     */
+    private const TIMING_DUMMY_PASSWORD_HASH =
+        '$2y$10$/ST2sjWQ5iTbxJZyOreKg.rgIH2mEC/s2jyDXQCBgVy27kQFqtZMK';
+
     private Database $db;
     private PreparedStatements $statements;
     private Logger $logger;
@@ -95,12 +102,12 @@ class AuthService
             $selectStmt->execute([$username]);
             $user = $selectStmt->fetch();
 
-            // Шаг 2: Если пользователь не найден
-            if (!$user) {
+            // Шаг 2–3: Проверить хеш пароля (constant-time path when user missing)
+            if (!is_array($user)) {
+                password_verify($password, self::TIMING_DUMMY_PASSWORD_HASH);
                 throw new Exception('Invalid username or password');
             }
 
-            // Шаг 3: Проверить хеш пароля
             if (!password_verify($password, $user['password_hash'])) {
                 throw new Exception('Invalid username or password');
             }

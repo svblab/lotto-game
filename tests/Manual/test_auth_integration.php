@@ -235,22 +235,32 @@ try {
 }
 
 // 3b. Неверный пароль
+$wrongPasswordMsg = null;
 try {
     $authService2->login('loginuser', 'wrongpass');
     ok('login: wrong password throws exception', false, 'No exception thrown');
 } catch (Exception $e) {
+    $wrongPasswordMsg = $e->getMessage();
     ok('login: wrong password throws exception',
-        $e->getMessage() === 'Invalid username or password');
+        $wrongPasswordMsg === 'Invalid username or password');
 }
 
 // 3c. Несуществующий пользователь
+$unknownUserMsg = null;
 try {
     $authService2->login('nobody', 'pass1234');
     ok('login: unknown user throws exception', false, 'No exception thrown');
 } catch (Exception $e) {
+    $unknownUserMsg = $e->getMessage();
     ok('login: unknown user throws exception',
-        $e->getMessage() === 'Invalid username or password');
+        $unknownUserMsg === 'Invalid username or password');
 }
+
+ok(
+    'login: timing-hardening — unknown user and wrong password share identical message',
+    $wrongPasswordMsg === $unknownUserMsg
+    && $wrongPasswordMsg === 'Invalid username or password'
+);
 
 // 3d. Бан
 $pdo2->exec("UPDATE users SET banned_until = " . (time() + 3600) . " WHERE username='loginuser'");

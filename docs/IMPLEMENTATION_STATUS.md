@@ -1,5 +1,26 @@
 # Implementation Status — Lotto Game Project
 
+## AuthService login timing hardening (2026-08-12)
+
+- [DONE] Constant-time password_verify path for unknown usernames in login()
+Files:
+- src/Auth/AuthService.php (diff — dummy bcrypt hash on missing user row)
+- tests/Manual/test_auth_integration.php (diff — identical error-message assertion)
+
+Notes: When username is not found, `password_verify()` still runs against a
+precomputed dummy bcrypt hash before throwing — reduces username enumeration via
+response-time analysis. External login() contract unchanged.
+
+CHANGED:
+- AuthService::login() internal timing path only
+
+NOT CHANGED:
+- AuthHandler.php, SessionGuardService.php, exception messages, return shape
+
+VERIFICATION:
+- `php tests/Manual/test_auth_integration.php` — PASS
+- Full suite: `php run_ALL_tests.php` (see run below)
+
 ## ANCHOR_CORE Part 6 registry back-fill (2026-08-12)
 
 - [DONE] Back-fill missing protocol registry entries in ANCHOR_CORE.md Part 6
