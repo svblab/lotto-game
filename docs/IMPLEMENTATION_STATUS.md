@@ -1,5 +1,29 @@
 # Implementation Status — Lotto Game Project
 
+## ANCHOR_CORE Part 6 registry back-fill (2026-08-12)
+
+- [DONE] Back-fill missing protocol registry entries in ANCHOR_CORE.md Part 6
+Files:
+- docs/ANCHOR_CORE.md (diff — `turn_ready` action; `player_status_changed`,
+  `admin_users_data` packet types)
+
+Notes: Pure documentation/registry sync — no code changes. `turn_ready` was
+implemented (server.php, GameHandler, ANCHOR_PROTOCOL.md ADR-017) but omitted
+from the Part 6 action list. Packet sweep found two additional omissions already
+documented in ANCHOR_PROTOCOL.md and implemented in production code.
+
+CHANGED:
+- ANCHOR_CORE.md Part 6 § Protocol Actions — added `turn_ready`
+- ANCHOR_CORE.md Part 6 § Protocol Packet Types — added `player_status_changed`,
+  `admin_users_data`
+
+NOT CHANGED:
+- Any `.php` source files
+- ANCHOR_PROTOCOL.md packet contracts
+
+VERIFICATION:
+- `git diff --stat` shows only `.md` files modified
+
 ## EPIC-028.3 — Asymmetric cross-engine session closure + economy invariant net (2026-08-12)
 
 - [DONE] Close ADR-026 reproduction gap; add EconomyAudit structural safety net

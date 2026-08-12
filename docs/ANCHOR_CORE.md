@@ -581,15 +581,16 @@ Removal reasons: `leave, disconnect, afk, refuse, kicked, banned, admin_close`.
 
 ## Protocol Packet Types (allowed)
 ```
-hello, auth_result, error, room_list, room_joined, player_joined, player_left, host_changed,
-bank_updated, balance_updated, game_started, your_turn, barrels_drawn, afk_warning, apartment_alert, reconnect_state,
-game_over, banned, admin_stats_data, admin_logs_data
+hello, auth_result, error, room_list, room_joined, player_joined, player_left,
+player_status_changed, host_changed, bank_updated, balance_updated, game_started,
+your_turn, barrels_drawn, afk_warning, apartment_alert, reconnect_state, game_over,
+banned, admin_stats_data, admin_users_data, admin_logs_data
 ```
 
 ## Protocol Actions (allowed)
 ```
 register, login, reconnect, ping, room_list, create_room, join_room, leave_room,
-start_game, draw_barrel, apartment_choice, admin_ban_user, admin_unban_user,
+start_game, draw_barrel, turn_ready, apartment_choice, admin_ban_user, admin_unban_user,
 admin_kick_user, admin_close_room, admin_get_logs, admin_get_stats, admin_get_users
 ```
 
