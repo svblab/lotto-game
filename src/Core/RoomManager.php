@@ -4,6 +4,7 @@ namespace Lotto\Core;
 
 use function Lotto\Core\lottoTimerDel;
 use function Lotto\Core\lottoStateTransition;
+use function Lotto\Core\lottoEconomyCheckInvariants;
 
 /**
  * RoomManager — EPIC-2.0
@@ -152,6 +153,8 @@ final class RoomManager
             };
         }
         lottoStateTransition($roomId, $fromStatus, 'destroyed', $trigger);
+
+        lottoEconomyCheckInvariants($worker, 'room_destroy:' . $roomId);
 
         unset($worker->rooms[$roomId]);
 

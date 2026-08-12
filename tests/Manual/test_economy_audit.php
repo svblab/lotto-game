@@ -42,6 +42,7 @@ use Lotto\Infrastructure\Database;
 use Lotto\Infrastructure\PreparedStatements;
 
 use function Lotto\Core\lottoEconomyRecord;
+use function Lotto\Core\lottoEconomyCheckInvariants;
 
 $passed = 0;
 $failed = 0;
@@ -308,6 +309,71 @@ assertTrue($helperEvents[0]['op'] === 'refund' && $helperEvents[0]['amount'] ===
 putenv('LOTTO_ECONOMY_AUDIT=0');
 unset($GLOBALS['__lotto_economy_audit']);
 @unlink($helperLog);
+
+// =============================================================================
+// GROUP 6 — EPIC-028.3 structural invariant checks
+// =============================================================================
+
+echo "GROUP 6: checkWorkerInvariants (duplicate seat / dual auth)\n";
+
+$dupConnA = new class {
+    public int $id = 1;
+    public int $userId = 10;
+    public bool $closed = false;
+};
+$dupConnB = new class {
+    public int $id = 2;
+    public int $userId = 10;
+    public bool $closed = false;
+};
+
+$dupWorker = (object) [
+    'connections' => [$dupConnA, $dupConnB],
+    'rooms' => [
+        7 => [
+            'status' => 'waiting',
+            'bank' => 0,
+            'players' => [
+                1 => ['user_id' => 5, 'total_paid' => 0],
+                2 => ['user_id' => 5, 'total_paid' => 0],
+            ],
+            'all_players_history' => [],
+        ],
+    ],
+];
+
+class InvariantCaptureLogger extends Logger
+{
+    public array $errors = [];
+    public function __construct() {}
+    public function info(string $m): void {}
+    public function warning(string $m): void {}
+    public function error(string $m): void { $this->errors[] = $m; }
+    public function write(string $level, string $message): void
+    {
+        if ($level === 'ERROR') {
+            $this->errors[] = $message;
+        }
+    }
+}
+
+$invLogger = new InvariantCaptureLogger();
+$invAudit = new EconomyAudit($invLogger, sys_get_temp_dir() . '/lotto_inv_' . getmypid() . '.log');
+$dupWorker->economyAudit = $invAudit;
+$GLOBALS['__lotto_economy_audit'] = $invAudit;
+
+lottoEconomyCheckInvariants($dupWorker, 'test_duplicate');
+
+assertTrue(
+    count(array_filter($invLogger->errors, static fn($e) => str_contains($e, 'duplicate user_id=5'))) === 1,
+    'duplicate seat in same room logs ERROR'
+);
+assertTrue(
+    count(array_filter($invLogger->errors, static fn($e) => str_contains($e, 'dual live auth user_id=10'))) === 1,
+    'dual live auth logs ERROR'
+);
+
+unset($GLOBALS['__lotto_economy_audit']);
 
 // =============================================================================
 // Summary

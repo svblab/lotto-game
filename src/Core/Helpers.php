@@ -204,6 +204,24 @@ function lottoEconomyRecord(string $operation, int $userId, int $amount, array $
 }
 
 /**
+ * EPIC-028.3: scan worker for structural economic anomalies (duplicate seats,
+ * dual live auth). Never mutates state — detect and log only.
+ */
+function lottoEconomyCheckInvariants(object $worker, string $trigger = 'unknown'): void
+{
+    $audit = $GLOBALS['__lotto_economy_audit'] ?? null;
+    if ($audit instanceof EconomyAudit) {
+        $audit->checkWorkerInvariants($worker, $trigger);
+        return;
+    }
+
+    // Structural checks run even when LOTTO_ECONOMY_AUDIT=0 if audit object exists on worker.
+    if (isset($worker->economyAudit) && $worker->economyAudit instanceof EconomyAudit) {
+        $worker->economyAudit->checkWorkerInvariants($worker, $trigger);
+    }
+}
+
+/**
  * EPIC-11.4: record a room state transition when state audit is enabled.
  *
  * @param array<string, scalar|null> $context

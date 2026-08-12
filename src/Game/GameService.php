@@ -12,6 +12,7 @@ use Lotto\Infrastructure\PreparedStatements;
 use function Lotto\Core\lottoTimerDel;
 
 use function Lotto\Core\lottoEconomyRecord;
+use function Lotto\Core\lottoEconomyCheckInvariants;
 use function Lotto\Core\lottoStateTransition;
 use function Lotto\Core\lottoStateReject;
 use function Lotto\Core\sendError;
@@ -460,6 +461,7 @@ final class GameService
             $prizes,
             $reason,
             function () use ($worker, $roomId) {
+                lottoEconomyCheckInvariants($worker, 'game_finish:' . $roomId);
                 unset($worker->rooms[$roomId]);
                 $worker->lobbyService->broadcastRoomList($worker);
             }
@@ -479,6 +481,7 @@ final class GameService
             $room,
             $roomId,
             function () use ($worker, $roomId) {
+                lottoEconomyCheckInvariants($worker, 'no_survivors:' . $roomId);
                 unset($worker->rooms[$roomId]);
                 $worker->lobbyService->broadcastRoomList($worker);
             },

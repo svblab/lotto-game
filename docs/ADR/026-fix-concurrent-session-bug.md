@@ -172,3 +172,45 @@ successfully completing create+join in one process — with EPIC-028.2 discovery
 rules, the stale socket is evicted or blocked at `auth_required`. The
 production failure required **conn_id logging** on the next manual repro to
 confirm whether a remaining gap exists outside these paths.
+
+---
+
+## Addendum — EPIC-028.3 asymmetric cross-engine closure verification (2026-08-12)
+
+### New test
+
+`tests/Manual/test_asymmetric_engine_stress.php` models the remaining gap called
+out above:
+
+- Engine A logs in; engine B fresh-login calls `claimUserSession()` while A
+  remains in `$worker->connections` (delayed TCP teardown).
+- **Before** delayed `onClose` on A, engine B runs `create_room` and engine A
+  attempts `join_room` on the same room (with `evictOtherLiveSessions` action
+  guard, mirroring `server.php`).
+- Variants cover zombie `sessionToken` mapping, stale create + winner join, and
+  a probe that `countLiveAuthForUser()` never exceeds 1 during the window.
+
+### Result: no remaining gap reproduced
+
+All groups **PASS** (2026-08-12). SessionGuardService's existing eviction paths
+(primary eviction in `claimUserSession()`, post-bind sweep, and per-action
+`evictOtherLiveSessions()` guard) deterministically prevent:
+
+- two live authenticated sockets for the same `user_id`;
+- two room seats for the same `user_id` in one room via the create+join window.
+
+The production Chrome+Firefox failure path is now **covered by automated
+regression** — the EPIC-028.2 "Honest limit" is closed for this scenario.
+
+### Monitoring safety net (EPIC-028.3 Part B)
+
+`EconomyAudit::checkWorkerInvariants()` (via `lottoEconomyCheckInvariants()`) runs
+on `RoomManager::destroyRoom()` and `GameService::finishGame()` teardown. It
+**detects and logs only** — never mutates balances:
+
+- **ERROR** — duplicate `user_id` in the same room; dual live auth for one
+  `user_id`.
+- **WARNING** (when `LOTTO_ECONOMY_AUDIT=1`) — room `bank` vs
+  `all_players_history` mismatch; global conservation snapshot.
+
+No protocol or Handler contract changes.

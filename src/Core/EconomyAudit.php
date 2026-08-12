@@ -33,6 +33,7 @@ final class EconomyAudit
         'apartment',
         'refund',
         'burn',
+        'invariant',
     ];
 
     private Logger $logger;
@@ -239,6 +240,139 @@ final class EconomyAudit
         $finalTotal = array_sum($finalBalances) + $burned + array_sum($activeRoomBanks);
 
         return $initialTotal === $finalTotal;
+    }
+
+    /**
+     * EPIC-028.3 — structural + optional conservation invariant scan.
+     * Never mutates game state or balances — detect and log only.
+     *
+     * Structural checks (duplicate room seats, dual live auth) always run.
+     * DB conservation snapshot runs only when LOTTO_ECONOMY_AUDIT=1.
+     */
+    public function checkWorkerInvariants(object $worker, string $trigger = 'unknown'): void
+    {
+        $this->checkDuplicateRoomSeats($worker, $trigger);
+        $this->checkDualLiveAuth($worker, $trigger);
+
+        if (!self::isEnabled()) {
+            return;
+        }
+
+        $this->checkRoomBankConsistency($worker, $trigger);
+        $this->checkGlobalConservationSnapshot($worker, $trigger);
+    }
+
+    private function checkDuplicateRoomSeats(object $worker, string $trigger): void
+    {
+        foreach ($worker->rooms ?? [] as $roomId => $room) {
+            $seen = [];
+            foreach ($room['players'] ?? [] as $connId => $player) {
+                $uid = (int) ($player['user_id'] ?? 0);
+                if ($uid <= 0) {
+                    continue;
+                }
+                if (isset($seen[$uid])) {
+                    $this->logger->error(
+                        'EconomyInvariant: duplicate user_id=' . $uid .
+                        " in room_id={$roomId} conn_ids={$seen[$uid]},{$connId} trigger={$trigger}"
+                    );
+                    $this->record('invariant', 0, 0, [
+                        'room_id' => $roomId,
+                        'note'    => 'duplicate_seat',
+                        'user_id' => $uid,
+                        'trigger' => $trigger,
+                    ]);
+                }
+                $seen[$uid] = (int) $connId;
+            }
+        }
+    }
+
+    private function checkDualLiveAuth(object $worker, string $trigger): void
+    {
+        $liveAuth = [];
+        foreach ($worker->connections ?? [] as $connection) {
+            if (!empty($connection->closed)) {
+                continue;
+            }
+            $uid = (int) ($connection->userId ?? 0);
+            if ($uid <= 0) {
+                continue;
+            }
+            $liveAuth[$uid] = ($liveAuth[$uid] ?? 0) + 1;
+        }
+
+        foreach ($liveAuth as $uid => $count) {
+            if ($count > 1) {
+                $this->logger->error(
+                    'EconomyInvariant: dual live auth user_id=' . $uid .
+                    " count={$count} trigger={$trigger}"
+                );
+                $this->record('invariant', (int) $uid, 0, [
+                    'note'    => 'dual_live_auth',
+                    'count'   => $count,
+                    'trigger' => $trigger,
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Per-room: bank should match sum(all_players_history.total_paid) when history exists.
+     */
+    private function checkRoomBankConsistency(object $worker, string $trigger): void
+    {
+        foreach ($worker->rooms ?? [] as $roomId => $room) {
+            $bank = (int) ($room['bank'] ?? 0);
+            $status = (string) ($room['status'] ?? 'waiting');
+            $historyPaid = 0;
+            foreach ($room['all_players_history'] ?? [] as $entry) {
+                $historyPaid += (int) ($entry['total_paid'] ?? 0);
+            }
+
+            if ($status === 'waiting' && $bank !== 0) {
+                $this->logger->warning(
+                    "EconomyInvariant: waiting room_id={$roomId} bank={$bank} expected=0 trigger={$trigger}"
+                );
+            }
+
+            if ($historyPaid > 0 && $bank !== $historyPaid) {
+                $this->logger->warning(
+                    'EconomyInvariant: room_id=' . $roomId .
+                    " bank={$bank} history_paid={$historyPaid} trigger={$trigger}"
+                );
+            }
+        }
+    }
+
+    /**
+     * Snapshot sum(users.coins) + sum(active room banks) for replay analysis.
+     */
+    private function checkGlobalConservationSnapshot(object $worker, string $trigger): void
+    {
+        if (!isset($worker->db) || !method_exists($worker->db, 'getPdo')) {
+            return;
+        }
+
+        try {
+            $pdo = $worker->db->getPdo();
+            $userCoins = (int) $pdo->query('SELECT COALESCE(SUM(coins), 0) FROM users')->fetchColumn();
+        } catch (\Throwable $e) {
+            $this->logger->warning('EconomyInvariant: DB snapshot failed trigger=' . $trigger . ' err=' . $e->getMessage());
+            return;
+        }
+
+        $bankSum = 0;
+        foreach ($worker->rooms ?? [] as $room) {
+            $bankSum += (int) ($room['bank'] ?? 0);
+        }
+
+        $this->record('invariant', 0, 0, [
+            'note'       => 'conservation_snapshot',
+            'trigger'    => $trigger,
+            'user_coins' => $userCoins,
+            'bank_sum'   => $bankSum,
+        ]);
     }
 
     /**

@@ -1,5 +1,35 @@
 # Implementation Status — Lotto Game Project
 
+## EPIC-028.3 — Asymmetric cross-engine session closure + economy invariant net (2026-08-12)
+
+- [DONE] Close ADR-026 reproduction gap; add EconomyAudit structural safety net
+Files:
+- tests/Manual/test_asymmetric_engine_stress.php (new — asymmetric teardown create+join stress)
+- src/Core/EconomyAudit.php (diff — `checkWorkerInvariants()` duplicate-seat/dual-auth checks)
+- src/Core/Helpers.php (diff — `lottoEconomyCheckInvariants()` helper)
+- src/Core/RoomManager.php (diff — invariant scan on `destroyRoom()`)
+- src/Game/GameService.php (diff — invariant scan on `finishGame()` teardown)
+- docs/ADR/026-fix-concurrent-session-bug.md (append — EPIC-028.3 addendum)
+- tests/Manual/test_economy_audit.php (diff — invariant check regression group)
+
+Notes: Part A stress test models delayed onClose after fresh login with both
+sockets attempting create_room/join_room — **no gap reproduced**; existing
+SessionGuardService sweeps close the window. Part B adds detect-and-log-only
+invariant monitoring (no balance mutation).
+
+CHANGED:
+- ADR-026 "Honest limit" superseded by EPIC-028.3 closure verification addendum.
+- EconomyAudit structural checks on room destroy and game finish.
+
+NOT CHANGED:
+- SessionGuardService logic (no fix required — test proves current sweeps sufficient).
+- Protocol packets, Handler/Service business rules.
+
+VERIFICATION:
+- `php tests/Manual/test_asymmetric_engine_stress.php` — PASS
+- `php tests/Manual/test_economy_audit.php` — PASS
+- Full suite: `php run_ALL_tests.php` (see run below).
+
 ## TLS/WSS documentation-vs-code fix (2026-08-12)
 
 - [DONE] Close TLS/WSS documentation-vs-code mismatch (ADR-027)
