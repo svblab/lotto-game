@@ -38,6 +38,8 @@ declare(strict_types=1);
  *   - EPIC-10.2 continuation (ADR-006): неаутентифицированный
  *     неизвестный action → error.auth_required (не error.invalid_json);
  *     register/login/reconnect не блокируются guard'ом
+ *   - ADR-029: LOTTO_ALLOWED_ORIGINS — allowed Origin succeeds; disallowed
+ *     rejected; unset env preserves allow-all (no Origin header required)
  *
  * НЕ покрывает (намеренно, вне scope EPIC-10.0/10.2): rate limiting уже
  * покрыт отдельно (test_packet_validation.php), маршрутизацию
@@ -91,7 +93,7 @@ final class MiniWSClient
 {
     private $sock;
 
-    public function __construct(string $host, int $port, float $connectTimeout = 5.0)
+    public function __construct(string $host, int $port, float $connectTimeout = 5.0, ?string $origin = null)
     {
         $this->sock = @fsockopen($host, $port, $errno, $errstr, $connectTimeout);
         if (!$this->sock) {
@@ -100,7 +102,11 @@ final class MiniWSClient
 
         $key = base64_encode(random_bytes(16));
         $req = "GET / HTTP/1.1\r\nHost: {$host}:{$port}\r\nUpgrade: websocket\r\n" .
-               "Connection: Upgrade\r\nSec-WebSocket-Key: {$key}\r\nSec-WebSocket-Version: 13\r\n\r\n";
+               "Connection: Upgrade\r\nSec-WebSocket-Key: {$key}\r\nSec-WebSocket-Version: 13\r\n";
+        if ($origin !== null && $origin !== '') {
+            $req .= "Origin: {$origin}\r\n";
+        }
+        $req .= "\r\n";
         fwrite($this->sock, $req);
 
         stream_set_timeout($this->sock, 5);
@@ -213,6 +219,61 @@ function check(bool $cond, string $label): void
         $failed++;
         echo "  [FAIL] {$label}\n";
     }
+}
+
+/**
+ * Restart server subprocess with merged LOTTO_TEST_CONFIG (ADR-029 tests).
+ *
+ * @param array<string, string> $envOverrides
+ * @return array{process: resource, stdoutFile: string, stderrFile: string, port: int}
+ */
+function restartWsServer(string $projectRoot, array $envOverrides): array
+{
+    global $process, $stdoutFile, $stderrFile;
+
+    if (is_resource($process)) {
+        proc_terminate($process, 15);
+        $waited = 0;
+        while (proc_get_status($process)['running'] && $waited < 3_000_000) {
+            usleep(100_000);
+            $waited += 100_000;
+        }
+        if (proc_get_status($process)['running']) {
+            proc_terminate($process, 9);
+        }
+        proc_close($process);
+        @unlink($stdoutFile);
+        @unlink($stderrFile);
+    }
+
+    $GLOBALS['__wsTestEnv'] = null;
+    $env = wsTestApplyServerEnv($projectRoot);
+    foreach ($envOverrides as $key => $value) {
+        if ($value === '') {
+            unset($env[$key]);
+            putenv($key);
+            unset($_ENV[$key], $_SERVER[$key]);
+            continue;
+        }
+        $env[$key] = $value;
+        putenv("{$key}={$value}");
+        $_ENV[$key] = $value;
+        $_SERVER[$key] = $value;
+    }
+
+    $configPath = $GLOBALS['__wsTestConfigPath'] ?? null;
+    if (is_string($configPath) && $configPath !== '') {
+        file_put_contents($configPath, json_encode($env, JSON_UNESCAPED_SLASHES));
+    }
+    $GLOBALS['__wsTestEnv'] = $env;
+
+    $ctx = wsTestStartServer($projectRoot);
+    $process = $ctx['process'];
+    $stdoutFile = $ctx['stdoutFile'];
+    $stderrFile = $ctx['stderrFile'];
+    $GLOBALS['__serverProcess'] = $process;
+
+    return $ctx;
 }
 
 // =============================================================================
@@ -332,6 +393,39 @@ try {
     $c2->close();
 
     $c->close();
+
+    echo "\nTEST 9: LOTTO_ALLOWED_ORIGINS — allowed Origin receives hello (ADR-029)\n";
+    $allowedOrigin = 'http://allowed.test';
+    $ctx9 = restartWsServer($projectRoot, ['LOTTO_ALLOWED_ORIGINS' => $allowedOrigin]);
+    $port9 = $ctx9['port'];
+    $c9 = new MiniWSClient('127.0.0.1', $port9, 5.0, $allowedOrigin);
+    $msg9 = $c9->recvOrNull();
+    $data9 = json_decode($msg9 ?? '', true);
+    check(($data9['type'] ?? null) === 'hello', 'allowed Origin receives hello');
+    $c9->close();
+
+    echo "\nTEST 10: LOTTO_ALLOWED_ORIGINS — disallowed Origin rejected before hello (ADR-029)\n";
+    $rejected10 = new MiniWSClient('127.0.0.1', $port9, 5.0, 'http://evil.test');
+    $frame10a = $rejected10->recvFrameOrNull();
+    $data10 = json_decode($frame10a['payload'] ?? '', true);
+    check(($frame10a['opcode'] ?? null) === 0x1, 'disallowed Origin: first frame is JSON error');
+    check(($data10['code'] ?? null) === 'error.origin_forbidden', 'code=error.origin_forbidden');
+    $frame10b = $rejected10->recvFrameOrNull();
+    $closeCode10 = ($frame10b !== null && strlen($frame10b['payload']) >= 2)
+        ? unpack('n', substr($frame10b['payload'], 0, 2))[1]
+        : null;
+    check(($frame10b['opcode'] ?? null) === 0x8, 'disallowed Origin: close frame follows error');
+    check($closeCode10 === 4002, 'WS close status code = 4002 (got: ' . var_export($closeCode10, true) . ')');
+    $rejected10->close();
+
+    echo "\nTEST 11: unset LOTTO_ALLOWED_ORIGINS — no Origin header still allowed (ADR-029)\n";
+    $ctx11 = restartWsServer($projectRoot, ['LOTTO_ALLOWED_ORIGINS' => '']);
+    $port11 = $ctx11['port'];
+    $c11 = new MiniWSClient('127.0.0.1', $port11);
+    $msg11 = $c11->recvOrNull();
+    $data11 = json_decode($msg11 ?? '', true);
+    check(($data11['type'] ?? null) === 'hello', 'allow-all: hello without Origin header');
+    $c11->close();
 } catch (\Throwable $e) {
     fwrite(STDERR, "Exception during WS test: " . $e->getMessage() . "\n");
     fwrite(STDERR, "--- server stdout ---\n" . @file_get_contents($stdoutFile) . "\n");

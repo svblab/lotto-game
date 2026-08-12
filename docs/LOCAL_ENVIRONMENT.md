@@ -72,6 +72,12 @@ Optional log path: `LOTTO_ECONOMY_AUDIT_LOG=/path/to/file.log`.
 Multi-scenario integrity test: `php scripts/economy_integrity_runner.php`.
 Analyze/replay: `php scripts/analyze_economy_log.php [--initial=1:500,2:500]`.
 
+**WebSocket Origin allow-list (ADR-029):** optional hardening for browser clients.
+- `LOTTO_ALLOWED_ORIGINS` — comma-separated allowed `Origin` values
+  (e.g. `https://your-domain.com,http://localhost:8080`).
+- Unset or empty = allow all (default; preserves dev/tests).
+- When set, mismatched or missing `Origin` is rejected before `hello`.
+
 **Important:** Do not run tests as `root` on the VPS — root-owned
 `logs/*.log` files will block the `www-data` service user (see FIX-12/FIX-13).
 Run tests as the same user as `lotto-server.service`.

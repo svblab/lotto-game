@@ -179,6 +179,26 @@ sudo ufw deny 8080/tcp
 0 3 * * * certbot renew --quiet && systemctl reload nginx
 ```
 
+### 3.7. Origin allow-list (ADR-029, optional)
+
+По умолчанию сервер принимает WebSocket с любого `Origin`. В production задайте
+список разрешённых источников в `lotto-server.service`:
+
+```ini
+Environment=LOTTO_ALLOWED_ORIGINS=https://your-domain.com
+```
+
+Несколько значений — через запятую (точное совпадение строки `Origin`, включая
+схему и порт):
+
+```ini
+Environment=LOTTO_ALLOWED_ORIGINS=https://your-domain.com,http://localhost:8080
+```
+
+Пустое или отсутствующее значение = разрешить все. При включённом списке
+соединения с чужим или отсутствующим `Origin` отклоняются до `hello`
+(`error.origin_forbidden`, WS close 4002).
+
 ## 4. Логи и бэкап
 
 - Логи: `logs/server.log`, ротация автоматическая.

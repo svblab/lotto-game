@@ -322,6 +322,17 @@ $worker->onWorkerStart = function (Worker $worker): void {
             }
         }
     }, [], true, 'global_watchdog');
+
+    // ADR-029: optional Origin allow-list (null = allow all).
+    $originsRaw = lottoRuntimeEnv('LOTTO_ALLOWED_ORIGINS');
+    if ($originsRaw === null || trim($originsRaw) === '') {
+        $worker->allowedOrigins = null;
+    } else {
+        $worker->allowedOrigins = array_values(array_filter(
+            array_map('trim', explode(',', $originsRaw)),
+            static fn (string $o): bool => $o !== ''
+        ));
+    }
 };
 
 // -----------------------------------------------------------------------
@@ -343,13 +354,38 @@ $worker->onWorkerStart = function (Worker $worker): void {
 // (RoomManager::getTotalPlayerCount()) — уже аутентифицированное
 // подмножество. Здесь — все живые сокеты сервера, включая ещё не
 // аутентифицированные, до registration/login.
+//
+// ADR-029: optional Origin allow-list — second gate when
+// $worker->allowedOrigins is non-empty (LOTTO_ALLOWED_ORIGINS env).
 // -----------------------------------------------------------------------
 
-$worker->onWebSocketConnected = function ($connection) use ($worker): void {
+$worker->onWebSocketConnected = function ($connection, $request = null) use ($worker): void {
     if (count($worker->connections) > Constants::MAX_TOTAL_PLAYERS) {
         sendError($connection, 'error.server_full', 'Server is full');
         closeWithCode($connection, 4001, 'server_full');
         return;
+    }
+
+    $allowedOrigins = $worker->allowedOrigins ?? null;
+    if (is_array($allowedOrigins) && $allowedOrigins !== []) {
+        $origin = null;
+        if ($request !== null && is_object($request) && method_exists($request, 'header')) {
+            $origin = $request->header('origin');
+        }
+        if (!is_string($origin) || $origin === '') {
+            $origin = $_SERVER['HTTP_ORIGIN'] ?? null;
+        }
+
+        if (!is_string($origin) || $origin === '' || !in_array($origin, $allowedOrigins, true)) {
+            $worker->logger->write(
+                'WARNING',
+                'Origin rejected: origin=' . (is_string($origin) && $origin !== '' ? $origin : 'missing')
+                . ' conn_id=' . ($connection->id ?? 'null')
+            );
+            sendError($connection, 'error.origin_forbidden', 'Connection refused');
+            closeWithCode($connection, 4002, 'origin_forbidden');
+            return;
+        }
     }
 
     // Инициализация свойств соединения (ANCHOR_CORE.md § Connection

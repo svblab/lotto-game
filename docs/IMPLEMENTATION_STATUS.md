@@ -1,5 +1,29 @@
 # Implementation Status — Lotto Game Project
 
+## WebSocket Origin allow-list (ADR-029) (2026-08-12)
+
+- [DONE] Optional `LOTTO_ALLOWED_ORIGINS` gate in `onWebSocketConnected`
+  (bootstrap only; default allow-all).
+Files:
+- docs/ADR/029-websocket-origin-allowlist.md (new)
+- server.php (`$worker->allowedOrigins`, Origin check before hello)
+- tests/Manual/test_server_bootstrap.php (TEST 9–11)
+- README.md §3.7, docs/LOCAL_ENVIRONMENT.md
+
+Notes: Token-based auth blocks classic CSWSH cookie riding; control addresses
+residual resource/spam risk and defense-in-depth. Reject path:
+`error.origin_forbidden` + WS close 4002 (ADR-005 pattern).
+
+CHANGED:
+- `onWebSocketConnected` Origin inspection when env list is non-empty
+
+NOT CHANGED:
+- Auth/Lobby/Game/Admin Handlers or Services
+
+VERIFICATION:
+- `php tests/Manual/test_server_bootstrap.php`
+- VPS: `sudo -u www-data php run_ALL_tests.php` (manual — agent has no SSH)
+
 ## Admin assertAdmin SQLite freshness (2026-08-12)
 
 - [DONE] `AdminService::assertAdmin()` re-reads `users.is_admin` and
