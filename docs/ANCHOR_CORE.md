@@ -22,6 +22,9 @@ UNAUTHORIZED_TIMEOUT = 60;
 AUTHORIZED_TIMEOUT = 120;
 RATE_LIMIT_PACKETS_PER_WINDOW = 15;  // ADR-003
 RATE_LIMIT_WINDOW_SECONDS = 1;       // ADR-003
+LOGIN_THROTTLE_MAX_ATTEMPTS = 5;     // ADR-028
+LOGIN_THROTTLE_WINDOW_SECONDS = 300; // ADR-028
+LOGIN_THROTTLE_LOCKOUT_SECONDS = 900; // ADR-028
 ```
 
 ## Runtime Memory Layout
@@ -281,7 +284,7 @@ src/Core/ Auth/ Lobby/ Game/ Admin/ Infrastructure/
 Responsibilities: room/user lookup, helpers, constants, logging.
 Forbidden: game/economy/admin logic.
 
-### Auth (AuthHandler.php, AuthService.php, SessionService.php)
+### Auth (AuthHandler.php, AuthService.php, SessionService.php, LoginThrottleService.php)
 Responsibilities: register, login, logout, session tokens, daily bonus.
 Forbidden: room logic, game logic.
 
@@ -521,7 +524,8 @@ Fields: `id, username, password_hash, coins, is_admin, banned_until, last_daily_
 ```
 MAX_ROOMS, MAX_TOTAL_PLAYERS, BET_PER_CARD, DAILY_BONUS, RECONNECT_TIMEOUT,
 LOBBY_HOST_TIMEOUT, UNAUTHORIZED_TIMEOUT, AUTHORIZED_TIMEOUT, PROTOCOL_VERSION,
-RATE_LIMIT_PACKETS_PER_WINDOW, RATE_LIMIT_WINDOW_SECONDS
+RATE_LIMIT_PACKETS_PER_WINDOW, RATE_LIMIT_WINDOW_SECONDS,
+LOGIN_THROTTLE_MAX_ATTEMPTS, LOGIN_THROTTLE_WINDOW_SECONDS, LOGIN_THROTTLE_LOCKOUT_SECONDS
 ```
 
 ## Connection Properties
@@ -563,7 +567,7 @@ Removal reasons: `leave, disconnect, afk, refuse, kicked, banned, admin_close`.
 - Timers: global `$watchdogTimerId`; room `$room['lobby_afk_timer_id']`, `$room['game_afk_timer_id']`, `$room['apartment_timer_id']`; player `$player['reconnect_timer']`.
 
 ## Class Names (allowed only)
-- Services: `AuthService, LobbyService, GameService, VictoryService, ApartmentService, ReconnectService, AdminService, SessionService`
+- Services: `AuthService, LoginThrottleService, LobbyService, GameService, VictoryService, ApartmentService, ReconnectService, AdminService, SessionService`
 - Handlers: `AuthHandler, LobbyHandler, GameHandler, AdminHandler`
 - Core: `ConnectionManager, RoomManager, Logger, Constants`
 - Infrastructure: `Database, PreparedStatements`

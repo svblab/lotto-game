@@ -124,7 +124,8 @@ final class AuthHandler
                return;
            }
 
-           sendError($connection, $this->mapLoginError($msg), $msg);
+           $clientMsg = $msg === 'Auth rate limited' ? 'Invalid username or password' : $msg;
+           sendError($connection, $this->mapLoginError($msg), $clientMsg);
            return;
        }
 
@@ -275,14 +276,14 @@ final class AuthHandler
     *
     * Реестр кодов (ANCHOR_PROTOCOL.md § Error Packet):
     *   error.auth_invalid_credentials — неверный логин/пароль или двойной вход
+    *   error.auth_rate_limited        — per-username lockout (ADR-028); same generic message
     *
     * Бан обрабатывается отдельно в handleLogin() до вызова этого метода.
     */
    private function mapLoginError(string $message): string
    {
-       // Все ошибки входа (неверный пароль, двойной вход) сводятся к одному
-       // коду — намеренно: не раскрываем клиенту причину отказа.
        return match ($message) {
+           'Auth rate limited' => 'error.auth_rate_limited',
            default => 'error.auth_invalid_credentials',
        };
    }

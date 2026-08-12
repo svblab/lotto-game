@@ -20,17 +20,24 @@ class AuthService
     private PreparedStatements $statements;
     private Logger $logger;
     private SessionService $sessionService;
+    private ?LoginThrottleService $loginThrottle;
 
     /**
      * Конструктор сервиса с внедрением зависимостей (DI).
      * Избегаем глобальных состояний и синглтонов.
      */
-    public function __construct(Database $db, PreparedStatements $statements, Logger $logger, SessionService $sessionService)
-    {
+    public function __construct(
+        Database $db,
+        PreparedStatements $statements,
+        Logger $logger,
+        SessionService $sessionService,
+        ?LoginThrottleService $loginThrottle = null
+    ) {
         $this->db = $db;
         $this->statements = $statements;
         $this->logger = $logger;
         $this->sessionService = $sessionService;
+        $this->loginThrottle = $loginThrottle;
     }
 
     /**
@@ -102,14 +109,34 @@ class AuthService
             $selectStmt->execute([$username]);
             $user = $selectStmt->fetch();
 
+            // ADR-028: per-username lockout (timing-hardened like 007712c)
+            if ($this->loginThrottle !== null && $this->loginThrottle->isLocked($username)) {
+                if (is_array($user)) {
+                    password_verify($password, $user['password_hash']);
+                } else {
+                    password_verify($password, self::TIMING_DUMMY_PASSWORD_HASH);
+                }
+                throw new Exception('Auth rate limited');
+            }
+
             // Шаг 2–3: Проверить хеш пароля (constant-time path when user missing)
             if (!is_array($user)) {
                 password_verify($password, self::TIMING_DUMMY_PASSWORD_HASH);
+                if ($this->loginThrottle !== null) {
+                    $this->loginThrottle->recordFailure($username);
+                }
                 throw new Exception('Invalid username or password');
             }
 
             if (!password_verify($password, $user['password_hash'])) {
+                if ($this->loginThrottle !== null) {
+                    $this->loginThrottle->recordFailure($username);
+                }
                 throw new Exception('Invalid username or password');
+            }
+
+            if ($this->loginThrottle !== null) {
+                $this->loginThrottle->recordSuccess($username);
             }
 
             // Шаг 4: Проверить состояние блокировки (бан)

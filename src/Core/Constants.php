@@ -50,6 +50,11 @@ class Constants
     public const RATE_LIMIT_PACKETS_PER_WINDOW = 15;
     public const RATE_LIMIT_WINDOW_SECONDS = 1;
 
+    // ADR-028 (EPIC-5a): per-username login lockout
+    public const LOGIN_THROTTLE_MAX_ATTEMPTS = 5;
+    public const LOGIN_THROTTLE_WINDOW_SECONDS = 300;
+    public const LOGIN_THROTTLE_LOCKOUT_SECONDS = 900;
+
     public static function reconnectTimeout(): int
     {
         return self::envInt('LOTTO_RECONNECT_TIMEOUT', self::RECONNECT_TIMEOUT);

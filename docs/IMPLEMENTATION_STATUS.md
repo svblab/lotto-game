@@ -1,5 +1,37 @@
 # Implementation Status — Lotto Game Project
 
+## EPIC-5a — Per-username login lockout (ADR-028) (2026-08-12)
+
+- [DONE] RAM-only `LoginThrottleService`; wired into `AuthService` / `server.php`;
+  `error.auth_rate_limited` in protocol registry (generic client message only).
+Files:
+- docs/ADR/028-auth-abuse-throttling.md (new)
+- src/Auth/LoginThrottleService.php (new)
+- src/Core/Constants.php (LOGIN_THROTTLE_* constants)
+- docs/ANCHOR_CORE.md (constants + class registry)
+- docs/ANCHOR_PROTOCOL.md (`error.auth_rate_limited`)
+- src/Auth/AuthService.php (throttle check; preserves 007712c timing path)
+- src/Auth/AuthHandler.php (`error.auth_rate_limited` mapping; generic message)
+- server.php (`$worker->loginThrottle` DI)
+- tests/Manual/test_login_throttle.php (new)
+
+Notes: Defaults — 5 failures / 300s window / 900s lockout. Register throttling
+deferred to EPIC-5b (placeholder section in ADR-028 only). Client receives
+`Invalid username or password` for rate-limited logins — no attempt count or
+remaining lockout time exposed.
+
+CHANGED:
+- Login failure throttling per username (Auth module, RAM-only)
+- Protocol error code `error.auth_rate_limited`
+
+NOT CHANGED:
+- Register flow / `handleRegister()` / register throttling
+- SessionGuard, reconnect, lobby/game handlers
+
+VERIFICATION:
+- `php tests/Manual/test_login_throttle.php`
+- `php run_ALL_tests.php`
+
 ## AuthService login timing hardening (2026-08-12)
 
 - [DONE] Constant-time password_verify path for unknown usernames in login()

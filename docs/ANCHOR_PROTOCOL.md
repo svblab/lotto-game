@@ -15,7 +15,7 @@ Server → Client
 ```json
 {"type": "error", "code": "error_code", "message": "optional text"}
 ```
-Codes: `error.invalid_json, error.auth_required, error.room_not_found, error.not_your_turn, error.server_full, error.room_full, error.room_limit, error.banned, error.cannot_moderate_admin, error.auth_invalid_username, error.auth_username_taken, error.auth_invalid_credentials, error.auth_invalid_token`
+Codes: `error.invalid_json, error.auth_required, error.room_not_found, error.not_your_turn, error.server_full, error.room_full, error.room_limit, error.banned, error.cannot_moderate_admin, error.auth_invalid_username, error.auth_username_taken, error.auth_invalid_credentials, error.auth_invalid_token, error.auth_rate_limited`
 
 `error.invalid_json` (ADR-003): sent for malformed JSON or missing/invalid
 `action` field. The connection is NOT closed — the client remains
@@ -38,6 +38,12 @@ other than `register`, `login`, `reconnect`, or `ping` when the
 connection is not yet authenticated (`$connection->userId === null`).
 Those four actions are the only ones a client can send before
 authenticating; every other action requires an established session.
+
+`error.auth_rate_limited` (ADR-028): sent when per-username login failure
+throttling has locked the account after too many failed attempts in a rolling
+window. The optional `message` field uses the same generic text as invalid
+credentials (`Invalid username or password`) — the server MUST NOT expose
+remaining lockout time, attempt count, or whether the username exists.
 
 `error.banned` (ADR-007): reserved in the registry but **not emitted**.
 Ban rejections use the dedicated `banned` packet type instead

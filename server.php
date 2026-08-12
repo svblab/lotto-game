@@ -121,6 +121,7 @@ use Lotto\Infrastructure\Database;
 use Lotto\Infrastructure\PreparedStatements;
 use Lotto\Auth\SessionService;
 use Lotto\Auth\AuthService;
+use Lotto\Auth\LoginThrottleService;
 use Lotto\Auth\AuthHandler;
 use Lotto\Auth\SessionGuardService;
 use Lotto\Core\RoomManager;
@@ -179,7 +180,8 @@ $worker->onWorkerStart = function (Worker $worker): void {
     // router'у, никакой новой бизнес-логики.
     $statements     = new PreparedStatements($worker->db->getPdo());
     $sessionService = new SessionService();
-    $authService    = new AuthService($worker->db, $statements, $worker->logger, $sessionService);
+    $worker->loginThrottle = new LoginThrottleService();
+    $authService    = new AuthService($worker->db, $statements, $worker->logger, $sessionService, $worker->loginThrottle);
     $sessionGuardService = new SessionGuardService($worker->logger);
     $worker->sessionGuard = $sessionGuardService;
     $worker->authHandler = new AuthHandler($authService, $sessionService, $worker->logger, $sessionGuardService);
