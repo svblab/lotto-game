@@ -635,6 +635,7 @@ label span { display: block; margin-bottom: 0.25rem; font-size: 0.9rem; color: v
 
 .rules-panel { background: #f5e6a8; color: #3d2b10; }
 .rules-panel h2 { color: #5c3d1e; }
+.rules-panel .icon-btn { color: var(--wood); }
 .rules-content { font-size: 0.9rem; line-height: 1.5; }
 .rules-content h4 { margin: 1rem 0 0.35rem; }
 

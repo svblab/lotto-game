@@ -1,5 +1,28 @@
 # Implementation Status — Lotto Game Project
 
+## Rules modal close-button contrast fix (2026-08-13)
+
+- [DONE] Scoped `.rules-panel .icon-btn { color: var(--wood); }` so the "✕"
+  glyph is visible on the pale-gold panel background (`#f5e6a8`). Base
+  `.icon-btn` keeps `color: var(--cream)` for dark wood/felt contexts.
+
+Files:
+- public/css/style.css
+
+Notes: Presentational only — no protocol/ADR/JS changes. Old contrast
+cream (`#f5e6c8`) vs panel bg: **1.02:1** (fails WCAG). New wood
+(`#5c3d1e`) vs panel bg: **7.83:1** (passes AA 3:1 for UI graphics).
+
+CHANGED:
+- `#rules-close-btn` glyph color inside `.rules-panel`
+
+NOT CHANGED:
+- Global `.icon-btn` base color
+- `#auth-lang-btn`, `#rules-btn-auth`, `#rules-btn-lobby` (dark backgrounds)
+- `#join-room-close-btn` (parent `.join-room-panel` keeps default wood panel)
+- `#admin-close-btn` (parent `.admin-panel` keeps default wood panel)
+- app.js / ui.js event handlers
+
 ## WebSocket Origin allow-list (ADR-029) (2026-08-12)
 
 - [DONE] Optional `LOTTO_ALLOWED_ORIGINS` gate in `onWebSocketConnected`
