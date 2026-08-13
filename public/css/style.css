@@ -27,9 +27,14 @@ body {
   min-height: 100vh;
   font-family: var(--font);
   color: var(--text);
-  background:
+  background-color: var(--felt-dark);
+  background-image:
+    url('../img/felt-bg.png'),
     radial-gradient(ellipse at center, var(--felt) 0%, var(--felt-dark) 100%);
-  background-attachment: fixed;
+  background-size: cover, auto;
+  background-position: center center, center center;
+  background-repeat: no-repeat, no-repeat;
+  background-attachment: fixed, fixed;
 }
 
 #app { min-height: 100vh; }
@@ -48,6 +53,19 @@ body {
   box-shadow: 0 8px 32px var(--shadow);
   padding: 1.25rem;
 }
+
+.logo-img {
+  display: block;
+  height: 120px;
+  max-width: 80%;
+  width: auto;
+  margin: 0 auto 1rem;
+  object-fit: contain;
+  border: none;
+  background: transparent;
+  opacity: 0.85;
+}
+.logo-img.small { height: 48px; max-width: 120px; margin: 0; }
 
 .logo-placeholder {
   height: 120px;
@@ -152,6 +170,15 @@ label span { display: block; margin-bottom: 0.25rem; font-size: 0.9rem; color: v
 }
 .user-info { flex: 1; }
 .coins::before { content: '🪙 '; }
+html.has-chip-icon .coins::before {
+  content: '';
+  display: inline-block;
+  width: 1.1em;
+  height: 1.1em;
+  margin-right: 0.15em;
+  vertical-align: -0.2em;
+  background: url('../img/chip.png') center / contain no-repeat;
+}
 .coins { color: var(--gold-glow); font-weight: 700; }
 
 /* Lobby */

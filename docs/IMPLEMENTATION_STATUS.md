@@ -1,5 +1,40 @@
 # Implementation Status — Lotto Game Project
 
+## Optional image asset wiring (2026-08-13)
+
+- [DONE] Wired optional `public/img/` assets into the frontend with graceful
+  degradation when files are absent (fresh clone = unchanged appearance).
+
+Files:
+- public/index.html (`<img>` logos + chip probe script)
+- public/css/style.css (logo-img, felt-bg layer, chip icon)
+
+Assets:
+- **logo.png** — `<img src="img/logo.png">`; `onerror` calls `replaceWith()` a
+  `<div class="logo-placeholder">` (or `.small` variant), restoring the exact
+  pre-integration gradient box with no broken-image icon.
+- **felt-bg.png** — comma-separated `background-image` on `body` (texture +
+  existing radial gradient); `background-color: var(--felt-dark)` base.
+- **chip.png** — inline probe adds `html.has-chip-icon`; CSS replaces 🪙 emoji.
+- **barrel.png** — not wired (see notes).
+
+Notes: No binary assets committed. `barrel.png` skipped: `.drawn-chip` history
+entries are compact number pills (~0.8rem); a 64×64 icon would clutter layout.
+
+CHANGED:
+- Auth/lobby logo placeholders → optional `<img>` with onerror fallback
+- `body` background layers for optional felt texture
+- Balance `.coins` icon when `chip.png` exists
+
+NOT CHANGED:
+- `public/js/ui.js`, `public/js/app.js` (barrel history rendering)
+- Protocol, server, locale files
+- Binary files in `public/img/`
+
+VERIFICATION:
+- Fresh clone (no PNGs): gradient logos, felt gradient, 🪙 emoji unchanged
+- With PNGs deployed: logos, texture, chip icon appear
+
 ## Rules modal copy rewrite (2026-08-13)
 
 - [DONE] Expanded `rules.*Body` strings in all 6 locale files (en, ru, es, fr,

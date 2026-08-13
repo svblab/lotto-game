@@ -8,14 +8,14 @@
   <meta name="lotto-ws-port" content="8080">
   <meta name="lotto-ws-path" content="">
   <title>Russian Lotto Bingo</title>
-  <link rel="stylesheet" href="css/style.css?v=13">
+  <link rel="stylesheet" href="css/style.css?v=14">
 </head>
 <body>
   <div id="app">
     <!-- Auth -->
     <section id="auth-screen" class="screen active">
       <div class="panel auth-panel">
-        <div class="logo-placeholder" aria-hidden="true"></div>
+        <img class="logo-img" src="img/logo.png" alt="" onerror="this.onerror=null;var p=document.createElement('div');p.className='logo-placeholder';p.setAttribute('aria-hidden','true');this.replaceWith(p);">
         <h1 data-i18n="app.title">Russian Lotto</h1>
         <div class="lang-row">
           <button type="button" id="auth-lang-btn" class="icon-btn" title="Language">🌐</button>
@@ -54,7 +54,7 @@
     <!-- Lobby -->
     <section id="lobby-screen" class="screen">
       <header class="top-bar">
-        <div class="logo-placeholder small" aria-hidden="true"></div>
+        <img class="logo-img small" src="img/logo.png" alt="" onerror="this.onerror=null;var p=document.createElement('div');p.className='logo-placeholder small';p.setAttribute('aria-hidden','true');this.replaceWith(p);">
         <div class="user-info">
           <span id="lobby-username"></span>
           <span id="lobby-balance" class="coins"></span>
@@ -347,6 +347,19 @@
     </div>
   </div>
 
+  <script>
+    (function () {
+      function probe(url, onResult) {
+        var img = new Image();
+        img.onload = function () { onResult(true); };
+        img.onerror = function () { onResult(false); };
+        img.src = url;
+      }
+      probe('img/chip.png', function (ok) {
+        if (ok) document.documentElement.classList.add('has-chip-icon');
+      });
+    })();
+  </script>
   <script src="js/i18n.js?v=4"></script>
   <script src="js/ws.js?v=4"></script>
   <script src="js/ui.js?v=13"></script>
