@@ -109,17 +109,17 @@
   "rules": {
     "title": "Game Rules",
     "introTitle": "Welcome",
-    "introBody": "Classic Russian Lotto in real time. Match all 15 numbers on a card to win the bank.",
+    "introBody": "Welcome to Russian Lotto — a real-time multiplayer bingo game. Players take turns drawing numbered barrels from a bag of 90. When a barrel matches a number on your card, that cell is marked automatically. Be the first to mark all 15 numbers on any of your cards to win the bank — the shared prize pool built from every player's stake.",
     "economyTitle": "Economy",
-    "economyBody": "Start with 500 coins. Each card costs 10 coins. Daily login bonus: +100 coins (non-admins).",
+    "economyBody": "New accounts start with 500 coins. Joining a match costs 10 coins per card (1 card = 10, 2 cards = 20), deducted when the game starts. After you join, you cannot change your card count — leave the room and rejoin if you want a different choice. Once per day, regular players (not admins) can claim a +100 coin daily bonus. All entry fees and extra payments during a match go into the bank — the pot that winner(s) split at the end.",
     "cardsTitle": "Cards",
-    "cardsBody": "3×9 grid, 15 numbers per card. Choose 1 or 2 cards before the game starts.",
+    "cardsBody": "Each card is a 3×9 grid with 15 numbers (five per row). Before the game starts, choose 1 or 2 cards. Players act in turn order; on your turn, press the highlighted Draw barrel button to pull 3 barrels. Matching numbers on your cards are marked for you. Closing a row means all five numbers in that horizontal line are marked — this can later trigger the special Apartment pause.",
     "apartmentTitle": "Apartment",
-    "apartmentBody": "When any player completes a row, the game pauses. They must pay 10 coins or leave. Immune players wait.",
+    "apartmentBody": "The Apartment event happens at most once per game. When any player closes a full row for the first time, the match pauses and everyone sees the Apartment screen. That player is immune and only waits — they pay nothing. Everyone else has 10 seconds to choose: pay 5 extra coins to stay in (added to the bank), or refuse and leave the match. If you refuse or run out of time, you are removed and your earlier stake stays in the bank. If the same barrel also completes someone's entire 15-number card, that player wins immediately and Apartment is skipped.",
     "victoryTitle": "Victory",
-    "victoryBody": "First to close all 15 numbers wins. Multiple winning cards split the bank. Remainder burns.",
+    "victoryBody": "You win by marking all 15 numbers on any one of your cards. The game ends as soon as one or more cards are fully closed — several players can win on the same turn if the drawn barrels finish multiple cards. The bank is split into equal shares: each fully closed winning card counts as one share and receives the same payout. If the division leaves any leftover coins, that remainder is burned and not paid to anyone.",
     "reconnectTitle": "Reconnect",
-    "reconnectBody": "You have 15 seconds to reconnect in lobby or playing. Reconnect is forbidden during Apartment."
+    "reconnectBody": "If your connection drops while you are in a lobby or an active match, you have 15 seconds to reconnect and return to the same room with your cards and balance restored. Reconnect is not allowed during the Apartment phase — disconnecting then removes you immediately, and your coins stay in the bank."
   },
   "status": {
     "waiting": "Waiting",

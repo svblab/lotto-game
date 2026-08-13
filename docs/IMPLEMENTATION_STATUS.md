@@ -1,5 +1,29 @@
 # Implementation Status — Lotto Game Project
 
+## Rules modal copy rewrite (2026-08-13)
+
+- [DONE] Expanded `rules.*Body` strings in all 6 locale files (en, ru, es, fr,
+  zh, tr) with player-facing explanations of core loop, economy/bank, cards,
+  Apartment, victory split, and reconnect. Fixed incorrect apartment fee (was
+  10 in copy; actual is 5 coins). Removed English "reconnect" leak in ru.
+
+Files:
+- public/locales/en.json, ru.json, es.json, fr.json, zh.json, tr.json
+
+Notes: Content-only — no i18n key changes, no .php/.js edits. Numbers verified
+against `Constants.php`, `ApartmentService::APARTMENT_PAYMENT`, `PreparedStatements`
+(create_user 500 coins), `docs/GAME_RULES.md`, `docs/ANCHOR_CORE.md` Part 2.
+
+CHANGED:
+- `rules.introBody`, `rules.economyBody`, `rules.cardsBody`,
+  `rules.apartmentBody`, `rules.victoryBody`, `rules.reconnectBody` (×6 locales)
+
+NOT CHANGED:
+- `renderRules()` / `public/js/ui.js`, any `.php` file, i18n key structure
+
+VERIFICATION:
+- `php tests/Manual/test_frontend_i18n.php`
+
 ## Rules modal close-button contrast fix (2026-08-13)
 
 - [DONE] Scoped `.rules-panel .icon-btn { color: var(--wood); }` so the "✕"

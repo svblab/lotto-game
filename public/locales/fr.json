@@ -106,17 +106,17 @@
   "rules": {
     "title": "Règles",
     "introTitle": "Bienvenue",
-    "introBody": "Loto russe en temps réel. Fermez 15 numéros pour gagner.",
+    "introBody": "Bienvenue au Loto russe : un bingo multijoueur en temps réel. Les joueurs tirent à tour de rôle des numéros dans un sac de 90. Si un numéro tiré figure sur votre carton, la case se coche automatiquement. Gagnez celui qui marque en premier les 15 numéros d'un de ses cartons et remporte la banque, la cagnotte commune formée par les mises de tous.",
     "economyTitle": "Économie",
-    "economyBody": "500 pièces au départ. Carton : 10 pièces. Bonus quotidien +100.",
+    "economyBody": "Les nouveaux comptes commencent avec 500 pièces. Rejoindre une partie coûte 10 pièces par carton (1 carton = 10, 2 cartons = 20), débitées au démarrage. Une fois inscrit, vous ne pouvez plus changer le nombre de cartons : quittez la salle et revenez si vous voulez un autre choix. Une fois par jour, les joueurs ordinaires (pas les administrateurs) peuvent réclamer un bonus quotidien de +100 pièces. Toutes les mises et paiements supplémentaires pendant la partie vont à la banque, le pot partagé entre les gagnants.",
     "cardsTitle": "Cartons",
-    "cardsBody": "Grille 3×9, 15 numéros. Choisissez 1 ou 2 cartons.",
+    "cardsBody": "Chaque carton est une grille 3×9 avec 15 numéros (cinq par ligne). Avant le début, choisissez 1 ou 2 cartons. Les joueurs jouent à tour de rôle ; à votre tour, appuyez sur le bouton Tirer un numéro mis en surbrillance pour tirer 3 numéros. Les numéros correspondants sur vos cartons sont marqués pour vous. Fermer une ligne signifie marquer les cinq numéros de cette rangée horizontale ; cela peut plus tard déclencher la pause spéciale Appartement.",
     "apartmentTitle": "Appartement",
-    "apartmentBody": "Ligne complète → pause. Payez 10 ou quittez.",
+    "apartmentBody": "L'événement Appartement n'arrive qu'une fois par partie au maximum. Quand un joueur ferme une ligne complète pour la première fois, la partie est mise en pause et tout le monde voit l'écran Appartement. Ce joueur est immunisé et attend seulement : il ne paie rien. Les autres ont 10 secondes pour choisir : payer 5 pièces supplémentaires pour rester (ajoutées à la banque) ou refuser et quitter la partie. Si vous refusez ou si le temps expire, vous êtes éliminé et votre mise précédente reste dans la banque. Si le même numéro complète aussi les 15 numéros d'un carton, ce joueur gagne immédiatement et l'Appartement est ignoré.",
     "victoryTitle": "Victoire",
-    "victoryBody": "Premier à 15 numéros gagne. Le reste brûle.",
+    "victoryBody": "Vous gagnez en marquant les 15 numéros de l'un de vos cartons. La partie se termine dès qu'un ou plusieurs cartons sont entièrement fermés ; plusieurs joueurs peuvent gagner au même tour si les numéros tirés complètent plusieurs cartons. La banque est partagée en parts égales : chaque carton gagnant complet compte pour une part et reçoit le même gain. S'il reste des pièces après la division, ce reliquat est brûlé et n'est versé à personne.",
     "reconnectTitle": "Reconnexion",
-    "reconnectBody": "15 secondes pour reconnecter. Interdit en Appartement."
+    "reconnectBody": "Si votre connexion est coupée dans le lobby ou pendant une partie, vous avez 15 secondes pour vous reconnecter et revenir dans la même salle avec vos cartons et votre solde. La reconnexion est interdite pendant la phase Appartement : une déconnexion à ce moment vous élimine immédiatement et vos pièces restent dans la banque."
   },
   "status": {
     "waiting": "Attente",

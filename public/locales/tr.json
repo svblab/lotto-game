@@ -106,17 +106,17 @@
   "rules": {
     "title": "Oyun kuralları",
     "introTitle": "Hoş geldiniz",
-    "introBody": "Gerçek zamanlı klasik Rus Loto. 15 sayıyı kapatın ve kazanın.",
+    "introBody": "Rus Loto'ya hoş geldiniz — gerçek zamanlı çok oyunculu bir bingo oyunu. Oyuncular sırayla 90 numaralı torbadan numaralı variller çeker. Çekilen numara kartınızda varsa hücre otomatik işaretlenir. Kartlarınızdan herhangi birinde 15 numarayı ilk tamamlayan, tüm oyuncuların bahislerinden oluşan ortak ödül havuzu olan bankayı kazanır.",
     "economyTitle": "Ekonomi",
-    "economyBody": "500 jetonla başlayın. Kart: 10 jeton. Günlük +100 bonus.",
+    "economyBody": "Yeni hesaplar 500 jetonla başlar. Bir maça katılmak kart başına 10 jeton tutar (1 kart = 10, 2 kart = 20); oyun başlarken düşülür. Katıldıktan sonra kart sayısını değiştiremezsiniz — farklı bir seçim istiyorsanız odadan çıkıp yeniden girin. Günde bir kez normal oyuncular (yöneticiler değil) +100 jetonluk günlük bonus alabilir. Maç sırasındaki tüm giriş ücretleri ve ek ödemeler bankaya, yani kazananların paylaştığı ödül havuzuna gider.",
     "cardsTitle": "Kartlar",
-    "cardsBody": "3×9 ızgara, 15 sayı. 1 veya 2 kart seçin.",
+    "cardsBody": "Her kart 3×9 ızgarada 15 numaradan oluşur (her satırda beş). Oyun başlamadan önce 1 veya 2 kart seçin. Oyuncular sırayla hamle yapar; sıranız geldiğinde vurgulanan Varil çek düğmesine basarak 3 varil çekin. Kartlarınızdaki eşleşen numaralar sizin için otomatik işaretlenir. Bir satırı kapatmak, o yatay sıradaki beş numaranın tamamının işaretlenmesi demektir; bu daha sonra özel Daire duraklamasını tetikleyebilir.",
     "apartmentTitle": "Daire",
-    "apartmentBody": "Satır tamamlanınca duraklama. 10 jeton ödeyin veya çıkın.",
+    "apartmentBody": "Daire olayı maç başına en fazla bir kez gerçekleşir. Herhangi bir oyuncu ilk kez tam bir satır kapattığında maç durur ve herkes Daire ekranını görür. Bu oyuncu bağışıktır ve yalnızca bekler — ek ödeme yapmaz. Diğerlerinin 10 saniyesi vardır: oyunda kalmak için 5 jeton ekstra ödemek (bankaya eklenir) veya reddedip maçtan ayrılmak. Reddederseniz veya süre dolarsa elenirsiniz ve önceki bahsiniz bankada kalır. Aynı varil birinin 15 numaralı kartını da tamamlarsa o oyuncu anında kazanır ve Daire atlanır.",
     "victoryTitle": "Zafer",
-    "victoryBody": "15 sayıyı ilk kapatan kazanır. Kalan yok olur.",
+    "victoryBody": "Kartlarınızdan herhangi birinde 15 numarayı tamamlayarak kazanırsınız. Bir veya daha fazla kart tamamen kapandığı anda oyun biter — çekilen variller birden fazla kartı bitirirse aynı turda birden fazla oyuncu kazanabilir. Banka eşit paylara bölünür: tamamen kapanan her kazanan kart bir pay sayılır ve aynı ödemeyi alır. Bölmeden artan jeton varsa bu kalan yok edilir ve kimseye ödenmez.",
     "reconnectTitle": "Yeniden bağlan",
-    "reconnectBody": "Lobi veya oyunda 15 sn. Daire aşamasında yasak."
+    "reconnectBody": "Lobide veya devam eden bir maçta bağlantınız kesilirse, aynı odaya kartlarınız ve bakiyenizle dönmek için 15 saniyeniz vardır. Daire aşamasında yeniden bağlanma yasaktır — o sırada bağlantı kesilirse anında elenirsiniz ve jetonlarınız bankada kalır."
   },
   "status": {
     "waiting": "Beklemede",

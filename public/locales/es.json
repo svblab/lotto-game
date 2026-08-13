@@ -106,17 +106,17 @@
   "rules": {
     "title": "Reglas",
     "introTitle": "Bienvenido",
-    "introBody": "Loto ruso clásico en tiempo real. Cierra 15 números para ganar.",
+    "introBody": "Bienvenido al Loto ruso: un bingo multijugador en tiempo real. Los jugadores se turnan para sacar barriles numerados de una bolsa de 90. Si un barril coincide con un número de tu cartón, la casilla se marca sola. Gana quien marque primero los 15 números de cualquiera de sus cartones y se lleve el banco, el bote común formado por las apuestas de todos.",
     "economyTitle": "Economía",
-    "economyBody": "500 monedas iniciales. Cartón: 10 monedas. Bono diario +100.",
+    "economyBody": "Las cuentas nuevas empiezan con 500 monedas. Entrar a una partida cuesta 10 monedas por cartón (1 cartón = 10, 2 cartones = 20), descontadas al iniciar el juego. Tras unirte no puedes cambiar el número de cartones: sal de la sala y vuelve a entrar si quieres otra opción. Una vez al día, los jugadores normales (no administradores) pueden reclamar un bono diario de +100 monedas. Todas las apuestas y pagos extra durante la partida van al banco, el pozo que se reparte entre los ganadores.",
     "cardsTitle": "Cartones",
-    "cardsBody": "Cuadrícula 3×9, 15 números. Elige 1 o 2 cartones.",
+    "cardsBody": "Cada cartón es una cuadrícula de 3×9 con 15 números (cinco por fila). Antes de empezar, elige 1 o 2 cartones. Los jugadores actúan por turnos; en el tuyo, pulsa el botón resaltado Sacar barril para extraer 3 barriles. Los números coincidentes en tus cartones se marcan automáticamente. Cerrar una fila significa marcar los cinco números de esa línea horizontal; esto puede activar más adelante la pausa especial del Apartamento.",
     "apartmentTitle": "Apartamento",
-    "apartmentBody": "Al completar una fila, pausa. Paga 10 o sales.",
+    "apartmentBody": "El evento Apartamento ocurre como máximo una vez por partida. Cuando cualquier jugador cierra una fila completa por primera vez, la partida se pausa y todos ven la pantalla del Apartamento. Ese jugador está inmune y solo espera: no paga nada. El resto tiene 10 segundos para elegir: pagar 5 monedas extra para seguir (se suman al banco) o rechazar y abandonar la partida. Si rechazas o se acaba el tiempo, quedas eliminado y tu apuesta previa permanece en el banco. Si el mismo barril también completa los 15 números de un cartón, ese jugador gana al instante y se omite el Apartamento.",
     "victoryTitle": "Victoria",
-    "victoryBody": "El primero en cerrar 15 números gana. El resto del banco se quema.",
+    "victoryBody": "Ganas al marcar los 15 números de cualquiera de tus cartones. La partida termina en cuanto uno o más cartones quedan completos; varios jugadores pueden ganar en el mismo turno si los barriles sacados cierran varios cartones. El banco se divide en partes iguales: cada cartón ganador completo cuenta como una parte y recibe el mismo pago. Si la división deja monedas sobrantes, ese resto se quema y no se paga a nadie.",
     "reconnectTitle": "Reconexión",
-    "reconnectBody": "15 segundos para reconectar. Prohibido en Apartamento."
+    "reconnectBody": "Si se corta la conexión en el lobby o durante una partida activa, tienes 15 segundos para reconectar y volver a la misma sala con tus cartones y saldo. La reconexión no está permitida en la fase Apartamento: si te desconectas entonces, quedas eliminado de inmediato y tus monedas permanecen en el banco."
   },
   "status": {
     "waiting": "Espera",
