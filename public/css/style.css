@@ -169,6 +169,24 @@ label span { display: block; margin-bottom: 0.25rem; font-size: 0.9rem; color: v
   margin: -1rem -1rem 1rem;
 }
 .user-info { flex: 1; min-width: 0; }
+#lobby-screen .top-bar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+}
+#lobby-screen .user-info {
+  flex: unset;
+  justify-self: start;
+}
+#lobby-screen .top-bar-title {
+  justify-self: center;
+  text-align: center;
+}
+#lobby-screen .lang-row {
+  justify-self: end;
+  justify-content: flex-end;
+  margin-bottom: 0;
+}
 .top-bar-title {
   font-size: 1rem;
   font-weight: 600;
