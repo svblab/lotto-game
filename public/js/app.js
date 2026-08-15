@@ -14,6 +14,8 @@
   const STORAGE_TAB_ID = 'lotto_tab_id';
   const STORAGE_OWNER_TAB = 'lotto_active_tab_id';
 
+  const Sound = () => window.LottoSound;
+
   const state = {
     user: null,
     room: null,
@@ -251,6 +253,7 @@
         await UI().revealSlot(i, nums[i]);
         const n = nums[i];
         state.myMasks = UI().markNumberOnCards(state.myCards, state.myMasks, n);
+        if (isNumberOnMyCards(state.myCards, n)) Sound()?.play('match');
         if (!state.drawnAll.includes(n)) state.drawnAll.push(n);
         UI().renderDrawnHistory(state.drawnAll, state.myCards, state.myMasks);
         UI().renderCards(state.myCards, state.myMasks, state.cardIndex, [n]);
@@ -282,6 +285,26 @@
 
   function sleep(ms) {
     return new Promise((r) => setTimeout(r, ms));
+  }
+
+  function isNumberOnMyCards(cards, n) {
+    if (!cards?.length || n == null) return false;
+    return cards.some((card) => card.some((row) => row.some((cell) => cell === n)));
+  }
+
+  function playGameOverSound(pkt) {
+    if (!Sound() || pkt.reason === 'no_survivors') return;
+    const me = pkt.statistics?.find((s) => s.username === state.user?.username);
+    if (!me) return;
+    if (me.received > 0) {
+      Sound().play('victory');
+    } else if (pkt.reason === 'victory') {
+      Sound().play('defeat');
+    }
+  }
+
+  function enterGameAudio() {
+    Sound()?.preloadAll();
   }
 
   // --- Packet handlers ---
@@ -478,6 +501,7 @@
     applyMyWinChance(initialChances);
 
     UI().showScreen('game');
+    enterGameAudio();
     UI().renderGameHeader(state.bank, state.drawerOrder[0], 90);
     UI().renderDrawnHistory([], state.myCards, state.myMasks);
     UI().renderCards(state.myCards, state.myMasks, 0, null);
@@ -567,6 +591,7 @@
 
   function onGameOver(pkt) {
     const job = async () => {
+      playGameOverSound(pkt);
       UI().hideApartment();
       UI().showGameOver(pkt, { winChanceHistory: pkt.win_chance_history || [] });
       if (pkt.statistics) {
@@ -634,6 +659,7 @@
       state.currentDrawer = pkt.current_drawer || state.drawerOrder[0] || null;
       state.cardIndex = 0;
       UI().showScreen('game');
+      enterGameAudio();
       UI().renderGameHeader(state.bank, state.currentDrawer, null);
       UI().renderDrawnHistory(state.drawnAll, state.myCards, state.myMasks);
       UI().renderCards(state.myCards, state.myMasks, state.cardIndex, null);
@@ -955,6 +981,7 @@
 
   async function init() {
     await I18n().load(I18n().detectLang());
+    Sound()?.init();
     UI().bindJoinRoomModal();
     bindEvents();
     window.addEventListener('storage', (e) => {

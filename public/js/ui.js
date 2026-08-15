@@ -544,6 +544,7 @@
   }
 
   function startSlotsWaiting() {
+    global.LottoSound?.play('spin');
     _slotWindows().forEach((win, index) => {
       _clearSlotTimer(win);
       win.classList.remove('reveal', 'decel');
@@ -594,6 +595,7 @@
           win.classList.remove('spinning', 'decel');
           win.classList.add('reveal');
           span.textContent = String(number);
+          global.LottoSound?.play('reveal');
           setTimeout(() => {
             win.classList.remove('reveal');
             resolve();

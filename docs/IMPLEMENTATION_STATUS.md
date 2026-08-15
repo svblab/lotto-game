@@ -1,5 +1,20 @@
 # Implementation Status — Lotto Game Project
 
+## Client game sounds + mute toggle (2026-08-15)
+
+- [DONE] `public/js/sound.js` — HTML5 Audio preload/play for 5 optional clips in
+  `public/audio/` (`spin`, `reveal`, `match`, `defeat`, `victory`); missing files
+  fail silently via `error` listener + `.play().catch()`.
+- [DONE] Triggers: `startSlotsWaiting`, `revealSlot` (at number reveal),
+  per-barrel match in `animateBarrelsDrawn`, `onGameOver` (victory if
+  `received > 0`; defeat only when `reason === 'victory'` and `received === 0`;
+  **no sound** for `no_survivors`).
+- [DONE] Mute toggle `#sound-mute-btn` in game top-bar; `localStorage`
+  `lotto_sound_muted` (default ON).
+
+Files: `public/js/sound.js`, `public/audio/README.md`, `public/js/ui.js`,
+`public/js/app.js`, `public/index.html`, `public/css/style.css`
+
 ## Apartment locale fix + drawn-strip/card marks (2026-08-15)
 
 - [DONE] Fixed apartment UI copy: `apartment.required` / `apartment.agree` showed
