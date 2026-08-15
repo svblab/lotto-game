@@ -1,5 +1,36 @@
 # Implementation Status — Lotto Game Project
 
+## Auth/lobby header + drawn-number strip UI (2026-08-15)
+
+- [DONE] Product feedback: auth screen shows logo only (removed redundant
+  `<h1 data-i18n="app.title">`); lobby header shows plain `app.title` text
+  between balance and language buttons (removed lobby logo image).
+- [DONE] Replaced `#drawn-history` chip list with a responsive 1–90 horizontal
+  segment strip (`renderDrawnHistory` in `ui.js`); drawn segments use `--gold`,
+  undrawn stay neutral; number tooltip on `:hover`/`:focus` via CSS `::after`.
+
+Files:
+- public/index.html
+- public/css/style.css
+- public/js/ui.js
+
+CHANGED:
+- Auth: removed duplicate title heading; lobby: logo → `span.top-bar-title`
+  with existing `app.title` i18n key (no new locale keys)
+- `#drawn-history`: 90 flex segments, `aria-label` per segment, full-array
+  correctness on all three `renderDrawnHistory` call sites in `app.js`
+
+NOT CHANGED:
+- `public/js/app.js`, protocol, server, locale JSON files
+- `.logo-img` / `.logo-placeholder` base rules (auth still uses them)
+- `.drawn-chip` CSS left in place (unused)
+
+VERIFICATION:
+- `renderDrawnHistory` receives full `state.drawnAll` on draw, reset, and
+  `reconnect_state` — each call rebuilds all 90 segment states via `Set`
+- Responsive width: `flex: 1 1 0` on 90 segments; ~3px/segment at 320px viewport
+- Tooltip: CSS-only `::after` on `:hover` and `:focus` (keyboard + touch tap)
+
 ## Optional image asset wiring (2026-08-13)
 
 - [DONE] Wired optional `public/img/` assets into the frontend with graceful

@@ -308,12 +308,24 @@
   function renderDrawnHistory(nums) {
     const box = $('#drawn-history');
     if (!box) return;
-    box.innerHTML = '';
-    (nums || []).forEach((n) => {
-      const span = document.createElement('span');
-      span.className = 'drawn-chip';
-      span.textContent = n;
-      box.appendChild(span);
+    const drawn = new Set(nums || []);
+
+    if (box.children.length !== 90) {
+      box.innerHTML = '';
+      for (let n = 1; n <= 90; n++) {
+        const seg = document.createElement('button');
+        seg.type = 'button';
+        seg.className = 'drawn-segment';
+        seg.dataset.num = String(n);
+        box.appendChild(seg);
+      }
+    }
+
+    box.querySelectorAll('.drawn-segment').forEach((seg) => {
+      const n = parseInt(seg.dataset.num, 10);
+      const isDrawn = drawn.has(n);
+      seg.classList.toggle('drawn', isDrawn);
+      seg.setAttribute('aria-label', `Number ${n}, ${isDrawn ? 'drawn' : 'not drawn'}`);
     });
   }
 
