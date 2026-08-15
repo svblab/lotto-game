@@ -64,9 +64,9 @@
   },
   "apartment": {
     "title": "¡Apartamento!",
-    "required": "¡Fila completa! Paga 10 monedas o rechaza.",
+    "required": "¡Fila completa! Paga 5 monedas o rechaza.",
     "immune": "Esperando decisiones de otros…",
-    "agree": "Aceptar (+10)",
+    "agree": "Aceptar (+5)",
     "refuse": "Rechazar"
   },
   "reconnect": {

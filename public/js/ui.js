@@ -305,10 +305,24 @@
     $('#card-next')?.classList.toggle('hidden', count <= 1);
   }
 
-  function renderDrawnHistory(nums) {
+  function getMarkedNumbersOnCards(cards, masks) {
+    const nums = new Set();
+    if (!cards?.length || !masks?.length) return nums;
+    cards.forEach((card, ci) => {
+      card.forEach((row, ri) => {
+        row.forEach((cell, col) => {
+          if (cell && masks[ci]?.[ri]?.[col]) nums.add(cell);
+        });
+      });
+    });
+    return nums;
+  }
+
+  function renderDrawnHistory(nums, cards, masks) {
     const box = $('#drawn-history');
     if (!box) return;
     const drawn = new Set(nums || []);
+    const onCard = getMarkedNumbersOnCards(cards, masks);
 
     if (box.children.length !== 90) {
       box.innerHTML = '';
@@ -324,8 +338,11 @@
     box.querySelectorAll('.drawn-segment').forEach((seg) => {
       const n = parseInt(seg.dataset.num, 10);
       const isDrawn = drawn.has(n);
+      const isOnCard = isDrawn && onCard.has(n);
       seg.classList.toggle('drawn', isDrawn);
-      seg.setAttribute('aria-label', `Number ${n}, ${isDrawn ? 'drawn' : 'not drawn'}`);
+      seg.classList.toggle('on-card', isOnCard);
+      const status = !isDrawn ? 'not drawn' : (isOnCard ? 'drawn, on your card' : 'drawn');
+      seg.setAttribute('aria-label', `Number ${n}, ${status}`);
     });
   }
 

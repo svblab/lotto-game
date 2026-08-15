@@ -64,9 +64,9 @@
   },
   "apartment": {
     "title": "公寓！",
-    "required": "一行已满！支付10金币或拒绝。",
+    "required": "一行已满！支付5金币或拒绝。",
     "immune": "等待其他玩家决定…",
-    "agree": "同意 (+10)",
+    "agree": "同意 (+5)",
     "refuse": "拒绝"
   },
   "reconnect": {

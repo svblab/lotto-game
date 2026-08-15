@@ -252,7 +252,7 @@
         const n = nums[i];
         state.myMasks = UI().markNumberOnCards(state.myCards, state.myMasks, n);
         if (!state.drawnAll.includes(n)) state.drawnAll.push(n);
-        UI().renderDrawnHistory(state.drawnAll);
+        UI().renderDrawnHistory(state.drawnAll, state.myCards, state.myMasks);
         UI().renderCards(state.myCards, state.myMasks, state.cardIndex, [n]);
         await sleep(100);
       } else {
@@ -479,7 +479,7 @@
 
     UI().showScreen('game');
     UI().renderGameHeader(state.bank, state.drawerOrder[0], 90);
-    UI().renderDrawnHistory([]);
+    UI().renderDrawnHistory([], state.myCards, state.myMasks);
     UI().renderCards(state.myCards, state.myMasks, 0, null);
     UI().renderGamePlayers(state.players);
     UI().resetSlots();
@@ -635,7 +635,7 @@
       state.cardIndex = 0;
       UI().showScreen('game');
       UI().renderGameHeader(state.bank, state.currentDrawer, null);
-      UI().renderDrawnHistory(state.drawnAll);
+      UI().renderDrawnHistory(state.drawnAll, state.myCards, state.myMasks);
       UI().renderCards(state.myCards, state.myMasks, state.cardIndex, null);
       state.players = (pkt.players || []).map((p) => ({
         username: p.username,

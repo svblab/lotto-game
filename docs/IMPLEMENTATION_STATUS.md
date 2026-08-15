@@ -1,5 +1,18 @@
 # Implementation Status — Lotto Game Project
 
+## Apartment locale fix + drawn-strip/card marks (2026-08-15)
+
+- [DONE] Fixed apartment UI copy: `apartment.required` / `apartment.agree` showed
+  10 coins in all 6 locales; server charges flat `APARTMENT_PAYMENT = 5` per
+  ANCHOR_CORE.md / `ApartmentService`.
+- [DONE] Drawn-number strip: segments matching player's marked card numbers
+  render red (`--chip`); other drawn segments stay gold.
+- [DONE] Card cell mark: red circle replaced with diagonal cross (`::before` +
+  `::after` lines, `--chip` color).
+
+Files: `public/locales/*.json`, `public/js/ui.js`, `public/js/app.js`,
+`public/css/style.css`, `public/index.html`
+
 ## Auth/lobby header + drawn-number strip UI (2026-08-15)
 
 - [DONE] Product feedback: auth screen shows logo only (removed redundant

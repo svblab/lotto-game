@@ -64,9 +64,9 @@
   },
   "apartment": {
     "title": "Appartement !",
-    "required": "Ligne complète ! Payez 10 pièces ou refusez.",
+    "required": "Ligne complète ! Payez 5 pièces ou refusez.",
     "immune": "En attente des autres…",
-    "agree": "Accepter (+10)",
+    "agree": "Accepter (+5)",
     "refuse": "Refuser"
   },
   "reconnect": {

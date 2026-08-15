@@ -64,9 +64,9 @@
   },
   "apartment": {
     "title": "Daire!",
-    "required": "Satır tamam! 10 jeton ödeyin veya reddedin.",
+    "required": "Satır tamam! 5 jeton ödeyin veya reddedin.",
     "immune": "Diğer oyuncular bekleniyor…",
-    "agree": "Kabul (+10)",
+    "agree": "Kabul (+5)",
     "refuse": "Reddet"
   },
   "reconnect": {
