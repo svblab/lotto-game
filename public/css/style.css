@@ -660,25 +660,13 @@ html.has-chip-icon .coins::before {
   position: relative;
 }
 .lotto-card td.empty { background: rgba(0,0,0,0.06); }
-.lotto-card td.marked::before,
 .lotto-card td.marked::after {
   content: '';
   position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 70%;
-  height: 2.5px;
-  background: var(--chip);
-  border-radius: 1px;
-  opacity: 0.9;
+  inset: 1px;
+  background: url('../img/mark-cross.png') center / contain no-repeat;
   pointer-events: none;
-}
-.lotto-card td.marked::before {
-  transform: translate(-50%, -50%) rotate(45deg);
-}
-.lotto-card td.marked::after {
-  inset: auto;
-  transform: translate(-50%, -50%) rotate(-45deg);
+  mix-blend-mode: multiply;
 }
 .lotto-card td.match-flash {
   animation: goldPulse 0.6s ease;
