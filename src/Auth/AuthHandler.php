@@ -29,8 +29,6 @@ use function Lotto\Core\sendError;
 */
 final class AuthHandler
 {
-   private const IP_LIMIT_MESSAGE = 'Too many accounts are already signed in from this network.';
-
    private AuthService $authService;
    private SessionService $sessionService;
    private Logger $logger;
@@ -92,15 +90,11 @@ final class AuthHandler
            return;
        }
 
-       if ($this->rejectIfTooManyAccounts($connection, $worker, (int) $result['user']['id'])) {
+       if ($this->ipAccountLimit->rejectNewAuthIfOverLimit($connection, $worker, (int) $result['user']['id'])) {
            return;
        }
 
-       $this->sessionGuard->claimUserSession($worker, (int) $result['user']['id'], $connection, $result['session_token'], $result['user'], true);
-       $connId = $connection->id ?? 'null';
-       $userId = (int) $result['user']['id'];
-       $this->logger->write('INFO', "User login: {$result['user']['username']} user_id={$userId} conn_id={$connId}");
-       $this->sendAuthResult($connection, $result);
+       $this->completeLoginSession($connection, $worker, $result);
    }
 
    /**
@@ -138,34 +132,14 @@ final class AuthHandler
            return;
        }
 
-       if ($this->rejectIfTooManyAccounts($connection, $worker, (int) $result['user']['id'])) {
+       if ($this->ipAccountLimit->rejectNewAuthIfOverLimit($connection, $worker, (int) $result['user']['id'])) {
            return;
        }
 
-       $this->sessionGuard->claimUserSession($worker, (int) $result['user']['id'], $connection, $result['session_token'], $result['user'], true);
-       $connId = $connection->id ?? 'null';
-       $userId = (int) $result['user']['id'];
-       $this->logger->write('INFO', "User login: {$result['user']['username']} user_id={$userId} conn_id={$connId}");
-       $this->sendAuthResult($connection, $result);
+       $this->completeLoginSession($connection, $worker, $result);
    }
 
-   /**
-    * Обрабатывает пакет {"action": "reconnect"}.
-    *
-    * Успех  → восстанавливает $worker->userConnections[$userId] И
-    *          связывает Connection Runtime Fields через claimUserSession()
-    *          (FIX-10 — до этого фикса $connection->userId никогда не
-    *          устанавливался здесь, что оставляло реконнекчённое
-    *          соединение фактически неаутентифицированным для guard'а
-    *          error.auth_required в server.php, см. IMPLEMENTATION_STATUS.md
-    *          FIX-10).
-    *          Пакет reconnect_state отправляет ReconnectService (EPIC-8.0/
-    *          EPIC-10.5), если у пользователя есть активная комната.
-    * Ошибка → error (error.auth_invalid_token)
-    *
-    * Формат токена (32-символьный hex) валидируется через SessionService::isValidToken().
-    * Наличие активной сессии проверяется по $worker->sessionTokens.
-    */
+   /** reconnect — FIX-10/11: user row + banned_until; ReconnectService sends reconnect_state. */
    public function handleReconnect(array $data, object $connection, object $worker): void
    {
        $token = $data['token'] ?? null;
@@ -181,49 +155,23 @@ final class AuthHandler
        }
 
        $userId = (int)$worker->sessionTokens[$token];
-
-       // FIX-10: без этой проверки удалённый (или иным образом более не
-       // существующий) пользователь мог бы пройти reconnect с валидным по
-       // формату токеном, но без реальной учётной записи — bindConnection()
-       // ниже требует username/is_admin, которых тогда просто нет.
        $user = $this->authService->getUserById($userId);
        if ($user === null) {
            sendError($connection, 'error.auth_invalid_token', 'Session not found or expired');
            return;
        }
 
-       // FIX-11: login() уже отказывает забаненным пользователям
-       // (AuthService::login(), banned_until > time()) — reconnect должен
-       // делать то же самое. До этого фикса reconnect вообще не проверял
-       // banned_until: игрок, забаненный админом, мог просто отправить
-       // {"action":"reconnect","token":<старый session_token>} вместо
-       // login() и полностью восстановить аутентифицированную сессию в
-       // обход бана — см. IMPLEMENTATION_STATUS.md FIX-11 (воспроизведено
-       // сквозным сценарием: бан во время reconnect-окна -> reconnect
-       // всё равно проходил). Пакет идентичен уже принятому контракту
-       // login()'а (ANCHOR_PROTOCOL.md § Authentication → banned) — не
-       // новый код ошибки, просто тот же banned-путь, доступный из
-       // второго места, где он был пропущен.
        if ($user['banned_until'] > time()) {
            sendJson($connection, ['type' => 'banned', 'until' => $user['banned_until']]);
            return;
        }
 
        $this->sessionGuard->claimUserSession($worker, $userId, $connection, $token, $user, false);
-
        $connId = $connection->id ?? 'null';
        $this->logger->write('INFO', "Reconnect validated: user_id={$userId} conn_id={$connId}");
-
-       // Пакет reconnect_state формирует ReconnectService (EPIC-8.0), если
-       // у пользователя есть активная комната (server.php вызывает его
-       // сразу после этого метода, EPIC-10.5).
    }
 
-   /**
-    * Отправляет auth_result, когда reconnect подтвердил сессию, но игрок
-    * не находится в восстанавливаемой комнате (закрывает KNOWN GAP в
-    * server.php — клиент иначе зависает без ответа).
-    */
+   /** auth_result when reconnect succeeded but player has no room to restore. */
    public function notifyLobbyRestored(object $connection, string $token): void
    {
        if (empty($connection->userId)) {
@@ -241,17 +189,8 @@ final class AuthHandler
        ]);
    }
 
-   // -------------------------------------------------------------------------
    // Private helpers
-   // -------------------------------------------------------------------------
 
-   /**
-    * Отправляет пакет auth_result.
-    * Контракт: ANCHOR_PROTOCOL.md § Authentication → auth_result
-    *
-    * {"type": "auth_result", "success": true, "user_id": 15,
-    *  "username": "player", "coins": 500, "is_admin": false, "session_token": "..."}
-    */
    private function sendAuthResult(object $connection, array $loginResult): void
    {
        sendJson($connection, [
@@ -265,23 +204,14 @@ final class AuthHandler
        ]);
    }
 
-   private function rejectIfTooManyAccounts(object $connection, object $worker, int $userId): bool
+   private function completeLoginSession(object $connection, object $worker, array $result): void
    {
-       if (!$this->ipAccountLimit->wouldRejectNewAuth($worker, $connection, $userId)) {
-           return false;
-       }
-
-       sendError($connection, 'error.auth_too_many_accounts_same_network', self::IP_LIMIT_MESSAGE);
-       return true;
+       $userId = (int) $result['user']['id'];
+       $this->sessionGuard->claimUserSession($worker, $userId, $connection, $result['session_token'], $result['user'], true);
+       $this->logger->write('INFO', "User login: {$result['user']['username']} user_id={$userId} conn_id=" . ($connection->id ?? 'null'));
+       $this->sendAuthResult($connection, $result);
    }
 
-   /**
-    * Сопоставляет сообщение исключения register() с кодом ошибки ANCHOR_PROTOCOL.md.
-    *
-    * Реестр кодов (ANCHOR_PROTOCOL.md § Error Packet):
-    *   error.auth_invalid_username — невалидный формат имени или пароля
-    *   error.auth_username_taken   — имя уже занято
-    */
    private function mapRegisterError(string $message): string
    {
        if ($message === 'Username already exists') {
@@ -294,15 +224,6 @@ final class AuthHandler
        return 'error.auth_invalid_username';
    }
 
-   /**
-    * Сопоставляет сообщение исключения login() с кодом ошибки ANCHOR_PROTOCOL.md.
-    *
-    * Реестр кодов (ANCHOR_PROTOCOL.md § Error Packet):
-    *   error.auth_invalid_credentials — неверный логин/пароль или двойной вход
-    *   error.auth_rate_limited        — per-username lockout (ADR-028); same generic message
-    *
-    * Бан обрабатывается отдельно в handleLogin() до вызова этого метода.
-    */
    private function mapLoginError(string $message): string
    {
        return match ($message) {

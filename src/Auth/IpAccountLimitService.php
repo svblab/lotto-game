@@ -6,6 +6,7 @@ use Lotto\Core\Constants;
 use Lotto\Core\Logger;
 
 use function Lotto\Core\lottoRuntimeEnv;
+use function Lotto\Core\sendError;
 
 /**
  * ADR-031: live per-client-IP distinct account cap at login.
@@ -15,6 +16,8 @@ final class IpAccountLimitService
 {
     /** Shared bucket when trusted proxy peer sends no resolvable client IP. */
     public const TRUSTED_PROXY_UNRESOLVED_BUCKET = '__trusted_proxy_unresolved__';
+
+    private const REJECT_MESSAGE = 'Too many accounts are already signed in from this network.';
 
     private Logger $logger;
 
@@ -61,6 +64,17 @@ final class IpAccountLimitService
         }
 
         return count($distinct) >= Constants::MAX_ACCOUNTS_PER_IP;
+    }
+
+    /** Sends error.auth_too_many_accounts_same_network when cap exceeded (ADR-031). */
+    public function rejectNewAuthIfOverLimit(object $connection, object $worker, int $userId): bool
+    {
+        if (!$this->wouldRejectNewAuth($worker, $connection, $userId)) {
+            return false;
+        }
+
+        sendError($connection, 'error.auth_too_many_accounts_same_network', self::REJECT_MESSAGE);
+        return true;
     }
 
     private function getClientRemoteIp(object $connection): string
