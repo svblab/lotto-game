@@ -18,6 +18,7 @@ require_once __DIR__ . '/../../src/Core/Helpers.php';
 use Lotto\Auth\AuthHandler;
 use Lotto\Auth\AuthService;
 use Lotto\Auth\SessionGuardService;
+use Lotto\Auth\IpAccountLimitService;
 use Lotto\Auth\SessionService;
 use Lotto\Core\Logger;
 use Lotto\Core\RoomManager;
@@ -104,7 +105,8 @@ function makeStack(PDO $pdo): array
     };
     $authService = new AuthService($db, $statements, $logger, $sessionService);
     $sessionGuard = new SessionGuardService($logger);
-    $authHandler = new AuthHandler($authService, $sessionService, $logger, $sessionGuard);
+    $ipAccountLimit = new IpAccountLimitService($logger);
+    $authHandler = new AuthHandler($authService, $sessionService, $logger, $sessionGuard, $ipAccountLimit);
     $roomManager = new RoomManager($logger);
     $lobbyHostService = new LobbyHostService($roomManager, $logger);
     $lobbyService = new LobbyService($roomManager, $logger, $lobbyHostService);

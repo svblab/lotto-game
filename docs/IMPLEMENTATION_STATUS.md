@@ -1,5 +1,58 @@
 # Implementation Status — Lotto Game Project
 
+## EPIC-031c-b — IP account limit server guard (ADR-031) (2026-08-16)
+
+Status: Completed
+
+- [DONE] `IpAccountLimitService` with trusted-proxy trust boundary
+  (`LOTTO_TRUSTED_PROXY_IPS`, X-Forwarded-For / X-Real-IP, sentinel bucket).
+- [DONE] `MAX_ACCOUNTS_PER_IP = 3` in `Constants.php`; guard on login/register
+  auto-login in `AuthHandler`; `clientRemoteIp` attached at handshake in
+  `server.php`.
+- [DONE] Manual tests `test_ip_account_limit.php` (unit (e)(f)(g) + WS (c)(d)).
+
+Files:
+- src/Core/Constants.php
+- src/Auth/IpAccountLimitService.php (new)
+- src/Auth/AuthHandler.php
+- server.php
+- tests/Manual/test_ip_account_limit.php (new)
+- tests/Manual/test_* (AuthHandler constructor + IpAccountLimitService DI)
+
+VERIFICATION:
+- `php tests/Manual/test_ip_account_limit.php`
+- `php tests/Manual/test_tab_ownership.php`
+
+## EPIC-031c-a — Trusted proxy IP docs + registry (ADR-031) (2026-08-16)
+
+Status: Completed
+
+- [DONE] ADR-031 addendum: trust boundary, sentinel fallback, updated limitations.
+- [DONE] `clientRemoteIp` in ANCHOR_CORE Connection Runtime Fields.
+- [DONE] README §3.8 + LOCAL_ENVIRONMENT `LOTTO_TRUSTED_PROXY_IPS`.
+
+Files:
+- docs/ADR/031-per-account-tab-ownership-and-ip-account-limit.md
+- docs/ANCHOR_CORE.md
+- README.md
+- docs/LOCAL_ENVIRONMENT.md
+
+## EPIC-031b — Per-account tab ownership client fix (ADR-031) (2026-08-16)
+
+Status: Completed
+
+- [DONE] `STORAGE_OWNER_TAB` stores `{tabId, userId}`; relinquish only on
+  same-account handoff; legacy bare tab id fail-safe.
+- [DONE] `tests/Manual/test_tab_ownership.php`.
+
+Files:
+- public/js/app.js
+- tests/Manual/test_tab_ownership.php (new)
+
+VERIFICATION:
+- `php tests/Manual/test_tab_ownership.php`
+- Manual browser: two Incognito accounts coexist; same-account second tab handoff.
+
 ## EPIC-031a — Per-account tab ownership + IP limit ADR (ADR-031) (2026-08-16)
 
 Status: Completed

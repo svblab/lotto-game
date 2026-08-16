@@ -11,6 +11,7 @@ use Lotto\Auth\SessionService;
 use Lotto\Auth\AuthService;
 use Lotto\Auth\AuthHandler;
 use Lotto\Auth\SessionGuardService;
+use Lotto\Auth\IpAccountLimitService;
 use Lotto\Lobby\LobbyService;
 use Lotto\Lobby\LobbyHostService;
 use Lotto\Game\ReconnectService;
@@ -67,7 +68,8 @@ try {
     $sessionService = new SessionService();
     $authService = new AuthService($db, $statements, $logger, $sessionService);
     $sessionGuard = new SessionGuardService($logger);
-    $authHandler = new AuthHandler($authService, $sessionService, $logger, $sessionGuard);
+    $ipAccountLimit = new IpAccountLimitService($logger);
+    $authHandler = new AuthHandler($authService, $sessionService, $logger, $sessionGuard, $ipAccountLimit);
 
     $roomManager = new RoomManager($logger);
     $lobbyHostService = new LobbyHostService($roomManager, $logger);

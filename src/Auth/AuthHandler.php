@@ -29,21 +29,26 @@ use function Lotto\Core\sendError;
 */
 final class AuthHandler
 {
+   private const IP_LIMIT_MESSAGE = 'Too many accounts are already signed in from this network.';
+
    private AuthService $authService;
    private SessionService $sessionService;
    private Logger $logger;
    private SessionGuardService $sessionGuard;
+   private IpAccountLimitService $ipAccountLimit;
 
    public function __construct(
        AuthService $authService,
        SessionService $sessionService,
        Logger $logger,
-       SessionGuardService $sessionGuard
+       SessionGuardService $sessionGuard,
+       IpAccountLimitService $ipAccountLimit
    ) {
        $this->authService = $authService;
        $this->sessionService = $sessionService;
        $this->logger = $logger;
        $this->sessionGuard = $sessionGuard;
+       $this->ipAccountLimit = $ipAccountLimit;
    }
 
    // -------------------------------------------------------------------------
@@ -87,6 +92,10 @@ final class AuthHandler
            return;
        }
 
+       if ($this->rejectIfTooManyAccounts($connection, $worker, (int) $result['user']['id'])) {
+           return;
+       }
+
        $this->sessionGuard->claimUserSession($worker, (int) $result['user']['id'], $connection, $result['session_token'], $result['user'], true);
        $connId = $connection->id ?? 'null';
        $userId = (int) $result['user']['id'];
@@ -126,6 +135,10 @@ final class AuthHandler
 
            $clientMsg = $msg === 'Auth rate limited' ? 'Invalid username or password' : $msg;
            sendError($connection, $this->mapLoginError($msg), $clientMsg);
+           return;
+       }
+
+       if ($this->rejectIfTooManyAccounts($connection, $worker, (int) $result['user']['id'])) {
            return;
        }
 
@@ -250,6 +263,16 @@ final class AuthHandler
            'is_admin'      => $loginResult['user']['is_admin'],
            'session_token' => $loginResult['session_token'],
        ]);
+   }
+
+   private function rejectIfTooManyAccounts(object $connection, object $worker, int $userId): bool
+   {
+       if (!$this->ipAccountLimit->wouldRejectNewAuth($worker, $connection, $userId)) {
+           return false;
+       }
+
+       sendError($connection, 'error.auth_too_many_accounts_same_network', self::IP_LIMIT_MESSAGE);
+       return true;
    }
 
    /**

@@ -95,16 +95,65 @@
     return tabId;
   }
 
+  function currentUserId() {
+    if (state.user?.id != null) return Number(state.user.id);
+    const saved = loadPersistedUser();
+    return saved?.id != null ? Number(saved.id) : null;
+  }
+
+  /** ADR-031: owner record is JSON {tabId, userId}; legacy bare tab id is not same-account provable. */
+  function parseOwnerRecord(raw) {
+    if (raw == null || raw === '') return null;
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.tabId === 'string' && parsed.userId != null) {
+        return { tabId: parsed.tabId, userId: Number(parsed.userId) };
+      }
+    } catch {
+      // not JSON — may be legacy bare tab id
+    }
+    if (typeof raw === 'string' && raw.length > 0 && raw[0] !== '{') {
+      return { tabId: raw, userId: null };
+    }
+    return null;
+  }
+
+  function readOwnerRecord() {
+    return parseOwnerRecord(localStorage.getItem(STORAGE_OWNER_TAB));
+  }
+
+  function writeOwnerRecord(tabId, userId) {
+    localStorage.setItem(
+      STORAGE_OWNER_TAB,
+      JSON.stringify({ tabId, userId: Number(userId) })
+    );
+  }
+
   function isSessionOwnerTab() {
     const tabId = sessionStorage.getItem(STORAGE_TAB_ID);
-    const ownerTabId = localStorage.getItem(STORAGE_OWNER_TAB);
-    return !!tabId && tabId === ownerTabId;
+    if (!tabId) return false;
+    const owner = readOwnerRecord();
+    if (!owner || owner.userId == null) return false;
+    const myUserId = currentUserId();
+    if (myUserId == null) return false;
+    return tabId === owner.tabId && myUserId === owner.userId;
+  }
+
+  function shouldRelinquishToOtherTab() {
+    if (isSessionOwnerTab()) return false;
+    const owner = readOwnerRecord();
+    const myUserId = currentUserId();
+    if (myUserId == null || !owner || owner.userId == null) return false;
+    return owner.userId === myUserId;
   }
 
   function claimSessionOwnership() {
     const tabId = ensureTabId();
+    const userId = currentUserId();
     sessionStorage.setItem(STORAGE_ACTIVE, '1');
-    localStorage.setItem(STORAGE_OWNER_TAB, tabId);
+    if (userId != null) {
+      writeOwnerRecord(tabId, userId);
+    }
   }
 
   function markActiveSession() {
@@ -987,7 +1036,7 @@
     window.addEventListener('storage', (e) => {
       if (e.key !== STORAGE_OWNER_TAB && e.key !== STORAGE_TOKEN) return;
       if (e.key === STORAGE_TOKEN && e.newValue === e.oldValue) return;
-      if (!isSessionOwnerTab()) {
+      if (shouldRelinquishToOtherTab()) {
         relinquishSessionToOtherTab();
       }
     });

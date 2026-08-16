@@ -27,6 +27,7 @@ require_once dirname(__DIR__, 2) . '/src/Core/Helpers.php';
 use Lotto\Auth\AuthService;
 use Lotto\Auth\AuthHandler;
 use Lotto\Auth\SessionGuardService;
+use Lotto\Auth\IpAccountLimitService;
 use Lotto\Auth\SessionService;
 use Lotto\Infrastructure\PreparedStatements;
 use Lotto\Core\Logger;
@@ -138,7 +139,8 @@ function makeServices(PDO $pdo): array
         $sessionService
     );
     $sessionGuard = new SessionGuardService($logger);
-    $authHandler = new AuthHandler($authService, $sessionService, $logger, $sessionGuard);
+    $ipAccountLimit = new IpAccountLimitService($logger);
+    $authHandler = new AuthHandler($authService, $sessionService, $logger, $sessionGuard, $ipAccountLimit);
     return [$authService, $authHandler, $sessionService];
 }
 

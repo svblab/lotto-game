@@ -78,6 +78,13 @@ Analyze/replay: `php scripts/analyze_economy_log.php [--initial=1:500,2:500]`.
 - Unset or empty = allow all (default; preserves dev/tests).
 - When set, mismatched or missing `Origin` is rejected before `hello`.
 
+**IP account limit / trusted proxy (ADR-031):** when TLS terminates at nginx/Caddy
+(ADR-027), set reverse-proxy headers (`X-Forwarded-For`, `X-Real-IP` — see
+`README.md` §3.8). Optional env:
+- `LOTTO_TRUSTED_PROXY_IPS` — comma-separated TCP peer IPs from which
+  `X-Forwarded-For` / `X-Real-IP` are trusted (default `127.0.0.1,::1`).
+  Direct WS connections (not from these peers) never trust forwarded headers.
+
 **Important:** Do not run tests as `root` on the VPS — root-owned
 `logs/*.log` files will block the `www-data` service user (see FIX-12/FIX-13).
 Run tests as the same user as `lotto-server.service`.

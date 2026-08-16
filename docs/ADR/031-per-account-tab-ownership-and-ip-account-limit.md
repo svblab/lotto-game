@@ -197,3 +197,86 @@ real client bug; Part B adds a proportionate server-side friction layer.
 - Changing `SessionGuardService` single-session-per-user rules.
 - Register throttling beyond the IP account cap (ADR-028 EPIC-5b placeholder).
 - Cookie / CSWSH changes (ADR-029 covers Origin; token model unchanged).
+
+---
+
+## Addendum — Trusted proxy client IP resolution (EPIC-031c-a / EPIC-031c-b)
+
+### Status
+
+Accepted (folded into EPIC-031c before server guard implementation).
+
+### Problem
+
+ADR-027 production deploy terminates TLS at nginx/Caddy and proxies to plain
+`ws://127.0.0.1:8080`. Raw `TcpConnection::getRemoteIp()` on the Workerman
+side then returns the **proxy** address (`127.0.0.1`) for every connection.
+Without correction, `MAX_ACCOUNTS_PER_IP` would apply to the **entire server**
+in production — a functional break, not a heuristic limitation.
+
+### Decision — trust boundary
+
+**1. Resolved client IP (`clientRemoteIp`)**
+
+At WebSocket handshake (`onWebSocketConnected`), resolve and store on the
+connection as `$connection->clientRemoteIp` (ANCHOR_CORE.md § Connection
+Runtime Fields). All IP-account counting uses this bucketing key, not raw
+`getRemoteIp()` alone.
+
+**2. When TCP peer is a trusted proxy**
+
+If `getRemoteIp()` is in `LOTTO_TRUSTED_PROXY_IPS` (env via
+`lottoRuntimeEnv()`, default `127.0.0.1,::1` — matches ADR-027 local proxy):
+
+- Read real client IP from handshake `Request::header()`:
+  1. First valid IP in `X-Forwarded-For` (leftmost entry)
+  2. Else valid `X-Real-IP`
+- **Trust** these headers only from trusted peers — the proxy is the trust
+  boundary.
+
+**3. When TCP peer is NOT a trusted proxy (direct WS connect)**
+
+- Use raw `getRemoteIp()` only.
+- **Do not** read or trust `X-Forwarded-For` / `X-Real-IP` — a direct client
+  could forge them.
+
+**4. Trusted proxy, unresolvable client IP**
+
+If peer is trusted but neither header yields a valid IP (missing, empty,
+forged non-IP):
+
+- `Logger::write('WARNING', ...)` with `conn_id` and peer IP.
+- Bucketing key: sentinel `__trusted_proxy_unresolved__` (constant in
+  `IpAccountLimitService`) — all such connections share **one** bucket;
+  `MAX_ACCOUNTS_PER_IP` still applies (fail-safe, not unlimited).
+- Do not crash.
+
+**5. Implementation placement**
+
+- `IpAccountLimitService` — resolve logic, counting, sentinel constant.
+- `server.php` — one `attachClientRemoteIp($connection, $request)` call at
+  handshake (after Origin gate, with connection field init).
+- `AuthHandler` — enforcement before `claimUserSession()` on login/register
+  auto-login only.
+
+**6. Deployment**
+
+nginx example in `README.md` already sets `X-Forwarded-For` and `X-Real-IP`.
+Caddy `reverse_proxy` forwards `X-Forwarded-For` by default. Document
+`LOTTO_TRUSTED_PROXY_IPS` alongside `LOTTO_ALLOWED_ORIGINS`.
+
+### Limitations table (updated)
+
+| Scenario | Effect |
+|----------|--------|
+| Shared NAT / CGNAT / office networks | **Over-trigger** — unrelated users may share one public IP; `3` mitigates but does not eliminate |
+| VPN / proxy / multi-hop routing | **Under-trigger** — many IPs per actor |
+| Different browser profiles / devices off-LAN | **Bypass** |
+| Worker restart | Live IP counts reset (ephemeral RAM) |
+| Reverse proxy TLS (ADR-027) | **Handled** — trusted-proxy + `X-Forwarded-For` / `X-Real-IP` when peer is trusted; nginx/Caddy examples document required headers |
+| Trusted proxy without client IP headers | **Fail-safe** — sentinel bucket + WARNING; not unlimited |
+
+Replace the prior Limitations table row “Reverse proxy without correct IP
+forwarding” with the two rows above in operational docs; the original table
+in this ADR’s main body remains historical context for EPIC-031a.
+

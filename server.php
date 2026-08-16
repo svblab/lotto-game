@@ -124,6 +124,7 @@ use Lotto\Auth\AuthService;
 use Lotto\Auth\LoginThrottleService;
 use Lotto\Auth\AuthHandler;
 use Lotto\Auth\SessionGuardService;
+use Lotto\Auth\IpAccountLimitService;
 use Lotto\Core\RoomManager;
 use Lotto\Lobby\LobbyService;
 use Lotto\Lobby\LobbyHostService;
@@ -184,7 +185,15 @@ $worker->onWorkerStart = function (Worker $worker): void {
     $authService    = new AuthService($worker->db, $statements, $worker->logger, $sessionService, $worker->loginThrottle);
     $sessionGuardService = new SessionGuardService($worker->logger);
     $worker->sessionGuard = $sessionGuardService;
-    $worker->authHandler = new AuthHandler($authService, $sessionService, $worker->logger, $sessionGuardService);
+    $ipAccountLimitService = new IpAccountLimitService($worker->logger);
+    $worker->ipAccountLimit = $ipAccountLimitService;
+    $worker->authHandler = new AuthHandler(
+        $authService,
+        $sessionService,
+        $worker->logger,
+        $sessionGuardService,
+        $ipAccountLimitService
+    );
 
     // EPIC-10.4 (Lobby packet routing): LobbyService уже реализован
     // (EPIC-2.x) — здесь только сборка зависимостей и подключение к
@@ -399,6 +408,11 @@ $worker->onWebSocketConnected = function ($connection, $request = null) use ($wo
     // ADR-003: Rate limiting — счётчик пакетов в текущем окне (1s).
     $connection->packetCount       = 0;
     $connection->packetWindowStart = time();
+
+    // ADR-031: resolved client IP for per-network account cap (trusted-proxy aware).
+    if (isset($worker->ipAccountLimit)) {
+        $worker->ipAccountLimit->attachClientRemoteIp($connection, $request);
+    }
 
     sendJson($connection, [
         'type'             => 'hello',

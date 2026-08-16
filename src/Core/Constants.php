@@ -55,6 +55,9 @@ class Constants
     public const LOGIN_THROTTLE_WINDOW_SECONDS = 300;
     public const LOGIN_THROTTLE_LOCKOUT_SECONDS = 900;
 
+    // ADR-031: max distinct live authenticated user_ids per client IP bucket
+    public const MAX_ACCOUNTS_PER_IP = 3;
+
     public static function reconnectTimeout(): int
     {
         return self::envInt('LOTTO_RECONNECT_TIMEOUT', self::RECONNECT_TIMEOUT);

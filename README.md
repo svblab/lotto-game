@@ -199,6 +199,26 @@ Environment=LOTTO_ALLOWED_ORIGINS=https://your-domain.com,http://localhost:8080
 соединения с чужим или отсутствующим `Origin` отклоняются до `hello`
 (`error.origin_forbidden`, WS close 4002).
 
+### 3.8. IP account limit / reverse proxy (ADR-031)
+
+При TLS через reverse proxy (§3.2 / §3.3) Workerman видит peer IP прокси
+(обычно `127.0.0.1`), а не клиента. Лимит `MAX_ACCOUNTS_PER_IP` использует
+реальный IP из заголовков handshake:
+
+- nginx: в примере ниже уже есть
+  `proxy_set_header X-Real-IP $remote_addr;` и
+  `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;` — **не удаляйте**.
+- Caddy: `reverse_proxy` по умолчанию прокидывает `X-Forwarded-For`.
+
+Список trusted proxy peer IP (с которых заголовки **доверяются**):
+
+```ini
+Environment=LOTTO_TRUSTED_PROXY_IPS=127.0.0.1,::1
+```
+
+По умолчанию `127.0.0.1,::1`. Прямое подключение к WS **без** прокси не
+читает `X-Forwarded-For` / `X-Real-IP` (защита от подделки).
+
 ## 4. Логи и бэкап
 
 - Логи: `logs/server.log`, ротация автоматическая.

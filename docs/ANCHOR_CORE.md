@@ -104,8 +104,9 @@ $connection->sessionToken;
 $connection->lastPing;
 $connection->packetCount;       // ADR-003: rate limiting, окно 1s
 $connection->packetWindowStart; // ADR-003: rate limiting, окно 1s
+$connection->clientRemoteIp;    // ADR-031: resolved client IP for IP-account cap bucketing
 ```
-No additional business fields allowed beyond those listed here (see ADR-003 for the rate-limiting pair).
+No additional business fields allowed beyond those listed here (see ADR-003 for the rate-limiting pair; ADR-031 for `clientRemoteIp`).
 
 ## Room States
 Allowed: `waiting | playing | apartment | finished`. No others.
@@ -532,7 +533,7 @@ MAX_ACCOUNTS_PER_IP
 ```
 
 ## Connection Properties
-`$connection->userId, ->username, ->isAdmin, ->sessionToken, ->lastPing, ->packetCount, ->packetWindowStart` (последние два — ADR-003, rate limiting). No additional business fields.
+`$connection->userId, ->username, ->isAdmin, ->sessionToken, ->lastPing, ->packetCount, ->packetWindowStart` (последние два — ADR-003, rate limiting), `->clientRemoteIp` (ADR-031, IP-account cap bucketing). No additional business fields.
 
 ## Worker Storage
 `$worker->rooms`, `$worker->userConnections` (key=`userId`, value=`$connection`).
