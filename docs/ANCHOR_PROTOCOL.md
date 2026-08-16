@@ -15,7 +15,7 @@ Server → Client
 ```json
 {"type": "error", "code": "error_code", "message": "optional text"}
 ```
-Codes: `error.invalid_json, error.auth_required, error.room_not_found, error.not_your_turn, error.server_full, error.room_full, error.room_limit, error.banned, error.cannot_moderate_admin, error.auth_invalid_username, error.auth_username_taken, error.auth_invalid_credentials, error.auth_invalid_token, error.auth_rate_limited`
+Codes: `error.invalid_json, error.auth_required, error.room_not_found, error.not_your_turn, error.server_full, error.room_full, error.room_limit, error.banned, error.cannot_moderate_admin, error.auth_invalid_username, error.auth_username_taken, error.auth_invalid_credentials, error.auth_invalid_token, error.auth_rate_limited, error.auth_too_many_accounts_same_network`
 
 `error.invalid_json` (ADR-003): sent for malformed JSON or missing/invalid
 `action` field. The connection is NOT closed — the client remains
@@ -44,6 +44,14 @@ throttling has locked the account after too many failed attempts in a rolling
 window. The optional `message` field uses the same generic text as invalid
 credentials (`Invalid username or password`) — the server MUST NOT expose
 remaining lockout time, attempt count, or whether the username exists.
+
+`error.auth_too_many_accounts_same_network` (ADR-031): sent when a **new**
+login (or register auto-login) would exceed `MAX_ACCOUNTS_PER_IP` distinct
+live authenticated `user_id`s already connected from the same remote IP
+(`$worker->userConnections` live count). **Not** sent on `reconnect`. Unlike
+ADR-028, the `message` must be **honest and specific** (e.g.
+`Too many accounts are already signed in from this network.`) — do not disguise
+as invalid credentials. The connection is NOT closed.
 
 `error.banned` (ADR-007): reserved in the registry but **not emitted**.
 Ban rejections use the dedicated `banned` packet type instead

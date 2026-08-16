@@ -1,5 +1,36 @@
 # Implementation Status — Lotto Game Project
 
+## EPIC-031a — Per-account tab ownership + IP limit ADR (ADR-031) (2026-08-16)
+
+Status: Completed
+
+- [DONE] ADR-031 documents Part A (client per-account tab ownership) and Part B
+  (server `MAX_ACCOUNTS_PER_IP` guard); numbering skips 030 on `main` (possible
+  claim on `feature/room-chat-files`).
+- [DONE] Protocol + core registries: `error.auth_too_many_accounts_same_network`,
+  `MAX_ACCOUNTS_PER_IP = 3`, `IpAccountLimitService` in Auth module / Part 6.
+
+Files:
+- docs/ADR/031-per-account-tab-ownership-and-ip-account-limit.md (new)
+- docs/ANCHOR_PROTOCOL.md
+- docs/ANCHOR_CORE.md
+
+Notes: Documentation only — no PHP/JS implementation in this epic.
+Follow-up: EPIC-031b (`public/js/app.js`), EPIC-031c (server guard + tests).
+
+CHANGED:
+- Error code registry and ADR-031 narrative for honest IP-cap rejection at login
+- Global constant `MAX_ACCOUNTS_PER_IP` and Auth module class registry
+
+NOT CHANGED:
+- `public/js/app.js`, `src/Auth/*`, `src/Core/Constants.php`, tests
+
+VERIFICATION:
+- Manual: confirm ADR-031 sections match approved stakeholder spec (Part A/B split,
+  `MAX_ACCOUNTS_PER_IP = 3`, reconnect exempt, register auto-login in scope).
+- Manual: grep `ANCHOR_PROTOCOL.md` for `error.auth_too_many_accounts_same_network`.
+- Manual: grep `ANCHOR_CORE.md` for `MAX_ACCOUNTS_PER_IP` and `IpAccountLimitService`.
+
 ## Client game sounds + mute toggle (2026-08-15)
 
 - [DONE] `public/js/sound.js` — HTML5 Audio preload/play for 5 optional clips in
