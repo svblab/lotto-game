@@ -87,6 +87,7 @@ $room['players'][$connId] = [
   'afk_start' => null,
   'strikes' => 0,
   'auto_draws' => 0,
+  'nudged_this_turn' => false,
   'status' => 'active'|'disconnected',
   'session_token' => string,
   'reconnect_timer' => null,
@@ -94,6 +95,11 @@ $room['players'][$connId] = [
   'immune' => bool
 ];
 ```
+
+`nudged_this_turn` (ADR-032): per-player, RAM-only, default `false` if
+absent. Set on a successful `nudge_turn`; reset to `false` for every
+seated player in `GameTurnService::startTurn()`. Never persisted; never
+affects AFK fields.
 
 ## Connection Runtime Fields
 ```php
@@ -365,7 +371,7 @@ Forbidden: `draw_barrel, apartment_choice`.
 Transitions: `start_game → playing`; `no players remain → destroyed`; `admin_close_room → destroyed`.
 
 **playing**: Main loop active, cards/bag/bank/drawer exist.
-Allowed: `draw_barrel, leave_room, ping, reconnect`.
+Allowed: `draw_barrel, leave_room, ping, reconnect, nudge_turn`.
 Forbidden: `join_room, start_game, apartment_choice`.
 Transitions: `apartment detected → apartment`; `winner found → finished`; `last survivor → finished`; `admin_close_room → destroyed`; `no active players → destroyed`.
 
@@ -559,7 +565,7 @@ Room states: `waiting, playing, apartment, finished`.
 ## Player Structure Keys (allowed)
 ```
 user_id, username, cards, cards_count, total_paid, last_action, host_activity_at, afk_start,
-strikes, auto_draws, status, session_token, reconnect_timer, connection, immune
+strikes, auto_draws, nudged_this_turn, status, session_token, reconnect_timer, connection, immune
 ```
 Player states: `active, disconnected`.
 Removal reasons: `leave, disconnect, afk, refuse, kicked, banned, admin_close`.
@@ -591,14 +597,14 @@ Removal reasons: `leave, disconnect, afk, refuse, kicked, banned, admin_close`.
 ```
 hello, auth_result, error, room_list, room_joined, player_joined, player_left,
 player_status_changed, host_changed, bank_updated, balance_updated, game_started,
-your_turn, barrels_drawn, afk_warning, apartment_alert, reconnect_state, game_over,
+your_turn, barrels_drawn, afk_warning, nudge_received, apartment_alert, reconnect_state, game_over,
 banned, admin_stats_data, admin_users_data, admin_logs_data
 ```
 
 ## Protocol Actions (allowed)
 ```
 register, login, reconnect, ping, room_list, create_room, join_room, leave_room,
-start_game, draw_barrel, turn_ready, apartment_choice, admin_ban_user, admin_unban_user,
+start_game, draw_barrel, turn_ready, nudge_turn, apartment_choice, admin_ban_user, admin_unban_user,
 admin_kick_user, admin_close_room, admin_get_logs, admin_get_stats, admin_get_users
 ```
 

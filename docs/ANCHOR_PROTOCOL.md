@@ -15,7 +15,7 @@ Server → Client
 ```json
 {"type": "error", "code": "error_code", "message": "optional text"}
 ```
-Codes: `error.invalid_json, error.auth_required, error.room_not_found, error.not_your_turn, error.server_full, error.room_full, error.room_limit, error.banned, error.cannot_moderate_admin, error.auth_invalid_username, error.auth_username_taken, error.auth_invalid_credentials, error.auth_invalid_token, error.auth_rate_limited, error.auth_too_many_accounts_same_network`
+Codes: `error.invalid_json, error.auth_required, error.room_not_found, error.not_your_turn, error.already_nudged, error.server_full, error.room_full, error.room_limit, error.banned, error.cannot_moderate_admin, error.auth_invalid_username, error.auth_username_taken, error.auth_invalid_credentials, error.auth_invalid_token, error.auth_rate_limited, error.auth_too_many_accounts_same_network`
 
 `error.invalid_json` (ADR-003): sent for malformed JSON or missing/invalid
 `action` field. The connection is NOT closed — the client remains
@@ -57,6 +57,13 @@ as invalid credentials. The connection is NOT closed.
 Ban rejections use the dedicated `banned` packet type instead
 (`{"type":"banned","until":...}`). Kept for forward compatibility;
 do not remove without ADR approval.
+
+`error.already_nudged` (ADR-032): sent when a seated player sends
+`nudge_turn` a second time in the same turn. Distinct from
+`error.not_your_turn` so the client can silently disable the nudge
+control without a generic "not your turn" toast. Self-nudge, non-playing
+room, and inactive/non-seated sender use existing codes (`error.not_your_turn`
+/ `error.room_not_found`) — see ADR-032.
 
 ---
 
@@ -289,6 +296,23 @@ Client → Server. Current drawer signals slot animation finished; server sets `
 ```json
 {"action": "turn_ready"}
 ```
+
+### nudge_turn
+Client → Server (ADR-032). A non-drawer seated in the `playing` room sends a
+one-per-turn "hurry up" signal to the current drawer. No payload — server
+uses the sender's `connId` and `room['active_drawer_conn_id']`. Must not
+alter AFK timer fields.
+```json
+{"action": "nudge_turn"}
+```
+
+### nudge_received
+Server → current drawer only (never broadcast). Private notification that
+another player nudged them.
+```json
+{"type": "nudge_received", "from": "username"}
+```
+`from`: nudging player's username.
 
 ### barrels_drawn
 Server → Room
