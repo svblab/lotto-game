@@ -84,6 +84,10 @@ Analyze/replay: `php scripts/analyze_economy_log.php [--initial=1:500,2:500]`.
 - `LOTTO_TRUSTED_PROXY_IPS` — comma-separated TCP peer IPs from which
   `X-Forwarded-For` / `X-Real-IP` are trusted (default `127.0.0.1,::1`).
   Direct WS connections (not from these peers) never trust forwarded headers.
+- `LOTTO_MAX_ACCOUNTS_PER_IP` — max distinct live authenticated accounts per
+  resolved client IP (default `3`, same as `Constants::MAX_ACCOUNTS_PER_IP`).
+  Positive integer only; unset/empty/invalid keeps the default. Raise
+  (e.g. `9999`) to effectively disable for tests, local dev, or staging.
 
 **Important:** Do not run tests as `root` on the VPS — root-owned
 `logs/*.log` files will block the `www-data` service user (see FIX-12/FIX-13).

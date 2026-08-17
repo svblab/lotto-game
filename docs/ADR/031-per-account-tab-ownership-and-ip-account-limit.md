@@ -280,3 +280,92 @@ Replace the prior Limitations table row “Reverse proxy without correct IP
 forwarding” with the two rows above in operational docs; the original table
 in this ADR’s main body remains historical context for EPIC-031a.
 
+---
+
+## Addendum — Sentinel-bucket fail-open + configurable cap (EPIC-031c-c)
+
+### Status
+
+Accepted (bugfix after VPS regression of `test_concurrent_session_bug.php`).
+
+### Problem
+
+The previous addendum’s decision 4 applied `MAX_ACCOUNTS_PER_IP` to the shared
+sentinel `__trusted_proxy_unresolved__`. That is correct as a *per-network*
+heuristic only when the bucket represents one real client network.
+
+When a trusted proxy peer has **no** resolvable `X-Forwarded-For` / `X-Real-IP`
+(missing header after nginx reload, CDN stripping, health-check or admin
+connecting straight to `:8080`, raw test clients), **every** such connection
+collapses into **one** sentinel. The cap then becomes a **global** limit of 3
+simultaneous distinct accounts for the entire site. Symptom is a single
+`WARNING` log line per connection — easy to miss — while new logins fail with
+`error.auth_too_many_accounts_same_network`.
+
+This is a higher-severity failure than “some networks are over-capped”: the
+game stops accepting new logins past 3 concurrent users.
+
+`127.0.0.1` is in the default `LOTTO_TRUSTED_PROXY_IPS` list, so local/raw WS
+tests without XFF hit this path immediately.
+
+### Decision
+
+**1. `LOTTO_MAX_ACCOUNTS_PER_IP` (runtime override)**
+
+Read via `lottoRuntimeEnv()`, same surface as `LOTTO_TRUSTED_PROXY_IPS` /
+`LOTTO_ALLOWED_ORIGINS`.
+
+| Source | Value |
+|--------|-------|
+| Unset / empty / non-positive | `Constants::MAX_ACCOUNTS_PER_IP` (**3**) |
+| Positive integer | that value |
+
+`Constants::maxAccountsPerIp()` is the single reader. Production default stays
+3; tests, local dev, and staging can raise it (e.g. `50` or `9999`) without a
+code change. This does **not** weaken the feature: callers that need more
+accounts from one source configure their environment.
+
+**2. Sentinel bucket: fail open (availability over enforcement)**
+
+Chosen approach: **exempt** `TRUSTED_PROXY_UNRESOLVED_BUCKET` from the
+distinct-account cap. `wouldRejectNewAuth()` returns false for that key.
+Handshake still logs `WARNING` (peer IP, `conn_id`, note that the cap is not
+applied).
+
+Rejected alternative: a separate, much higher sentinel threshold (e.g. 50 or
+`MAX_TOTAL_PLAYERS`). Any finite number on a **shared** unidentifiable bucket
+is still a site-wide lockout, only deferred. For this coin-economy game that
+is worse than temporarily losing IP-heuristic friction while proxy headers
+are broken.
+
+Unchanged (already correct):
+
+- Trusted proxy **with** valid XFF / X-Real-IP — per-client-IP cap applies.
+- Untrusted direct peer — raw `getRemoteIp()` bucket, headers ignored, cap
+  applies.
+
+Site-wide bounds that still apply on the sentinel path: `MAX_TOTAL_PLAYERS`,
+session-per-user (`SessionGuardService`), login throttle (ADR-028).
+
+**3. Tradeoff (explicit)**
+
+| Fail closed (old) | Fail open (this addendum) |
+|-------------------|---------------------------|
+| Proxy-header outage → global login cap of 3 | Proxy-header outage → IP heuristic paused for those connections |
+| Multi-accounting from “unknown” peers still capped | Multi-accounting from “unknown” peers not IP-capped until headers return |
+| Easy to miss (WARNING only) until users cannot log in | WARNING still fires; operators must fix proxy config, but players can play |
+
+Lean toward availability: do not lock out legitimate users site-wide because
+client IP resolution is broken.
+
+### Limitations table (this addendum)
+
+| Scenario | Effect |
+|----------|--------|
+| Trusted proxy without client IP headers | **Fail open** — sentinel bucket, WARNING, **no** distinct-account cap; not a global 3-account lockout |
+| `LOTTO_MAX_ACCOUNTS_PER_IP` raised in production | Weaker anti-fraud heuristic until lowered; operators’ choice |
+
+Decision 4 of the prior addendum (“`MAX_ACCOUNTS_PER_IP` still applies” on the
+sentinel) is **superseded** by this section. Other trust-boundary decisions
+(XFF leftmost, untrusted peers ignore headers) are unchanged.
+

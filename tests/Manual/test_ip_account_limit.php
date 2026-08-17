@@ -127,6 +127,59 @@ ipCheck(
     Constants::MAX_ACCOUNTS_PER_IP === 3,
     'MAX_ACCOUNTS_PER_IP constant is 3'
 );
+ipCheck(
+    Constants::maxAccountsPerIp() === 3,
+    'maxAccountsPerIp() defaults to 3 when env unset'
+);
+
+putenv('LOTTO_MAX_ACCOUNTS_PER_IP=5');
+$_ENV['LOTTO_MAX_ACCOUNTS_PER_IP'] = '5';
+$_SERVER['LOTTO_MAX_ACCOUNTS_PER_IP'] = '5';
+ipCheck(Constants::maxAccountsPerIp() === 5, 'LOTTO_MAX_ACCOUNTS_PER_IP=5 raises the cap');
+$c4 = makeMockConnection('192.0.2.4', 4);
+$c4->clientRemoteIp = $bucketIp;
+$workerAt3 = makeWorker([1 => $c1, 2 => $c2, 3 => $c3]);
+ipCheck(
+    !$service->wouldRejectNewAuth($workerAt3, $c4, 4),
+    'fourth distinct user allowed when LOTTO_MAX_ACCOUNTS_PER_IP=5'
+);
+$c5 = makeMockConnection('192.0.2.5', 5);
+$c5->clientRemoteIp = $bucketIp;
+$c6 = makeMockConnection('192.0.2.6', 6);
+$c6->clientRemoteIp = $bucketIp;
+$workerAt5 = makeWorker([1 => $c1, 2 => $c2, 3 => $c3, 4 => $c4, 5 => $c5]);
+ipCheck(
+    $service->wouldRejectNewAuth($workerAt5, $c6, 6),
+    'sixth distinct user rejected when LOTTO_MAX_ACCOUNTS_PER_IP=5'
+);
+putenv('LOTTO_MAX_ACCOUNTS_PER_IP');
+unset($_ENV['LOTTO_MAX_ACCOUNTS_PER_IP'], $_SERVER['LOTTO_MAX_ACCOUNTS_PER_IP']);
+ipCheck(Constants::maxAccountsPerIp() === 3, 'maxAccountsPerIp() returns 3 after env unset');
+
+// Sentinel must not become a global 3-account lockout (EPIC-031c-c)
+putenv('LOTTO_TRUSTED_PROXY_IPS=127.0.0.1');
+$sentinelConns = [];
+for ($i = 1; $i <= 5; $i++) {
+    $sc = makeMockConnection('127.0.0.1', 100 + $i);
+    $service->attachClientRemoteIp($sc, null);
+    $sentinelConns[$i] = $sc;
+}
+$sentinelWorker = makeWorker([
+    11 => $sentinelConns[1],
+    12 => $sentinelConns[2],
+    13 => $sentinelConns[3],
+    14 => $sentinelConns[4],
+]);
+$sentinelNew = $sentinelConns[5];
+ipCheck(
+    $sentinelNew->clientRemoteIp === IpAccountLimitService::TRUSTED_PROXY_UNRESOLVED_BUCKET,
+    'trusted proxy without XFF still uses sentinel bucket'
+);
+ipCheck(
+    !$service->wouldRejectNewAuth($sentinelWorker, $sentinelNew, 15),
+    'fifth distinct sentinel-bucket account is NOT rejected (no global lockout)'
+);
+putenv('LOTTO_TRUSTED_PROXY_IPS');
 
 echo "\n=== Integration: WS login cap + reconnect (c)(d) ===\n\n";
 
@@ -327,6 +380,27 @@ try {
   $rejected = ($rePkt['type'] ?? '') === 'error'
       && ($rePkt['code'] ?? '') === 'error.auth_too_many_accounts_same_network';
   ipCheck(!$rejected, '(d) reconnect at cap is not rejected by IP limit');
+
+  foreach ($clients as $cli) {
+      $cli->close();
+  }
+  $clients = [];
+  usleep(500_000);
+
+  // Regression: trusted-proxy connections with no XFF must not share a global
+  // 3-account lockout (the test_concurrent_session_bug.php failure mode).
+  $sentinelWs = [];
+  for ($i = 1; $i <= 4; $i++) {
+      [$cli, $pkt] = wsLogin($port, 'ip031_u' . $i);
+      ipCheck(
+          ($pkt['type'] ?? '') === 'auth_result' && ($pkt['success'] ?? false) === true,
+          "sentinel no-XFF login $i/4 succeeds (not a global lockout)"
+      );
+      $sentinelWs[] = $cli;
+  }
+  foreach ($sentinelWs as $cli) {
+      $cli->close();
+  }
 } catch (Throwable $e) {
     ipCheck(false, 'WS integration: ' . $e->getMessage());
 }

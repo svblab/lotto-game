@@ -46,6 +46,7 @@ final class IpAccountLimitService
                 'WARNING',
                 'Trusted proxy peer without resolvable client IP: peer=' . $peerIp
                 . ' conn_id=' . $connId
+                . ' (sentinel bucket; distinct-account cap not applied)'
             );
 
             return self::TRUSTED_PROXY_UNRESOLVED_BUCKET;
@@ -57,13 +58,21 @@ final class IpAccountLimitService
     public function wouldRejectNewAuth(object $worker, object $connection, int $userId): bool
     {
         $clientIp = $this->getClientRemoteIp($connection);
+
+        // Sentinel means "trusted proxy, but we cannot identify the client
+        // network." Applying MAX_ACCOUNTS_PER_IP here would cap the whole
+        // site. Availability-first: do not reject; WARNING is logged at resolve.
+        if ($clientIp === self::TRUSTED_PROXY_UNRESOLVED_BUCKET) {
+            return false;
+        }
+
         $distinct = $this->distinctUserIdsAtClientIp($worker, $clientIp);
 
         if (isset($distinct[$userId])) {
             return false;
         }
 
-        return count($distinct) >= Constants::MAX_ACCOUNTS_PER_IP;
+        return count($distinct) >= Constants::maxAccountsPerIp();
     }
 
     /** Sends error.auth_too_many_accounts_same_network when cap exceeded (ADR-031). */

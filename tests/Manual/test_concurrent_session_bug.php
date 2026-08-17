@@ -187,6 +187,20 @@ $pdo->exec("DELETE FROM users WHERE username LIKE 'csb\\_%' ESCAPE '\\'");
 $wsPort = wsTestPort();
 $password = 'csbpass123';
 
+// This test's purpose is session eviction, not IP limiting. It legitimately
+// opens more than MAX_ACCOUNTS_PER_IP distinct accounts from 127.0.0.1 with
+// no X-Forwarded-For. Raise the cap for this subprocess only.
+$csbEnv = wsTestApplyServerEnv($projectRoot);
+$csbEnv['LOTTO_MAX_ACCOUNTS_PER_IP'] = '50';
+putenv('LOTTO_MAX_ACCOUNTS_PER_IP=50');
+$_ENV['LOTTO_MAX_ACCOUNTS_PER_IP'] = '50';
+$_SERVER['LOTTO_MAX_ACCOUNTS_PER_IP'] = '50';
+$GLOBALS['__wsTestEnv'] = $csbEnv;
+$csbConfigPath = $GLOBALS['__wsTestConfigPath'] ?? null;
+if (is_string($csbConfigPath) && $csbConfigPath !== '') {
+    file_put_contents($csbConfigPath, json_encode($csbEnv, JSON_UNESCAPED_SLASHES));
+}
+
 try {
     $serverCtx = wsTestStartServer($projectRoot);
 } catch (Throwable $e) {

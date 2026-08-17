@@ -58,6 +58,24 @@ class Constants
     // ADR-031: max distinct live authenticated user_ids per client IP bucket
     public const MAX_ACCOUNTS_PER_IP = 3;
 
+    /**
+     * Runtime cap for distinct live accounts per resolved client IP.
+     * LOTTO_MAX_ACCOUNTS_PER_IP overrides when a positive integer; unset/invalid
+     * keeps MAX_ACCOUNTS_PER_IP (3). Raise (e.g. 9999) to effectively disable.
+     */
+    public static function maxAccountsPerIp(): int
+    {
+        $raw = lottoRuntimeEnv('LOTTO_MAX_ACCOUNTS_PER_IP');
+        if ($raw !== null && is_numeric($raw)) {
+            $value = (int) $raw;
+            if ($value > 0) {
+                return $value;
+            }
+        }
+
+        return self::MAX_ACCOUNTS_PER_IP;
+    }
+
     public static function reconnectTimeout(): int
     {
         return self::envInt('LOTTO_RECONNECT_TIMEOUT', self::RECONNECT_TIMEOUT);
