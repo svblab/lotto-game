@@ -60,7 +60,9 @@
     "paid": "Pagado",
     "received": "Recibido",
     "winChanceHistory": "Probabilidad de victoria por turno",
-    "chartTurn": "Turno"
+    "chartTurn": "Turno",
+    "nudgeTurn": "Apresurar",
+    "nudgedBy": "{player} te apresura — ¡juega!"
   },
   "apartment": {
     "title": "¡Apartamento!",
@@ -138,6 +140,7 @@
     "room_full": "Sala llena",
     "room_limit": "Límite de salas",
     "cannot_moderate_admin": "No se puede moderar admin",
-    "invalid_json": "Solicitud inválida"
+    "invalid_json": "Solicitud inválida",
+    "already_nudged": "Ya apresuraste en este turno"
   }
 }

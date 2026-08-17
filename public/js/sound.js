@@ -13,6 +13,7 @@
     match: 'audio/match.mp3',
     defeat: 'audio/defeat.mp3',
     victory: 'audio/victory.mp3',
+    nudge: 'audio/nudge.mp3',
   };
 
   /** @type {Record<string, { audio: HTMLAudioElement, ok: boolean }>} */

@@ -60,7 +60,9 @@
     "paid": "Ödenen",
     "received": "Alınan",
     "winChanceHistory": "Tur bazında kazanma olasılığı",
-    "chartTurn": "Tur"
+    "chartTurn": "Tur",
+    "nudgeTurn": "Dürt",
+    "nudgedBy": "{player} sizi dürttü — oynayın!"
   },
   "apartment": {
     "title": "Daire!",
@@ -138,6 +140,7 @@
     "room_full": "Oda dolu",
     "room_limit": "Oda limiti",
     "cannot_moderate_admin": "Yönetici moderasyonu yapılamaz",
-    "invalid_json": "Geçersiz istek"
+    "invalid_json": "Geçersiz istek",
+    "already_nudged": "Bu turda zaten dürttünüz"
   }
 }

@@ -356,12 +356,14 @@
   function hideTurnControls() {
     $('#turn-controls-active')?.classList.add('hidden');
     $('#turn-wait-msg')?.classList.add('hidden');
+    setNudgeButton(false, false);
     hideAfkCountdown();
     setDrawButton(false, false);
   }
 
   function showActiveTurnControls() {
     $('#turn-wait-msg')?.classList.add('hidden');
+    setNudgeButton(false, false);
     $('#turn-controls-active')?.classList.remove('hidden');
   }
 
@@ -376,6 +378,13 @@
       ? global.LottoI18n.t('game.waitingForPlayer', { player: name })
       : '';
     el.classList.toggle('hidden', !name);
+  }
+
+  function setNudgeButton(visible, enabled) {
+    const btn = $('#nudge-turn-btn');
+    if (!btn) return;
+    btn.classList.toggle('hidden', !visible);
+    btn.disabled = !enabled;
   }
 
   let serverClockSkew = 0;
@@ -1079,6 +1088,7 @@
     hideTurnControls,
     showActiveTurnControls,
     showWaitingTurnControls,
+    setNudgeButton,
     startAfkCountdown,
     syncAfkWarning,
     hideAfkCountdown,

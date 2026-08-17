@@ -373,6 +373,11 @@ final class GameService
         $this->turnService->handleTurnReady($connection, $worker);
     }
 
+    public function handleNudgeTurn(object $connection, object $worker): void
+    {
+        $this->turnService->handleNudgeTurn($connection, $worker);
+    }
+
     public function startTurn(array &$room, object $worker, int $roomId, bool $deferAfkStart = false): void
     {
         $this->turnService->startTurn($room, $worker, $roomId, $deferAfkStart);

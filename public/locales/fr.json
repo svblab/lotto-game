@@ -60,7 +60,9 @@
     "paid": "Payé",
     "received": "Reçu",
     "winChanceHistory": "Probabilité de victoire par tour",
-    "chartTurn": "Tour"
+    "chartTurn": "Tour",
+    "nudgeTurn": "Presser",
+    "nudgedBy": "{player} vous presse — jouez !"
   },
   "apartment": {
     "title": "Appartement !",
@@ -138,6 +140,7 @@
     "room_full": "Salle pleine",
     "room_limit": "Limite de salles",
     "cannot_moderate_admin": "Impossible de modérer un admin",
-    "invalid_json": "Requête invalide"
+    "invalid_json": "Requête invalide",
+    "already_nudged": "Déjà pressé ce tour"
   }
 }

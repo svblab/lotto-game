@@ -34,6 +34,7 @@
     animationQueue: [],
     nextDrawer: null,
     isMyTurn: false,
+    nudgedThisTurn: false,
     immune: false,
     inApartment: false,
     pendingTurnPkt: null,
@@ -403,6 +404,11 @@
       return;
     }
     const msg = I18n().translateError(pkt);
+    if ((pkt.code ?? '') === 'error.already_nudged') {
+      state.nudgedThisTurn = true;
+      syncTurnUi();
+      return;
+    }
     if (state.inGame) UI().showToast(msg);
     else if (UI().$('#lobby-screen')?.classList.contains('active')) UI().setMessage('#lobby-message', msg, 'error');
     else UI().setMessage('#auth-message', msg, 'error');
@@ -559,6 +565,7 @@
     UI().hideTurnControls();
     UI().hideLobbyHostCountdown();
     state.isMyTurn = false;
+    state.nudgedThisTurn = false;
     state.pendingTurnPkt = null;
     state.turnReadySent = false;
     state.currentDrawer = state.drawerOrder[0] || null;
@@ -579,6 +586,7 @@
     if (state.isMyTurn) {
       UI().showActiveTurnControls();
       UI().setDrawButton(true, true);
+      UI().setNudgeButton(false, false);
 
       const pkt = state.pendingTurnPkt;
       if (!pkt) return;
@@ -600,6 +608,7 @@
     const drawer = state.currentDrawer || state.nextDrawer;
     if (drawer) {
       UI().showWaitingTurnControls(drawer);
+      UI().setNudgeButton(true, !state.nudgedThisTurn);
     } else {
       UI().hideTurnControls();
     }
@@ -614,6 +623,7 @@
 
   function onBarrelsDrawn(pkt) {
     state.isMyTurn = false;
+    state.nudgedThisTurn = false;
     state.pendingTurnPkt = null;
     state.turnReadySent = false;
     UI().hideTurnControls();
@@ -626,6 +636,11 @@
   function onAfkWarning(pkt) {
     UI().syncAfkWarning(pkt);
     UI().showToast(I18n().t('game.afkWarning', { strike: pkt.strike }));
+  }
+
+  function onNudgeReceived(pkt) {
+    UI().showToast(I18n().t('game.nudgedBy', { player: pkt.from || '' }));
+    Sound()?.play('nudge');
   }
 
   function onApartmentAlert(pkt) {
@@ -869,6 +884,13 @@
     UI().$('#leave-game-btn')?.addEventListener('click', leaveRoom);
     UI().$('#start-game-btn')?.addEventListener('click', () => socket.sendAction('start_game'));
 
+    UI().$('#nudge-turn-btn')?.addEventListener('click', () => {
+      if (state.isMyTurn || state.nudgedThisTurn || state.inApartment) return;
+      state.nudgedThisTurn = true;
+      UI().setNudgeButton(true, false);
+      socket.sendAction('nudge_turn');
+    });
+
     UI().$('#draw-barrel-btn')?.addEventListener('click', () => {
       if (state.drawLocked || state.animating) return;
       state.drawLocked = true;
@@ -987,6 +1009,7 @@
       your_turn: onYourTurn,
       barrels_drawn: onBarrelsDrawn,
       afk_warning: onAfkWarning,
+      nudge_received: onNudgeReceived,
       apartment_alert: onApartmentAlert,
       bank_updated: onBankUpdated,
       balance_updated: onBalanceUpdated,

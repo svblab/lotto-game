@@ -63,7 +63,9 @@
     "received": "Received",
     "returned": "Returned",
     "winChanceHistory": "Win probability by turn",
-    "chartTurn": "Turn"
+    "chartTurn": "Turn",
+    "nudgeTurn": "Nudge",
+    "nudgedBy": "{player} nudged you — hurry up!"
   },
   "apartment": {
     "title": "Apartment!",
@@ -142,6 +144,7 @@
     "room_full": "Room is full",
     "room_limit": "Maximum rooms reached",
     "cannot_moderate_admin": "Cannot moderate an administrator",
-    "invalid_json": "Invalid request"
+    "invalid_json": "Invalid request",
+    "already_nudged": "Already nudged this turn"
   }
 }

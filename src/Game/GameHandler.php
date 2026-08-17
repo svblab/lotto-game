@@ -10,7 +10,7 @@ use function Lotto\Core\sendError;
  * GameHandler — EPIC-10.5
  *
  * Обрабатывает WebSocket-пакеты игрового цикла: start_game, draw_barrel,
- * apartment_choice. Транслирует входящие пакеты ANCHOR_PROTOCOL.md в вызовы
+ * apartment_choice, turn_ready, nudge_turn. Транслирует входящие пакеты ANCHOR_PROTOCOL.md в вызовы
  * GameService (Phase 4-7 — бизнес-логика уже реализована). Никакой новой
  * бизнес-логики здесь нет — только маршрутизация и разбор полей payload,
  * что соответствует прецеденту EPIC-10.3/10.4 (AuthHandler/LobbyHandler).
@@ -55,6 +55,14 @@ final class GameHandler
     public function handleTurnReady(object $connection, object $worker): void
     {
         $this->gameService->handleTurnReady($connection, $worker);
+    }
+
+    /**
+     * {"action": "nudge_turn"} — non-drawer hurry-up (ADR-032).
+     */
+    public function handleNudgeTurn(object $connection, object $worker): void
+    {
+        $this->gameService->handleNudgeTurn($connection, $worker);
     }
 
     /**

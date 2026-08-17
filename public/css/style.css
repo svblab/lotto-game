@@ -709,6 +709,15 @@ html.has-chip-icon .coins::before {
   display: none;
 }
 
+#nudge-turn-btn {
+  display: block;
+  margin: 0 auto 1rem;
+}
+
+#nudge-turn-btn.hidden {
+  display: none;
+}
+
 .draw-btn {
   display: block;
   width: 100%;

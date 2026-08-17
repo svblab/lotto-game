@@ -63,7 +63,9 @@
     "received": "Выигрыш",
     "returned": "Возврат",
     "winChanceHistory": "Вероятность победы по ходам",
-    "chartTurn": "Ход"
+    "chartTurn": "Ход",
+    "nudgeTurn": "Поторопить",
+    "nudgedBy": "{player} торопит вас — сделайте ход!"
   },
   "apartment": {
     "title": "Квартира!",
@@ -142,6 +144,7 @@
     "room_full": "Комната заполнена",
     "room_limit": "Достигнут лимит комнат",
     "cannot_moderate_admin": "Нельзя модерировать администратора",
-    "invalid_json": "Неверный запрос"
+    "invalid_json": "Неверный запрос",
+    "already_nudged": "Вы уже торопили на этом ходу"
   }
 }

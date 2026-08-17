@@ -1,5 +1,39 @@
 # Implementation Status — Lotto Game Project
 
+## EPIC-032 — Turn nudge (ADR-032) (2026-08-17)
+
+Status: Completed
+
+- [DONE] Once-per-turn social `nudge_turn` from non-drawer to current drawer.
+- [DONE] Private `nudge_received` packet; AFK timer fields never written.
+- [DONE] Client button + toast + 6th `LottoSound` key `nudge` (no vibration / Web Notifications).
+
+Docs (already on `main` as `8eeb649`): ADR-032, ANCHOR_PROTOCOL.md, ANCHOR_CORE.md Part 6 registries.
+
+Files:
+- src/Game/GameHandler.php
+- src/Game/GameService.php
+- src/Game/GameTurnService.php
+- src/Core/StateMachineAudit.php
+- server.php
+- public/index.html
+- public/js/app.js
+- public/js/ui.js
+- public/js/sound.js
+- public/css/style.css
+- public/audio/README.md
+- public/locales/*.json
+- tests/Manual/test_turn_nudge.php (new)
+- docs/IMPLEMENTATION_STATUS.md
+
+Commit: (implementation — pending user commit; docs `8eeb649`)
+Notes: `GameHandler` 89 / 300; `GameTurnService` 500 / 500; `GameService` 496 / 500.
+
+VERIFICATION:
+- `php tests/Manual/test_turn_nudge.php` — 32/32 passed
+- `php tests/Manual/test_turn_system.php` — 59/59 passed
+- `php tests/Manual/test_game_start_turn_integration.php` — 11/11 passed
+
 ## EPIC-031c-b — IP account limit server guard (ADR-031) (2026-08-16)
 
 Status: Completed

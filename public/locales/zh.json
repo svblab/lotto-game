@@ -60,7 +60,9 @@
     "paid": "投入",
     "received": "获得",
     "winChanceHistory": "各回合获胜概率",
-    "chartTurn": "回合"
+    "chartTurn": "回合",
+    "nudgeTurn": "催促",
+    "nudgedBy": "{player} 催你快一点！"
   },
   "apartment": {
     "title": "公寓！",
@@ -138,6 +140,7 @@
     "room_full": "房间已满",
     "room_limit": "房间数已达上限",
     "cannot_moderate_admin": "无法管理管理员",
-    "invalid_json": "无效请求"
+    "invalid_json": "无效请求",
+    "already_nudged": "本回合已催促过"
   }
 }

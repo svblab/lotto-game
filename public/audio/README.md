@@ -8,6 +8,7 @@
 | match.mp3 | &lt;1s | Revealed number matches a cell on the player's card(s) |
 | defeat.mp3 | 1–3s | Player lost when another player wins (`game_over`, `reason: victory`) |
 | victory.mp3 | 1–3s | Player received a share of the bank (`received > 0`) |
+| nudge.mp3 | &lt;1s | Another player sent `nudge_turn` (drawer hears `nudge_received`) |
 
 Format: MP3 (or any format supported by the browser's HTML5 `Audio` element).
 Wiring: `public/js/sound.js` preloads and plays via `LottoSound.play(name)`.

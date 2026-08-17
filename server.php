@@ -604,6 +604,7 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
         'start_game'       => $worker->gameHandler->handleStartGame($connection, $worker),
         'draw_barrel'      => $worker->gameHandler->handleDrawBarrel($connection, $worker),
         'turn_ready'       => $worker->gameHandler->handleTurnReady($connection, $worker),
+        'nudge_turn'       => $worker->gameHandler->handleNudgeTurn($connection, $worker),
         'apartment_choice' => $worker->gameHandler->handleApartmentChoice($data, $connection, $worker),
         'admin_ban_user'   => $worker->adminHandler->handleBanUser($data, $connection, $worker),
         'admin_unban_user' => $worker->adminHandler->handleUnbanUser($data, $connection),

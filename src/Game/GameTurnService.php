@@ -122,10 +122,66 @@ final class GameTurnService
     }
 
     /**
+     * {"action":"nudge_turn"} — один раз за ход; AFK-поля не трогаем (ADR-032).
+     */
+    public function handleNudgeTurn(object $connection, object $worker): void
+    {
+        if (empty($connection->userId)) {
+            sendError($connection, 'error.auth_required', 'Authentication required');
+            return;
+        }
+        $connId = $connection->id;
+        $roomId = null;
+        foreach ($worker->rooms as $rid => $r) {
+            if (isset($r['players'][$connId])) { $roomId = $rid; break; }
+        }
+        if ($roomId === null) {
+            sendError($connection, 'error.room_not_found', 'You are not in a room');
+            return;
+        }
+        $room = &$worker->rooms[$roomId];
+        $status = $room['status'] ?? '';
+        $player = $room['players'][$connId] ?? null;
+        $drawerId = $room['active_drawer_conn_id'] ?? null;
+        if ($status !== 'playing') {
+            lottoStateReject((int) $roomId, (string) $status, 'nudge_turn', 'error.not_your_turn');
+            sendError($connection, 'error.not_your_turn', 'Game is not in playing state');
+            return;
+        }
+        if ($player === null || ($player['status'] ?? '') !== 'active') {
+            sendError($connection, 'error.not_your_turn', 'You are not an active player in this room');
+            return;
+        }
+        if ($drawerId === null || !isset($room['players'][$drawerId])) {
+            sendError($connection, 'error.not_your_turn', 'No active drawer');
+            return;
+        }
+        if ($drawerId === $connId) {
+            sendError($connection, 'error.not_your_turn', 'You cannot nudge yourself');
+            return;
+        }
+        if (!empty($player['nudged_this_turn'])) {
+            sendError($connection, 'error.already_nudged', 'Already nudged this turn');
+            return;
+        }
+        $room['players'][$connId]['nudged_this_turn'] = true;
+        $drawer = $room['players'][$drawerId];
+        if (($drawer['status'] ?? '') === 'active' && isset($drawer['connection'])) {
+            $drawer['connection']->send(json_encode([
+                'type' => 'nudge_received',
+                'from' => $player['username'],
+            ]));
+        }
+    }
+
+    /**
      * EPIC-13.0/13.1 (ADR-008): atomically notify drawer and arm game AFK timer.
      */
     public function startTurn(array &$room, object $worker, int $roomId, bool $deferAfkStart = false): void
     {
+        foreach (array_keys($room['players']) as $cid) {
+            $room['players'][$cid]['nudged_this_turn'] = false;
+        }
         $this->sendYourTurn($room, $deferAfkStart);
         if ($this->reconnectService !== null) {
             $this->reconnectService->ensureGameAfkTimer($worker, $roomId);
