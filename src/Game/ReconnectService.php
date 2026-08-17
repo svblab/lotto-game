@@ -340,10 +340,11 @@ final class ReconnectService
 
         if ($status === 'waiting') {
             $payload = [
-                'host'      => $this->resolveHostUsername($room),
-                'players'   => $this->buildLobbyPlayersList($room),
-                'drawn_all' => [],
-                'my_cards'  => null,
+                'host'         => $this->resolveHostUsername($room),
+                'players'      => $this->buildLobbyPlayersList($room),
+                'bet_per_card' => (int) ($room['bet_per_card'] ?? Constants::BET_PER_CARD),
+                'drawn_all'    => [],
+                'my_cards'     => null,
             ];
             $hostConnId = $room['host_conn_id'] ?? null;
             if ($payload['host'] !== '' && $hostConnId !== null && isset($room['players'][$hostConnId])) {

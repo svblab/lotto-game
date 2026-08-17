@@ -553,6 +553,15 @@ function makeRoom(int $roomId, int $hostConnId): array
     $pkt2 = $newConn2->sentOfType('reconnect_state')[0] ?? [];
     assert_true(($pkt2['status'] ?? '') === 'waiting', 'reconnect coins waiting: status=waiting');
     assert_true(($pkt2['coins'] ?? null) === 620, 'reconnect_state waiting: coins from DB');
+    assert_true(($pkt2['bet_per_card'] ?? null) === 10, 'reconnect_state waiting: bet_per_card present');
+    $reconnectCards = 0;
+    foreach ($pkt2['players'] ?? [] as $p) {
+        $reconnectCards += (int) ($p['cards_count'] ?? 0);
+    }
+    assert_true(
+        $reconnectCards * (int) ($pkt2['bet_per_card'] ?? 0) === 20,
+        'reconnect_state waiting: projected bank from pkt alone (fresh page load)'
+    );
 
     $svcNoDb = new ReconnectService($lobby, $game, new MockLogger());
     $roomPlaying = makeRoom(707, 707);
@@ -560,6 +569,7 @@ function makeRoom(int $roomId, int $hostConnId): array
     $roomPlaying['players'][707] = makePlayer(new MockConnection(707, 707, 'solo707', 'tok-solo'), 'active');
     $pktNoDbPlaying = $svcNoDb->buildReconnectState($roomPlaying, 707);
     assert_true(!isset($pktNoDbPlaying['coins']), 'reconnect_state playing: coins omitted without stmts');
+    assert_true(!isset($pktNoDbPlaying['bet_per_card']), 'reconnect_state playing: bet_per_card omitted');
 
     $roomWaiting = makeRoom(808, 808);
     $roomWaiting['status'] = 'waiting';

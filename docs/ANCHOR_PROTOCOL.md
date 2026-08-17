@@ -405,7 +405,7 @@ Server → Client. Reconnect is forbidden during apartment state.
 
 Waiting room:
 ```json
-{"type": "reconnect_state", "status": "waiting", "room_id": 5, "bank": 0, "coins": 490, "drawn_all": [], "my_cards": null}
+{"type": "reconnect_state", "status": "waiting", "room_id": 5, "bank": 0, "bet_per_card": 10, "coins": 490, "drawn_all": [], "my_cards": null}
 ```
 Playing (`my_cards` / `my_masks` — own cards only; `players[].cards_count` visible for all):
 ```json

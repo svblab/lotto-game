@@ -5,19 +5,24 @@
 Status: Completed
 
 - [DONE] `bet_per_card` on `room_joined` (`LobbyService::buildRoomJoinedPacket`).
+- [DONE] `bet_per_card` on waiting `reconnect_state`
+  (`ReconnectService::buildReconnectState`) — fixes hard-refresh reconnect path.
 - [DONE] Client `#room-bank-label` shows projected bank in `waiting`
   (`sum(cards_count) * bet_per_card`); real `room.bank` once game starts.
-- [DONE] `test_lobby_integration.php` projection assertions.
+- [DONE] `test_lobby_integration.php` + `test_reconnect.php` projection assertions.
 
 Files:
 - src/Lobby/LobbyService.php
+- src/Game/ReconnectService.php
 - docs/ANCHOR_PROTOCOL.md
 - public/js/app.js
 - public/js/ui.js
 - tests/Manual/test_lobby_integration.php
+- tests/Manual/test_reconnect.php
 
 VERIFICATION:
 - `php tests/Manual/test_lobby_integration.php`
+- `php tests/Manual/test_reconnect.php`
 
 ## EPIC-032 — Turn nudge (ADR-032) (2026-08-17)
 
