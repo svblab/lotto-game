@@ -623,9 +623,9 @@
           win.classList.remove('spinning', 'decel');
           win.classList.add('reveal');
           span.textContent = String(number);
-          global.LottoSound?.play('reveal');
           // Последний барабан только что показал число — остальные уже не spinning.
           if (!isSlotsSpinning()) stopSpinSound();
+          global.LottoSound?.play('reveal');
           setTimeout(() => {
             win.classList.remove('reveal');
             resolve();
@@ -822,7 +822,11 @@
   function showApartment(required, timeLeft, handlers = {}) {
     const { onChoice, onTimeout } = handlers;
     const t = global.LottoI18n.t;
-    if (required) global.LottoSound?.startLoop('apartment');
+    if (required) {
+      global.LottoSound?.startLoop('apartment');
+    } else {
+      stopApartmentSound();
+    }
     toggleOverlay('#apartment-modal', true);
     $('#apartment-text').textContent = required
       ? t('apartment.required')

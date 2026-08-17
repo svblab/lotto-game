@@ -6,7 +6,7 @@ Status: Completed
 
 - [DONE] `LottoSound.setVolume()` / `getVolume()` with `localStorage` persistence (`lotto_sound_volume`, default 0.7); volume slider in game top-bar.
 - [DONE] `startLoop()` / `stopLoop()` for spin (loops until last drum reveals) and apartment (required players only).
-- [DONE] Spin: `startSlotsWaiting()` → `startLoop('spin')`; normal stop in `stopSlotsWaiting()` after `animateBarrelsDrawn` for-loop; interruption stops in `resetSlots()`, `idleSlot()` (when no drums still spinning), `stopSlotsWaiting()`.
+- [DONE] Spin: `startSlotsWaiting()` → `startLoop('spin')`. Normal stop is inside `revealSlot()` at the tick that commits the last drum’s number (`!isSlotsSpinning()` after removing that drum’s `spinning` class) — not after `await revealSlot()` returns (that Promise waits an extra 450ms) and not in `app.js` after the for-loop. Safety-net / interruption stops: `stopSlotsWaiting()`, `resetSlots()`, `idleSlot()` (only when no drum still spinning).
 - [DONE] Apartment: `startLoop('apartment')` when `required === true`; stops on timeout, `hideApartment()` (game over, bank update, reset to lobby).
 - [DONE] 7th sound key `apartment`; `public/audio/README.md` loopability guidance for `spin.mp3` and `apartment.mp3`.
 
