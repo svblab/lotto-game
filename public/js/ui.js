@@ -542,7 +542,12 @@
     }
   }
 
+  function stopSpinSound() {
+    global.LottoSound?.stopLoop('spin');
+  }
+
   function resetSlots() {
+    stopSpinSound();
     _slotWindows().forEach((win) => {
       _clearSlotTimer(win);
       win.classList.remove('spinning', 'reveal', 'decel');
@@ -558,6 +563,7 @@
     win.classList.remove('spinning', 'reveal', 'decel');
     const span = win.querySelector('.slot-num');
     if (span) span.textContent = '—';
+    if (!isSlotsSpinning()) stopSpinSound();
   }
 
   function isSlotsSpinning() {
@@ -565,7 +571,7 @@
   }
 
   function startSlotsWaiting() {
-    global.LottoSound?.play('spin');
+    global.LottoSound?.startLoop('spin');
     _slotWindows().forEach((win, index) => {
       _clearSlotTimer(win);
       win.classList.remove('reveal', 'decel');
@@ -580,6 +586,7 @@
   }
 
   function stopSlotsWaiting() {
+    stopSpinSound();
     _slotWindows().forEach((win) => {
       _clearSlotTimer(win);
       win.classList.remove('spinning');
@@ -617,6 +624,8 @@
           win.classList.add('reveal');
           span.textContent = String(number);
           global.LottoSound?.play('reveal');
+          // Последний барабан только что показал число — остальные уже не spinning.
+          if (!isSlotsSpinning()) stopSpinSound();
           setTimeout(() => {
             win.classList.remove('reveal');
             resolve();
@@ -806,9 +815,14 @@
   }
 
   // --- Apartment ---
+  function stopApartmentSound() {
+    global.LottoSound?.stopLoop('apartment');
+  }
+
   function showApartment(required, timeLeft, handlers = {}) {
     const { onChoice, onTimeout } = handlers;
     const t = global.LottoI18n.t;
+    if (required) global.LottoSound?.startLoop('apartment');
     toggleOverlay('#apartment-modal', true);
     $('#apartment-text').textContent = required
       ? t('apartment.required')
@@ -833,6 +847,7 @@
       $('#apartment-timer').textContent = Math.max(0, left);
       if (left <= 0) {
         clearInterval(global._aptTimer);
+        stopApartmentSound();
         toggleOverlay('#apartment-modal', false);
         if (required && selected === null) {
           onTimeout?.();
@@ -845,6 +860,7 @@
 
   function hideApartment() {
     clearInterval(global._aptTimer);
+    stopApartmentSound();
     toggleOverlay('#apartment-modal', false);
   }
 
@@ -1021,6 +1037,10 @@
 
   // --- Reconnect ---
   function showReconnecting(show) {
+    if (show) {
+      stopSpinSound();
+      stopApartmentSound();
+    }
     toggleOverlay('#reconnect-overlay', show);
   }
 

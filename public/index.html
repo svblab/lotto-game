@@ -177,7 +177,10 @@
           <span id="game-remaining" class="game-top-stat"></span>
         </div>
         <div class="game-top-actions">
-          <button type="button" id="sound-mute-btn" class="icon-btn" aria-pressed="false" aria-label="Mute sound" title="Sound on">🔊</button>
+          <div class="sound-controls">
+            <input type="range" id="sound-volume-slider" class="sound-volume-slider" min="0" max="100" step="1" value="70" aria-label="Volume" title="Volume">
+            <button type="button" id="sound-mute-btn" class="icon-btn" aria-pressed="false" aria-label="Mute sound" title="Sound on">🔊</button>
+          </div>
           <button type="button" id="leave-game-btn" class="btn small" data-i18n="lobby.leaveRoom">Leave Room</button>
         </div>
       </header>
@@ -363,10 +366,10 @@
       });
     })();
   </script>
-  <script src="js/sound.js?v=1"></script>
+  <script src="js/sound.js?v=2"></script>
   <script src="js/i18n.js?v=4"></script>
   <script src="js/ws.js?v=4"></script>
-  <script src="js/ui.js?v=17"></script>
+  <script src="js/ui.js?v=18"></script>
   <script src="js/app.js?v=17"></script>
 </body>
 </html>

@@ -1,5 +1,29 @@
 # Implementation Status — Lotto Game Project
 
+## Frontend sound — volume slider + loop cues (2026-08-17)
+
+Status: Completed
+
+- [DONE] `LottoSound.setVolume()` / `getVolume()` with `localStorage` persistence (`lotto_sound_volume`, default 0.7); volume slider in game top-bar.
+- [DONE] `startLoop()` / `stopLoop()` for spin (loops until last drum reveals) and apartment (required players only).
+- [DONE] Spin: `startSlotsWaiting()` → `startLoop('spin')`; normal stop in `stopSlotsWaiting()` after `animateBarrelsDrawn` for-loop; interruption stops in `resetSlots()`, `idleSlot()` (when no drums still spinning), `stopSlotsWaiting()`.
+- [DONE] Apartment: `startLoop('apartment')` when `required === true`; stops on timeout, `hideApartment()` (game over, bank update, reset to lobby).
+- [DONE] 7th sound key `apartment`; `public/audio/README.md` loopability guidance for `spin.mp3` and `apartment.mp3`.
+
+Files:
+- public/js/sound.js
+- public/js/ui.js
+- public/index.html
+- public/css/style.css
+- public/audio/README.md
+- docs/IMPLEMENTATION_STATUS.md
+
+VERIFICATION:
+MANUAL VERIFICATION REQUIRED — browser audio timing cannot be verified by the PHP test suite; see Epic completion QA checklist in chat / manual steps below.
+- Volume slider changes audible level in real time; mute silences regardless of volume.
+- Spin loop starts when drums spin; stops when last drum reveals or on reset/reconnect mid-spin (F1/F2 hooks).
+- Apartment sound only for `required` players; stops on timeout, hideApartment paths; no leak into next turn.
+
 ## Lobby projected bank (pre-game) (2026-08-17)
 
 Status: Completed

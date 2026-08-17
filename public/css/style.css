@@ -409,6 +409,21 @@ html.has-chip-icon .coins::before {
   line-height: 1.3;
 }
 .game-players-dropdown { margin-bottom: 0.5rem; }
+.sound-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.sound-volume-slider {
+  width: 4.5rem;
+  height: 0.35rem;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--gold);
+  cursor: pointer;
+}
+
 .game-top-actions {
   display: flex;
   align-items: center;
