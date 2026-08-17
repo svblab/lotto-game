@@ -1,5 +1,24 @@
 # Implementation Status — Lotto Game Project
 
+## Lobby projected bank (pre-game) (2026-08-17)
+
+Status: Completed
+
+- [DONE] `bet_per_card` on `room_joined` (`LobbyService::buildRoomJoinedPacket`).
+- [DONE] Client `#room-bank-label` shows projected bank in `waiting`
+  (`sum(cards_count) * bet_per_card`); real `room.bank` once game starts.
+- [DONE] `test_lobby_integration.php` projection assertions.
+
+Files:
+- src/Lobby/LobbyService.php
+- docs/ANCHOR_PROTOCOL.md
+- public/js/app.js
+- public/js/ui.js
+- tests/Manual/test_lobby_integration.php
+
+VERIFICATION:
+- `php tests/Manual/test_lobby_integration.php`
+
 ## EPIC-032 — Turn nudge (ADR-032) (2026-08-17)
 
 Status: Completed

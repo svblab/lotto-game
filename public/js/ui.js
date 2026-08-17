@@ -175,6 +175,18 @@
     });
   }
 
+  function roomBankDisplay(room) {
+    if (!room) return 0;
+    if (room.status === 'waiting') {
+      const perCard = room.bet_per_card;
+      if (typeof perCard === 'number' && perCard > 0 && Array.isArray(room.players)) {
+        const cards = room.players.reduce((sum, p) => sum + (Number(p.cards_count) || 0), 0);
+        return cards * perCard;
+      }
+    }
+    return room.bank ?? 0;
+  }
+
   function showRoomPanel(room, username) {
     const panel = $('#room-panel');
     if (!room) {
@@ -184,7 +196,7 @@
     panel?.classList.remove('hidden');
     $('#room-id-label').textContent = room.room_id;
     $('#room-host-label').textContent = room.host;
-    $('#room-bank-label').textContent = room.bank ?? 0;
+    $('#room-bank-label').textContent = roomBankDisplay(room);
     const isHost = room.host === username;
     const canStart = isHost && room.status === 'waiting' && (room.players?.length || 0) >= 2;
     $('#start-game-btn')?.classList.toggle('hidden', !canStart);

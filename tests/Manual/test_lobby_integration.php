@@ -82,6 +82,24 @@ function lastPacketOfType(MockConnection $conn, string $type): ?array
     return null;
 }
 
+/** Mirrors client lobby bank projection (public/js/ui.js roomBankDisplay). */
+function projectedLobbyBank(array $roomPkt): int
+{
+    if (($roomPkt['status'] ?? '') !== 'waiting') {
+        return (int) ($roomPkt['bank'] ?? 0);
+    }
+    $bet = (int) ($roomPkt['bet_per_card'] ?? 0);
+    if ($bet <= 0) {
+        return (int) ($roomPkt['bank'] ?? 0);
+    }
+    $cards = 0;
+    foreach ($roomPkt['players'] ?? [] as $player) {
+        $cards += (int) ($player['cards_count'] ?? 0);
+    }
+
+    return $cards * $bet;
+}
+
 // ─── Mock helpers ─────────────────────────────────────────────────────────────
 
 class MockConnection
@@ -229,6 +247,8 @@ ok('createRoom: sends room_joined',                   ($pkt['type'] ?? '') === '
 ok('createRoom: room_joined has room_id',             isset($pkt['room_id']));
 ok('createRoom: room_joined status = waiting',        ($pkt['status'] ?? '') === 'waiting');
 ok('createRoom: room_joined bank = 0',                ($pkt['bank'] ?? -1) === 0);
+ok('createRoom: room_joined bet_per_card',            ($pkt['bet_per_card'] ?? 0) === Constants::BET_PER_CARD);
+ok('createRoom: projected bank solo host (1 card)',   projectedLobbyBank($pkt) === Constants::BET_PER_CARD);
 ok('createRoom: room_joined host empty while solo',     ($pkt['host'] ?? 'x') === '');
 ok('createRoom: room_joined players count = 1',       count($pkt['players'] ?? []) === 1);
 ok('createRoom: player entry username',               ($pkt['players'][0]['username'] ?? '') === 'host');
@@ -347,6 +367,8 @@ $ls->handleJoinRoom(['room_id' => $roomId, 'password' => '', 'cards_count' => 2]
 $pktJoin = packetOfType($joiner, 'room_joined');
 ok('joinRoom: sends room_joined to joiner',           ($pktJoin['type'] ?? '') === 'room_joined');
 ok('joinRoom: room_joined players count = 2',         count($pktJoin['players'] ?? []) === 2);
+ok('joinRoom: projected bank host+joiner (1+2 cards)',
+    projectedLobbyBank($pktJoin) === 3 * Constants::BET_PER_CARD);
 $hostPlayerJoined = packetOfType($host, 'player_joined');
 ok('joinRoom: host receives player_joined',           ($hostPlayerJoined['type'] ?? '') === 'player_joined');
 ok('joinRoom: player_joined username correct',        ($hostPlayerJoined['username'] ?? '') === 'joiner');
@@ -453,6 +475,18 @@ ok('leaveRoom: joiner removed from drawer_order',
 ok('leaveRoom: host receives player_left',               (packetOfType($host, 'player_left')['type'] ?? '') === 'player_left');
 ok('leaveRoom: player_left username correct',            (packetOfType($host, 'player_left')['username'] ?? '') === 'joiner');
 ok('leaveRoom: player_left reason = leave',              (packetOfType($host, 'player_left')['reason'] ?? '') === 'leave');
+$roomAfterLeave = $worker->rooms[$roomId];
+$playersAfterLeave = [];
+foreach ($roomAfterLeave['players'] as $p) {
+    $playersAfterLeave[] = ['cards_count' => $p['cards_count']];
+}
+ok('leaveRoom: projected bank drops after joiner leaves',
+    projectedLobbyBank([
+        'status' => $roomAfterLeave['status'],
+        'bank' => $roomAfterLeave['bank'],
+        'bet_per_card' => $roomAfterLeave['bet_per_card'],
+        'players' => $playersAfterLeave,
+    ]) === Constants::BET_PER_CARD);
 ok('leaveRoom: solo player gets host_changed cleared',  (lastPacketOfType($host, 'host_changed')['type'] ?? '') === 'host_changed');
 ok('leaveRoom: host_changed empty when solo',           (lastPacketOfType($host, 'host_changed')['host'] ?? 'x') === '');
 
@@ -745,6 +779,16 @@ ok('pingImmunity: touchLobbyHostActivity refreshes host_activity_at',
 MockTimer::fire((int) $touchTimerId);
 ok('pingImmunity: timer does not transfer after genuine host activity',
     $workerTouch->rooms[$touchRoomId]['host_conn_id'] === $touchHost->id);
+
+echo "\n── Lobby projected bank (client mirror) ──\n\n";
+
+ok('projected bank: playing status uses real bank',
+    projectedLobbyBank([
+        'status' => 'playing',
+        'bank' => 50,
+        'bet_per_card' => Constants::BET_PER_CARD,
+        'players' => [['cards_count' => 2]],
+    ]) === 50);
 
 // ─── Summary ──────────────────────────────────────────────────────────────────
 

@@ -179,7 +179,7 @@ Client → Server
 ### room_joined
 Server → Client. `players[]` includes each seated player's `cards_count` (public); card numbers do not exist until `start_game`.
 ```json
-{"type": "room_joined", "room_id": 7, "host": "player1", "status": "waiting", "bank": 0, "players": [], "host_timeout_start": 1704067150, "host_timeout_seconds": 120}
+{"type": "room_joined", "room_id": 7, "host": "player1", "status": "waiting", "bank": 0, "bet_per_card": 10, "players": [], "host_timeout_start": 1704067150, "host_timeout_seconds": 120}
 ```
 `host_timeout_start` / `host_timeout_seconds`: present when a lobby host is assigned (≥2 players); countdown until host AFK transfer.
 Player entry:

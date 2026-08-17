@@ -718,12 +718,13 @@ final class LobbyService
         }
 
         return array_merge([
-            'type'    => 'room_joined',
-            'room_id' => $room['room_id'],
-            'host'    => $this->resolveLobbyHostUsername($room),
-            'status'  => $room['status'],
-            'bank'    => $room['bank'],
-            'players' => $players,
+            'type'         => 'room_joined',
+            'room_id'      => $room['room_id'],
+            'host'         => $this->resolveLobbyHostUsername($room),
+            'status'       => $room['status'],
+            'bank'         => $room['bank'],
+            'bet_per_card' => (int) ($room['bet_per_card'] ?? Constants::BET_PER_CARD),
+            'players'      => $players,
         ], $this->lobbyHostTimeoutFields($room));
     }
 }
