@@ -121,7 +121,8 @@
     const entry = preload(key);
     if (!entry || !entry.ok) return;
     try {
-      const audio = entry.audio;
+      // One-shot overlay: clone so reveal/match never pause or reset the spin loop element.
+      const audio = new Audio(entry.audio.src);
       applyVolumeToAudio(audio);
       applyMuteToAudio(audio);
       audio.currentTime = 0;
@@ -129,6 +130,9 @@
       if (promise && typeof promise.catch === 'function') {
         promise.catch(() => {});
       }
+      audio.addEventListener('ended', () => {
+        audio.src = '';
+      }, { once: true });
     } catch (_) {}
   }
 

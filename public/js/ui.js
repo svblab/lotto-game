@@ -623,8 +623,6 @@
           win.classList.remove('spinning', 'decel');
           win.classList.add('reveal');
           span.textContent = String(number);
-          // Последний барабан только что показал число — остальные уже не spinning.
-          if (!isSlotsSpinning()) stopSpinSound();
           global.LottoSound?.play('reveal');
           setTimeout(() => {
             win.classList.remove('reveal');
