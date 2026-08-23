@@ -85,6 +85,7 @@ final class RoomManager
             'players'               => [],
             'all_players_history'   => [],
             'game_roster'           => [],
+            'file_transfer'         => null, // ADR-030
         ];
 
         $this->logger->info("Room created: room_id={$roomId} host_conn_id={$hostConnId} max_players={$maxPlayers}");
@@ -132,6 +133,19 @@ final class RoomManager
         if (!empty($room['apartment_timer_id'])) {
             lottoTimerDel((int) $room['apartment_timer_id'], 'apartment', ['room_id' => $roomId]);
         }
+
+        // ADR-030: cancel in-flight file offer/relay timer before unset.
+        if (isset($worker->fileTransferService)) {
+            $worker->fileTransferService->releaseForRoom($worker, $roomId);
+        } elseif (!empty($worker->rooms[$roomId]['file_transfer']['timer_id'])) {
+            lottoTimerDel(
+                (int) $worker->rooms[$roomId]['file_transfer']['timer_id'],
+                'file_offer',
+                ['room_id' => $roomId]
+            );
+        }
+
+        $room = $worker->rooms[$roomId];
 
         foreach ($room['players'] as $connId => $player) {
             if (!empty($player['reconnect_timer'])) {

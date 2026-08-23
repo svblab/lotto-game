@@ -141,6 +141,10 @@ use Lotto\Game\ReconnectService;
 use Lotto\Admin\AdminService;
 use Lotto\Admin\AdminSettingsService;
 use Lotto\Admin\AdminHandler;
+use Lotto\Chat\ChatService;
+use Lotto\Chat\FileTransferService;
+use Lotto\Chat\ChatHandler;
+use Workerman\Connection\TcpConnection;
 
 use function Lotto\Core\sendJson;
 use function Lotto\Core\sendError;
@@ -168,6 +172,10 @@ if ($wmPidFile !== null) {
 $worker = new Worker('websocket://0.0.0.0:' . $wsPort);
 $worker->count = 1;
 $worker->name = 'LottoGameServer';
+
+// ADR-030: explicit Workerman package cap (default is 10 MiB). 2 MiB fits
+// ~1.37 MiB base64 for a 1 MiB file plus JSON envelope; see ADR-030 memory analysis.
+TcpConnection::$defaultMaxPackageSize = Constants::WS_MAX_PACKAGE_SIZE;
 
 $worker->onWorkerStart = function (Worker $worker): void {
     // Re-apply in forked worker (putenv may not survive pcntl_fork on all hosts).
@@ -277,6 +285,15 @@ $worker->onWorkerStart = function (Worker $worker): void {
     );
     $adminSettingsService = new AdminSettingsService($adminService, $worker->logger);
     $worker->adminHandler = new AdminHandler($adminService, $adminSettingsService);
+
+    // ADR-030: Chat + file transfer (password rooms only; RAM-only).
+    $worker->chatService = new ChatService($worker->roomManager, $worker->logger);
+    $worker->fileTransferService = new FileTransferService(
+        $worker->roomManager,
+        $worker->chatService,
+        $worker->logger
+    );
+    $worker->chatHandler = new ChatHandler($worker->chatService, $worker->fileTransferService);
 
     // Runtime-память (ANCHOR_CORE.md § Runtime Memory Layout / Worker Storage)
     $worker->rooms           = [];
@@ -412,6 +429,10 @@ $worker->onWebSocketConnected = function ($connection, $request = null) use ($wo
     // ADR-003: Rate limiting — счётчик пакетов в текущем окне (1s).
     $connection->packetCount       = 0;
     $connection->packetWindowStart = time();
+
+    // ADR-030: dedicated file_offer/file_data soft rate limit.
+    $connection->fileActionCount       = 0;
+    $connection->fileActionWindowStart = time();
 
     // ADR-031: resolved client IP for per-network account cap (trusted-proxy aware).
     if (isset($worker->ipAccountLimit)) {
@@ -620,6 +641,11 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
         'admin_get_settings' => $worker->adminHandler->handleGetSettings($data, $connection, $worker),
         'admin_set_settings' => $worker->adminHandler->handleSetSettings($data, $connection, $worker),
         'admin_restart_server' => $worker->adminHandler->handleRestartServer($data, $connection, $worker),
+        'room_message'     => $worker->chatHandler->handleRoomMessage($data, $connection, $worker),
+        'file_offer'       => $worker->chatHandler->handleFileOffer($data, $connection, $worker),
+        'file_accept'      => $worker->chatHandler->handleFileAccept($data, $connection, $worker),
+        'file_reject'      => $worker->chatHandler->handleFileReject($data, $connection, $worker),
+        'file_data'        => $worker->chatHandler->handleFileData($data, $connection, $worker),
         default            => sendError($connection, 'error.invalid_json', "Unknown or not-yet-wired action: {$action}"),
     };
 

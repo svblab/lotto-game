@@ -436,6 +436,11 @@ final class LobbyService
             return;
         }
 
+        // ADR-030: release room file-transfer lock if this seat was a party.
+        if (isset($worker->fileTransferService)) {
+            $worker->fileTransferService->releaseForConn($worker, $connId);
+        }
+
         $room = &$worker->rooms[$roomId];
         $playerEntry = $room['players'][$connId];
         $username = $playerEntry['username'];
@@ -724,6 +729,7 @@ final class LobbyService
             'status'       => $room['status'],
             'bank'         => $room['bank'],
             'bet_per_card' => (int) ($room['bet_per_card'] ?? Constants::BET_PER_CARD),
+            'has_password' => $room['password_hash'] !== null,
             'players'      => $players,
         ], $this->lobbyHostTimeoutFields($room));
     }

@@ -48,6 +48,13 @@ final class ReconnectService
     public function handleDisconnect(object $connection, object $worker): void
     {
         $connId = (int)$connection->id;
+
+        // ADR-030: disconnect mid-offer/relay releases the room lock immediately
+        // (does not wait for RECONNECT_TIMEOUT).
+        if (isset($worker->fileTransferService)) {
+            $worker->fileTransferService->releaseForConn($worker, $connId);
+        }
+
         $roomId = $this->findRoomIdByConnId($worker, $connId);
         if ($roomId === null) {
             return;
@@ -569,6 +576,11 @@ final class ReconnectService
     {
         if (!isset($worker->rooms[$roomId]['players'][$connId])) {
             return;
+        }
+
+        // ADR-030: leave/kick/afk while a party to a transfer.
+        if (isset($worker->fileTransferService)) {
+            $worker->fileTransferService->releaseForConn($worker, $connId);
         }
 
         $room = &$worker->rooms[$roomId];
