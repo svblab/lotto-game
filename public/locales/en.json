@@ -107,6 +107,7 @@
     "onlineOnly": "Online only",
     "bannedOnly": "Banned only",
     "refreshUsers": "Refresh",
+    "noUsers": "No players found",
     "selectUser": "— select user —",
     "select": "Select",
     "badgeOnline": "online",

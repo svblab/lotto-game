@@ -991,6 +991,16 @@
     const tbody = $('#admin-users-tbody');
     if (!tbody) return;
     tbody.innerHTML = '';
+    if (!adminUsersCache.length) {
+      const tr = document.createElement('tr');
+      tr.className = 'admin-users-empty';
+      const td = document.createElement('td');
+      td.colSpan = 6;
+      td.textContent = global.LottoI18n.t('admin.noUsers');
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+      return;
+    }
     adminUsersCache.forEach((user) => {
       const tr = document.createElement('tr');
       tr.dataset.userId = String(user.id);

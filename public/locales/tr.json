@@ -105,6 +105,7 @@
     "onlineOnly": "Yalnızca çevrimiçi",
     "bannedOnly": "Yalnızca yasaklı",
     "refreshUsers": "Yenile",
+    "noUsers": "Oyuncu bulunamadı",
     "selectUser": "— oyuncu seçin —",
     "badgeOnline": "çevrimiçi",
     "badgeBanned": "yasaklı",
