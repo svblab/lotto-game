@@ -1,5 +1,35 @@
 # Implementation Status — Lotto Game Project
 
+## EPIC-033B — Admin rooms dropdown (ADR-033) (2026-08-23)
+
+Status: Completed
+
+- [DONE] Replace admin rooms flat table with `<select>` + detail + Close
+- [DONE] Reuse existing `admin_stats_data.rooms` / `room_list` fields only (no protocol)
+- [DONE] Preserve selection across refresh when room still exists
+
+Files:
+- public/index.html
+- public/js/ui.js
+- public/js/app.js
+- public/css/style.css
+- public/locales/*.json
+- docs/IMPLEMENTATION_STATUS.md
+
+Commit: pending
+Notes: UI-only per ADR-033 Epic B. `admin_close_room` unchanged.
+
+VERIFICATION:
+- MANUAL — open admin panel → Active Rooms shows dropdown; empty state when no rooms
+- MANUAL — select a room → detail shows id / players / status / lock; Close enabled
+- MANUAL — Close room → room removed on next stats/list refresh; selection clears if gone
+- MANUAL — Refresh rooms preserves selection when room still present
+
+CHANGED:
+- Admin rooms list presentation (table → select + detail)
+NOT CHANGED:
+- Protocol / server / `admin_close_room`; players moderation UI; password rotation
+
 ## EPIC-033A — Admin password rotation (ADR-033) (2026-08-23)
 
 Status: Completed
