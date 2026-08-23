@@ -936,6 +936,7 @@
     const openLang = () => {
       UI().renderLangPicker(async (code) => {
         await I18n().load(code);
+        Sound()?.preloadNudgeLangs?.();
         UI().renderRules();
         UI().toggleOverlay('#lang-picker', false);
       });

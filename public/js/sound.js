@@ -135,9 +135,45 @@
     return preloadEntry(nudgeCacheKey(lang), nudgeUrl(lang));
   }
 
+  /** Preload voiced nudge for the active UI language plus English fallback. */
+  function preloadNudgeLangs() {
+    const lang = getNudgeLang();
+    preloadNudge(lang);
+    if (lang !== NUDGE_FALLBACK_LANG) {
+      preloadNudge(NUDGE_FALLBACK_LANG);
+    }
+  }
+
   function preloadAll() {
     Object.keys(FILES).forEach((key) => preload(key));
-    preloadNudge(NUDGE_FALLBACK_LANG);
+    preloadNudgeLangs();
+  }
+
+  function whenMediaReady(audio) {
+    return new Promise((resolve, reject) => {
+      if (audio.error) {
+        reject(new Error('media load failed'));
+        return;
+      }
+      if (audio.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+        resolve();
+        return;
+      }
+      const onReady = () => {
+        cleanup();
+        resolve();
+      };
+      const onError = () => {
+        cleanup();
+        reject(new Error('media load failed'));
+      };
+      const cleanup = () => {
+        audio.removeEventListener('canplaythrough', onReady);
+        audio.removeEventListener('error', onError);
+      };
+      audio.addEventListener('canplaythrough', onReady);
+      audio.addEventListener('error', onError);
+    });
   }
 
   function playOneShot(entry, onFail) {
@@ -145,30 +181,34 @@
       onFail?.();
       return;
     }
-    try {
-      // One-shot overlay: clone so reveal/match never pause or reset the spin loop element.
-      const audio = new Audio(entry.audio.src);
-      applyVolumeToAudio(audio);
-      applyMuteToAudio(audio);
-      audio.currentTime = 0;
-      audio.addEventListener('error', () => {
-        entry.ok = false;
+    whenMediaReady(entry.audio).then(() => {
+      if (!entry.ok) {
         onFail?.();
-      }, { once: true });
-      const promise = audio.play();
-      if (promise && typeof promise.catch === 'function') {
-        promise.catch(() => {
-          entry.ok = false;
-          onFail?.();
-        });
+        return;
       }
-      audio.addEventListener('ended', () => {
-        audio.src = '';
-      }, { once: true });
-    } catch (_) {
+      try {
+        // One-shot overlay: clone so reveal/match never pause or reset the spin loop element.
+        const audio = new Audio(entry.audio.src);
+        applyVolumeToAudio(audio);
+        applyMuteToAudio(audio);
+        audio.currentTime = 0;
+        audio.addEventListener('error', () => {
+          onFail?.();
+        }, { once: true });
+        const promise = audio.play();
+        if (promise && typeof promise.catch === 'function') {
+          promise.catch(() => onFail?.());
+        }
+        audio.addEventListener('ended', () => {
+          audio.src = '';
+        }, { once: true });
+      } catch (_) {
+        onFail?.();
+      }
+    }).catch(() => {
       entry.ok = false;
       onFail?.();
-    }
+    });
   }
 
   function playOneShotAsync(entry, onFail) {
@@ -181,34 +221,42 @@
           resolve();
         }
       };
-      if (!entry || !entry.ok) {
+      if (!entry) {
         fallback();
         return;
       }
-      try {
-        const audio = new Audio(entry.audio.src);
-        applyVolumeToAudio(audio);
-        applyMuteToAudio(audio);
-        audio.currentTime = 0;
-        audio.addEventListener('error', () => {
-          entry.ok = false;
-          fallback();
-        }, { once: true });
-        const promise = audio.play();
-        if (promise && typeof promise.catch === 'function') {
-          promise.catch(() => {
-            entry.ok = false;
-            fallback();
-          });
-        }
-        audio.addEventListener('ended', () => {
-          audio.src = '';
-          resolve();
-        }, { once: true });
-      } catch (_) {
-        entry.ok = false;
-        resolve();
+      if (!entry.ok) {
+        fallback();
+        return;
       }
+      whenMediaReady(entry.audio).then(() => {
+        if (!entry.ok) {
+          fallback();
+          return;
+        }
+        try {
+          const audio = new Audio(entry.audio.src);
+          applyVolumeToAudio(audio);
+          applyMuteToAudio(audio);
+          audio.currentTime = 0;
+          audio.addEventListener('error', () => {
+            fallback();
+          }, { once: true });
+          const promise = audio.play();
+          if (promise && typeof promise.catch === 'function') {
+            promise.catch(() => fallback());
+          }
+          audio.addEventListener('ended', () => {
+            audio.src = '';
+            resolve();
+          }, { once: true });
+        } catch (_) {
+          fallback();
+        }
+      }).catch(() => {
+        entry.ok = false;
+        fallback();
+      });
     });
   }
 
@@ -233,8 +281,9 @@
   function playAndWait(key) {
     if (muted) return Promise.resolve();
     if (key === 'nudge') {
-      return playOneShotAsync(preloadNudge(getNudgeLang()), () => {
-        if (getNudgeLang() !== NUDGE_FALLBACK_LANG) {
+      const lang = getNudgeLang();
+      return playOneShotAsync(preloadNudge(lang), () => {
+        if (lang !== NUDGE_FALLBACK_LANG) {
           return playOneShotAsync(preloadNudge(NUDGE_FALLBACK_LANG));
         }
       });
@@ -333,6 +382,7 @@
   global.LottoSound = {
     init,
     preloadAll,
+    preloadNudgeLangs,
     play,
     playAndWait,
     startLoop,
