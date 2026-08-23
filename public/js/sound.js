@@ -171,6 +171,47 @@
     }
   }
 
+  function playOneShotAsync(entry, onFail) {
+    return new Promise((resolve) => {
+      const fallback = () => {
+        const next = onFail?.();
+        if (next && typeof next.then === 'function') {
+          next.then(resolve);
+        } else {
+          resolve();
+        }
+      };
+      if (!entry || !entry.ok) {
+        fallback();
+        return;
+      }
+      try {
+        const audio = new Audio(entry.audio.src);
+        applyVolumeToAudio(audio);
+        applyMuteToAudio(audio);
+        audio.currentTime = 0;
+        audio.addEventListener('error', () => {
+          entry.ok = false;
+          fallback();
+        }, { once: true });
+        const promise = audio.play();
+        if (promise && typeof promise.catch === 'function') {
+          promise.catch(() => {
+            entry.ok = false;
+            fallback();
+          });
+        }
+        audio.addEventListener('ended', () => {
+          audio.src = '';
+          resolve();
+        }, { once: true });
+      } catch (_) {
+        entry.ok = false;
+        resolve();
+      }
+    });
+  }
+
   function playNudgeForLang(lang, allowFallback) {
     const entry = preloadNudge(lang);
     playOneShot(entry, () => {
@@ -187,6 +228,18 @@
       return;
     }
     playOneShot(preload(key));
+  }
+
+  function playAndWait(key) {
+    if (muted) return Promise.resolve();
+    if (key === 'nudge') {
+      return playOneShotAsync(preloadNudge(getNudgeLang()), () => {
+        if (getNudgeLang() !== NUDGE_FALLBACK_LANG) {
+          return playOneShotAsync(preloadNudge(NUDGE_FALLBACK_LANG));
+        }
+      });
+    }
+    return playOneShotAsync(preload(key));
   }
 
   function startLoop(key) {
@@ -281,6 +334,7 @@
     init,
     preloadAll,
     play,
+    playAndWait,
     startLoop,
     stopLoop,
     setVolume,

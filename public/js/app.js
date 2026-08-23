@@ -342,14 +342,14 @@
     return cards.some((card) => card.some((row) => row.some((cell) => cell === n)));
   }
 
-  function playGameOverSound(pkt) {
+  async function playGameOverSound(pkt) {
     if (!Sound() || pkt.reason === 'no_survivors') return;
     const me = pkt.statistics?.find((s) => s.username === state.user?.username);
     if (!me) return;
     if (me.received > 0) {
-      Sound().play('victory');
+      await Sound().playAndWait('victory');
     } else if (pkt.reason === 'victory') {
-      Sound().play('defeat');
+      await Sound().playAndWait('defeat');
     }
   }
 
@@ -656,8 +656,10 @@
 
   function onGameOver(pkt) {
     const job = async () => {
-      playGameOverSound(pkt);
       UI().hideApartment();
+      UI().hideTurnControls();
+      UI().renderCards(state.myCards, state.myMasks, state.cardIndex, null);
+      await playGameOverSound(pkt);
       UI().showGameOver(pkt, { winChanceHistory: pkt.win_chance_history || [] });
       if (pkt.statistics) {
         const me = pkt.statistics.find((s) => s.username === state.user?.username);
