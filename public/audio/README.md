@@ -8,7 +8,7 @@
 | match.mp3 | &lt;1s | Revealed number matches a cell on the player's card(s) |
 | defeat.mp3 | 1–3s | Player lost when another player wins (`game_over`, `reason: victory`) |
 | victory.mp3 | 1–3s | Player received a share of the bank (`received > 0`) |
-| nudge.mp3 | &lt;1s | Another player sent `nudge_turn` (drawer hears `nudge_received`) |
+| nudge_&lt;lang&gt;.mp3 | ~2.4s | Voiced line when another player sends `nudge_turn` (drawer hears `nudge_received`). One file per UI language: `nudge_en.mp3`, `nudge_ru.mp3`, `nudge_es.mp3`, `nudge_fr.mp3`, `nudge_zh.mp3`, `nudge_tr.mp3` (`&lt;lang&gt;` matches `LottoI18n.getLang()`). Missing language files fall back to `nudge_en.mp3`. |
 | apartment.mp3 | loop | Tension/countdown cue while a non-immune player must choose pay-or-leave during Apartment — **seamlessly loopable** (same loop-point guidance as spin.mp3) |
 
 Format: MP3 (or any format supported by the browser's HTML5 `Audio` element).

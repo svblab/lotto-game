@@ -1,5 +1,28 @@
 # Implementation Status — Lotto Game Project
 
+## EPIC-032a — Nudge voice i18n (client) (2026-08-23)
+
+Status: Completed
+
+- [DONE] `nudge_received` voice line resolves `audio/nudge_<lang>.mp3` from recipient's current `LottoI18n.getLang()` on every play.
+- [DONE] Migrated `nudge.mp3` → `nudge_en.mp3`; missing per-language files fall back to English without breaking other sounds.
+- [DONE] Per-language cache keys (`nudge_en`, `nudge_ru`, …) so language switches within an open tab apply on the next nudge.
+
+Files:
+- public/js/sound.js
+- public/audio/nudge_en.mp3 (renamed from nudge.mp3)
+- public/audio/README.md
+- docs/IMPLEMENTATION_STATUS.md
+
+Commit: 2a42674
+Notes: Client-only; no ADR/protocol/server changes (ADR-032 server rules unchanged). Voice recordings for `ru/es/fr/zh/tr` are out of scope — fallback to `nudge_en.mp3` until added.
+
+VERIFICATION:
+- MANUAL — with `getLang() === 'en'`, `nudge_received` plays `nudge_en.mp3`.
+- MANUAL — with `getLang()` set to `ru` (no `nudge_ru.mp3` on disk), `nudge_en.mp3` plays instead.
+- MANUAL — switch language via selector without reload; next `nudge_received` uses new language.
+- MANUAL — other sounds (`spin`, `apartment`, `reveal`, `match`, `victory`, `defeat`) unchanged.
+
 ## Frontend sound — volume slider + loop cues (2026-08-17)
 
 Status: Completed

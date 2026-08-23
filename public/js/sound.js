@@ -15,9 +15,11 @@
     match: 'audio/match.mp3',
     defeat: 'audio/defeat.mp3',
     victory: 'audio/victory.mp3',
-    nudge: 'audio/nudge.mp3',
     apartment: 'audio/apartment.mp3',
   };
+
+  const NUDGE_FALLBACK_LANG = 'en';
+  const NUDGE_LANGS = ['en', 'ru', 'es', 'fr', 'zh', 'tr'];
 
   /** @type {Record<string, { audio: HTMLAudioElement, ok: boolean }>} */
   const cache = {};
@@ -91,10 +93,21 @@
     slider.value = String(Math.round(volume * 100));
   }
 
-  function preload(key) {
-    if (cache[key]) return cache[key];
-    const url = FILES[key];
-    if (!url) return null;
+  function getNudgeLang() {
+    const lang = global.LottoI18n?.getLang?.();
+    return NUDGE_LANGS.includes(lang) ? lang : NUDGE_FALLBACK_LANG;
+  }
+
+  function nudgeCacheKey(lang) {
+    return `nudge_${lang}`;
+  }
+
+  function nudgeUrl(lang) {
+    return `audio/nudge_${lang}.mp3`;
+  }
+
+  function preloadEntry(cacheKey, url) {
+    if (cache[cacheKey]) return cache[cacheKey];
     const audio = new Audio(url);
     audio.preload = 'auto';
     applyVolumeToAudio(audio);
@@ -103,7 +116,7 @@
     audio.addEventListener('error', () => {
       entry.ok = false;
     });
-    cache[key] = entry;
+    cache[cacheKey] = entry;
     try {
       audio.load();
     } catch (_) {
@@ -112,28 +125,68 @@
     return entry;
   }
 
-  function preloadAll() {
-    Object.keys(FILES).forEach((key) => preload(key));
+  function preload(key) {
+    const url = FILES[key];
+    if (!url) return null;
+    return preloadEntry(key, url);
   }
 
-  function play(key) {
-    if (muted) return;
-    const entry = preload(key);
-    if (!entry || !entry.ok) return;
+  function preloadNudge(lang) {
+    return preloadEntry(nudgeCacheKey(lang), nudgeUrl(lang));
+  }
+
+  function preloadAll() {
+    Object.keys(FILES).forEach((key) => preload(key));
+    preloadNudge(NUDGE_FALLBACK_LANG);
+  }
+
+  function playOneShot(entry, onFail) {
+    if (!entry || !entry.ok) {
+      onFail?.();
+      return;
+    }
     try {
       // One-shot overlay: clone so reveal/match never pause or reset the spin loop element.
       const audio = new Audio(entry.audio.src);
       applyVolumeToAudio(audio);
       applyMuteToAudio(audio);
       audio.currentTime = 0;
+      audio.addEventListener('error', () => {
+        entry.ok = false;
+        onFail?.();
+      }, { once: true });
       const promise = audio.play();
       if (promise && typeof promise.catch === 'function') {
-        promise.catch(() => {});
+        promise.catch(() => {
+          entry.ok = false;
+          onFail?.();
+        });
       }
       audio.addEventListener('ended', () => {
         audio.src = '';
       }, { once: true });
-    } catch (_) {}
+    } catch (_) {
+      entry.ok = false;
+      onFail?.();
+    }
+  }
+
+  function playNudgeForLang(lang, allowFallback) {
+    const entry = preloadNudge(lang);
+    playOneShot(entry, () => {
+      if (allowFallback && lang !== NUDGE_FALLBACK_LANG) {
+        playNudgeForLang(NUDGE_FALLBACK_LANG, false);
+      }
+    });
+  }
+
+  function play(key) {
+    if (muted) return;
+    if (key === 'nudge') {
+      playNudgeForLang(getNudgeLang(), true);
+      return;
+    }
+    playOneShot(preload(key));
   }
 
   function startLoop(key) {
