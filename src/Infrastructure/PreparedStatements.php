@@ -51,7 +51,14 @@ class PreparedStatements
         
         'unban_user' => "UPDATE users SET banned_until = 0 WHERE id = ?",
 
-        'users_admin_list' => "SELECT id, username, coins, is_admin, banned_until FROM users WHERE (? = '' OR LOWER(username) LIKE '%' || LOWER(?) || '%') AND (? = '0' OR banned_until > strftime('%s','now')) ORDER BY username COLLATE NOCASE ASC LIMIT ?"
+        'users_admin_list' => "SELECT id, username, coins, is_admin, banned_until FROM users WHERE (? = '' OR LOWER(username) LIKE '%' || LOWER(?) || '%') AND (? = '0' OR banned_until > strftime('%s','now')) ORDER BY username COLLATE NOCASE ASC LIMIT ?",
+
+        // ADR-033: admin password rotation + account delete
+        'user_password_by_id' => "SELECT id, password_hash, is_admin, username FROM users WHERE id = ? LIMIT 1",
+
+        'update_user_password' => "UPDATE users SET password_hash = ? WHERE id = ?",
+
+        'delete_user_by_id' => "DELETE FROM users WHERE id = ?"
     ];
 
     /**

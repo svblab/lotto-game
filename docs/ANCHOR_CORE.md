@@ -619,6 +619,7 @@ Removal reasons: `leave, disconnect, afk, refuse, kicked, banned, admin_close`.
 
 ## Class Names (allowed only)
 - Services: `AuthService, LoginThrottleService, IpAccountLimitService, LobbyService, GameService, VictoryService, ApartmentService, ReconnectService, AdminService, SessionService, ChatService, FileTransferService`
+- Auth helpers: `PasswordPolicy` (ADR-033)
 - Handlers: `AuthHandler, LobbyHandler, GameHandler, AdminHandler, ChatHandler`
 - Core: `ConnectionManager, RoomManager, Logger, Constants`
 - Infrastructure: `Database, PreparedStatements`
@@ -640,6 +641,7 @@ hello, auth_result, error, room_list, room_joined, player_joined, player_left,
 player_status_changed, host_changed, bank_updated, balance_updated, game_started,
 your_turn, barrels_drawn, afk_warning, nudge_received, apartment_alert, reconnect_state, game_over,
 banned, admin_stats_data, admin_users_data, admin_logs_data, admin_settings_data, admin_restart_result,
+admin_change_password_result,
 room_message, file_offer, file_accepted, file_rejected, file_data, file_offer_expired
 ```
 
@@ -649,6 +651,7 @@ register, login, reconnect, ping, room_list, create_room, join_room, leave_room,
 start_game, draw_barrel, turn_ready, nudge_turn, apartment_choice, admin_ban_user, admin_unban_user,
 admin_kick_user, admin_close_room, admin_get_logs, admin_get_stats, admin_get_users,
 admin_get_settings, admin_set_settings, admin_restart_server,
+admin_change_password, admin_delete_user, admin_bulk_delete_users,
 room_message, file_offer, file_accept, file_reject, file_data
 ```
 

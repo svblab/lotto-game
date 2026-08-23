@@ -117,4 +117,12 @@ final class AdminHandler
     {
         $this->adminSettings->handleRestartServer($data, $connection, $worker);
     }
+
+    /**
+     * ADR-033: {"action": "admin_change_password", "current_password": "...", "new_password": "..."}
+     */
+    public function handleChangePassword(array $data, object $connection): void
+    {
+        $this->adminService->handleChangePassword($data, $connection);
+    }
 }

@@ -641,6 +641,7 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
         'admin_get_settings' => $worker->adminHandler->handleGetSettings($data, $connection, $worker),
         'admin_set_settings' => $worker->adminHandler->handleSetSettings($data, $connection, $worker),
         'admin_restart_server' => $worker->adminHandler->handleRestartServer($data, $connection, $worker),
+        'admin_change_password' => $worker->adminHandler->handleChangePassword($data, $connection),
         'room_message'     => $worker->chatHandler->handleRoomMessage($data, $connection, $worker),
         'file_offer'       => $worker->chatHandler->handleFileOffer($data, $connection, $worker),
         'file_accept'      => $worker->chatHandler->handleFileAccept($data, $connection, $worker),

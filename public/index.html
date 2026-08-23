@@ -315,6 +315,7 @@
             <div class="admin-row">
               <button type="submit" class="btn primary" data-i18n="admin.saveSettings">Save settings</button>
               <button type="button" id="admin-restart-btn" class="btn" data-i18n="admin.restartServer">Restart server</button>
+              <button type="button" id="admin-change-password-btn" class="btn" data-i18n="admin.changePassword">Change admin password</button>
             </div>
           </form>
           <p id="admin-settings-message" class="message" role="status"></p>
@@ -430,6 +431,31 @@
       </div>
     </div>
 
+    <div id="admin-password-modal" class="overlay hidden" role="dialog" aria-labelledby="admin-password-title">
+      <div class="panel admin-password-panel">
+        <h2 id="admin-password-title" data-i18n="admin.changePassword">Change admin password</h2>
+        <form id="admin-password-form" class="admin-settings-form">
+          <label>
+            <span data-i18n="admin.currentPassword">Current password</span>
+            <input type="password" id="admin-password-current" required autocomplete="current-password">
+          </label>
+          <label>
+            <span data-i18n="admin.newPassword">New password</span>
+            <input type="password" id="admin-password-new" required minlength="10" autocomplete="new-password">
+          </label>
+          <label>
+            <span data-i18n="admin.confirmPassword">Confirm new password</span>
+            <input type="password" id="admin-password-confirm" required minlength="10" autocomplete="new-password">
+          </label>
+          <p id="admin-password-message" class="message" role="alert"></p>
+          <div class="admin-row">
+            <button type="submit" class="btn primary" data-i18n="admin.savePassword">Update password</button>
+            <button type="button" id="admin-password-cancel" class="btn" data-i18n="common.cancel">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <div id="game-over-modal" class="overlay hidden" role="dialog">
       <div class="panel game-over-panel">
         <h2 data-i18n="game.gameOver">Game Over</h2>
@@ -484,7 +510,7 @@
   <script src="js/sound.js?v=5"></script>
   <script src="js/i18n.js?v=4"></script>
   <script src="js/ws.js?v=4"></script>
-  <script src="js/ui.js?v=23"></script>
-  <script src="js/app.js?v=21"></script>
+  <script src="js/ui.js?v=24"></script>
+  <script src="js/app.js?v=22"></script>
 </body>
 </html>

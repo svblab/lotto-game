@@ -1,5 +1,42 @@
 # Implementation Status — Lotto Game Project
 
+## EPIC-033A — Admin password rotation (ADR-033) (2026-08-23)
+
+Status: Completed
+
+- [DONE] ADR-033 accepted (password rotation + account deletion design; Epic B UI-only confirmed)
+- [DONE] `PasswordPolicy::validateAdminPassword()` shared helper (registration rules untouched)
+- [DONE] `admin_change_password` / `admin_change_password_result` + error codes
+- [DONE] Admin UI modal (current / new / confirm)
+- [DONE] CLI `change_admin_password.php` left alone as emergency fallback (may be absent)
+
+Files:
+- docs/ADR/033-admin-panel-password-rotation-and-account-management.md
+- docs/ANCHOR_CORE.md
+- docs/ANCHOR_PROTOCOL.md
+- docs/IMPLEMENTATION_STATUS.md
+- src/Auth/PasswordPolicy.php
+- src/Admin/AdminService.php
+- src/Admin/AdminHandler.php
+- src/Infrastructure/PreparedStatements.php
+- server.php
+- public/index.html
+- public/js/app.js
+- public/locales/*.json
+- tests/Manual/test_admin_change_password.php
+
+Commit: 43c6380
+Notes: Acting admin only (by userId). Write-verify transaction before COMMIT. Cherry-picked onto feature/room-chat-files.
+
+VERIFICATION:
+- `php tests/Manual/test_admin_change_password.php` — 12/12 passed
+- MANUAL — admin panel → Change admin password; wrong current / weak new / success login with new password
+
+CHANGED:
+- Admin password rotation WS path + ADR-033 + registries + UI modal + tests
+NOT CHANGED:
+- Registration password rules; CLI change_admin_password.php; ban/kick/delete; rooms/players list UI
+
 ## EPIC-030 — Room chat + file transfer (feature/room-chat-files) (2026-08-23)
 
 Status: Completed (experimental branch — not for `main` merge until demand-validated)
@@ -1406,11 +1443,6 @@ LOTTO_WORKERMAN_PID_FILE env vars for test subprocess isolation.
 Next in Phase 11: EPIC-11.5 Protocol audit, then 11.6 per
 docs/prompt phase 11 detail.md and docs/PHASE_11_REPORT.md.
 
-<<<<<<< HEAD
-- [DONE] EPIC-11.0 Full integration testing (Phase 11 audit, 2026-07-27)
-=======
-- [DONE] EPIC-11.0 Full integration testing (Phase 11 audit — 2026-07-27)
->>>>>>> cursor/epic-11-1-vps-ws-test-isolation
 Files:
 - tests/Manual/test_admin_ban.php (diff — FIX-11 MockConnection::close())
 - tests/Manual/test_admin_integration.php (diff — FIX-11 SpyConnection::close())

@@ -97,6 +97,13 @@
     "saveSettings": "Сохранить",
     "settingsSaved": "Настройки сохранены",
     "restartServer": "Перезапуск сервера",
+    "changePassword": "Сменить пароль админа",
+    "currentPassword": "Текущий пароль",
+    "newPassword": "Новый пароль",
+    "confirmPassword": "Подтвердите новый пароль",
+    "savePassword": "Обновить пароль",
+    "passwordUpdated": "Пароль обновлён",
+    "passwordMismatch": "Новый пароль и подтверждение не совпадают",
     "restartConfirmTitle": "Перезапустить сервер?",
     "restartConfirmBody": "Все игроки будут отключены. На хосте выполнится admin_emergency_control.sh restart.",
     "restartStarted": "Перезапуск запущен — переподключение…",
@@ -169,7 +176,11 @@
     "file_recipient_invalid": "Некорректный получатель",
     "file_offer_invalid": "Предложение файла недействительно",
     "file_invalid_payload": "Некорректные данные файла",
-    "file_rate_limited": "Слишком много попыток передачи файла"
+    "file_rate_limited": "Слишком много попыток передачи файла",
+    "admin_wrong_current_password": "Неверный текущий пароль",
+    "admin_password_invalid": "Некорректный новый пароль",
+    "admin_user_not_found": "Пользователь не найден",
+    "admin_user_busy": "Пользователь онлайн или в комнате — сначала кик/выход"
   },
   "chat": {
     "title": "Чат",

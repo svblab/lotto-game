@@ -15,7 +15,7 @@ Server → Client
 ```json
 {"type": "error", "code": "error_code", "message": "optional text"}
 ```
-Codes: `error.invalid_json, error.auth_required, error.room_not_found, error.not_your_turn, error.already_nudged, error.server_full, error.room_full, error.room_limit, error.banned, error.cannot_moderate_admin, error.auth_invalid_username, error.auth_username_taken, error.auth_invalid_credentials, error.auth_invalid_token, error.auth_rate_limited, error.auth_too_many_accounts_same_network, error.chat_unavailable, error.chat_message_invalid, error.file_transfer_busy, error.file_too_large, error.file_recipient_invalid, error.file_offer_invalid, error.file_invalid_payload, error.file_rate_limited`
+Codes: `error.invalid_json, error.auth_required, error.room_not_found, error.not_your_turn, error.already_nudged, error.server_full, error.room_full, error.room_limit, error.banned, error.cannot_moderate_admin, error.auth_invalid_username, error.auth_username_taken, error.auth_invalid_credentials, error.auth_invalid_token, error.auth_rate_limited, error.auth_too_many_accounts_same_network, error.chat_unavailable, error.chat_message_invalid, error.file_transfer_busy, error.file_too_large, error.file_recipient_invalid, error.file_offer_invalid, error.file_invalid_payload, error.file_rate_limited, error.admin_wrong_current_password, error.admin_password_invalid, error.admin_user_not_found, error.admin_user_busy`
 
 `error.invalid_json` (ADR-003): sent for malformed JSON or missing/invalid
 `action` field. The connection is NOT closed — the client remains
@@ -65,31 +65,24 @@ control without a generic "not your turn" toast. Self-nudge, non-playing
 room, and inactive/non-seated sender use existing codes (`error.not_your_turn`
 / `error.room_not_found`) — see ADR-032.
 
-`error.chat_unavailable` (ADR-030): chat or file action when the sender is
-not in a password-protected room (`password_hash === null` or not seated).
-
-`error.chat_message_invalid` (ADR-030): empty, non-string, or oversized
-`room_message` text (limit `CHAT_MESSAGE_MAX_CHARS`).
-
-`error.file_transfer_busy` (ADR-030): `file_offer` while the room already
-has a pending offer or active relay (`file_transfer !== null`).
-
-`error.file_too_large` (ADR-030): declared or decoded size exceeds
-`FILE_MAX_BYTES` (1 MiB decoded).
-
-`error.file_recipient_invalid` (ADR-030): recipient username missing, is
-self, or is not an active seated player in the sender's room.
-
-`error.file_offer_invalid` (ADR-030): unknown/mismatched `offer_id`, or
-actor is not the expected sender/recipient for that offer state.
-
-`error.file_invalid_payload` (ADR-030): missing/invalid base64, or decoded
-byte length does not equal the offer's declared `size_bytes`.
-
 `error.file_rate_limited` (ADR-030): dedicated soft limit on
 `file_offer`/`file_data` (`FILE_RATE_LIMIT_MAX` per
 `FILE_RATE_LIMIT_WINDOW_SECONDS`). Connection is NOT closed (unlike
 ADR-003's hard close).
+
+`error.admin_wrong_current_password` (ADR-033): `admin_change_password` when
+`current_password` does not match the acting admin's stored hash.
+
+`error.admin_password_invalid` (ADR-033): new password fails
+`PasswordPolicy::validateAdminPassword()` (or missing fields / same as
+current). The `message` field carries a specific reason.
+
+`error.admin_user_not_found` (ADR-033): delete target `user_id` does not
+exist in SQLite.
+
+`error.admin_user_busy` (ADR-033): delete target is live online, seated in
+a room, or still referenced in room RAM (`players` /
+`all_players_history` / `game_roster`) — kick/leave/destroy first.
 
 ---
 
@@ -630,3 +623,33 @@ Server → Affected party/parties. Offer timed out, relay timed out, or peer dis
 
 ## Protocol Compatibility Rule
 New packets may be added. Existing packet names, field names, and semantics may not be changed/renamed. Breaking changes require ADR approval.
+
+## Admin password & account deletion (ADR-033)
+
+### admin_change_password
+Client → Server. Rotates the acting admin's own password.
+```json
+{"action": "admin_change_password", "current_password": "old-secret-1", "new_password": "new-secret-12"}
+```
+
+### admin_change_password_result
+Server → Client. Emitted only on successful commit.
+```json
+{"type": "admin_change_password_result", "success": true, "message": "Password updated"}
+```
+Validation failures use `error.admin_wrong_current_password` /
+`error.admin_password_invalid` instead of this packet.
+
+### admin_delete_user
+Client → Server. Hard-delete one non-admin account that is not busy.
+```json
+{"action": "admin_delete_user", "user_id": 15}
+```
+On success the client should re-request `admin_get_users`.
+
+### admin_bulk_delete_users
+Client → Server. All-or-nothing hard-delete of the listed ids.
+```json
+{"action": "admin_bulk_delete_users", "user_ids": [15, 16, 17]}
+```
+On success the client should re-request `admin_get_users`.

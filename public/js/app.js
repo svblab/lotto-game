@@ -413,6 +413,13 @@
       syncTurnUi();
       return;
     }
+    if (
+      UI().$('#admin-password-modal') && !UI().$('#admin-password-modal').classList.contains('hidden')
+      && ['error.admin_wrong_current_password', 'error.admin_password_invalid'].includes(pkt.code ?? '')
+    ) {
+      UI().setMessage('#admin-password-message', msg, 'error');
+      return;
+    }
     if (state.inGame) UI().showToast(msg);
     else if (UI().$('#admin-screen')?.classList.contains('active')) {
       UI().setMessage('#admin-message', msg, 'error');
@@ -812,6 +819,17 @@
     }
   }
 
+  function onAdminChangePasswordResult(pkt) {
+    if (pkt.success) {
+      UI().setMessage('#admin-password-message', pkt.message || I18n().t('admin.passwordUpdated'), 'success');
+      UI().$('#admin-password-form')?.reset();
+      setTimeout(() => UI().toggleOverlay('#admin-password-modal', false), 600);
+      UI().setMessage('#admin-settings-message', I18n().t('admin.passwordUpdated'), 'success');
+    } else {
+      UI().setMessage('#admin-password-message', pkt.message || I18n().t('errors.unknown'), 'error');
+    }
+  }
+
   function onAdminUsers(pkt) {
     UI().renderAdminUsersTable(pkt.users || []);
   }
@@ -1162,6 +1180,29 @@
       socket.sendAction('admin_restart_server');
     });
 
+    UI().$('#admin-change-password-btn')?.addEventListener('click', () => {
+      UI().setMessage('#admin-password-message', '');
+      UI().$('#admin-password-form')?.reset();
+      UI().toggleOverlay('#admin-password-modal', true);
+    });
+    UI().$('#admin-password-cancel')?.addEventListener('click', () => {
+      UI().toggleOverlay('#admin-password-modal', false);
+    });
+    UI().$('#admin-password-form')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const current = UI().$('#admin-password-current')?.value || '';
+      const next = UI().$('#admin-password-new')?.value || '';
+      const confirm = UI().$('#admin-password-confirm')?.value || '';
+      if (next !== confirm) {
+        UI().setMessage('#admin-password-message', I18n().t('admin.passwordMismatch'), 'error');
+        return;
+      }
+      socket.sendAction('admin_change_password', {
+        current_password: current,
+        new_password: next,
+      });
+    });
+
     UI().$('#admin-refresh-logs')?.addEventListener('click', () => socket.sendAction('admin_get_logs'));
     UI().$('#admin-refresh-rooms')?.addEventListener('click', () => socket.sendAction('admin_get_stats'));
     UI().$('#admin-refresh-users')?.addEventListener('click', () => requestAdminUsers());
@@ -1230,6 +1271,7 @@
       admin_stats_data: onAdminStats,
       admin_settings_data: onAdminSettings,
       admin_restart_result: onAdminRestartResult,
+      admin_change_password_result: onAdminChangePasswordResult,
       admin_users_data: onAdminUsers,
       room_message: onRoomMessage,
       file_offer: onFileOffer,
