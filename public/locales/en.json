@@ -138,6 +138,8 @@
     "auth_invalid_username": "Invalid username or password format",
     "auth_invalid_token": "Session expired — please log in again",
     "auth_session_superseded": "Logged in elsewhere — please sign in again",
+    "auth_too_many_accounts_same_network": "Too many accounts are already signed in from this network. Each device can run one game session per account — try again later or use a different network.",
+    "auth_rate_limited": "Invalid username or password",
     "room_not_found": "Room not found",
     "not_your_turn": "Not your turn",
     "server_full": "Server is full",

@@ -134,6 +134,8 @@
     "auth_username_taken": "Usuario ocupado",
     "auth_invalid_username": "Formato inválido",
     "auth_invalid_token": "Sesión expirada",
+    "auth_too_many_accounts_same_network": "Demasiadas cuentas ya iniciaron sesión desde esta red. Cada dispositivo permite una sesión por cuenta — inténtelo más tarde o use otra red.",
+    "auth_rate_limited": "Credenciales inválidas",
     "room_not_found": "Sala no encontrada",
     "not_your_turn": "No es tu turno",
     "server_full": "Servidor lleno",

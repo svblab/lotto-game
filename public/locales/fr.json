@@ -134,6 +134,8 @@
     "auth_username_taken": "Nom pris",
     "auth_invalid_username": "Format invalide",
     "auth_invalid_token": "Session expirée",
+    "auth_too_many_accounts_same_network": "Trop de comptes sont déjà connectés depuis ce réseau. Un appareil = une session par compte — réessayez plus tard ou utilisez un autre réseau.",
+    "auth_rate_limited": "Identifiants invalides",
     "room_not_found": "Salle introuvable",
     "not_your_turn": "Ce n'est pas votre tour",
     "server_full": "Serveur plein",

@@ -134,6 +134,8 @@
     "auth_username_taken": "Kullanıcı adı alınmış",
     "auth_invalid_username": "Geçersiz format",
     "auth_invalid_token": "Oturum süresi doldu",
+    "auth_too_many_accounts_same_network": "Bu ağdan çok fazla hesapla oturum açılmış. Her cihazda hesap başına bir oyun oturumu — daha sonra deneyin veya başka bir ağ kullanın.",
+    "auth_rate_limited": "Geçersiz kimlik bilgileri",
     "room_not_found": "Oda bulunamadı",
     "not_your_turn": "Sıra sizde değil",
     "server_full": "Sunucu dolu",

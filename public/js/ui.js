@@ -829,7 +829,9 @@
     $('#apartment-text').textContent = required
       ? t('apartment.required')
       : t('apartment.immune');
-    $('#apartment-actions').classList.toggle('hidden', !required);
+    const actionsEl = $('#apartment-actions');
+    actionsEl?.classList.toggle('hidden', !required);
+    actionsEl?.classList.toggle('apartment-prompt', !!required);
     const agreeBtn = $('#apartment-agree');
     const refuseBtn = $('#apartment-refuse');
     let selected = null;
@@ -850,6 +852,7 @@
       if (left <= 0) {
         clearInterval(global._aptTimer);
         stopApartmentSound();
+        actionsEl?.classList.remove('apartment-prompt');
         toggleOverlay('#apartment-modal', false);
         if (required && selected === null) {
           onTimeout?.();
@@ -863,6 +866,7 @@
   function hideApartment() {
     clearInterval(global._aptTimer);
     stopApartmentSound();
+    $('#apartment-actions')?.classList.remove('apartment-prompt');
     toggleOverlay('#apartment-modal', false);
   }
 

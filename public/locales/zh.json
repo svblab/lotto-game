@@ -134,6 +134,8 @@
     "auth_username_taken": "用户名已存在",
     "auth_invalid_username": "格式无效",
     "auth_invalid_token": "会话已过期",
+    "auth_too_many_accounts_same_network": "此网络已有过多账号登录。每台设备每个账号只能有一个游戏会话——请稍后再试或使用其他网络。",
+    "auth_rate_limited": "用户名或密码错误",
     "room_not_found": "房间不存在",
     "not_your_turn": "还没轮到你",
     "server_full": "服务器已满",

@@ -742,7 +742,7 @@ html.has-chip-icon .coins::before {
   padding: 0.85rem;
 }
 .draw-btn.my-turn,
-.apartment-actions .btn.selected {
+.apartment-actions.apartment-prompt .btn {
   animation: pulseBtn 1s ease infinite;
   box-shadow: 0 0 20px var(--gold-glow);
 }
@@ -777,6 +777,18 @@ html.has-chip-icon .coins::before {
   margin: 1rem 0;
 }
 .apartment-actions { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; }
+.apartment-actions .btn.selected {
+  background: linear-gradient(180deg, var(--gold-glow), var(--gold));
+  color: var(--felt-dark);
+  font-weight: 600;
+}
+.apartment-actions .btn:focus {
+  outline: none;
+}
+.apartment-actions .btn:focus-visible {
+  outline: 2px solid var(--gold-glow);
+  outline-offset: 2px;
+}
 
 .game-over-panel { text-align: center; max-width: 560px; }
 .game-over-chart-wrap {
