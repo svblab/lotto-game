@@ -94,6 +94,13 @@
     "saveSettings": "Kaydet",
     "settingsSaved": "Ayarlar kaydedildi",
     "restartServer": "Sunucuyu yeniden başlat",
+    "changePassword": "Change admin password",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "savePassword": "Update password",
+    "passwordUpdated": "Password updated",
+    "passwordMismatch": "New password and confirmation do not match",
     "restartConfirmTitle": "Sunucu yeniden başlatılsın mı?",
     "restartConfirmBody": "Tüm oyuncular bağlantısı kesilir ve admin_emergency_control.sh restart çalıştırılır.",
     "restartStarted": "Yeniden başlatma — yeniden bağlanılıyor…",
@@ -157,6 +164,10 @@
     "room_limit": "Oda limiti",
     "cannot_moderate_admin": "Yönetici moderasyonu yapılamaz",
     "invalid_json": "Geçersiz istek",
-    "already_nudged": "Bu turda zaten dürttünüz"
+    "already_nudged": "Bu turda zaten dürttünüz",
+    "admin_wrong_current_password": "Current password is incorrect",
+    "admin_password_invalid": "Invalid new password",
+    "admin_user_not_found": "User not found",
+    "admin_user_busy": "User is online or still in a room — kick or leave first"
   }
 }

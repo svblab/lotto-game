@@ -15,7 +15,7 @@ Server → Client
 ```json
 {"type": "error", "code": "error_code", "message": "optional text"}
 ```
-Codes: `error.invalid_json, error.auth_required, error.room_not_found, error.not_your_turn, error.already_nudged, error.server_full, error.room_full, error.room_limit, error.banned, error.cannot_moderate_admin, error.auth_invalid_username, error.auth_username_taken, error.auth_invalid_credentials, error.auth_invalid_token, error.auth_rate_limited, error.auth_too_many_accounts_same_network`
+Codes: `error.invalid_json, error.auth_required, error.room_not_found, error.not_your_turn, error.already_nudged, error.server_full, error.room_full, error.room_limit, error.banned, error.cannot_moderate_admin, error.auth_invalid_username, error.auth_username_taken, error.auth_invalid_credentials, error.auth_invalid_token, error.auth_rate_limited, error.auth_too_many_accounts_same_network, error.admin_wrong_current_password, error.admin_password_invalid, error.admin_user_not_found, error.admin_user_busy`
 
 `error.invalid_json` (ADR-003): sent for malformed JSON or missing/invalid
 `action` field. The connection is NOT closed — the client remains
@@ -64,6 +64,20 @@ do not remove without ADR approval.
 control without a generic "not your turn" toast. Self-nudge, non-playing
 room, and inactive/non-seated sender use existing codes (`error.not_your_turn`
 / `error.room_not_found`) — see ADR-032.
+
+`error.admin_wrong_current_password` (ADR-033): `admin_change_password` when
+`current_password` does not match the acting admin's stored hash.
+
+`error.admin_password_invalid` (ADR-033): new password fails
+`PasswordPolicy::validateAdminPassword()` (or missing fields / same as
+current). The `message` field carries a specific reason.
+
+`error.admin_user_not_found` (ADR-033): delete target `user_id` does not
+exist in SQLite.
+
+`error.admin_user_busy` (ADR-033): delete target is live online, seated in
+a room, or still referenced in room RAM (`players` /
+`all_players_history` / `game_roster`) — kick/leave/destroy first.
 
 ---
 
@@ -530,3 +544,33 @@ Server → Client. Response to `admin_restart_server`.
 
 ## Protocol Compatibility Rule
 New packets may be added. Existing packet names, field names, and semantics may not be changed/renamed. Breaking changes require ADR approval.
+
+## Admin password & account deletion (ADR-033)
+
+### admin_change_password
+Client → Server. Rotates the acting admin's own password.
+```json
+{"action": "admin_change_password", "current_password": "old-secret-1", "new_password": "new-secret-12"}
+```
+
+### admin_change_password_result
+Server → Client. Emitted only on successful commit.
+```json
+{"type": "admin_change_password_result", "success": true, "message": "Password updated"}
+```
+Validation failures use `error.admin_wrong_current_password` /
+`error.admin_password_invalid` instead of this packet.
+
+### admin_delete_user
+Client → Server. Hard-delete one non-admin account that is not busy.
+```json
+{"action": "admin_delete_user", "user_id": 15}
+```
+On success the client should re-request `admin_get_users`.
+
+### admin_bulk_delete_users
+Client → Server. All-or-nothing hard-delete of the listed ids.
+```json
+{"action": "admin_bulk_delete_users", "user_ids": [15, 16, 17]}
+```
+On success the client should re-request `admin_get_users`.

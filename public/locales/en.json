@@ -97,6 +97,13 @@
     "saveSettings": "Save settings",
     "settingsSaved": "Settings saved",
     "restartServer": "Restart server",
+    "changePassword": "Change admin password",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "savePassword": "Update password",
+    "passwordUpdated": "Password updated",
+    "passwordMismatch": "New password and confirmation do not match",
     "restartConfirmTitle": "Restart server?",
     "restartConfirmBody": "This will disconnect all players and run admin_emergency_control.sh restart on the host.",
     "restartStarted": "Server restart initiated — reconnecting…",
@@ -161,6 +168,10 @@
     "room_limit": "Maximum rooms reached",
     "cannot_moderate_admin": "Cannot moderate an administrator",
     "invalid_json": "Invalid request",
-    "already_nudged": "Already nudged this turn"
+    "already_nudged": "Already nudged this turn",
+    "admin_wrong_current_password": "Current password is incorrect",
+    "admin_password_invalid": "Invalid new password",
+    "admin_user_not_found": "User not found",
+    "admin_user_busy": "User is online or still in a room — kick or leave first"
   }
 }

@@ -94,6 +94,13 @@
     "saveSettings": "Enregistrer",
     "settingsSaved": "Paramètres enregistrés",
     "restartServer": "Redémarrer le serveur",
+    "changePassword": "Change admin password",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "savePassword": "Update password",
+    "passwordUpdated": "Password updated",
+    "passwordMismatch": "New password and confirmation do not match",
     "restartConfirmTitle": "Redémarrer le serveur ?",
     "restartConfirmBody": "Tous les joueurs seront déconnectés ; admin_emergency_control.sh restart sera exécuté.",
     "restartStarted": "Redémarrage lancé — reconnexion…",
@@ -157,6 +164,10 @@
     "room_limit": "Limite de salles",
     "cannot_moderate_admin": "Impossible de modérer un admin",
     "invalid_json": "Requête invalide",
-    "already_nudged": "Déjà pressé ce tour"
+    "already_nudged": "Déjà pressé ce tour",
+    "admin_wrong_current_password": "Current password is incorrect",
+    "admin_password_invalid": "Invalid new password",
+    "admin_user_not_found": "User not found",
+    "admin_user_busy": "User is online or still in a room — kick or leave first"
   }
 }

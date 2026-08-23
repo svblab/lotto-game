@@ -620,6 +620,7 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
         'admin_get_settings' => $worker->adminHandler->handleGetSettings($data, $connection, $worker),
         'admin_set_settings' => $worker->adminHandler->handleSetSettings($data, $connection, $worker),
         'admin_restart_server' => $worker->adminHandler->handleRestartServer($data, $connection, $worker),
+        'admin_change_password' => $worker->adminHandler->handleChangePassword($data, $connection),
         default            => sendError($connection, 'error.invalid_json', "Unknown or not-yet-wired action: {$action}"),
     };
 

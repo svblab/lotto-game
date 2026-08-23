@@ -94,6 +94,13 @@
     "saveSettings": "保存",
     "settingsSaved": "设置已保存",
     "restartServer": "重启服务器",
+    "changePassword": "Change admin password",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "savePassword": "Update password",
+    "passwordUpdated": "Password updated",
+    "passwordMismatch": "New password and confirmation do not match",
     "restartConfirmTitle": "重启服务器？",
     "restartConfirmBody": "将断开所有玩家并运行 admin_emergency_control.sh restart。",
     "restartStarted": "正在重启 — 重新连接…",
@@ -157,6 +164,10 @@
     "room_limit": "房间数已达上限",
     "cannot_moderate_admin": "无法管理管理员",
     "invalid_json": "无效请求",
-    "already_nudged": "本回合已催促过"
+    "already_nudged": "本回合已催促过",
+    "admin_wrong_current_password": "Current password is incorrect",
+    "admin_password_invalid": "Invalid new password",
+    "admin_user_not_found": "User not found",
+    "admin_user_busy": "User is online or still in a room — kick or leave first"
   }
 }

@@ -1,5 +1,42 @@
 # Implementation Status — Lotto Game Project
 
+## EPIC-033A — Admin password rotation (ADR-033) (2026-08-23)
+
+Status: Completed
+
+- [DONE] ADR-033 accepted (password rotation + account deletion design; Epic B UI-only confirmed)
+- [DONE] `PasswordPolicy::validateAdminPassword()` shared helper (registration rules untouched)
+- [DONE] `admin_change_password` / `admin_change_password_result` + error codes
+- [DONE] Admin UI modal (current / new / confirm)
+- [DONE] CLI `change_admin_password.php` left alone as emergency fallback (may be absent)
+
+Files:
+- docs/ADR/033-admin-panel-password-rotation-and-account-management.md
+- docs/ANCHOR_CORE.md
+- docs/ANCHOR_PROTOCOL.md
+- docs/IMPLEMENTATION_STATUS.md
+- src/Auth/PasswordPolicy.php
+- src/Admin/AdminService.php
+- src/Admin/AdminHandler.php
+- src/Infrastructure/PreparedStatements.php
+- server.php
+- public/index.html
+- public/js/app.js
+- public/locales/*.json
+- tests/Manual/test_admin_change_password.php
+
+Commit: pending
+Notes: Acting admin only (by userId). Write-verify transaction before COMMIT.
+
+VERIFICATION:
+- `php tests/Manual/test_admin_change_password.php`
+- MANUAL — admin panel → Change admin password; wrong current / weak new / success login with new password
+
+CHANGED:
+- Admin password rotation WS path + ADR-033 + registries + UI modal + tests
+NOT CHANGED:
+- Registration password rules; CLI change_admin_password.php; ban/kick/delete; rooms/players list UI
+
 ## EPIC-032a — Nudge voice i18n (client) (2026-08-23)
 
 Status: Completed

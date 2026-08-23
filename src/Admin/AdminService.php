@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Lotto\Admin;
 
 use Lotto\Core\MemoryAudit;
+use Lotto\Auth\PasswordPolicy;
 use function Lotto\Core\sendJson;
 use function Lotto\Core\sendError;
 use function Lotto\Core\lottoEconomyRecord;
@@ -657,6 +658,105 @@ final class AdminService
         $this->logger->info(
             "Admin user_id={$connection->userId} requested system logs"
         );
+    }
+
+    /**
+     * ADR-033 / EPIC-A: rotate the acting admin's own password.
+     *
+     * Input:
+     * {"action":"admin_change_password","current_password":"...","new_password":"..."}
+     *
+     * Success:
+     * {"type":"admin_change_password_result","success":true,"message":"Password updated"}
+     */
+    public function handleChangePassword(array $data, object $connection): void
+    {
+        if (!$this->assertAdmin($connection)) {
+            return;
+        }
+        if ($this->stmts === null || $this->db === null) {
+            sendError($connection, 'error.invalid_json', 'Admin storage is not configured');
+            return;
+        }
+
+        $current = $data['current_password'] ?? null;
+        $new = $data['new_password'] ?? null;
+        if (!is_string($current) || !is_string($new)) {
+            sendError($connection, 'error.admin_password_invalid', 'Missing password fields');
+            return;
+        }
+
+        $adminId = (int) $connection->userId;
+        $stmt = $this->stmts->get('user_password_by_id');
+        $stmt->execute([$adminId]);
+        $row = $stmt->fetch();
+        if ($row === false) {
+            sendError($connection, 'error.admin_user_not_found', 'Admin account not found');
+            return;
+        }
+
+        $hash = (string) ($row['password_hash'] ?? '');
+        if ($hash === '' || !password_verify($current, $hash)) {
+            sendError($connection, 'error.admin_wrong_current_password', 'Current password is incorrect');
+            return;
+        }
+
+        $reason = PasswordPolicy::validateAdminPassword($new);
+        if ($reason !== null) {
+            sendError($connection, 'error.admin_password_invalid', $reason);
+            return;
+        }
+
+        if (password_verify($new, $hash)) {
+            sendError($connection, 'error.admin_password_invalid', 'New password must differ from the current password');
+            return;
+        }
+
+        $newHash = password_hash($new, PASSWORD_DEFAULT);
+        if (!is_string($newHash) || $newHash === '') {
+            sendError($connection, 'error.invalid_json', 'Failed to hash password');
+            return;
+        }
+
+        $pdo = $this->db->getPdo();
+        try {
+            $pdo->beginTransaction();
+            $upd = $this->stmts->get('update_user_password');
+            $upd->execute([$newHash, $adminId]);
+
+            $verifyStmt = $this->stmts->get('user_password_by_id');
+            $verifyStmt->execute([$adminId]);
+            $written = $verifyStmt->fetch();
+            $writtenHash = is_array($written) ? (string) ($written['password_hash'] ?? '') : '';
+            if ($writtenHash === '' || !password_verify($new, $writtenHash)) {
+                $pdo->rollBack();
+                sendError($connection, 'error.invalid_json', 'Password write verification failed');
+                return;
+            }
+
+            $pdo->commit();
+        } catch (\Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            if ($this->logger !== null) {
+                $this->logger->error(
+                    'Admin password change failed user_id=' . $adminId . ': ' . $e->getMessage()
+                );
+            }
+            sendError($connection, 'error.invalid_json', 'Failed to update password');
+            return;
+        }
+
+        if ($this->logger !== null) {
+            $this->logger->info('Admin password updated user_id=' . $adminId);
+        }
+
+        sendJson($connection, [
+            'type'    => 'admin_change_password_result',
+            'success' => true,
+            'message' => 'Password updated',
+        ]);
     }
 
     private function parseBanDuration(string $duration): ?int
