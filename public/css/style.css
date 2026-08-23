@@ -350,6 +350,83 @@ html.has-chip-icon .coins::before {
 .room-panel { padding: 0.85rem; }
 .room-panel-head { margin-bottom: 0.65rem; }
 .room-panel-title { margin-bottom: 0.5rem; font-size: 1.05rem; }
+
+.chat-panel {
+  margin-top: 0.75rem;
+  padding: 0.65rem;
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.22);
+}
+.chat-panel.hidden { display: none !important; }
+.chat-panel-title {
+  margin: 0 0 0.4rem;
+  font-size: 0.95rem;
+}
+.chat-log {
+  max-height: 9rem;
+  overflow-y: auto;
+  margin-bottom: 0.45rem;
+  padding: 0.35rem;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: calc(var(--radius) - 2px);
+  font-size: 0.85rem;
+}
+.chat-line {
+  margin: 0.2rem 0;
+  word-break: break-word;
+}
+.chat-line-from {
+  font-weight: 700;
+  color: var(--gold, #d4af37);
+  margin-right: 0.35rem;
+}
+.chat-compose {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 0.45rem;
+}
+.chat-compose input {
+  flex: 1;
+  min-width: 0;
+}
+.chat-file-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  margin-bottom: 0.35rem;
+}
+.chat-file-label {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  font-size: 0.8rem;
+}
+.chat-file-input { max-width: 11rem; font-size: 0.75rem; }
+.chat-downloads {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.chat-download-link {
+  color: var(--gold, #d4af37);
+  font-size: 0.82rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.game-chat-panel {
+  margin: 0.5rem;
+  max-width: 18rem;
+}
+.file-offer-panel { max-width: 22rem; }
+
+@media (max-width: 767px) {
+  .game-chat-panel {
+    max-width: none;
+    margin: 0.5rem 0 0;
+  }
+}
 .room-meta {
   display: grid;
   grid-template-columns: 1fr 1fr;

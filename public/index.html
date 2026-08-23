@@ -163,6 +163,23 @@
             <button type="button" id="start-game-btn" class="btn primary hidden" data-i18n="game.startGame">Start Game</button>
             <button type="button" id="leave-room-btn" class="btn" data-i18n="lobby.leaveRoom">Leave Room</button>
           </div>
+          <div id="lobby-chat-panel" class="chat-panel hidden" aria-label="Room chat">
+            <h4 class="chat-panel-title" data-i18n="chat.title">Chat</h4>
+            <div id="lobby-chat-log" class="chat-log" role="log" aria-live="polite"></div>
+            <form id="lobby-chat-form" class="chat-compose">
+              <input type="text" id="lobby-chat-input" maxlength="500" autocomplete="off" data-i18n-placeholder="chat.placeholder" placeholder="Message…">
+              <button type="submit" class="btn small" data-i18n="chat.send">Send</button>
+            </form>
+            <div class="chat-file-row">
+              <label class="chat-file-label">
+                <span data-i18n="chat.sendFile">Send file</span>
+                <select id="lobby-chat-file-to" aria-label="Recipient"></select>
+              </label>
+              <input type="file" id="lobby-chat-file-input" class="chat-file-input">
+              <button type="button" id="lobby-chat-file-btn" class="btn small" data-i18n="chat.offerFile">Offer</button>
+            </div>
+            <div id="lobby-chat-downloads" class="chat-downloads"></div>
+          </div>
         </div>
       </div>
       <p id="lobby-message" class="message" role="alert"></p>
@@ -241,6 +258,24 @@
           <p id="turn-wait-msg" class="turn-wait-msg hidden" aria-live="polite"></p>
           <button type="button" id="nudge-turn-btn" class="btn small hidden" data-i18n="game.nudgeTurn">Nudge</button>
         </main>
+
+        <aside id="game-chat-panel" class="chat-panel game-chat-panel hidden" aria-label="Room chat">
+          <h4 class="chat-panel-title" data-i18n="chat.title">Chat</h4>
+          <div id="game-chat-log" class="chat-log" role="log" aria-live="polite"></div>
+          <form id="game-chat-form" class="chat-compose">
+            <input type="text" id="game-chat-input" maxlength="500" autocomplete="off" data-i18n-placeholder="chat.placeholder" placeholder="Message…">
+            <button type="submit" class="btn small" data-i18n="chat.send">Send</button>
+          </form>
+          <div class="chat-file-row">
+            <label class="chat-file-label">
+              <span data-i18n="chat.sendFile">Send file</span>
+              <select id="game-chat-file-to" aria-label="Recipient"></select>
+            </label>
+            <input type="file" id="game-chat-file-input" class="chat-file-input">
+            <button type="button" id="game-chat-file-btn" class="btn small" data-i18n="chat.offerFile">Offer</button>
+          </div>
+          <div id="game-chat-downloads" class="chat-downloads"></div>
+        </aside>
       </div>
     </section>
 
@@ -384,6 +419,17 @@
       </div>
     </div>
 
+    <div id="file-offer-modal" class="overlay hidden" role="dialog" aria-labelledby="file-offer-title">
+      <div class="panel file-offer-panel">
+        <h2 id="file-offer-title" data-i18n="chat.fileOfferTitle">Incoming file</h2>
+        <p id="file-offer-text"></p>
+        <div class="admin-row">
+          <button type="button" id="file-offer-accept" class="btn primary" data-i18n="chat.accept">Accept</button>
+          <button type="button" id="file-offer-reject" class="btn" data-i18n="chat.reject">Reject</button>
+        </div>
+      </div>
+    </div>
+
     <div id="game-over-modal" class="overlay hidden" role="dialog">
       <div class="panel game-over-panel">
         <h2 data-i18n="game.gameOver">Game Over</h2>
@@ -438,7 +484,7 @@
   <script src="js/sound.js?v=5"></script>
   <script src="js/i18n.js?v=4"></script>
   <script src="js/ws.js?v=4"></script>
-  <script src="js/ui.js?v=22"></script>
-  <script src="js/app.js?v=20"></script>
+  <script src="js/ui.js?v=23"></script>
+  <script src="js/app.js?v=21"></script>
 </body>
 </html>

@@ -66,7 +66,7 @@ final class ChatService
         }
 
         $text = trim($text);
-        if ($text === '' || mb_strlen($text) > Constants::CHAT_MESSAGE_MAX_CHARS) {
+        if ($text === '' || strlen($text) > Constants::CHAT_MESSAGE_MAX_CHARS) {
             sendError($connection, 'error.chat_message_invalid', 'Invalid chat message');
             return;
         }

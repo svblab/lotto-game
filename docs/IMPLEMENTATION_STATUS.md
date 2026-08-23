@@ -1,5 +1,43 @@
 # Implementation Status — Lotto Game Project
 
+## EPIC-030 — Room chat + file transfer (feature/room-chat-files) (2026-08-23)
+
+Status: Completed (experimental branch — not for `main` merge until demand-validated)
+
+- [DONE] ADR-030: Chat module boundary, offer/accept/reject/timeout state machine, protocol, rate limits, memory footprint
+- [DONE] Server: `src/Chat/{ChatHandler,ChatService,FileTransferService}`; password-room gate; room transfer lock; decoded-size validation; dedicated file rate limit; disconnect/timeout release
+- [DONE] Client: chat panel only when `has_password`; 1-to-1 file offer UI; accept/reject modal; forced-download links (`<a download>`, never inline preview)
+- [DONE] Manual tests: `tests/Manual/test_chat_file_transfer.php` (31/31)
+- [DONE] ANCHOR_CORE / ANCHOR_PROTOCOL registries updated in the same pass as the ADR
+
+Files:
+- docs/ADR/030-room-chat-and-file-transfer.md
+- docs/ANCHOR_CORE.md
+- docs/ANCHOR_PROTOCOL.md
+- docs/IMPLEMENTATION_STATUS.md
+- src/Chat/ChatHandler.php
+- src/Chat/ChatService.php
+- src/Chat/FileTransferService.php
+- src/Core/Constants.php
+- src/Core/RoomManager.php
+- src/Lobby/LobbyService.php
+- src/Game/ReconnectService.php
+- server.php
+- public/index.html
+- public/css/style.css
+- public/js/ui.js
+- public/js/app.js
+- public/locales/*.json
+- tests/Manual/test_chat_file_transfer.php
+
+Commit: pending
+Notes: Isolated on `feature/room-chat-files`. Chat/file never touch SQLite. Workerman `WS_MAX_PACKAGE_SIZE=2MiB` explicit. Unilateral decisions listed in ADR-030 Consequences.
+
+VERIFICATION:
+- `php tests/Manual/test_chat_file_transfer.php` — 31/31 passed
+- `php run_ALL_tests.php` — see final summary
+- MANUAL — password room: chat broadcast; open room: chat hidden/rejected; file offer accept → download link only; reject → `file_rejected`; second offer while busy → `error.file_transfer_busy`
+
 ## EPIC-032a — Nudge voice i18n (client) (2026-08-23)
 
 Status: Completed

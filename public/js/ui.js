@@ -196,6 +196,7 @@
     const panel = $('#room-panel');
     if (!room) {
       panel?.classList.add('hidden');
+      setChatVisible(false);
       return;
     }
     panel?.classList.remove('hidden');
@@ -216,6 +217,118 @@
     }
     renderPlayerList('#room-players-list', room.players || [], false);
     syncPlayersDropdownOpen('#room-players-dropdown');
+    setChatVisible(!!room.has_password);
+    if (room.has_password) {
+      refreshChatRecipients(room.players || [], username);
+    }
+  }
+
+  /** ADR-030: show chat only in password-protected rooms. */
+  function setChatVisible(visible) {
+    $('#lobby-chat-panel')?.classList.toggle('hidden', !visible);
+    $('#game-chat-panel')?.classList.toggle('hidden', !visible);
+    if (!visible) {
+      clearChatLogs();
+      hideFileOfferModal();
+    }
+  }
+
+  function clearChatLogs() {
+    ['#lobby-chat-log', '#game-chat-log', '#lobby-chat-downloads', '#game-chat-downloads'].forEach((sel) => {
+      const el = $(sel);
+      if (el) el.textContent = '';
+    });
+  }
+
+  /** Append chat line via textContent only (never innerHTML). */
+  function appendChatMessage(from, text) {
+    ['#lobby-chat-log', '#game-chat-log'].forEach((sel) => {
+      const log = $(sel);
+      if (!log) return;
+      const line = document.createElement('div');
+      line.className = 'chat-line';
+      const fromEl = document.createElement('span');
+      fromEl.className = 'chat-line-from';
+      fromEl.textContent = `${from}:`;
+      const textEl = document.createElement('span');
+      textEl.textContent = text;
+      line.appendChild(fromEl);
+      line.appendChild(textEl);
+      log.appendChild(line);
+      log.scrollTop = log.scrollHeight;
+    });
+  }
+
+  function refreshChatRecipients(players, selfUsername) {
+    const names = (players || [])
+      .filter((p) => p && p.username && p.username !== selfUsername && p.status !== 'removed')
+      .map((p) => p.username);
+    ['#lobby-chat-file-to', '#game-chat-file-to'].forEach((sel) => {
+      const select = $(sel);
+      if (!select) return;
+      const prev = select.value;
+      select.textContent = '';
+      names.forEach((name) => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        select.appendChild(opt);
+      });
+      if (names.includes(prev)) select.value = prev;
+    });
+  }
+
+  function showFileOfferModal(from, filename, sizeBytes) {
+    const t = global.LottoI18n.t;
+    const text = $('#file-offer-text');
+    if (text) {
+      text.textContent = t('chat.fileOfferBody', {
+        from,
+        filename,
+        size: String(sizeBytes),
+      });
+    }
+    toggleOverlay('#file-offer-modal', true);
+  }
+
+  function hideFileOfferModal() {
+    toggleOverlay('#file-offer-modal', false);
+  }
+
+  /**
+   * ADR-030 safeguard: expose received file ONLY as a forced-download link.
+   * Never inline-preview, never target=_blank on blob URLs (blocks scripted SVG/HTML).
+   */
+  function addForcedDownloadLink(filename, base64Data) {
+    const safeName = sanitizeDownloadName(filename);
+    let bytes;
+    try {
+      const bin = atob(base64Data);
+      bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    } catch (e) {
+      showToast(global.LottoI18n.t('chat.fileCorrupt'));
+      return;
+    }
+    const blob = new Blob([bytes], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    ['#lobby-chat-downloads', '#game-chat-downloads'].forEach((sel) => {
+      const box = $(sel);
+      if (!box) return;
+      const a = document.createElement('a');
+      a.className = 'chat-download-link';
+      a.href = url;
+      a.download = safeName;
+      a.rel = 'noopener';
+      a.textContent = global.LottoI18n.t('chat.download', { filename: safeName });
+      box.appendChild(a);
+    });
+  }
+
+  function sanitizeDownloadName(name) {
+    const base = String(name || 'file').replace(/[\\/:*?"<>|\u0000]/g, '_').trim();
+    if (!base || base === '.' || base === '..') return 'file';
+    return base.slice(0, 120);
   }
 
   function syncPlayersDropdownOpen(dropdownSelector) {
@@ -1141,6 +1254,13 @@
     hideJoinRoomModal,
     bindJoinRoomModal,
     showRoomPanel,
+    setChatVisible,
+    clearChatLogs,
+    appendChatMessage,
+    refreshChatRecipients,
+    showFileOfferModal,
+    hideFileOfferModal,
+    addForcedDownloadLink,
     renderPlayerList,
     renderGameHeader,
     renderCards,

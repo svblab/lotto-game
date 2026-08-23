@@ -157,6 +157,35 @@
     "room_limit": "Oda limiti",
     "cannot_moderate_admin": "Yönetici moderasyonu yapılamaz",
     "invalid_json": "Geçersiz istek",
-    "already_nudged": "Bu turda zaten dürttünüz"
+    "already_nudged": "Bu turda zaten dürttünüz",
+    "chat_unavailable": "Chat is only available in password-protected rooms",
+    "chat_message_invalid": "Invalid chat message",
+    "file_transfer_busy": "A file transfer is already in progress",
+    "file_too_large": "File is too large (max 1 MB)",
+    "file_recipient_invalid": "Invalid file recipient",
+    "file_offer_invalid": "Invalid or expired file offer",
+    "file_invalid_payload": "Invalid file data",
+    "file_rate_limited": "Too many file transfers — try again later"
+  },
+  "chat": {
+    "title": "Chat",
+    "placeholder": "Message…",
+    "send": "Send",
+    "sendFile": "To",
+    "offerFile": "Offer file",
+    "fileOfferTitle": "Incoming file",
+    "fileOfferBody": "{from} wants to send “{filename}” ({size} bytes)",
+    "accept": "Accept",
+    "reject": "Reject",
+    "download": "Download {filename}",
+    "fileOffered": "File offer sent — waiting for accept",
+    "fileSending": "Sending file…",
+    "fileDeclined": "Recipient declined the file",
+    "fileReceived": "File received from {from}",
+    "fileExpired": "File offer expired",
+    "fileCorrupt": "Could not decode received file",
+    "fileTooLarge": "File must be 1 MB or smaller",
+    "pickRecipient": "Choose a recipient",
+    "pickFile": "Choose a file"
   }
 }

@@ -161,6 +161,35 @@
     "room_limit": "Достигнут лимит комнат",
     "cannot_moderate_admin": "Нельзя модерировать администратора",
     "invalid_json": "Неверный запрос",
-    "already_nudged": "Вы уже торопили на этом ходу"
+    "already_nudged": "Вы уже торопили на этом ходу",
+    "chat_unavailable": "Чат доступен только в комнатах с паролем",
+    "chat_message_invalid": "Некорректное сообщение",
+    "file_transfer_busy": "В комнате уже идёт передача файла",
+    "file_too_large": "Файл слишком большой (макс. 1 МБ)",
+    "file_recipient_invalid": "Некорректный получатель",
+    "file_offer_invalid": "Предложение файла недействительно",
+    "file_invalid_payload": "Некорректные данные файла",
+    "file_rate_limited": "Слишком много попыток передачи файла"
+  },
+  "chat": {
+    "title": "Чат",
+    "placeholder": "Сообщение…",
+    "send": "Отправить",
+    "sendFile": "Кому",
+    "offerFile": "Предложить файл",
+    "fileOfferTitle": "Входящий файл",
+    "fileOfferBody": "{from} хочет отправить «{filename}» ({size} байт)",
+    "accept": "Принять",
+    "reject": "Отклонить",
+    "download": "Скачать {filename}",
+    "fileOffered": "Предложение отправлено — ждём ответа",
+    "fileSending": "Отправка файла…",
+    "fileDeclined": "Получатель отклонил файл",
+    "fileReceived": "Файл получен от {from}",
+    "fileExpired": "Предложение файла истекло",
+    "fileCorrupt": "Не удалось разобрать файл",
+    "fileTooLarge": "Файл должен быть не больше 1 МБ",
+    "pickRecipient": "Выберите получателя",
+    "pickFile": "Выберите файл"
   }
 }

@@ -330,10 +330,11 @@ final class ReconnectService
         $player = $room['players'][$connId] ?? null;
 
         $base = [
-            'type'      => 'reconnect_state',
-            'status'    => $status,
-            'room_id'   => $room['room_id'],
-            'bank'      => $room['bank'] ?? 0,
+            'type'         => 'reconnect_state',
+            'status'       => $status,
+            'room_id'      => $room['room_id'],
+            'bank'         => $room['bank'] ?? 0,
+            'has_password' => ($room['password_hash'] ?? null) !== null,
         ];
 
         if ($this->stmts !== null && $player !== null && (int) ($player['user_id'] ?? 0) > 0) {

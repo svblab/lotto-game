@@ -410,8 +410,8 @@ final class FileTransferService
         if ($base === '' || $base === '.' || $base === '..') {
             return 'file';
         }
-        if (mb_strlen($base) > 120) {
-            $base = mb_substr($base, 0, 120);
+        if (strlen($base) > 120) {
+            $base = substr($base, 0, 120);
         }
 
         return $base;
