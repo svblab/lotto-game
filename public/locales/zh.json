@@ -105,6 +105,7 @@
     "onlineOnly": "仅在线",
     "bannedOnly": "仅封禁",
     "refreshUsers": "刷新",
+    "noUsers": "未找到玩家",
     "selectUser": "— 选择玩家 —",
     "badgeOnline": "在线",
     "badgeBanned": "封禁",

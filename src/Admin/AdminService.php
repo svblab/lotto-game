@@ -581,7 +581,7 @@ final class AdminService
         $limit = max(1, min(500, $limit));
 
         $stmt = $this->stmts->get('users_admin_list');
-        $stmt->execute([$search, $search, $bannedOnly ? 1 : 0, $limit]);
+        $stmt->execute([$search, $search, $bannedOnly ? '1' : '0', $limit]);
         $rows = $stmt->fetchAll();
         if (!is_array($rows)) {
             $rows = [];

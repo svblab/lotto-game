@@ -411,8 +411,13 @@
       return;
     }
     if (state.inGame) UI().showToast(msg);
-    else if (UI().$('#lobby-screen')?.classList.contains('active')) UI().setMessage('#lobby-message', msg, 'error');
-    else UI().setMessage('#auth-message', msg, 'error');
+    else if (UI().$('#admin-screen')?.classList.contains('active')) {
+      UI().setMessage('#admin-message', msg, 'error');
+    } else if (UI().$('#lobby-screen')?.classList.contains('active')) {
+      UI().setMessage('#lobby-message', msg, 'error');
+    } else {
+      UI().setMessage('#auth-message', msg, 'error');
+    }
     if (state.inGame && state.drawLocked) {
       UI().resetSlots();
       state.drawLocked = false;
