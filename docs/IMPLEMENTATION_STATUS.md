@@ -1,5 +1,40 @@
 # Implementation Status — Lotto Game Project
 
+## EPIC-033C — Admin players delete + dropdown (ADR-033) (2026-08-23)
+
+Status: Completed
+
+- [DONE] `admin_delete_user` / `admin_bulk_delete_users` with busy guards (online / players / history / roster)
+- [DONE] All-or-nothing bulk PDO transaction; no auto-kick
+- [DONE] Players admin UI: table → `<select>` + detail; Ban/Unban/Kick/Delete + Delete matching preview
+- [DONE] Manual test `tests/Manual/test_admin_delete_user.php`
+- [DONE] KNOWN GAP noted: load/stress tests writing junk into live `game.db`
+
+Files:
+- src/Admin/AdminService.php
+- src/Admin/AdminHandler.php
+- server.php
+- public/index.html
+- public/js/ui.js
+- public/js/app.js
+- public/locales/*.json
+- tests/Manual/test_admin_delete_user.php
+- docs/IMPLEMENTATION_STATUS.md
+
+Commit: pending
+Notes: Registries already listed delete actions/errors from ADR-033 Epic A pass.
+
+VERIFICATION:
+- `php tests/Manual/test_admin_delete_user.php`
+- MANUAL — admin Players dropdown select → Ban/Unban/Kick/Delete
+- MANUAL — filter junk usernames → Delete matching → confirm list → purge
+- MANUAL — delete rejected while target online or still in room RAM
+
+CHANGED:
+- Hard delete + bulk delete WS paths; players list UI; delete i18n; tests; KNOWN GAP note
+NOT CHANGED:
+- Ban/kick/unban semantics; auto-kick on delete; load-test DB isolation (KNOWN GAP)
+
 ## EPIC-033B — Admin rooms dropdown (ADR-033) (2026-08-23)
 
 Status: Completed
@@ -3435,6 +3470,13 @@ Result:
 ---
 
 ## KNOWN GAPS / NOT VERIFIED
+
+- ⚠️ OPEN (ADR-033 / EPIC-033C, 2026-08-23): Some load/stress scripts historically
+  register via the real registration path against the environment `game.db`
+  instead of isolating via `LOTTO_DB_PATH` / `LOTTO_TEST_CONFIG`, leaving junk
+  usernames (`steady*`, `ramp_*`, `login_banned`, …) in production SQLite.
+  Admin bulk delete is the operational cleanup path; root-cause isolation of
+  load-test DB writes is a separate follow-up (not fixed in Epic C).
 
 - ⚠️ OPEN (2026-08-23): Разовый `SQLITE_MISUSE` (SQLSTATE[HY000]: General
   error: 21 bad parameter or other API misuse) в `AuthService::login()` —

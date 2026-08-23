@@ -621,6 +621,8 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
         'admin_set_settings' => $worker->adminHandler->handleSetSettings($data, $connection, $worker),
         'admin_restart_server' => $worker->adminHandler->handleRestartServer($data, $connection, $worker),
         'admin_change_password' => $worker->adminHandler->handleChangePassword($data, $connection),
+        'admin_delete_user' => $worker->adminHandler->handleDeleteUser($data, $connection, $worker),
+        'admin_bulk_delete_users' => $worker->adminHandler->handleBulkDeleteUsers($data, $connection, $worker),
         default            => sendError($connection, 'error.invalid_json', "Unknown or not-yet-wired action: {$action}"),
     };
 

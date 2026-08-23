@@ -759,6 +759,200 @@ final class AdminService
         ]);
     }
 
+    /**
+     * ADR-033 / EPIC-C: hard-delete one non-admin user when not busy in RAM.
+     *
+     * Input: {"action":"admin_delete_user","user_id":15}
+     * Success: no dedicated packet — client re-requests admin_get_users.
+     */
+    public function handleDeleteUser(array $data, object $connection, object $worker): void
+    {
+        if (!$this->assertAdmin($connection)) {
+            return;
+        }
+        if ($this->stmts === null || $this->db === null) {
+            sendError($connection, 'error.invalid_json', 'Admin storage is not configured');
+            return;
+        }
+
+        $targetUserId = isset($data['user_id']) ? (int) $data['user_id'] : 0;
+        if ($targetUserId <= 0) {
+            sendError($connection, 'error.invalid_json', 'user_id must be positive integer');
+            return;
+        }
+
+        $guard = $this->guardDeleteTarget($worker, $targetUserId);
+        if ($guard !== null) {
+            sendError($connection, $guard['code'], $guard['message']);
+            return;
+        }
+
+        try {
+            $pdo = $this->db->getPdo();
+            $pdo->beginTransaction();
+            $del = $this->stmts->get('delete_user_by_id');
+            $del->execute([$targetUserId]);
+            if ($del->rowCount() < 1) {
+                $pdo->rollBack();
+                sendError($connection, 'error.admin_user_not_found', 'User not found');
+                return;
+            }
+            $pdo->commit();
+        } catch (\Throwable $e) {
+            if (isset($pdo) && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            if ($this->logger !== null) {
+                $this->logger->error(
+                    'Admin delete user failed user_id=' . $targetUserId . ': ' . $e->getMessage()
+                );
+            }
+            sendError($connection, 'error.invalid_json', 'Failed to delete user');
+            return;
+        }
+
+        if ($this->logger !== null) {
+            $this->logger->info(
+                "Admin user_id={$connection->userId} deleted user_id={$targetUserId}"
+            );
+        }
+    }
+
+    /**
+     * ADR-033 / EPIC-C: all-or-nothing hard-delete of multiple users.
+     *
+     * Input: {"action":"admin_bulk_delete_users","user_ids":[15,16,17]}
+     * Success: no dedicated packet — client re-requests admin_get_users.
+     */
+    public function handleBulkDeleteUsers(array $data, object $connection, object $worker): void
+    {
+        if (!$this->assertAdmin($connection)) {
+            return;
+        }
+        if ($this->stmts === null || $this->db === null) {
+            sendError($connection, 'error.invalid_json', 'Admin storage is not configured');
+            return;
+        }
+
+        $rawIds = $data['user_ids'] ?? null;
+        if (!is_array($rawIds) || $rawIds === []) {
+            sendError($connection, 'error.invalid_json', 'user_ids must be a non-empty array');
+            return;
+        }
+        if (count($rawIds) > 500) {
+            sendError($connection, 'error.invalid_json', 'user_ids limit is 500');
+            return;
+        }
+
+        $ids = [];
+        foreach ($rawIds as $raw) {
+            $id = (int) $raw;
+            if ($id <= 0) {
+                sendError($connection, 'error.invalid_json', 'user_ids must contain positive integers');
+                return;
+            }
+            $ids[$id] = $id;
+        }
+        $ids = array_values($ids);
+
+        foreach ($ids as $targetUserId) {
+            $guard = $this->guardDeleteTarget($worker, $targetUserId);
+            if ($guard !== null) {
+                sendError($connection, $guard['code'], $guard['message']);
+                return;
+            }
+        }
+
+        try {
+            $pdo = $this->db->getPdo();
+            $pdo->beginTransaction();
+            $del = $this->stmts->get('delete_user_by_id');
+            foreach ($ids as $targetUserId) {
+                $del->execute([$targetUserId]);
+                if ($del->rowCount() < 1) {
+                    $pdo->rollBack();
+                    sendError($connection, 'error.admin_user_not_found', 'User not found');
+                    return;
+                }
+            }
+            $pdo->commit();
+        } catch (\Throwable $e) {
+            if (isset($pdo) && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            if ($this->logger !== null) {
+                $this->logger->error(
+                    'Admin bulk delete failed: ' . $e->getMessage()
+                );
+            }
+            sendError($connection, 'error.invalid_json', 'Failed to delete users');
+            return;
+        }
+
+        if ($this->logger !== null) {
+            $this->logger->info(
+                'Admin user_id=' . $connection->userId
+                . ' bulk-deleted user_ids=' . implode(',', $ids)
+            );
+        }
+    }
+
+    /**
+     * @return array{code:string,message:string}|null null when delete is allowed
+     */
+    private function guardDeleteTarget(object $worker, int $targetUserId): ?array
+    {
+        $stmt = $this->stmts->get('user_admin_by_id');
+        $stmt->execute([$targetUserId]);
+        $target = $stmt->fetch();
+        if ($target === false) {
+            return [
+                'code' => 'error.admin_user_not_found',
+                'message' => 'User not found',
+            ];
+        }
+        if ((int) ($target['is_admin'] ?? 0) === 1) {
+            return [
+                'code' => 'error.cannot_moderate_admin',
+                'message' => 'Cannot moderate admin account',
+            ];
+        }
+        if ($this->isUserBusyInRam($worker, $targetUserId)) {
+            return [
+                'code' => 'error.admin_user_busy',
+                'message' => 'User is online or still referenced in a room — kick or leave first',
+            ];
+        }
+        return null;
+    }
+
+    private function isUserBusyInRam(object $worker, int $userId): bool
+    {
+        if (isset($worker->userConnections[$userId])) {
+            return true;
+        }
+
+        foreach (($worker->rooms ?? []) as $room) {
+            foreach (($room['players'] ?? []) as $player) {
+                if ((int) ($player['user_id'] ?? 0) === $userId) {
+                    return true;
+                }
+            }
+            foreach (($room['all_players_history'] ?? []) as $hist) {
+                if ((int) ($hist['user_id'] ?? 0) === $userId) {
+                    return true;
+                }
+            }
+            foreach (($room['game_roster'] ?? []) as $entry) {
+                if ((int) ($entry['user_id'] ?? 0) === $userId) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     private function parseBanDuration(string $duration): ?int
     {
         return match ($duration) {

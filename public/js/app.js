@@ -1068,6 +1068,9 @@
       socket.sendAction('admin_close_room', { room_id: id });
     });
     UI().$('#admin-refresh-users')?.addEventListener('click', () => requestAdminUsers());
+    UI().$('#admin-users-select')?.addEventListener('change', (e) => {
+      UI().selectAdminUser(parseInt(e.target.value, 10) || 0);
+    });
     UI().$('#admin-user-search')?.addEventListener('input', () => {
       clearTimeout(adminUserSearchTimer);
       adminUserSearchTimer = setTimeout(() => requestAdminUsers(), 300);
@@ -1090,6 +1093,45 @@
       const uid = UI().getSelectedAdminUserId();
       if (!uid) return;
       socket.sendAction('admin_kick_user', { user_id: uid });
+      setTimeout(() => requestAdminUsers(), 400);
+    });
+    UI().$('#admin-delete-user-btn')?.addEventListener('click', () => {
+      const uid = UI().getSelectedAdminUserId();
+      if (!uid) return;
+      const user = UI().getAdminUsersCache().find((u) => u.id === uid);
+      if (!user || user.is_admin) return;
+      const label = user.username || String(uid);
+      if (!window.confirm(I18n().t('admin.deleteConfirm', { username: label }))) return;
+      socket.sendAction('admin_delete_user', { user_id: uid });
+      setTimeout(() => requestAdminUsers(), 400);
+    });
+    UI().$('#admin-bulk-delete-btn')?.addEventListener('click', () => {
+      const candidates = UI().getDeletableAdminUsers();
+      if (!candidates.length) {
+        UI().setMessage('#admin-message', I18n().t('admin.bulkDeleteEmpty'), 'error');
+        return;
+      }
+      UI().$('#admin-bulk-delete-summary').textContent = I18n().t('admin.bulkDeleteSummary', {
+        count: candidates.length,
+      });
+      UI().$('#admin-bulk-delete-list').textContent = candidates
+        .map((u) => `${u.id}: ${u.username}`)
+        .join('\n');
+      UI().toggleOverlay('#admin-bulk-delete-modal', true);
+    });
+    UI().$('#admin-bulk-delete-cancel')?.addEventListener('click', () => {
+      UI().toggleOverlay('#admin-bulk-delete-modal', false);
+    });
+    UI().$('#admin-bulk-delete-confirm')?.addEventListener('click', () => {
+      const candidates = UI().getDeletableAdminUsers();
+      if (!candidates.length) {
+        UI().toggleOverlay('#admin-bulk-delete-modal', false);
+        return;
+      }
+      socket.sendAction('admin_bulk_delete_users', {
+        user_ids: candidates.map((u) => u.id),
+      });
+      UI().toggleOverlay('#admin-bulk-delete-modal', false);
       setTimeout(() => requestAdminUsers(), 400);
     });
 

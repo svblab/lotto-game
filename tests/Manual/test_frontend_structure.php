@@ -153,10 +153,16 @@ if ($html && str_contains($html, 'id="admin-online"') && str_contains($html, 'id
     fail('index.html: admin live stats elements');
 }
 
-if ($html && str_contains($html, 'id="admin-users-tbody"') && str_contains($html, 'id="admin-user-search"')) {
-    ok('index.html: admin user table elements');
+if ($html && str_contains($html, 'id="admin-users-select"') && str_contains($html, 'id="admin-user-search"')) {
+    ok('index.html: admin user select elements');
 } else {
-    fail('index.html: admin user table elements');
+    fail('index.html: admin user select elements');
+}
+
+if ($html && str_contains($html, 'id="admin-delete-user-btn"') && str_contains($html, 'id="admin-bulk-delete-btn"')) {
+    ok('index.html: admin delete controls');
+} else {
+    fail('index.html: admin delete controls');
 }
 
 if ($html && !str_contains($html, 'id="admin-user-id"')) {
@@ -165,10 +171,10 @@ if ($html && !str_contains($html, 'id="admin-user-id"')) {
     fail('index.html: admin-user-id removed');
 }
 
-if ($ui && str_contains($ui, 'renderAdminUsersTable') && str_contains($ui, 'getSelectedAdminUserId')) {
-    ok('ui.js: admin user table helpers');
+if ($ui && str_contains($ui, 'renderAdminUsersTable') && str_contains($ui, 'getSelectedAdminUserId') && str_contains($ui, 'getDeletableAdminUsers')) {
+    ok('ui.js: admin user select helpers');
 } else {
-    fail('ui.js: admin user table helpers');
+    fail('ui.js: admin user select helpers');
 }
 
 if ($app && str_contains($app, 'admin_get_settings') && str_contains($app, 'admin_settings_data')) {
