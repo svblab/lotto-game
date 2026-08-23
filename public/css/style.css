@@ -741,7 +741,8 @@ html.has-chip-icon .coins::before {
   font-size: 1.1rem;
   padding: 0.85rem;
 }
-.draw-btn.my-turn {
+.draw-btn.my-turn,
+.apartment-actions .btn.selected {
   animation: pulseBtn 1s ease infinite;
   box-shadow: 0 0 20px var(--gold-glow);
 }
@@ -776,7 +777,6 @@ html.has-chip-icon .coins::before {
   margin: 1rem 0;
 }
 .apartment-actions { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; }
-.apartment-actions .btn.selected { box-shadow: 0 0 0 2px var(--accent, #4a9eff); }
 
 .game-over-panel { text-align: center; max-width: 560px; }
 .game-over-chart-wrap {

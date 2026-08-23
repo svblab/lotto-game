@@ -3346,6 +3346,40 @@ Result:
 
 ## KNOWN GAPS / NOT VERIFIED
 
+- ⚠️ OPEN (2026-08-23): Разовый `SQLITE_MISUSE` (SQLSTATE[HY000]: General
+  error: 21 bad parameter or other API misuse) в `AuthService::login()` —
+  сырой текст PDO-исключения утёк в клиентское поле `message` пакета
+  `error` (код при этом остался `error.auth_invalid_credentials`,
+  замаскировав реальную причину под "неверный логин или пароль").
+  Обнаружено при живом логине через `wss://rusbingo.ju-87.club/ws`
+  (пользователь `test4`, пароль подтверждён корректным независимой
+  проверкой `password_verify()` через отдельный CLI-скрипт — то есть
+  учётные данные были заведомо верны).
+  Устранено перезапуском `lotto-server.service` — авторизация
+  восстановилась для всех пользователей. Точная причина НЕ подтверждена:
+  инцидент совпал по времени с параллельным запуском стороннего
+  CLI-скрипта (`change_admin_password.php`) и отдельного диагностического
+  `php -r` (независимое PDO-подключение к тому же `game.db`), что
+  является наиболее вероятной причиной (коллизия блокировок/состояния
+  кэша `PDOStatement` в `PreparedStatements::get()`), но не была
+  зафиксирована логами/версиями ДО рестарта — эта улика потеряна.
+  Архитектурно рестарт сервиса НЕ должен требоваться после
+  `change_admin_password.php` (скрипт делает `BEGIN IMMEDIATE
+  TRANSACTION` → `UPDATE` → `COMMIT` строго in-place, без пересоздания
+  файла — штатный сценарий для `PRAGMA journal_mode=WAL`, читатель и
+  писатель должны сосуществовать без рестарта).
+  Требуется при повторении: НЕ перезапускать сервис сразу — сначала
+  снять `grep -B2 -A2 "SQLSTATE\|bad parameter" logs/server.log`,
+  версии `php --ri pdo_sqlite`/`php --ri sqlite3`, и проверить, не было
+  ли в этот момент параллельного стороннего процесса с открытым
+  соединением к `game.db`. Отдельно: `AuthHandler::handleLogin()`
+  (строка `$clientMsg = $msg === 'Auth rate limited' ? ... : $msg;`)
+  пробрасывает `$e->getMessage()` любого не-`Auth rate limited`
+  исключения клиенту дословно — включая сырые PDO-ошибки при их
+  возникновении; стоит рассмотреть отдельный ADR на маскировку ЛЮБОГО
+  непредвиденного исключения в `login()` под `error.auth_invalid_credentials`
+  с общим текстом, а не только `Auth rate limited` (ADR-028).
+
 - ⚠️ OPEN (EPIC-13.6, 2026-07-28): Reconnect mid-turn — reconnecting active
   drawer does not receive `your_turn`; frontend `onReconnectState` explicitly
   disables draw button (`setDrawButton(false, false)`) and `reconnect_state`
