@@ -970,12 +970,10 @@ html.has-chip-icon .coins::before {
   margin-top: 0.5rem;
 }
 .admin-stats-line { margin: 0.25rem 0 0.75rem; font-size: 0.9rem; color: var(--text-muted); }
-#admin-users-tbody tr { cursor: pointer; }
-#admin-users-tbody tr.selected { background: rgba(212, 175, 55, 0.18); }
-.admin-restart-panel { max-width: 480px; text-align: center; }
-.admin-restart-panel p { margin: 0.75rem 0 1.25rem; line-height: 1.45; }
 .admin-row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
 .admin-row input { width: 100px; }
+.admin-restart-panel { max-width: 480px; text-align: center; }
+.admin-restart-panel p { margin: 0.75rem 0 1.25rem; line-height: 1.45; }
 .admin-user-picker { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.75rem; }
 .admin-room-picker { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.25rem; }
 .admin-room-select {

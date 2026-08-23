@@ -125,4 +125,20 @@ final class AdminHandler
     {
         $this->adminService->handleChangePassword($data, $connection);
     }
+
+    /**
+     * ADR-033: {"action": "admin_delete_user", "user_id": 15}
+     */
+    public function handleDeleteUser(array $data, object $connection, object $worker): void
+    {
+        $this->adminService->handleDeleteUser($data, $connection, $worker);
+    }
+
+    /**
+     * ADR-033: {"action": "admin_bulk_delete_users", "user_ids": [15, 16, 17]}
+     */
+    public function handleBulkDeleteUsers(array $data, object $connection, object $worker): void
+    {
+        $this->adminService->handleBulkDeleteUsers($data, $connection, $worker);
+    }
 }

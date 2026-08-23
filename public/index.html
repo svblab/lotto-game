@@ -344,20 +344,9 @@
               <label class="admin-filter"><input type="checkbox" id="admin-filter-banned"> <span data-i18n="admin.bannedOnly">Banned only</span></label>
               <button type="button" id="admin-refresh-users" class="btn small" data-i18n="admin.refreshUsers">Refresh</button>
             </div>
+            <select id="admin-users-select" class="admin-user-select" size="8"></select>
+            <p id="admin-user-info" class="admin-user-info" role="status"></p>
           </div>
-          <table id="admin-users-table" class="data-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th data-i18n="auth.username">Username</th>
-                <th data-i18n="admin.coins">Coins</th>
-                <th data-i18n="lobby.status">Status</th>
-                <th data-i18n="lobby.roomId">Room</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="admin-users-tbody"></tbody>
-          </table>
           <div class="admin-row admin-actions">
             <select id="admin-ban-duration">
               <option value="1d">1d</option>
@@ -367,6 +356,8 @@
             <button type="button" id="admin-ban-btn" class="btn small" data-i18n="admin.ban">Ban</button>
             <button type="button" id="admin-unban-btn" class="btn small" data-i18n="admin.unban">Unban</button>
             <button type="button" id="admin-kick-btn" class="btn small" data-i18n="admin.kick">Kick</button>
+            <button type="button" id="admin-delete-user-btn" class="btn small" data-i18n="admin.deleteUser">Delete</button>
+            <button type="button" id="admin-bulk-delete-btn" class="btn small" data-i18n="admin.deleteMatching">Delete matching</button>
           </div>
         </div>
 
@@ -451,6 +442,18 @@
       </div>
     </div>
 
+    <div id="admin-bulk-delete-modal" class="overlay hidden" role="dialog" aria-labelledby="admin-bulk-delete-title">
+      <div class="panel admin-restart-panel">
+        <h2 id="admin-bulk-delete-title" data-i18n="admin.bulkDeleteTitle">Delete matching users?</h2>
+        <p id="admin-bulk-delete-summary"></p>
+        <pre id="admin-bulk-delete-list" class="logs-box"></pre>
+        <div class="admin-row" style="justify-content:center">
+          <button type="button" id="admin-bulk-delete-confirm" class="btn primary" data-i18n="admin.bulkDeleteConfirm">Delete listed</button>
+          <button type="button" id="admin-bulk-delete-cancel" class="btn" data-i18n="common.cancel">Cancel</button>
+        </div>
+      </div>
+    </div>
+
     <div id="game-over-modal" class="overlay hidden" role="dialog">
       <div class="panel game-over-panel">
         <h2 data-i18n="game.gameOver">Game Over</h2>
@@ -505,7 +508,7 @@
   <script src="js/sound.js?v=5"></script>
   <script src="js/i18n.js?v=4"></script>
   <script src="js/ws.js?v=4"></script>
-  <script src="js/ui.js?v=25"></script>
-  <script src="js/app.js?v=23"></script>
+  <script src="js/ui.js?v=26"></script>
+  <script src="js/app.js?v=24"></script>
 </body>
 </html>

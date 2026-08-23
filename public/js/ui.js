@@ -1144,54 +1144,73 @@
     return badges.length ? badges.join(', ') : '—';
   }
 
-  function renderAdminUsersTable(users) {
-    adminUsersCache = users || [];
-    const tbody = $('#admin-users-tbody');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-    if (!adminUsersCache.length) {
-      const tr = document.createElement('tr');
-      tr.className = 'admin-users-empty';
-      const td = document.createElement('td');
-      td.colSpan = 6;
-      td.textContent = global.LottoI18n.t('admin.noUsers');
-      tr.appendChild(td);
-      tbody.appendChild(tr);
+  function formatAdminUserOption(user) {
+    const status = formatAdminUserStatus(user);
+    const room = user.room_id ? `#${user.room_id}` : '—';
+    return `${user.id}: ${user.username} · ${user.coins} · ${status} · ${room}`;
+  }
+
+  function renderAdminUserDetail(user) {
+    const info = $('#admin-user-info');
+    if (!info) return;
+    const t = global.LottoI18n.t;
+    if (!user) {
+      info.textContent = adminUsersCache.length ? t('admin.selectUser') : t('admin.noUsers');
       return;
     }
-    adminUsersCache.forEach((user) => {
-      const tr = document.createElement('tr');
-      tr.dataset.userId = String(user.id);
-      if (user.id === adminSelectedUserId) tr.classList.add('selected');
-      tr.innerHTML = `
-        <td>${user.id}</td>
-        <td>${user.username}</td>
-        <td>${user.coins}</td>
-        <td>${formatAdminUserStatus(user)}</td>
-        <td>${user.room_id ? '#' + user.room_id : '—'}</td>
-        <td></td>`;
-      const pick = document.createElement('button');
-      pick.className = 'btn small';
-      pick.textContent = global.LottoI18n.t('admin.select');
-      pick.onclick = () => selectAdminUser(user.id);
-      tr.lastElementChild.appendChild(pick);
-      tr.addEventListener('click', (e) => {
-        if (e.target.closest('button')) return;
-        selectAdminUser(user.id);
-      });
-      tbody.appendChild(tr);
+    const status = formatAdminUserStatus(user);
+    const room = user.room_id ? `#${user.room_id}` : '—';
+    info.textContent = t('admin.userDetail', {
+      id: user.id,
+      username: user.username,
+      coins: user.coins,
+      status,
+      room,
     });
+  }
+
+  function renderAdminUsersTable(users) {
+    adminUsersCache = users || [];
+    const select = $('#admin-users-select');
+    if (!select) return;
+    const t = global.LottoI18n.t;
+    const prev = adminSelectedUserId;
+    select.innerHTML = '';
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = adminUsersCache.length ? t('admin.selectUser') : t('admin.noUsers');
+    select.appendChild(placeholder);
+    adminUsersCache.forEach((user) => {
+      const opt = document.createElement('option');
+      opt.value = String(user.id);
+      opt.textContent = formatAdminUserOption(user);
+      select.appendChild(opt);
+    });
+    const stillThere = adminUsersCache.some((u) => u.id === prev);
+    adminSelectedUserId = stillThere ? prev : 0;
+    select.value = adminSelectedUserId ? String(adminSelectedUserId) : '';
+    const selected = adminUsersCache.find((u) => u.id === adminSelectedUserId) || null;
+    renderAdminUserDetail(selected);
   }
 
   function selectAdminUser(userId) {
     adminSelectedUserId = userId || 0;
-    $$('#admin-users-tbody tr').forEach((tr) => {
-      tr.classList.toggle('selected', parseInt(tr.dataset.userId, 10) === adminSelectedUserId);
-    });
+    const select = $('#admin-users-select');
+    if (select) select.value = adminSelectedUserId ? String(adminSelectedUserId) : '';
+    const selected = adminUsersCache.find((u) => u.id === adminSelectedUserId) || null;
+    renderAdminUserDetail(selected);
   }
 
   function getSelectedAdminUserId() {
     return adminSelectedUserId;
+  }
+
+  function getAdminUsersCache() {
+    return adminUsersCache.slice();
+  }
+
+  function getDeletableAdminUsers() {
+    return adminUsersCache.filter((u) => !u.is_admin);
   }
 
   // --- Rules ---
@@ -1344,6 +1363,8 @@
     renderAdminUsersTable,
     selectAdminUser,
     getSelectedAdminUserId,
+    getAdminUsersCache,
+    getDeletableAdminUsers,
     renderRules,
     renderLangPicker,
     showReconnecting,
