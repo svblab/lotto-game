@@ -875,6 +875,28 @@ html.has-chip-icon .coins::before {
 }
 
 .admin-panel header { display: flex; justify-content: space-between; align-items: center; }
+.admin-main { display: flex; flex-direction: column; gap: 1rem; }
+.admin-block { margin-bottom: 0; }
+.admin-block-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+.admin-block-head h3 { margin: 0; }
+.admin-settings-form {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 28rem;
+  margin-top: 0.5rem;
+}
+.admin-stats-line { margin: 0.25rem 0 0.75rem; font-size: 0.9rem; color: var(--text-muted); }
+#admin-users-tbody tr { cursor: pointer; }
+#admin-users-tbody tr.selected { background: rgba(212, 175, 55, 0.18); }
+.admin-restart-panel { max-width: 480px; text-align: center; }
+.admin-restart-panel p { margin: 0.75rem 0 1.25rem; line-height: 1.45; }
 .admin-row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
 .admin-row input { width: 100px; }
 .admin-user-picker { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.75rem; }

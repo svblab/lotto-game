@@ -116,4 +116,43 @@ class Logger
 
         return array_slice($lines, -$limit);
     }
+
+    /**
+     * Lines from server.log within the last N seconds (parsed timestamp prefix).
+     */
+    public function getLinesSinceSeconds(int $secondsAgo): array
+    {
+        if ($secondsAgo <= 0) {
+            return [];
+        }
+
+        if (!is_file($this->logFile) || !is_readable($this->logFile)) {
+            return [];
+        }
+
+        $cutoff = time() - $secondsAgo;
+        $lines = file(
+            $this->logFile,
+            FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES
+        );
+
+        if ($lines === false) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($lines as $line) {
+            if (!is_string($line) || $line === '') {
+                continue;
+            }
+            if (preg_match('/^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]/', $line, $m)) {
+                $ts = strtotime($m[1]);
+                if ($ts !== false && $ts >= $cutoff) {
+                    $out[] = $line;
+                }
+            }
+        }
+
+        return $out;
+    }
 }

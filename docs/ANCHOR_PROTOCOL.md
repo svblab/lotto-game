@@ -477,6 +477,24 @@ Client → Server
 {"action": "admin_get_users", "search": "alice", "online_only": false, "banned_only": false, "limit": 200}
 ```
 
+### admin_get_settings
+Client → Server
+```json
+{"action": "admin_get_settings"}
+```
+
+### admin_set_settings
+Client → Server. All fields optional; omitted fields are unchanged.
+```json
+{"action": "admin_set_settings", "max_accounts_per_ip": 3, "bet_per_card": 10, "apartment_payment": 5}
+```
+
+### admin_restart_server
+Client → Server. On success the host runs `admin_emergency_control.sh restart` (disconnects all clients).
+```json
+{"action": "admin_restart_server"}
+```
+
 ### admin_stats_data
 Server → Client. Emitted only in response to `admin_get_stats`.
 ```json
@@ -493,6 +511,19 @@ Server → Client. Emitted only in response to `admin_get_users`.
 Server → Client
 ```json
 {"type": "admin_logs_data", "lines": []}
+```
+Lines are filtered to the last 24 hours (parsed from log timestamps).
+
+### admin_settings_data
+Server → Client. Response to `admin_get_settings` and successful `admin_set_settings`.
+```json
+{"type": "admin_settings_data", "online": 0, "memory_mb": 0, "max_accounts_per_ip": 3, "bet_per_card": 10, "apartment_payment": 5}
+```
+
+### admin_restart_result
+Server → Client. Response to `admin_restart_server`.
+```json
+{"type": "admin_restart_result", "success": true, "message": "Server restart initiated"}
 ```
 
 ---

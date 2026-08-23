@@ -30,10 +30,12 @@ namespace Lotto\Admin;
 final class AdminHandler
 {
     private AdminService $adminService;
+    private AdminSettingsService $adminSettings;
 
-    public function __construct(AdminService $adminService)
+    public function __construct(AdminService $adminService, AdminSettingsService $adminSettings)
     {
         $this->adminService = $adminService;
+        $this->adminSettings = $adminSettings;
     }
 
     /**
@@ -90,5 +92,29 @@ final class AdminHandler
     public function handleGetStats(array $data, object $connection, object $worker): void
     {
         $this->adminService->handleGetStats($data, $connection, $worker);
+    }
+
+    /**
+     * {"action": "admin_get_settings"}
+     */
+    public function handleGetSettings(array $data, object $connection, object $worker): void
+    {
+        $this->adminSettings->handleGetSettings($data, $connection, $worker);
+    }
+
+    /**
+     * {"action": "admin_set_settings", ...}
+     */
+    public function handleSetSettings(array $data, object $connection, object $worker): void
+    {
+        $this->adminSettings->handleSetSettings($data, $connection, $worker);
+    }
+
+    /**
+     * {"action": "admin_restart_server"}
+     */
+    public function handleRestartServer(array $data, object $connection, object $worker): void
+    {
+        $this->adminSettings->handleRestartServer($data, $connection, $worker);
     }
 }

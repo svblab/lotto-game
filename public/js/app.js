@@ -35,6 +35,7 @@
     nextDrawer: null,
     isMyTurn: false,
     nudgedThisTurn: false,
+    adminReturnScreen: 'lobby',
     immune: false,
     inApartment: false,
     pendingTurnPkt: null,
@@ -430,9 +431,11 @@
   function onRoomList(pkt) {
     state.rooms = pkt.rooms || [];
     UI().renderRooms(state.rooms, promptJoinRoom, state.room?.room_id ?? null);
-    if (state.user?.is_admin) UI().renderAdminRooms(state.rooms, (id) => {
-      socket.sendAction('admin_close_room', { room_id: id });
-    });
+    if (UI().$('#admin-screen')?.classList.contains('active')) {
+      UI().renderAdminRoomsTable(state.rooms, (id) => {
+        socket.sendAction('admin_close_room', { room_id: id });
+      });
+    }
   }
 
   function onRoomJoined(pkt) {
@@ -764,10 +767,54 @@
 
   function onAdminStats(pkt) {
     UI().setAdminStats(pkt.online, pkt.memory_mb);
+    if (pkt.rooms) {
+      UI().renderAdminRoomsTable(pkt.rooms, (id) => {
+        socket.sendAction('admin_close_room', { room_id: id });
+      });
+    }
+  }
+
+  function onAdminSettings(pkt) {
+    UI().setAdminSettings(pkt);
+    if (adminPendingSettingsSave) {
+      UI().setMessage('#admin-settings-message', I18n().t('admin.settingsSaved'), 'success');
+      adminPendingSettingsSave = false;
+    }
+  }
+
+  function onAdminRestartResult(pkt) {
+    UI().toggleOverlay('#admin-restart-modal', false);
+    if (pkt.success) {
+      UI().setMessage('#admin-message', pkt.message || I18n().t('admin.restartStarted'), 'success');
+      UI().showReconnecting(true);
+    } else {
+      UI().setMessage('#admin-message', pkt.message || I18n().t('admin.restartFailed'), 'error');
+    }
   }
 
   function onAdminUsers(pkt) {
-    UI().renderAdminUserPicker(pkt.users || []);
+    UI().renderAdminUsersTable(pkt.users || []);
+  }
+
+  function openAdminPanel() {
+    if (!state.user?.is_admin) return;
+    state.adminReturnScreen = state.inGame ? 'game' : 'lobby';
+    UI().updateLobbyUser(state.user);
+    UI().showScreen('admin');
+    UI().setMessage('#admin-message', '');
+    UI().setMessage('#admin-settings-message', '');
+    refreshAdminData();
+  }
+
+  function leaveAdminPanel() {
+    UI().showScreen(state.adminReturnScreen === 'game' ? 'game' : 'lobby');
+  }
+
+  function refreshAdminData() {
+    socket.sendAction('admin_get_settings');
+    socket.sendAction('admin_get_logs');
+    socket.sendAction('admin_get_stats');
+    requestAdminUsers();
   }
 
   function requestAdminUsers() {
@@ -779,6 +826,7 @@
   }
 
   let adminUserSearchTimer = null;
+  let adminPendingSettingsSave = false;
 
   // --- User actions ---
   function guardAlreadyInRoom() {
@@ -946,15 +994,29 @@
     UI().$('#lobby-lang-btn')?.addEventListener('click', openLang);
     UI().$('#lang-close')?.addEventListener('click', () => UI().toggleOverlay('#lang-picker', false));
 
-    UI().$('#admin-open-btn')?.addEventListener('click', () => {
-      UI().toggleOverlay('#admin-panel', true);
-      socket.sendAction('admin_get_logs');
-      socket.sendAction('admin_get_stats');
-      socket.sendAction('room_list');
-      requestAdminUsers();
+    UI().$('#admin-open-btn')?.addEventListener('click', openAdminPanel);
+    UI().$('#admin-open-game-btn')?.addEventListener('click', openAdminPanel);
+    UI().$('#admin-back-btn')?.addEventListener('click', leaveAdminPanel);
+
+    UI().$('#admin-settings-form')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      adminPendingSettingsSave = true;
+      const settings = UI().readAdminSettingsForm();
+      socket.sendAction('admin_set_settings', settings);
     });
-    UI().$('#admin-close-btn')?.addEventListener('click', () => UI().toggleOverlay('#admin-panel', false));
+
+    UI().$('#admin-restart-btn')?.addEventListener('click', () => {
+      UI().toggleOverlay('#admin-restart-modal', true);
+    });
+    UI().$('#admin-restart-cancel')?.addEventListener('click', () => {
+      UI().toggleOverlay('#admin-restart-modal', false);
+    });
+    UI().$('#admin-restart-confirm')?.addEventListener('click', () => {
+      socket.sendAction('admin_restart_server');
+    });
+
     UI().$('#admin-refresh-logs')?.addEventListener('click', () => socket.sendAction('admin_get_logs'));
+    UI().$('#admin-refresh-rooms')?.addEventListener('click', () => socket.sendAction('admin_get_stats'));
     UI().$('#admin-refresh-users')?.addEventListener('click', () => requestAdminUsers());
     UI().$('#admin-user-search')?.addEventListener('input', () => {
       clearTimeout(adminUserSearchTimer);
@@ -962,9 +1024,6 @@
     });
     UI().$('#admin-filter-online')?.addEventListener('change', () => requestAdminUsers());
     UI().$('#admin-filter-banned')?.addEventListener('change', () => requestAdminUsers());
-    UI().$('#admin-user-select')?.addEventListener('change', (e) => {
-      UI().updateAdminUserInfo(parseInt(e.target.value, 10) || 0);
-    });
     UI().$('#admin-ban-btn')?.addEventListener('click', () => {
       const uid = UI().getSelectedAdminUserId();
       if (!uid) return;
@@ -1022,6 +1081,8 @@
       reconnect_state: onReconnectState,
       admin_logs_data: onAdminLogs,
       admin_stats_data: onAdminStats,
+      admin_settings_data: onAdminSettings,
+      admin_restart_result: onAdminRestartResult,
       admin_users_data: onAdminUsers,
     };
     Object.entries(handlers).forEach(([type, fn]) => socket.on(type, fn));

@@ -115,6 +115,7 @@ use Lotto\Core\Logger;
 use Lotto\Core\MemoryAudit;
 use Lotto\Core\TimerAudit;
 use Lotto\Core\EconomyAudit;
+use Lotto\Core\ServerRuntimeSettings;
 use Lotto\Core\StateMachineAudit;
 use Lotto\Core\LoadAudit;
 use Lotto\Infrastructure\Database;
@@ -138,6 +139,7 @@ use Lotto\Game\GameService;
 use Lotto\Game\GameHandler;
 use Lotto\Game\ReconnectService;
 use Lotto\Admin\AdminService;
+use Lotto\Admin\AdminSettingsService;
 use Lotto\Admin\AdminHandler;
 
 use function Lotto\Core\sendJson;
@@ -273,12 +275,14 @@ $worker->onWorkerStart = function (Worker $worker): void {
         $worker->db,
         $worker->roomManager
     );
-    $worker->adminHandler = new AdminHandler($adminService);
+    $adminSettingsService = new AdminSettingsService($adminService, $worker->logger);
+    $worker->adminHandler = new AdminHandler($adminService, $adminSettingsService);
 
     // Runtime-память (ANCHOR_CORE.md § Runtime Memory Layout / Worker Storage)
     $worker->rooms           = [];
     $worker->userConnections = [];
     $worker->sessionTokens   = [];
+    ServerRuntimeSettings::initOnWorker($worker);
 
     $worker->memoryAudit = new MemoryAudit($worker->logger);
     $worker->timerAudit = new TimerAudit($worker->logger);
@@ -612,7 +616,10 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
         'admin_close_room' => $worker->adminHandler->handleCloseRoom($data, $connection, $worker),
         'admin_get_logs'   => $worker->adminHandler->handleGetLogs($data, $connection),
         'admin_get_stats'  => $worker->adminHandler->handleGetStats($data, $connection, $worker),
-        'admin_get_users'  => $worker->adminHandler->handleGetUsers($data, $connection, $worker),
+        'admin_get_users'    => $worker->adminHandler->handleGetUsers($data, $connection, $worker),
+        'admin_get_settings' => $worker->adminHandler->handleGetSettings($data, $connection, $worker),
+        'admin_set_settings' => $worker->adminHandler->handleSetSettings($data, $connection, $worker),
+        'admin_restart_server' => $worker->adminHandler->handleRestartServer($data, $connection, $worker),
         default            => sendError($connection, 'error.invalid_json', "Unknown or not-yet-wired action: {$action}"),
     };
 

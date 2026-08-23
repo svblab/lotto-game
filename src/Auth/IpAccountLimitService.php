@@ -4,6 +4,7 @@ namespace Lotto\Auth;
 
 use Lotto\Core\Constants;
 use Lotto\Core\Logger;
+use Lotto\Core\ServerRuntimeSettings;
 
 use function Lotto\Core\lottoRuntimeEnv;
 use function Lotto\Core\sendError;
@@ -72,7 +73,7 @@ final class IpAccountLimitService
             return false;
         }
 
-        return count($distinct) >= Constants::maxAccountsPerIp();
+        return count($distinct) >= ServerRuntimeSettings::maxAccountsPerIp($worker);
     }
 
     /** Sends error.auth_too_many_accounts_same_network when cap exceeded (ADR-031). */

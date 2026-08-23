@@ -8,7 +8,7 @@
   <meta name="lotto-ws-port" content="">
   <meta name="lotto-ws-path" content="/ws">
   <title>Russian Lotto Bingo</title>
-  <link rel="stylesheet" href="css/style.css?v=21">
+  <link rel="stylesheet" href="css/style.css?v=22">
 </head>
 <body>
   <div id="app">
@@ -181,6 +181,7 @@
             <input type="range" id="sound-volume-slider" class="sound-volume-slider" min="0" max="100" step="1" value="70" aria-label="Volume" title="Volume">
             <button type="button" id="sound-mute-btn" class="icon-btn" aria-pressed="false" aria-label="Mute sound" title="Sound on">🔊</button>
           </div>
+          <button type="button" id="admin-open-game-btn" class="btn small hidden" data-i18n="admin.title">Admin</button>
           <button type="button" id="leave-game-btn" class="btn small" data-i18n="lobby.leaveRoom">Leave Room</button>
         </div>
       </header>
@@ -243,20 +244,68 @@
       </div>
     </section>
 
-    <!-- Admin -->
-    <section id="admin-panel" class="overlay hidden">
-      <div class="panel admin-panel">
-        <header>
-          <h2 data-i18n="admin.title">Server Management</h2>
-          <button type="button" id="admin-close-btn" class="icon-btn">✕</button>
-        </header>
-        <div class="admin-section admin-stats">
-          <h3 data-i18n="admin.liveStats">Live Stats</h3>
-          <p><span data-i18n="admin.online">Online</span>: <span id="admin-online">—</span></p>
-          <p><span data-i18n="admin.memory">Memory</span>: <span id="admin-memory">—</span> MB</p>
+    <!-- Admin (full page) -->
+    <section id="admin-screen" class="screen">
+      <header class="top-bar">
+        <div class="user-info">
+          <span id="admin-username"></span>
+          <span id="admin-balance" class="coins"></span>
         </div>
-        <div class="admin-section">
-          <h3 data-i18n="admin.moderation">Moderation</h3>
+        <span class="top-bar-title" data-i18n="admin.title">Server Management</span>
+        <div class="lang-row">
+          <button type="button" id="admin-back-btn" class="btn small primary" data-i18n="admin.backToGame">Back to game</button>
+        </div>
+      </header>
+
+      <div id="admin-main" class="lobby-main admin-main">
+        <div class="admin-block sub-panel">
+          <h3 data-i18n="admin.serverSettings">Server settings</h3>
+          <p class="admin-stats-line">
+            <span data-i18n="admin.online">Online</span>: <strong id="admin-online">—</strong>
+            · <span data-i18n="admin.memory">Memory</span>: <strong id="admin-memory">—</strong> MB
+          </p>
+          <form id="admin-settings-form" class="admin-settings-form">
+            <label>
+              <span data-i18n="admin.maxAccountsPerIp">Max accounts per IP</span>
+              <input type="number" id="admin-max-accounts-ip" min="1" max="9999" required>
+            </label>
+            <label>
+              <span data-i18n="admin.betPerCard">Cost per card</span>
+              <input type="number" id="admin-bet-per-card" min="1" max="1000" required>
+            </label>
+            <label>
+              <span data-i18n="admin.apartmentPayment">Apartment payment</span>
+              <input type="number" id="admin-apartment-payment" min="0" max="1000" required>
+            </label>
+            <div class="admin-row">
+              <button type="submit" class="btn primary" data-i18n="admin.saveSettings">Save settings</button>
+              <button type="button" id="admin-restart-btn" class="btn" data-i18n="admin.restartServer">Restart server</button>
+            </div>
+          </form>
+          <p id="admin-settings-message" class="message" role="status"></p>
+        </div>
+
+        <div class="admin-block sub-panel">
+          <div class="admin-block-head">
+            <h3 data-i18n="admin.rooms">Active Rooms</h3>
+            <button type="button" id="admin-refresh-rooms" class="btn small" data-i18n="lobby.refresh">Refresh</button>
+          </div>
+          <table id="admin-rooms-table" class="data-table">
+            <thead>
+              <tr>
+                <th data-i18n="lobby.roomId">Room</th>
+                <th data-i18n="lobby.players">Players</th>
+                <th data-i18n="lobby.status">Status</th>
+                <th data-i18n="lobby.password">Lock</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="admin-rooms-tbody"></tbody>
+          </table>
+        </div>
+
+        <div class="admin-block sub-panel">
+          <h3 data-i18n="admin.moderation">Players</h3>
           <div class="admin-user-picker">
             <input type="search" id="admin-user-search" class="admin-user-search" data-i18n-placeholder="admin.searchUser" placeholder="Search by username" autocomplete="off">
             <div class="admin-filters">
@@ -264,11 +313,20 @@
               <label class="admin-filter"><input type="checkbox" id="admin-filter-banned"> <span data-i18n="admin.bannedOnly">Banned only</span></label>
               <button type="button" id="admin-refresh-users" class="btn small" data-i18n="admin.refreshUsers">Refresh</button>
             </div>
-            <select id="admin-user-select" class="admin-user-select" size="8">
-              <option value="" data-i18n="admin.selectUser">— select user —</option>
-            </select>
-            <p id="admin-user-info" class="admin-user-info hidden" aria-live="polite"></p>
           </div>
+          <table id="admin-users-table" class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th data-i18n="auth.username">Username</th>
+                <th data-i18n="admin.coins">Coins</th>
+                <th data-i18n="lobby.status">Status</th>
+                <th data-i18n="lobby.roomId">Room</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="admin-users-tbody"></tbody>
+          </table>
           <div class="admin-row admin-actions">
             <select id="admin-ban-duration">
               <option value="1d">1d</option>
@@ -280,16 +338,16 @@
             <button type="button" id="admin-kick-btn" class="btn small" data-i18n="admin.kick">Kick</button>
           </div>
         </div>
-        <div class="admin-section">
-          <h3 data-i18n="admin.rooms">Active Rooms</h3>
-          <ul id="admin-rooms-list" class="admin-rooms"></ul>
-        </div>
-        <div class="admin-section">
-          <h3 data-i18n="admin.logs">Server Logs (24h)</h3>
-          <button type="button" id="admin-refresh-logs" class="btn small" data-i18n="lobby.refresh">Refresh</button>
+
+        <div class="admin-block sub-panel">
+          <div class="admin-block-head">
+            <h3 data-i18n="admin.logs">Server Logs (24h)</h3>
+            <button type="button" id="admin-refresh-logs" class="btn small" data-i18n="lobby.refresh">Refresh</button>
+          </div>
           <pre id="admin-logs" class="logs-box"></pre>
         </div>
       </div>
+      <p id="admin-message" class="message" role="alert"></p>
     </section>
 
     <!-- Modals -->
@@ -311,6 +369,17 @@
         <div id="apartment-actions" class="apartment-actions hidden">
           <button type="button" id="apartment-agree" class="btn primary" data-i18n="apartment.agree">Agree (+10)</button>
           <button type="button" id="apartment-refuse" class="btn" data-i18n="apartment.refuse">Refuse</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="admin-restart-modal" class="overlay hidden" role="dialog" aria-labelledby="admin-restart-title">
+      <div class="panel admin-restart-panel">
+        <h2 id="admin-restart-title" data-i18n="admin.restartConfirmTitle">Restart server?</h2>
+        <p data-i18n="admin.restartConfirmBody">This will disconnect all players and run admin_emergency_control.sh restart on the host.</p>
+        <div class="admin-row">
+          <button type="button" id="admin-restart-confirm" class="btn primary" data-i18n="admin.restartServer">Restart server</button>
+          <button type="button" id="admin-restart-cancel" class="btn" data-i18n="common.cancel">Cancel</button>
         </div>
       </div>
     </div>
@@ -369,7 +438,7 @@
   <script src="js/sound.js?v=5"></script>
   <script src="js/i18n.js?v=4"></script>
   <script src="js/ws.js?v=4"></script>
-  <script src="js/ui.js?v=20"></script>
-  <script src="js/app.js?v=18"></script>
+  <script src="js/ui.js?v=21"></script>
+  <script src="js/app.js?v=19"></script>
 </body>
 </html>

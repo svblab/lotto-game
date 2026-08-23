@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Lotto\Game;
 
 use Lotto\Core\Constants;
+use Lotto\Core\ServerRuntimeSettings;
 
 use function Lotto\Core\sendError;
 use function Lotto\Core\sendJson;
@@ -34,7 +35,6 @@ final class ApartmentService
     private object $stmts;
     private object $logger;
     private ?object $gameService = null;
-    private const APARTMENT_PAYMENT = 5;
 
     public function __construct(object $db, object $stmts, object $logger)
     {
@@ -386,6 +386,8 @@ final class ApartmentService
             return;
         }
 
+        $payment = $this->apartmentPayment($worker);
+
         $participants = $this->getParticipants($room);
         $agreed       = $this->getAgreeList($room, $participants);
 
@@ -406,7 +408,7 @@ final class ApartmentService
                 if ($row === false) {
                     continue;
                 }
-                if ((int)$row['coins'] < self::APARTMENT_PAYMENT) {
+                if ((int)$row['coins'] < $payment) {
                     // Не хватает монет — трактуем как refuse (контракт: иначе экономика ломается)
                     $this->recordResponse($room, $connId, 'refuse');
                     $this->removePlayerFromApartment($room, $roomId, $connId, 'refuse', $worker);
@@ -442,7 +444,7 @@ final class ApartmentService
                         continue;
                     }
 
-                    if ((int)$row['coins'] < self::APARTMENT_PAYMENT) {
+                    if ((int)$row['coins'] < $payment) {
                         // Защита от гонок: если баланс изменился между проверкой и транзакцией — игрок вылетает
                         $pdo->rollBack();
                         $this->recordResponse($room, $connId, 'refuse');
@@ -455,7 +457,7 @@ final class ApartmentService
                         continue;
                     }
 
-                    $newCoins = (int)$row['coins'] - self::APARTMENT_PAYMENT;
+                    $newCoins = (int)$row['coins'] - $payment;
                     $upd = $this->stmts->get('update_user_coins');
                     $upd->execute([$newCoins, $userId]);
 
@@ -466,11 +468,11 @@ final class ApartmentService
                         ]);
                     }
 
-                    $room['bank']                           += self::APARTMENT_PAYMENT;
-                    $room['players'][$connId]['total_paid'] += self::APARTMENT_PAYMENT;
+                    $room['bank']                           += $payment;
+                    $room['players'][$connId]['total_paid'] += $payment;
                     $room['players'][$connId]['immune']      = true;
 
-                    lottoEconomyRecord('apartment', $userId, -self::APARTMENT_PAYMENT, [
+                    lottoEconomyRecord('apartment', $userId, -$payment, [
                         'room_id' => $roomId,
                     ]);
                 }
@@ -726,5 +728,10 @@ final class ApartmentService
         }
 
         unset($worker->rooms[$roomId]);
+    }
+
+    private function apartmentPayment(object $worker): int
+    {
+        return ServerRuntimeSettings::apartmentPayment($worker);
     }
 }

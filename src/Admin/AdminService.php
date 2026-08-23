@@ -651,7 +651,7 @@ final class AdminService
 
         sendJson($connection, [
             'type'  => 'admin_logs_data',
-            'lines' => $this->logger->getLastLines(100),
+            'lines' => $this->logger->getLinesSinceSeconds(86400),
         ]);
 
         $this->logger->info(

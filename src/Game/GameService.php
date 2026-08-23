@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Lotto\Game;
 
 use Lotto\Core\Constants;
+use Lotto\Core\ServerRuntimeSettings;
 use Lotto\Core\Logger;
 use Lotto\Infrastructure\Database;
 use Lotto\Infrastructure\PreparedStatements;
@@ -164,7 +165,8 @@ final class GameService
         $playerPayments = []; // connId => ['user_id', 'total_paid', 'current_coins']
 
         foreach ($activePlayers as $pConnId => $player) {
-            $totalPaid = $player['cards_count'] * Constants::BET_PER_CARD;
+            $betPerCard = ServerRuntimeSettings::betPerCard($worker, $room);
+            $totalPaid = $player['cards_count'] * $betPerCard;
 
             $stmt = $this->stmts->get('user_by_id');
             $stmt->execute([$player['user_id']]);

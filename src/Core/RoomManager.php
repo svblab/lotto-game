@@ -66,7 +66,7 @@ final class RoomManager
         $worker->rooms[$roomId] = [
             'room_id'               => $roomId,
             'host_conn_id'          => $hostConnId,
-            'bet_per_card'          => Constants::BET_PER_CARD,
+            'bet_per_card'          => ServerRuntimeSettings::betPerCard($worker),
             'max_players'           => $maxPlayers,
             'password_hash'         => $passwordHash,
             'status'                => 'waiting',

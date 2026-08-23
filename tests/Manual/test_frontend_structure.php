@@ -29,7 +29,7 @@ $screenIds = [
     'auth-screen',
     'lobby-screen',
     'game-screen',
-    'admin-panel',
+    'admin-screen',
     'rules-modal',
     'apartment-modal',
     'game-over-modal',
@@ -153,10 +153,10 @@ if ($html && str_contains($html, 'id="admin-online"') && str_contains($html, 'id
     fail('index.html: admin live stats elements');
 }
 
-if ($html && str_contains($html, 'id="admin-user-select"') && str_contains($html, 'id="admin-user-search"')) {
-    ok('index.html: admin user picker elements');
+if ($html && str_contains($html, 'id="admin-users-tbody"') && str_contains($html, 'id="admin-user-search"')) {
+    ok('index.html: admin user table elements');
 } else {
-    fail('index.html: admin user picker elements');
+    fail('index.html: admin user table elements');
 }
 
 if ($html && !str_contains($html, 'id="admin-user-id"')) {
@@ -165,10 +165,22 @@ if ($html && !str_contains($html, 'id="admin-user-id"')) {
     fail('index.html: admin-user-id removed');
 }
 
-if ($ui && str_contains($ui, 'renderAdminUserPicker') && str_contains($ui, 'getSelectedAdminUserId')) {
-    ok('ui.js: admin user picker helpers');
+if ($ui && str_contains($ui, 'renderAdminUsersTable') && str_contains($ui, 'getSelectedAdminUserId')) {
+    ok('ui.js: admin user table helpers');
 } else {
-    fail('ui.js: admin user picker helpers');
+    fail('ui.js: admin user table helpers');
+}
+
+if ($app && str_contains($app, 'admin_get_settings') && str_contains($app, 'admin_settings_data')) {
+    ok('app.js: admin settings wired');
+} else {
+    fail('app.js: admin settings wired');
+}
+
+if ($app && str_contains($app, 'admin_restart_server') && str_contains($app, 'admin_restart_result')) {
+    ok('app.js: admin restart wired');
+} else {
+    fail('app.js: admin restart wired');
 }
 
 if ($app && str_contains($app, 'admin_get_users') && str_contains($app, 'admin_users_data')) {

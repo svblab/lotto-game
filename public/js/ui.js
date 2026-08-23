@@ -11,6 +11,7 @@
     auth: '#auth-screen',
     lobby: '#lobby-screen',
     game: '#game-screen',
+    admin: '#admin-screen',
   };
 
   function showScreen(name) {
@@ -50,7 +51,11 @@
   function updateLobbyUser(user) {
     $('#lobby-username').textContent = user?.username || '';
     $('#lobby-balance').textContent = user?.coins ?? 0;
-    $('#admin-open-btn')?.classList.toggle('hidden', !user?.is_admin);
+    const isAdmin = !!user?.is_admin;
+    $('#admin-open-btn')?.classList.toggle('hidden', !isAdmin);
+    $('#admin-open-game-btn')?.classList.toggle('hidden', !isAdmin);
+    $('#admin-username').textContent = user?.username || '';
+    $('#admin-balance').textContent = user?.coins ?? 0;
   }
 
   function isQuickStartRoom(room) {
@@ -912,20 +917,28 @@
   }
 
   // --- Admin ---
-  function renderAdminRooms(rooms, onClose) {
-    const ul = $('#admin-rooms-list');
-    if (!ul) return;
-    ul.innerHTML = '';
+  let adminUsersCache = [];
+  let adminSelectedUserId = 0;
+
+  function renderAdminRoomsTable(rooms, onClose) {
+    const tbody = $('#admin-rooms-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
     const t = global.LottoI18n.t;
-    rooms.forEach((r) => {
-      const li = document.createElement('li');
-      li.textContent = `#${r.room_id} — ${r.players}/${r.max_players} (${r.status})`;
+    (rooms || []).forEach((room) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>#${room.room_id}</td>
+        <td>${room.players}/${room.max_players}</td>
+        <td>${t(`status.${room.status}`) || room.status}</td>
+        <td>${room.has_password ? '🔒' : '—'}</td>
+        <td></td>`;
       const btn = document.createElement('button');
       btn.className = 'btn small';
       btn.textContent = t('admin.closeRoom');
-      btn.onclick = () => onClose(r.room_id);
-      li.appendChild(btn);
-      ul.appendChild(li);
+      btn.onclick = () => onClose(room.room_id);
+      tr.lastElementChild.appendChild(btn);
+      tbody.appendChild(tr);
     });
   }
 
@@ -941,9 +954,28 @@
     if (memEl) memEl.textContent = memoryMb ?? '—';
   }
 
-  let adminUsersCache = [];
+  function setAdminSettings(settings) {
+    if (!settings) return;
+    const maxIp = $('#admin-max-accounts-ip');
+    const bet = $('#admin-bet-per-card');
+    const apt = $('#admin-apartment-payment');
+    if (maxIp && settings.max_accounts_per_ip != null) maxIp.value = settings.max_accounts_per_ip;
+    if (bet && settings.bet_per_card != null) bet.value = settings.bet_per_card;
+    if (apt && settings.apartment_payment != null) apt.value = settings.apartment_payment;
+    if (settings.online != null || settings.memory_mb != null) {
+      setAdminStats(settings.online, settings.memory_mb);
+    }
+  }
 
-  function formatAdminUserLabel(user) {
+  function readAdminSettingsForm() {
+    return {
+      max_accounts_per_ip: parseInt($('#admin-max-accounts-ip')?.value, 10),
+      bet_per_card: parseInt($('#admin-bet-per-card')?.value, 10),
+      apartment_payment: parseInt($('#admin-apartment-payment')?.value, 10),
+    };
+  }
+
+  function formatAdminUserStatus(user) {
     const t = global.LottoI18n.t;
     const badges = [];
     if (user.online) badges.push(t('admin.badgeOnline'));
@@ -951,66 +983,47 @@
       badges.push(t('admin.badgeBanned'));
     }
     if (user.is_admin) badges.push(t('admin.badgeAdmin'));
-    const badgeStr = badges.length ? ` [${badges.join(', ')}]` : '';
-    return `${user.username} (#${user.id})${badgeStr}`;
+    return badges.length ? badges.join(', ') : '—';
   }
 
-  function renderAdminUserPicker(users, selectedId) {
+  function renderAdminUsersTable(users) {
     adminUsersCache = users || [];
-    const select = $('#admin-user-select');
-    if (!select) return;
-    const t = global.LottoI18n.t;
-    const prev = selectedId != null ? String(selectedId) : select.value;
-    select.innerHTML = '';
-    const placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.textContent = t('admin.selectUser');
-    select.appendChild(placeholder);
+    const tbody = $('#admin-users-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
     adminUsersCache.forEach((user) => {
-      const opt = document.createElement('option');
-      opt.value = String(user.id);
-      opt.textContent = formatAdminUserLabel(user);
-      select.appendChild(opt);
+      const tr = document.createElement('tr');
+      tr.dataset.userId = String(user.id);
+      if (user.id === adminSelectedUserId) tr.classList.add('selected');
+      tr.innerHTML = `
+        <td>${user.id}</td>
+        <td>${user.username}</td>
+        <td>${user.coins}</td>
+        <td>${formatAdminUserStatus(user)}</td>
+        <td>${user.room_id ? '#' + user.room_id : '—'}</td>
+        <td></td>`;
+      const pick = document.createElement('button');
+      pick.className = 'btn small';
+      pick.textContent = global.LottoI18n.t('admin.select');
+      pick.onclick = () => selectAdminUser(user.id);
+      tr.lastElementChild.appendChild(pick);
+      tr.addEventListener('click', (e) => {
+        if (e.target.closest('button')) return;
+        selectAdminUser(user.id);
+      });
+      tbody.appendChild(tr);
     });
-    if (prev && select.querySelector(`option[value="${prev}"]`)) {
-      select.value = prev;
-    }
-    updateAdminUserInfo(select.value ? parseInt(select.value, 10) : 0);
   }
 
-  function updateAdminUserInfo(userId) {
-    const info = $('#admin-user-info');
-    if (!info) return;
-    const t = global.LottoI18n.t;
-    if (!userId) {
-      info.classList.add('hidden');
-      info.textContent = '';
-      return;
-    }
-    const user = adminUsersCache.find((u) => u.id === userId);
-    if (!user) {
-      info.classList.add('hidden');
-      info.textContent = '';
-      return;
-    }
-    const parts = [
-      `${t('auth.username')}: ${user.username}`,
-      `ID: ${user.id}`,
-      `${t('admin.coins')}: ${user.coins}`,
-    ];
-    if (user.online) parts.push(t('admin.badgeOnline'));
-    if (user.room_id) parts.push(`${t('lobby.inRoom')} #${user.room_id}`);
-    if (user.banned || (user.banned_until && user.banned_until > Math.floor(Date.now() / 1000))) {
-      parts.push(t('admin.badgeBanned'));
-    }
-    if (user.is_admin) parts.push(t('admin.badgeAdmin'));
-    info.textContent = parts.join(' · ');
-    info.classList.remove('hidden');
+  function selectAdminUser(userId) {
+    adminSelectedUserId = userId || 0;
+    $$('#admin-users-tbody tr').forEach((tr) => {
+      tr.classList.toggle('selected', parseInt(tr.dataset.userId, 10) === adminSelectedUserId);
+    });
   }
 
   function getSelectedAdminUserId() {
-    const val = $('#admin-user-select')?.value;
-    return val ? parseInt(val, 10) : 0;
+    return adminSelectedUserId;
   }
 
   // --- Rules ---
@@ -1146,11 +1159,13 @@
     showApartment,
     hideApartment,
     showGameOver,
-    renderAdminRooms,
+    renderAdminRoomsTable,
     setAdminLogs,
     setAdminStats,
-    renderAdminUserPicker,
-    updateAdminUserInfo,
+    setAdminSettings,
+    readAdminSettingsForm,
+    renderAdminUsersTable,
+    selectAdminUser,
     getSelectedAdminUserId,
     renderRules,
     renderLangPicker,
