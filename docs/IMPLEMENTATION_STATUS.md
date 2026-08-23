@@ -30,7 +30,7 @@ Files:
 - public/locales/*.json
 - tests/Manual/test_chat_file_transfer.php
 
-Commit: pending
+Commit: 5e786ec
 Notes: Isolated on `feature/room-chat-files`. Chat/file never touch SQLite. Workerman `WS_MAX_PACKAGE_SIZE=2MiB` explicit. Unilateral decisions listed in ADR-030 Consequences.
 
 VERIFICATION:
