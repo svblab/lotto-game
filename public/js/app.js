@@ -447,9 +447,7 @@
     state.rooms = pkt.rooms || [];
     UI().renderRooms(state.rooms, promptJoinRoom, state.room?.room_id ?? null);
     if (UI().$('#admin-screen')?.classList.contains('active')) {
-      UI().renderAdminRoomsTable(state.rooms, (id) => {
-        socket.sendAction('admin_close_room', { room_id: id });
-      });
+      UI().renderAdminRooms(state.rooms);
     }
   }
 
@@ -795,9 +793,7 @@
   function onAdminStats(pkt) {
     UI().setAdminStats(pkt.online, pkt.memory_mb);
     if (pkt.rooms) {
-      UI().renderAdminRoomsTable(pkt.rooms, (id) => {
-        socket.sendAction('admin_close_room', { room_id: id });
-      });
+      UI().renderAdminRooms(pkt.rooms);
     }
   }
 
@@ -1205,6 +1201,14 @@
 
     UI().$('#admin-refresh-logs')?.addEventListener('click', () => socket.sendAction('admin_get_logs'));
     UI().$('#admin-refresh-rooms')?.addEventListener('click', () => socket.sendAction('admin_get_stats'));
+    UI().$('#admin-rooms-select')?.addEventListener('change', (e) => {
+      UI().selectAdminRoom(parseInt(e.target.value, 10) || 0);
+    });
+    UI().$('#admin-close-room-btn')?.addEventListener('click', () => {
+      const id = UI().getSelectedAdminRoomId();
+      if (!id) return;
+      socket.sendAction('admin_close_room', { room_id: id });
+    });
     UI().$('#admin-refresh-users')?.addEventListener('click', () => requestAdminUsers());
     UI().$('#admin-user-search')?.addEventListener('input', () => {
       clearTimeout(adminUserSearchTimer);

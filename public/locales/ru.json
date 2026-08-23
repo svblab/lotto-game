@@ -126,6 +126,11 @@
     "unban": "Разбан",
     "kick": "Кик",
     "rooms": "Активные комнаты",
+    "selectRoom": "— выберите комнату —",
+    "noRooms": "Нет активных комнат",
+    "roomDetail": "Комната #{id} · {players}/{max} игроков · {status} · {lock}",
+    "roomLocked": "с паролем",
+    "roomOpen": "открытая",
     "closeRoom": "Закрыть",
     "logs": "Логи сервера (24ч)"
   },

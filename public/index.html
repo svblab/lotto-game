@@ -326,18 +326,13 @@
             <h3 data-i18n="admin.rooms">Active Rooms</h3>
             <button type="button" id="admin-refresh-rooms" class="btn small" data-i18n="lobby.refresh">Refresh</button>
           </div>
-          <table id="admin-rooms-table" class="data-table">
-            <thead>
-              <tr>
-                <th data-i18n="lobby.roomId">Room</th>
-                <th data-i18n="lobby.players">Players</th>
-                <th data-i18n="lobby.status">Status</th>
-                <th data-i18n="lobby.password">Lock</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="admin-rooms-tbody"></tbody>
-          </table>
+          <div class="admin-room-picker">
+            <select id="admin-rooms-select" class="admin-room-select" data-i18n-aria-label="admin.rooms"></select>
+            <p id="admin-room-info" class="admin-user-info" role="status"></p>
+            <div class="admin-row admin-actions">
+              <button type="button" id="admin-close-room-btn" class="btn small" disabled data-i18n="admin.closeRoom">Close</button>
+            </div>
+          </div>
         </div>
 
         <div class="admin-block sub-panel">
@@ -510,7 +505,7 @@
   <script src="js/sound.js?v=5"></script>
   <script src="js/i18n.js?v=4"></script>
   <script src="js/ws.js?v=4"></script>
-  <script src="js/ui.js?v=24"></script>
-  <script src="js/app.js?v=22"></script>
+  <script src="js/ui.js?v=25"></script>
+  <script src="js/app.js?v=23"></script>
 </body>
 </html>

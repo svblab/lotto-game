@@ -126,6 +126,11 @@
     "unban": "Unban",
     "kick": "Kick",
     "rooms": "Active Rooms",
+    "selectRoom": "— select room —",
+    "noRooms": "No active rooms",
+    "roomDetail": "Room #{id} · {players}/{max} players · {status} · {lock}",
+    "roomLocked": "password protected",
+    "roomOpen": "open",
     "closeRoom": "Close",
     "logs": "Server Logs (24h)"
   },

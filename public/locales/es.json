@@ -123,6 +123,11 @@
     "unban": "Desban",
     "kick": "Expulsar",
     "rooms": "Salas activas",
+    "selectRoom": "— seleccionar sala —",
+    "noRooms": "No hay salas activas",
+    "roomDetail": "Sala #{id} · {players}/{max} jugadores · {status} · {lock}",
+    "roomLocked": "con contraseña",
+    "roomOpen": "abierta",
     "closeRoom": "Cerrar",
     "logs": "Logs (24h)"
   },

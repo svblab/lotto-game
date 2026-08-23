@@ -123,6 +123,11 @@
     "unban": "Yasağı kaldır",
     "kick": "At",
     "rooms": "Aktif odalar",
+    "selectRoom": "— oda seçin —",
+    "noRooms": "Aktif oda yok",
+    "roomDetail": "Oda #{id} · {players}/{max} oyuncu · {status} · {lock}",
+    "roomLocked": "şifreli",
+    "roomOpen": "açık",
     "closeRoom": "Kapat",
     "logs": "Günlükler (24s)"
   },

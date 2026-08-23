@@ -1032,27 +1032,72 @@
   // --- Admin ---
   let adminUsersCache = [];
   let adminSelectedUserId = 0;
+  let adminRoomsCache = [];
+  let adminSelectedRoomId = 0;
 
-  function renderAdminRoomsTable(rooms, onClose) {
-    const tbody = $('#admin-rooms-tbody');
-    if (!tbody) return;
-    tbody.innerHTML = '';
+  function formatAdminRoomOption(room) {
     const t = global.LottoI18n.t;
-    (rooms || []).forEach((room) => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>#${room.room_id}</td>
-        <td>${room.players}/${room.max_players}</td>
-        <td>${t(`status.${room.status}`) || room.status}</td>
-        <td>${room.has_password ? '🔒' : '—'}</td>
-        <td></td>`;
-      const btn = document.createElement('button');
-      btn.className = 'btn small';
-      btn.textContent = t('admin.closeRoom');
-      btn.onclick = () => onClose(room.room_id);
-      tr.lastElementChild.appendChild(btn);
-      tbody.appendChild(tr);
+    const status = t(`status.${room.status}`) || room.status;
+    const lock = room.has_password ? '🔒' : '—';
+    return `#${room.room_id} — ${room.players}/${room.max_players} — ${status} — ${lock}`;
+  }
+
+  function renderAdminRoomDetail(room) {
+    const info = $('#admin-room-info');
+    const btn = $('#admin-close-room-btn');
+    const t = global.LottoI18n.t;
+    if (!info) return;
+    if (!room) {
+      info.textContent = adminRoomsCache.length ? t('admin.selectRoom') : t('admin.noRooms');
+      if (btn) btn.disabled = true;
+      return;
+    }
+    const status = t(`status.${room.status}`) || room.status;
+    const lock = room.has_password ? t('admin.roomLocked') : t('admin.roomOpen');
+    info.textContent = t('admin.roomDetail', {
+      id: room.room_id,
+      players: room.players,
+      max: room.max_players,
+      status,
+      lock,
     });
+    if (btn) btn.disabled = false;
+  }
+
+  function renderAdminRooms(rooms) {
+    adminRoomsCache = rooms || [];
+    const select = $('#admin-rooms-select');
+    if (!select) return;
+    const t = global.LottoI18n.t;
+    const prev = adminSelectedRoomId;
+    select.innerHTML = '';
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = adminRoomsCache.length ? t('admin.selectRoom') : t('admin.noRooms');
+    select.appendChild(placeholder);
+    adminRoomsCache.forEach((room) => {
+      const opt = document.createElement('option');
+      opt.value = String(room.room_id);
+      opt.textContent = formatAdminRoomOption(room);
+      select.appendChild(opt);
+    });
+    const stillThere = adminRoomsCache.some((r) => r.room_id === prev);
+    adminSelectedRoomId = stillThere ? prev : 0;
+    select.value = adminSelectedRoomId ? String(adminSelectedRoomId) : '';
+    const selected = adminRoomsCache.find((r) => r.room_id === adminSelectedRoomId) || null;
+    renderAdminRoomDetail(selected);
+  }
+
+  function selectAdminRoom(roomId) {
+    adminSelectedRoomId = roomId || 0;
+    const select = $('#admin-rooms-select');
+    if (select) select.value = adminSelectedRoomId ? String(adminSelectedRoomId) : '';
+    const selected = adminRoomsCache.find((r) => r.room_id === adminSelectedRoomId) || null;
+    renderAdminRoomDetail(selected);
+  }
+
+  function getSelectedAdminRoomId() {
+    return adminSelectedRoomId;
   }
 
   function setAdminLogs(lines) {
@@ -1289,7 +1334,9 @@
     showApartment,
     hideApartment,
     showGameOver,
-    renderAdminRoomsTable,
+    renderAdminRooms,
+    selectAdminRoom,
+    getSelectedAdminRoomId,
     setAdminLogs,
     setAdminStats,
     setAdminSettings,

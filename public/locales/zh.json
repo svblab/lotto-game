@@ -123,6 +123,11 @@
     "unban": "解封",
     "kick": "踢出",
     "rooms": "活跃房间",
+    "selectRoom": "— 选择房间 —",
+    "noRooms": "暂无活跃房间",
+    "roomDetail": "房间 #{id} · {players}/{max} 名玩家 · {status} · {lock}",
+    "roomLocked": "有密码",
+    "roomOpen": "开放",
     "closeRoom": "关闭",
     "logs": "日志 (24h)"
   },
