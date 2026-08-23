@@ -260,10 +260,49 @@
     });
   }
 
-  function playNudgeForLang(lang, allowFallback) {
+  /**
+   * Play a voiced nudge clip. Returns false only when the file failed to load
+   * (missing asset) — not when play() rejects after a successful decode.
+   */
+  function playNudgeClip(lang) {
     const entry = preloadNudge(lang);
-    playOneShot(entry, () => {
-      if (allowFallback && lang !== NUDGE_FALLBACK_LANG) {
+    return new Promise((resolve) => {
+      if (!entry || !entry.ok) {
+        resolve(false);
+        return;
+      }
+      whenMediaReady(entry.audio).then(() => {
+        if (!entry.ok) {
+          resolve(false);
+          return;
+        }
+        try {
+          const audio = new Audio(entry.audio.src);
+          applyVolumeToAudio(audio);
+          applyMuteToAudio(audio);
+          audio.currentTime = 0;
+          audio.addEventListener('ended', () => {
+            audio.src = '';
+            resolve(true);
+          }, { once: true });
+          const promise = audio.play();
+          if (promise && typeof promise.catch === 'function') {
+            // Loaded clip — do not treat play-policy/interrupt errors as missing file.
+            promise.catch(() => resolve(true));
+          }
+        } catch (_) {
+          resolve(true);
+        }
+      }).catch(() => {
+        entry.ok = false;
+        resolve(false);
+      });
+    });
+  }
+
+  function playNudgeForLang(lang, allowFallback) {
+    playNudgeClip(lang).then((played) => {
+      if (!played && allowFallback && lang !== NUDGE_FALLBACK_LANG) {
         playNudgeForLang(NUDGE_FALLBACK_LANG, false);
       }
     });
@@ -282,9 +321,9 @@
     if (muted) return Promise.resolve();
     if (key === 'nudge') {
       const lang = getNudgeLang();
-      return playOneShotAsync(preloadNudge(lang), () => {
-        if (lang !== NUDGE_FALLBACK_LANG) {
-          return playOneShotAsync(preloadNudge(NUDGE_FALLBACK_LANG));
+      return playNudgeClip(lang).then((played) => {
+        if (!played && lang !== NUDGE_FALLBACK_LANG) {
+          return playNudgeClip(NUDGE_FALLBACK_LANG);
         }
       });
     }
