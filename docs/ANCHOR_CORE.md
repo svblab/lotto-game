@@ -26,6 +26,13 @@ LOGIN_THROTTLE_MAX_ATTEMPTS = 5;     // ADR-028
 LOGIN_THROTTLE_WINDOW_SECONDS = 300; // ADR-028
 LOGIN_THROTTLE_LOCKOUT_SECONDS = 900; // ADR-028
 MAX_ACCOUNTS_PER_IP = 3;             // ADR-031
+CHAT_MESSAGE_MAX_CHARS = 500;        // ADR-030
+FILE_MAX_BYTES = 1048576;            // ADR-030 (1 MiB decoded)
+FILE_OFFER_TIMEOUT = 60;             // ADR-030
+FILE_RELAY_TIMEOUT = 30;             // ADR-030
+FILE_RATE_LIMIT_MAX = 3;             // ADR-030
+FILE_RATE_LIMIT_WINDOW_SECONDS = 60; // ADR-030
+WS_MAX_PACKAGE_SIZE = 2097152;       // ADR-030 (2 MiB Workerman cap)
 ```
 
 ## Runtime Memory Layout
@@ -61,7 +68,8 @@ $worker->rooms[$roomId] = [
   'bag' => [],
   'drawn_numbers' => [],
   'players' => [],
-  'all_players_history' => []
+  'all_players_history' => [],
+  'file_transfer' => null   // ADR-030: null | offer/relay struct (RAM-only)
 ];
 ```
 
@@ -111,8 +119,10 @@ $connection->lastPing;
 $connection->packetCount;       // ADR-003: rate limiting, окно 1s
 $connection->packetWindowStart; // ADR-003: rate limiting, окно 1s
 $connection->clientRemoteIp;    // ADR-031: resolved client IP for IP-account cap bucketing
+$connection->fileActionCount;       // ADR-030: file_offer/file_data rate limit
+$connection->fileActionWindowStart; // ADR-030: file action rate-limit window
 ```
-No additional business fields allowed beyond those listed here (see ADR-003 for the rate-limiting pair; ADR-031 for `clientRemoteIp`).
+No additional business fields allowed beyond those listed here (see ADR-003 for the rate-limiting pair; ADR-031 for `clientRemoteIp`; ADR-030 for the file-action pair).
 
 ## Room States
 Allowed: `waiting | playing | apartment | finished`. No others.
@@ -147,7 +157,9 @@ No additional timer fields without ADR.
 
 ## Database Ownership
 SQLite = source of truth for: users, passwords, coins, bans.
-RAM = source of truth for: rooms, cards, bags, timers, game state.
+RAM = source of truth for: rooms, cards, bags, timers, game state,
+chat messages in flight, file-transfer offers/bytes (ADR-030 — never
+written to SQLite or disk).
 
 ## Logging Rules
 Comments: Russian. Logs: English.
@@ -285,7 +297,7 @@ Business logic forbidden in `server.php`, `init_db.php`.
 
 ## src/ Modules
 ```
-src/Core/ Auth/ Lobby/ Game/ Admin/ Infrastructure/
+src/Core/ Auth/ Lobby/ Game/ Admin/ Chat/ Infrastructure/
 ```
 
 ### Core (ConnectionManager.php, RoomManager.php, Logger.php, Helpers.php, Constants.php)
@@ -312,6 +324,12 @@ Forbidden: authentication, admin actions.
 
 ### Admin (AdminHandler.php, AdminService.php)
 Responsibilities: kick, ban, unban, close room, logs. Forbidden: game mechanics.
+
+### Chat (ChatHandler.php, ChatService.php, FileTransferService.php) — ADR-030
+Responsibilities: password-room chat broadcast; consent-based 1-to-1 file
+offer/accept/reject/data relay; room transfer lock; file-action rate limit.
+Forbidden: game/economy/apartment/victory/auth/admin logic; any SQLite or
+disk persistence of chat text or file bytes.
 
 ### Infrastructure (Database.php, PreparedStatements.php)
 Responsibilities: PDO init, statement cache. Forbidden: business logic.
@@ -352,8 +370,9 @@ One Epic modifies 1-3 files normally. If 4+ files required, model must STOP and 
 Changes delivered as `diff -u`. Full file content forbidden except new files or explicit user request.
 
 ## Dependency Direction
-Allowed: Core ← Auth, Lobby, Game, Admin.
-Forbidden: Game→Auth, Admin→Game internals, Lobby→Apartment internals.
+Allowed: Core ← Auth, Lobby, Game, Admin, Chat.
+Forbidden: Game→Auth, Admin→Game internals, Lobby→Apartment internals,
+Chat→Game/Lobby/Admin internals.
 Modules communicate only via services/public methods/events — no private internals access.
 
 ---
@@ -366,17 +385,21 @@ If code contradicts this section, the spec here is correct — fix the code. No 
 Allowed states: `waiting | playing | apartment | finished`. No others.
 
 **waiting**: Room exists, game not started, no cards, bank=0.
-Allowed: `room_list, join_room, leave_room, start_game, reconnect, ping`.
+Allowed: `room_list, join_room, leave_room, start_game, reconnect, ping`,
+and when `password_hash !== null`: `room_message, file_offer, file_accept, file_reject, file_data` (ADR-030).
 Forbidden: `draw_barrel, apartment_choice`.
 Transitions: `start_game → playing`; `no players remain → destroyed`; `admin_close_room → destroyed`.
 
 **playing**: Main loop active, cards/bag/bank/drawer exist.
-Allowed: `draw_barrel, leave_room, ping, reconnect, nudge_turn`.
+Allowed: `draw_barrel, leave_room, ping, reconnect, nudge_turn`,
+and when `password_hash !== null`: `room_message, file_offer, file_accept, file_reject, file_data` (ADR-030).
 Forbidden: `join_room, start_game, apartment_choice`.
 Transitions: `apartment detected → apartment`; `winner found → finished`; `last survivor → finished`; `admin_close_room → destroyed`; `no active players → destroyed`.
 
 **apartment**: Apartment event active, loop paused, no barrel drawing, waiting on required responses.
-Allowed: `apartment_choice, ping`. Forbidden: `draw_barrel, start_game, join_room`. Reconnect forbidden.
+Allowed: `apartment_choice, ping`,
+and when `password_hash !== null`: `room_message, file_offer, file_accept, file_reject, file_data` (ADR-030).
+Forbidden: `draw_barrel, start_game, join_room`. Reconnect forbidden.
 Transitions: `apartment timer expired → playing`; `winner found → finished`; `last survivor → finished`; `admin_close_room → destroyed`.
 
 **finished**: Result finalized, prizes distributed, no gameplay. Allowed: none. Immediately destroyed.
@@ -419,14 +442,16 @@ If code contradicts this section, the spec here is correct — fix the code. No 
 
 ## General Rules
 Implementation: `Workerman\Timer`.
-Allowed types: `watchdog, lobby_afk, game_afk, apartment, reconnect`. No others.
+Allowed types: `watchdog, lobby_afk, game_afk, apartment, reconnect, file_offer` (ADR-030). No others.
 
 ## Timer Ownership
 Every timer has exactly one owner: connection, player, room, or server. All timer IDs stored and cancellable. No anonymous/unmanaged timers.
 
 ## Timer Storage
 Room-level: `lobby_afk_timer_id, game_afk_timer_id, apartment_timer_id`.
-Player-level: `reconnect_timer`. No timer IDs stored elsewhere.
+Player-level: `reconnect_timer`.
+File transfer (ADR-030): `file_transfer.timer_id` when `file_transfer !== null`
+(offer or relay deadline; type label `file_offer`). No other timer IDs.
 
 ## Global Watchdog Timer
 Owner: server. Count: 1 for entire process. Interval: 60s. Purpose: close dead connections.
@@ -472,10 +497,17 @@ Owner: player. Exists only for `disconnected`. Created on connection loss when `
 Duration: 15s single-shot. Expiration → `removePlayerFromLobby(...)` / `removePlayerFromGame(...)` reason `disconnect`.
 Destroyed when: player reconnects, removed, or room destroyed. Forbidden in `apartment` state.
 
+## File Offer / Relay Timer (ADR-030)
+Owner: room. Exists only while `file_transfer !== null` in a password-protected room.
+Count: at most 1/room. Single-shot. Label: `file_offer`.
+- Offer phase: duration `FILE_OFFER_TIMEOUT` (60s). Expiration → `file_offer_expired` to parties, release lock.
+- Relay phase: duration `FILE_RELAY_TIMEOUT` (30s) after accept. Expiration → same release path.
+Destroyed when: accept (re-armed for relay), reject, successful/failed `file_data`, timeout, sender/recipient disconnect or leave, or room destroyed.
+
 ## Timer State Restrictions
-- `waiting`: watchdog, lobby_afk, reconnect.
-- `playing`: watchdog, game_afk, reconnect.
-- `apartment`: watchdog, apartment.
+- `waiting`: watchdog, lobby_afk, reconnect, file_offer (ADR-030).
+- `playing`: watchdog, game_afk, reconnect, file_offer (ADR-030).
+- `apartment`: watchdog, apartment, file_offer (ADR-030).
 - `finished`: watchdog only.
 
 ## Room Destruction Cleanup
@@ -484,6 +516,7 @@ Before `unset($worker->rooms[$roomId])`:
 if (!empty($room['lobby_afk_timer_id'])) Timer::del($room['lobby_afk_timer_id']);
 if (!empty($room['game_afk_timer_id']))  Timer::del($room['game_afk_timer_id']);
 if (!empty($room['apartment_timer_id'])) Timer::del($room['apartment_timer_id']);
+if (!empty($room['file_transfer']['timer_id'])) Timer::del($room['file_transfer']['timer_id']); // ADR-030
 foreach ($room['players'] as $player) {
     if (!empty($player['reconnect_timer'])) Timer::del($player['reconnect_timer']);
 }
@@ -518,7 +551,7 @@ Language: English only.
 ```php
 Lotto\
 ```
-All PHP classes belong to `Lotto\...` (e.g. `Lotto\Core`, `Lotto\Auth`, `Lotto\Lobby`, `Lotto\Game`, `Lotto\Admin`, `Lotto\Infrastructure`).
+All PHP classes belong to `Lotto\...` (e.g. `Lotto\Core`, `Lotto\Auth`, `Lotto\Lobby`, `Lotto\Game`, `Lotto\Admin`, `Lotto\Chat`, `Lotto\Infrastructure`).
 Forbidden: `App\`, `Application\`, `Project\`, or any other root namespace.
 Composer PSR-4 mapping is authoritative:
 ```json
@@ -535,11 +568,13 @@ MAX_ROOMS, MAX_TOTAL_PLAYERS, BET_PER_CARD, DAILY_BONUS, RECONNECT_TIMEOUT,
 LOBBY_HOST_TIMEOUT, UNAUTHORIZED_TIMEOUT, AUTHORIZED_TIMEOUT, PROTOCOL_VERSION,
 RATE_LIMIT_PACKETS_PER_WINDOW, RATE_LIMIT_WINDOW_SECONDS,
 LOGIN_THROTTLE_MAX_ATTEMPTS, LOGIN_THROTTLE_WINDOW_SECONDS, LOGIN_THROTTLE_LOCKOUT_SECONDS,
-MAX_ACCOUNTS_PER_IP
+MAX_ACCOUNTS_PER_IP,
+CHAT_MESSAGE_MAX_CHARS, FILE_MAX_BYTES, FILE_OFFER_TIMEOUT, FILE_RELAY_TIMEOUT,
+FILE_RATE_LIMIT_MAX, FILE_RATE_LIMIT_WINDOW_SECONDS, WS_MAX_PACKAGE_SIZE
 ```
 
 ## Connection Properties
-`$connection->userId, ->username, ->isAdmin, ->sessionToken, ->lastPing, ->packetCount, ->packetWindowStart` (последние два — ADR-003, rate limiting), `->clientRemoteIp` (ADR-031, IP-account cap bucketing). No additional business fields.
+`$connection->userId, ->username, ->isAdmin, ->sessionToken, ->lastPing, ->packetCount, ->packetWindowStart` (последние два — ADR-003, rate limiting), `->clientRemoteIp` (ADR-031, IP-account cap bucketing), `->fileActionCount, ->fileActionWindowStart` (ADR-030, file-action rate limit). No additional business fields.
 
 ## Worker Storage
 `$worker->rooms`, `$worker->userConnections` (key=`userId`, value=`$connection`).
@@ -550,10 +585,16 @@ room_id, host_conn_id, bet_per_card, max_players, password_hash, status, bank,
 apartment_fired, pause_for_apartment, apartment_responses, win_chance_history,
 active_drawer_conn_id,
 drawer_order, bag, drawn_numbers, players, all_players_history,
-lobby_afk_timer_id, game_afk_timer_id, apartment_timer_id
+lobby_afk_timer_id, game_afk_timer_id, apartment_timer_id,
+file_transfer
 ```
 Reserved (ADR-022): `bet_per_card`, `pause_for_apartment` — see § Room Structure
 reserved keys above; remain in the registry but are not consumed at runtime.
+
+`file_transfer` (ADR-030): `null` when idle; otherwise RAM-only offer/relay
+struct (`state`, `offer_id`, `sender_conn_id`, `recipient_conn_id`,
+`sender_username`, `recipient_username`, `filename`, `size_bytes`, `timer_id`).
+Never persisted.
 
 Test-only hook (ADR-022): `_apartment_participants` — leading underscore by
 convention; never created by production code paths, only read defensively by
@@ -577,8 +618,8 @@ Removal reasons: `leave, disconnect, afk, refuse, kicked, banned, admin_close`.
 - Timers: global `$watchdogTimerId`; room `$room['lobby_afk_timer_id']`, `$room['game_afk_timer_id']`, `$room['apartment_timer_id']`; player `$player['reconnect_timer']`.
 
 ## Class Names (allowed only)
-- Services: `AuthService, LoginThrottleService, IpAccountLimitService, LobbyService, GameService, VictoryService, ApartmentService, ReconnectService, AdminService, SessionService`
-- Handlers: `AuthHandler, LobbyHandler, GameHandler, AdminHandler`
+- Services: `AuthService, LoginThrottleService, IpAccountLimitService, LobbyService, GameService, VictoryService, ApartmentService, ReconnectService, AdminService, SessionService, ChatService, FileTransferService`
+- Handlers: `AuthHandler, LobbyHandler, GameHandler, AdminHandler, ChatHandler`
 - Core: `ConnectionManager, RoomManager, Logger, Constants`
 - Infrastructure: `Database, PreparedStatements`
 - Engine: `LottoEngine` with methods `generateCard(), generateBag()`
@@ -598,7 +639,8 @@ Removal reasons: `leave, disconnect, afk, refuse, kicked, banned, admin_close`.
 hello, auth_result, error, room_list, room_joined, player_joined, player_left,
 player_status_changed, host_changed, bank_updated, balance_updated, game_started,
 your_turn, barrels_drawn, afk_warning, nudge_received, apartment_alert, reconnect_state, game_over,
-banned, admin_stats_data, admin_users_data, admin_logs_data, admin_settings_data, admin_restart_result
+banned, admin_stats_data, admin_users_data, admin_logs_data, admin_settings_data, admin_restart_result,
+room_message, file_offer, file_accepted, file_rejected, file_data, file_offer_expired
 ```
 
 ## Protocol Actions (allowed)
@@ -606,7 +648,8 @@ banned, admin_stats_data, admin_users_data, admin_logs_data, admin_settings_data
 register, login, reconnect, ping, room_list, create_room, join_room, leave_room,
 start_game, draw_barrel, turn_ready, nudge_turn, apartment_choice, admin_ban_user, admin_unban_user,
 admin_kick_user, admin_close_room, admin_get_logs, admin_get_stats, admin_get_users,
-admin_get_settings, admin_set_settings, admin_restart_server
+admin_get_settings, admin_set_settings, admin_restart_server,
+room_message, file_offer, file_accept, file_reject, file_data
 ```
 
 ## Logging

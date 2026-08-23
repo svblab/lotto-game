@@ -15,7 +15,7 @@ Server → Client
 ```json
 {"type": "error", "code": "error_code", "message": "optional text"}
 ```
-Codes: `error.invalid_json, error.auth_required, error.room_not_found, error.not_your_turn, error.already_nudged, error.server_full, error.room_full, error.room_limit, error.banned, error.cannot_moderate_admin, error.auth_invalid_username, error.auth_username_taken, error.auth_invalid_credentials, error.auth_invalid_token, error.auth_rate_limited, error.auth_too_many_accounts_same_network`
+Codes: `error.invalid_json, error.auth_required, error.room_not_found, error.not_your_turn, error.already_nudged, error.server_full, error.room_full, error.room_limit, error.banned, error.cannot_moderate_admin, error.auth_invalid_username, error.auth_username_taken, error.auth_invalid_credentials, error.auth_invalid_token, error.auth_rate_limited, error.auth_too_many_accounts_same_network, error.chat_unavailable, error.chat_message_invalid, error.file_transfer_busy, error.file_too_large, error.file_recipient_invalid, error.file_offer_invalid, error.file_invalid_payload, error.file_rate_limited`
 
 `error.invalid_json` (ADR-003): sent for malformed JSON or missing/invalid
 `action` field. The connection is NOT closed — the client remains
@@ -64,6 +64,32 @@ do not remove without ADR approval.
 control without a generic "not your turn" toast. Self-nudge, non-playing
 room, and inactive/non-seated sender use existing codes (`error.not_your_turn`
 / `error.room_not_found`) — see ADR-032.
+
+`error.chat_unavailable` (ADR-030): chat or file action when the sender is
+not in a password-protected room (`password_hash === null` or not seated).
+
+`error.chat_message_invalid` (ADR-030): empty, non-string, or oversized
+`room_message` text (limit `CHAT_MESSAGE_MAX_CHARS`).
+
+`error.file_transfer_busy` (ADR-030): `file_offer` while the room already
+has a pending offer or active relay (`file_transfer !== null`).
+
+`error.file_too_large` (ADR-030): declared or decoded size exceeds
+`FILE_MAX_BYTES` (1 MiB decoded).
+
+`error.file_recipient_invalid` (ADR-030): recipient username missing, is
+self, or is not an active seated player in the sender's room.
+
+`error.file_offer_invalid` (ADR-030): unknown/mismatched `offer_id`, or
+actor is not the expected sender/recipient for that offer state.
+
+`error.file_invalid_payload` (ADR-030): missing/invalid base64, or decoded
+byte length does not equal the offer's declared `size_bytes`.
+
+`error.file_rate_limited` (ADR-030): dedicated soft limit on
+`file_offer`/`file_data` (`FILE_RATE_LIMIT_MAX` per
+`FILE_RATE_LIMIT_WINDOW_SECONDS`). Connection is NOT closed (unlike
+ADR-003's hard close).
 
 ---
 
@@ -179,8 +205,9 @@ Client → Server
 ### room_joined
 Server → Client. `players[]` includes each seated player's `cards_count` (public); card numbers do not exist until `start_game`.
 ```json
-{"type": "room_joined", "room_id": 7, "host": "player1", "status": "waiting", "bank": 0, "bet_per_card": 10, "players": [], "host_timeout_start": 1704067150, "host_timeout_seconds": 120}
+{"type": "room_joined", "room_id": 7, "host": "player1", "status": "waiting", "bank": 0, "bet_per_card": 10, "has_password": true, "players": [], "host_timeout_start": 1704067150, "host_timeout_seconds": 120}
 ```
+`has_password` (ADR-030): `true` when `password_hash !== null`; drives client chat panel visibility.
 `host_timeout_start` / `host_timeout_seconds`: present when a lobby host is assigned (≥2 players); countdown until host AFK transfer.
 Player entry:
 ```json
@@ -524,6 +551,79 @@ Server → Client. Response to `admin_get_settings` and successful `admin_set_se
 Server → Client. Response to `admin_restart_server`.
 ```json
 {"type": "admin_restart_result", "success": true, "message": "Server restart initiated"}
+```
+
+---
+
+## Room Chat & File Transfer (ADR-030)
+
+Available only inside password-protected rooms (`password_hash !== null`).
+Never persisted to SQLite or disk. No history on reconnect/rejoin.
+
+### room_message (action)
+Client → Server
+```json
+{"action": "room_message", "text": "hello"}
+```
+
+### room_message (packet)
+Server → Room (active players only)
+```json
+{"type": "room_message", "from": "alice", "text": "hello", "ts": 1704067200}
+```
+
+### file_offer (action)
+Client → Server. Metadata only — no file bytes.
+```json
+{"action": "file_offer", "to_username": "bob", "filename": "notes.txt", "size_bytes": 1234}
+```
+
+### file_offer (packet)
+Server → Recipient only
+```json
+{"type": "file_offer", "offer_id": "a1b2c3d4e5f60718", "from": "alice", "filename": "notes.txt", "size_bytes": 1234}
+```
+
+### file_accept
+Client → Server
+```json
+{"action": "file_accept", "offer_id": "a1b2c3d4e5f60718"}
+```
+
+### file_accepted
+Server → Sender only (prompt to send bytes)
+```json
+{"type": "file_accepted", "offer_id": "a1b2c3d4e5f60718"}
+```
+
+### file_reject
+Client → Server
+```json
+{"action": "file_reject", "offer_id": "a1b2c3d4e5f60718"}
+```
+
+### file_rejected
+Server → Sender only. Distinct from generic `error` — recipient explicitly declined.
+```json
+{"type": "file_rejected", "offer_id": "a1b2c3d4e5f60718", "reason": "declined"}
+```
+
+### file_data (action)
+Client → Server. Sent only after `file_accepted`. `data` is base64 of raw bytes.
+```json
+{"action": "file_data", "offer_id": "a1b2c3d4e5f60718", "data": "<base64>"}
+```
+
+### file_data (packet)
+Server → Recipient only
+```json
+{"type": "file_data", "offer_id": "a1b2c3d4e5f60718", "from": "alice", "filename": "notes.txt", "data": "<base64>"}
+```
+
+### file_offer_expired
+Server → Affected party/parties. Offer timed out, relay timed out, or peer disconnected/left mid-transfer.
+```json
+{"type": "file_offer_expired", "offer_id": "a1b2c3d4e5f60718"}
 ```
 
 ---
