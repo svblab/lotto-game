@@ -1,6 +1,6 @@
-# Implementation Status тАФ Lotto Game Project
+# Implementation Status — Lotto Game Project
 
-## EPIC-035 тАФ Room game-speed mode (ADR-035) (2026-08-24)
+## EPIC-035 — Room game-speed mode (ADR-035) (2026-08-24)
 
 Status: Completed
 
@@ -8,7 +8,7 @@ Status: Completed
 - [DONE] Server: `create_room` optional `speed_mode` (default `slow`); wire into
   `room_list`, `room_joined`, `reconnect_state` (waiting + playing)
 - [DONE] Client: create-room select, room list column, room panel label
-- [DONE] Fast animation profile (~3s total, LтЖТR stops); slow unchanged
+- [DONE] Fast animation profile (~3s total, L→R stops); slow unchanged
 - [DONE] Gold pulse omitted in fast mode; audio unchanged
 - [DONE] i18n keys in en/ru/es/fr/zh/tr
 
@@ -40,24 +40,24 @@ Notes: Single Epic (client animation + one room field). Also landed on
 VERIFICATION:
 MANUAL VERIFICATION REQUIRED
 1. Create a **fast** room (`speed_mode=fast`). Start a 2-player game. On
-   "Draw barrel", stopwatch the full drawтЖТall-three-revealed sequence.
-   Expected: тЙИ3s total; reels stop left-to-right; cards mark without gold pulse.
+   "Draw barrel", stopwatch the full draw→all-three-revealed sequence.
+   Expected: ≈3s total; reels stop left-to-right; cards mark without gold pulse.
 2. Create a **slow** room (default). Confirm existing ~3s-per-number reveal
    spacing and gold pulse still present.
 3. Mid-game in a fast room: reload / reconnect. Confirm UI still uses fast
    animation (from `reconnect_state.speed_mode`) without recreating the room.
 4. Lobby `room_list`: confirm Speed column shows Slow/Fast for each room.
-5. Omit `speed_mode` in a raw `create_room` packet тЖТ room behaves as slow.
+5. Omit `speed_mode` in a raw `create_room` packet → room behaves as slow.
 
 ---
 
-## EPIC-033C тАФ Admin players delete + dropdown (ADR-033) (2026-08-23)
+## EPIC-033C — Admin players delete + dropdown (ADR-033) (2026-08-23)
 
 Status: Completed
 
 - [DONE] `admin_delete_user` / `admin_bulk_delete_users` with busy guards (online / players / history / roster)
 - [DONE] All-or-nothing bulk PDO transaction; no auto-kick
-- [DONE] Players admin UI: table тЖТ `<select>` + detail; Ban/Unban/Kick/Delete + Delete matching preview
+- [DONE] Players admin UI: table → `<select>` + detail; Ban/Unban/Kick/Delete + Delete matching preview
 - [DONE] Manual test `tests/Manual/test_admin_delete_user.php`
 - [DONE] KNOWN GAP noted: load/stress tests writing junk into live `game.db`
 
@@ -72,21 +72,21 @@ Files:
 - tests/Manual/test_admin_delete_user.php
 - docs/IMPLEMENTATION_STATUS.md
 
-Commit: 5974582
+Commit: pending
 Notes: Registries already listed delete actions/errors from ADR-033 Epic A pass.
 
 VERIFICATION:
 - `php tests/Manual/test_admin_delete_user.php`
-- MANUAL тАФ admin Players dropdown select тЖТ Ban/Unban/Kick/Delete
-- MANUAL тАФ filter junk usernames тЖТ Delete matching тЖТ confirm list тЖТ purge
-- MANUAL тАФ delete rejected while target online or still in room RAM
+- MANUAL — admin Players dropdown select → Ban/Unban/Kick/Delete
+- MANUAL — filter junk usernames → Delete matching → confirm list → purge
+- MANUAL — delete rejected while target online or still in room RAM
 
 CHANGED:
 - Hard delete + bulk delete WS paths; players list UI; delete i18n; tests; KNOWN GAP note
 NOT CHANGED:
 - Ban/kick/unban semantics; auto-kick on delete; load-test DB isolation (KNOWN GAP)
 
-## EPIC-033B тАФ Admin rooms dropdown (ADR-033) (2026-08-23)
+## EPIC-033B — Admin rooms dropdown (ADR-033) (2026-08-23)
 
 Status: Completed
 
@@ -102,21 +102,21 @@ Files:
 - public/locales/*.json
 - docs/IMPLEMENTATION_STATUS.md
 
-Commit: 5974582
+Commit: pending
 Notes: UI-only per ADR-033 Epic B. `admin_close_room` unchanged.
 
 VERIFICATION:
-- MANUAL тАФ open admin panel тЖТ Active Rooms shows dropdown; empty state when no rooms
-- MANUAL тАФ select a room тЖТ detail shows id / players / status / lock; Close enabled
-- MANUAL тАФ Close room тЖТ room removed on next stats/list refresh; selection clears if gone
-- MANUAL тАФ Refresh rooms preserves selection when room still present
+- MANUAL — open admin panel → Active Rooms shows dropdown; empty state when no rooms
+- MANUAL — select a room → detail shows id / players / status / lock; Close enabled
+- MANUAL — Close room → room removed on next stats/list refresh; selection clears if gone
+- MANUAL — Refresh rooms preserves selection when room still present
 
 CHANGED:
-- Admin rooms list presentation (table тЖТ select + detail)
+- Admin rooms list presentation (table → select + detail)
 NOT CHANGED:
 - Protocol / server / `admin_close_room`; players moderation UI; password rotation
 
-## EPIC-033A тАФ Admin password rotation (ADR-033) (2026-08-23)
+## EPIC-033A — Admin password rotation (ADR-033) (2026-08-23)
 
 Status: Completed
 
@@ -141,25 +141,25 @@ Files:
 - public/locales/*.json
 - tests/Manual/test_admin_change_password.php
 
-Commit: 5974582
+Commit: pending
 Notes: Acting admin only (by userId). Write-verify transaction before COMMIT.
 
 VERIFICATION:
 - `php tests/Manual/test_admin_change_password.php`
-- MANUAL тАФ admin panel тЖТ Change admin password; wrong current / weak new / success login with new password
+- MANUAL — admin panel → Change admin password; wrong current / weak new / success login with new password
 
 CHANGED:
 - Admin password rotation WS path + ADR-033 + registries + UI modal + tests
 NOT CHANGED:
 - Registration password rules; CLI change_admin_password.php; ban/kick/delete; rooms/players list UI
 
-## EPIC-032a тАФ Nudge voice i18n (client) (2026-08-23)
+## EPIC-032a — Nudge voice i18n (client) (2026-08-23)
 
 Status: Completed
 
 - [DONE] `nudge_received` voice line resolves `audio/nudge_<lang>.mp3` from recipient's current `LottoI18n.getLang()` on every play.
-- [DONE] Migrated `nudge.mp3` тЖТ `nudge_en.mp3`; missing per-language files fall back to English without breaking other sounds.
-- [DONE] Per-language cache keys (`nudge_en`, `nudge_ru`, тАж) so language switches within an open tab apply on the next nudge.
+- [DONE] Migrated `nudge.mp3` → `nudge_en.mp3`; missing per-language files fall back to English without breaking other sounds.
+- [DONE] Per-language cache keys (`nudge_en`, `nudge_ru`, …) so language switches within an open tab apply on the next nudge.
 
 Files:
 - public/js/sound.js
@@ -168,21 +168,21 @@ Files:
 - docs/IMPLEMENTATION_STATUS.md
 
 Commit: 2a42674
-Notes: Client-only; no ADR/protocol/server changes (ADR-032 server rules unchanged). Voice recordings for `ru/es/fr/zh/tr` are out of scope тАФ fallback to `nudge_en.mp3` until added.
+Notes: Client-only; no ADR/protocol/server changes (ADR-032 server rules unchanged). Voice recordings for `ru/es/fr/zh/tr` are out of scope — fallback to `nudge_en.mp3` until added.
 
 VERIFICATION:
-- MANUAL тАФ with `getLang() === 'en'`, `nudge_received` plays `nudge_en.mp3`.
-- MANUAL тАФ with `getLang()` set to `ru` (no `nudge_ru.mp3` on disk), `nudge_en.mp3` plays instead.
-- MANUAL тАФ switch language via selector without reload; next `nudge_received` uses new language.
-- MANUAL тАФ other sounds (`spin`, `apartment`, `reveal`, `match`, `victory`, `defeat`) unchanged.
+- MANUAL — with `getLang() === 'en'`, `nudge_received` plays `nudge_en.mp3`.
+- MANUAL — with `getLang()` set to `ru` (no `nudge_ru.mp3` on disk), `nudge_en.mp3` plays instead.
+- MANUAL — switch language via selector without reload; next `nudge_received` uses new language.
+- MANUAL — other sounds (`spin`, `apartment`, `reveal`, `match`, `victory`, `defeat`) unchanged.
 
-## Frontend sound тАФ volume slider + loop cues (2026-08-17)
+## Frontend sound — volume slider + loop cues (2026-08-17)
 
 Status: Completed
 
 - [DONE] `LottoSound.setVolume()` / `getVolume()` with `localStorage` persistence (`lotto_sound_volume`, default 0.7); volume slider in game top-bar.
 - [DONE] `startLoop()` / `stopLoop()` for spin (loops until last drum reveals) and apartment (required players only).
-- [DONE] Spin: `startSlotsWaiting()` тЖТ `startLoop('spin')`. Normal stop is inside `revealSlot()` at the tick that commits the last drumтАЩs number (`!isSlotsSpinning()` after removing that drumтАЩs `spinning` class) тАФ not after `await revealSlot()` returns (that Promise waits an extra 450ms) and not in `app.js` after the for-loop. Safety-net / interruption stops: `stopSlotsWaiting()`, `resetSlots()`, `idleSlot()` (only when no drum still spinning).
+- [DONE] Spin: `startSlotsWaiting()` → `startLoop('spin')`. Normal stop is inside `revealSlot()` at the tick that commits the last drum’s number (`!isSlotsSpinning()` after removing that drum’s `spinning` class) — not after `await revealSlot()` returns (that Promise waits an extra 450ms) and not in `app.js` after the for-loop. Safety-net / interruption stops: `stopSlotsWaiting()`, `resetSlots()`, `idleSlot()` (only when no drum still spinning).
 - [DONE] Apartment: `startLoop('apartment')` when `required === true`; stops on timeout, `hideApartment()` (game over, bank update, reset to lobby).
 - [DONE] 7th sound key `apartment`; `public/audio/README.md` loopability guidance for `spin.mp3` and `apartment.mp3`.
 
@@ -195,7 +195,7 @@ Files:
 - docs/IMPLEMENTATION_STATUS.md
 
 VERIFICATION:
-MANUAL VERIFICATION REQUIRED тАФ browser audio timing cannot be verified by the PHP test suite; see Epic completion QA checklist in chat / manual steps below.
+MANUAL VERIFICATION REQUIRED — browser audio timing cannot be verified by the PHP test suite; see Epic completion QA checklist in chat / manual steps below.
 - Volume slider changes audible level in real time; mute silences regardless of volume.
 - Spin loop starts when drums spin; stops when last drum reveals or on reset/reconnect mid-spin (F1/F2 hooks).
 - Apartment sound only for `required` players; stops on timeout, hideApartment paths; no leak into next turn.
@@ -206,7 +206,7 @@ Status: Completed
 
 - [DONE] `bet_per_card` on `room_joined` (`LobbyService::buildRoomJoinedPacket`).
 - [DONE] `bet_per_card` on waiting `reconnect_state`
-  (`ReconnectService::buildReconnectState`) тАФ fixes hard-refresh reconnect path.
+  (`ReconnectService::buildReconnectState`) — fixes hard-refresh reconnect path.
 - [DONE] Client `#room-bank-label` shows projected bank in `waiting`
   (`sum(cards_count) * bet_per_card`); real `room.bank` once game starts.
 - [DONE] `test_lobby_integration.php` + `test_reconnect.php` projection assertions.
@@ -224,7 +224,7 @@ VERIFICATION:
 - `php tests/Manual/test_lobby_integration.php`
 - `php tests/Manual/test_reconnect.php`
 
-## EPIC-032 тАФ Turn nudge (ADR-032) (2026-08-17)
+## EPIC-032 — Turn nudge (ADR-032) (2026-08-17)
 
 Status: Completed
 
@@ -250,15 +250,15 @@ Files:
 - tests/Manual/test_turn_nudge.php (new)
 - docs/IMPLEMENTATION_STATUS.md
 
-Commit: (implementation тАФ pending user commit; docs `8eeb649`)
+Commit: (implementation — pending user commit; docs `8eeb649`)
 Notes: `GameHandler` 89 / 300; `GameTurnService` 500 / 500; `GameService` 496 / 500.
 
 VERIFICATION:
-- `php tests/Manual/test_turn_nudge.php` тАФ 32/32 passed
-- `php tests/Manual/test_turn_system.php` тАФ 59/59 passed
-- `php tests/Manual/test_game_start_turn_integration.php` тАФ 11/11 passed
+- `php tests/Manual/test_turn_nudge.php` — 32/32 passed
+- `php tests/Manual/test_turn_system.php` — 59/59 passed
+- `php tests/Manual/test_game_start_turn_integration.php` — 11/11 passed
 
-## EPIC-031c-b тАФ IP account limit server guard (ADR-031) (2026-08-16)
+## EPIC-031c-b — IP account limit server guard (ADR-031) (2026-08-16)
 
 Status: Completed
 
@@ -281,13 +281,13 @@ VERIFICATION:
 - `php tests/Manual/test_ip_account_limit.php`
 - `php tests/Manual/test_tab_ownership.php`
 
-## EPIC-031c-a тАФ Trusted proxy IP docs + registry (ADR-031) (2026-08-16)
+## EPIC-031c-a — Trusted proxy IP docs + registry (ADR-031) (2026-08-16)
 
 Status: Completed
 
 - [DONE] ADR-031 addendum: trust boundary, sentinel fallback, updated limitations.
 - [DONE] `clientRemoteIp` in ANCHOR_CORE Connection Runtime Fields.
-- [DONE] README ┬з3.8 + LOCAL_ENVIRONMENT `LOTTO_TRUSTED_PROXY_IPS`.
+- [DONE] README §3.8 + LOCAL_ENVIRONMENT `LOTTO_TRUSTED_PROXY_IPS`.
 
 Files:
 - docs/ADR/031-per-account-tab-ownership-and-ip-account-limit.md
@@ -295,7 +295,7 @@ Files:
 - README.md
 - docs/LOCAL_ENVIRONMENT.md
 
-## EPIC-031b тАФ Per-account tab ownership client fix (ADR-031) (2026-08-16)
+## EPIC-031b — Per-account tab ownership client fix (ADR-031) (2026-08-16)
 
 Status: Completed
 
@@ -311,7 +311,7 @@ VERIFICATION:
 - `php tests/Manual/test_tab_ownership.php`
 - Manual browser: two Incognito accounts coexist; same-account second tab handoff.
 
-## EPIC-031a тАФ Per-account tab ownership + IP limit ADR (ADR-031) (2026-08-16)
+## EPIC-031a — Per-account tab ownership + IP limit ADR (ADR-031) (2026-08-16)
 
 Status: Completed
 
@@ -326,7 +326,7 @@ Files:
 - docs/ANCHOR_PROTOCOL.md
 - docs/ANCHOR_CORE.md
 
-Notes: Documentation only тАФ no PHP/JS implementation in this epic.
+Notes: Documentation only — no PHP/JS implementation in this epic.
 Follow-up: EPIC-031b (`public/js/app.js`), EPIC-031c (server guard + tests).
 
 CHANGED:
@@ -344,7 +344,7 @@ VERIFICATION:
 
 ## Client game sounds + mute toggle (2026-08-15)
 
-- [DONE] `public/js/sound.js` тАФ HTML5 Audio preload/play for 5 optional clips in
+- [DONE] `public/js/sound.js` — HTML5 Audio preload/play for 5 optional clips in
   `public/audio/` (`spin`, `reveal`, `match`, `defeat`, `victory`); missing files
   fail silently via `error` listener + `.play().catch()`.
 - [DONE] Triggers: `startSlotsWaiting`, `revealSlot` (at number reveal),
@@ -375,7 +375,7 @@ Files: `public/locales/*.json`, `public/js/ui.js`, `public/js/app.js`,
 - [DONE] Product feedback: auth screen shows logo only (removed redundant
   `<h1 data-i18n="app.title">`); lobby header shows plain `app.title` text
   between balance and language buttons (removed lobby logo image).
-- [DONE] Replaced `#drawn-history` chip list with a responsive 1тАУ90 horizontal
+- [DONE] Replaced `#drawn-history` chip list with a responsive 1–90 horizontal
   segment strip (`renderDrawnHistory` in `ui.js`); drawn segments use `--gold`,
   undrawn stay neutral; number tooltip on `:hover`/`:focus` via CSS `::after`.
 
@@ -385,7 +385,7 @@ Files:
 - public/js/ui.js
 
 CHANGED:
-- Auth: removed duplicate title heading; lobby: logo тЖТ `span.top-bar-title`
+- Auth: removed duplicate title heading; lobby: logo → `span.top-bar-title`
   with existing `app.title` i18n key (no new locale keys)
 - `#drawn-history`: 90 flex segments, `aria-label` per segment, full-array
   correctness on all three `renderDrawnHistory` call sites in `app.js`
@@ -397,7 +397,7 @@ NOT CHANGED:
 
 VERIFICATION:
 - `renderDrawnHistory` receives full `state.drawnAll` on draw, reset, and
-  `reconnect_state` тАФ each call rebuilds all 90 segment states via `Set`
+  `reconnect_state` — each call rebuilds all 90 segment states via `Set`
 - Responsive width: `flex: 1 1 0` on 90 segments; ~3px/segment at 320px viewport
 - Tooltip: CSS-only `::after` on `:hover` and `:focus` (keyboard + touch tap)
 
@@ -411,19 +411,19 @@ Files:
 - public/css/style.css (logo-img, felt-bg layer, chip icon)
 
 Assets:
-- **logo.png** тАФ `<img src="img/logo.png">`; `onerror` calls `replaceWith()` a
+- **logo.png** — `<img src="img/logo.png">`; `onerror` calls `replaceWith()` a
   `<div class="logo-placeholder">` (or `.small` variant), restoring the exact
   pre-integration gradient box with no broken-image icon.
-- **felt-bg.png** тАФ comma-separated `background-image` on `body` (texture +
+- **felt-bg.png** — comma-separated `background-image` on `body` (texture +
   existing radial gradient); `background-color: var(--felt-dark)` base.
-- **chip.png** тАФ inline probe adds `html.has-chip-icon`; CSS replaces ЁЯкЩ emoji.
-- **barrel.png** тАФ not wired (see notes).
+- **chip.png** — inline probe adds `html.has-chip-icon`; CSS replaces 🪙 emoji.
+- **barrel.png** — not wired (see notes).
 
 Notes: No binary assets committed. `barrel.png` skipped: `.drawn-chip` history
-entries are compact number pills (~0.8rem); a 64├Ч64 icon would clutter layout.
+entries are compact number pills (~0.8rem); a 64×64 icon would clutter layout.
 
 CHANGED:
-- Auth/lobby logo placeholders тЖТ optional `<img>` with onerror fallback
+- Auth/lobby logo placeholders → optional `<img>` with onerror fallback
 - `body` background layers for optional felt texture
 - Balance `.coins` icon when `chip.png` exists
 
@@ -433,7 +433,7 @@ NOT CHANGED:
 - Binary files in `public/img/`
 
 VERIFICATION:
-- Fresh clone (no PNGs): gradient logos, felt gradient, ЁЯкЩ emoji unchanged
+- Fresh clone (no PNGs): gradient logos, felt gradient, 🪙 emoji unchanged
 - With PNGs deployed: logos, texture, chip icon appear
 
 ## Rules modal copy rewrite (2026-08-13)
@@ -446,13 +446,13 @@ VERIFICATION:
 Files:
 - public/locales/en.json, ru.json, es.json, fr.json, zh.json, tr.json
 
-Notes: Content-only тАФ no i18n key changes, no .php/.js edits. Numbers verified
+Notes: Content-only — no i18n key changes, no .php/.js edits. Numbers verified
 against `Constants.php`, `ApartmentService::APARTMENT_PAYMENT`, `PreparedStatements`
 (create_user 500 coins), `docs/GAME_RULES.md`, `docs/ANCHOR_CORE.md` Part 2.
 
 CHANGED:
 - `rules.introBody`, `rules.economyBody`, `rules.cardsBody`,
-  `rules.apartmentBody`, `rules.victoryBody`, `rules.reconnectBody` (├Ч6 locales)
+  `rules.apartmentBody`, `rules.victoryBody`, `rules.reconnectBody` (×6 locales)
 
 NOT CHANGED:
 - `renderRules()` / `public/js/ui.js`, any `.php` file, i18n key structure
@@ -462,14 +462,14 @@ VERIFICATION:
 
 ## Rules modal close-button contrast fix (2026-08-13)
 
-- [DONE] Scoped `.rules-panel .icon-btn { color: var(--wood); }` so the "тЬХ"
+- [DONE] Scoped `.rules-panel .icon-btn { color: var(--wood); }` so the "✕"
   glyph is visible on the pale-gold panel background (`#f5e6a8`). Base
   `.icon-btn` keeps `color: var(--cream)` for dark wood/felt contexts.
 
 Files:
 - public/css/style.css
 
-Notes: Presentational only тАФ no protocol/ADR/JS changes. Old contrast
+Notes: Presentational only — no protocol/ADR/JS changes. Old contrast
 cream (`#f5e6c8`) vs panel bg: **1.02:1** (fails WCAG). New wood
 (`#5c3d1e`) vs panel bg: **7.83:1** (passes AA 3:1 for UI graphics).
 
@@ -490,8 +490,8 @@ NOT CHANGED:
 Files:
 - docs/ADR/029-websocket-origin-allowlist.md (new)
 - server.php (`$worker->allowedOrigins`, Origin check before hello)
-- tests/Manual/test_server_bootstrap.php (TEST 9тАУ11)
-- README.md ┬з3.7, docs/LOCAL_ENVIRONMENT.md
+- tests/Manual/test_server_bootstrap.php (TEST 9–11)
+- README.md §3.7, docs/LOCAL_ENVIRONMENT.md
 
 Notes: Token-based auth blocks classic CSWSH cookie riding; control addresses
 residual resource/spam risk and defense-in-depth. Reject path:
@@ -505,7 +505,7 @@ NOT CHANGED:
 
 VERIFICATION:
 - `php tests/Manual/test_server_bootstrap.php`
-- VPS: `sudo -u www-data php run_ALL_tests.php` (manual тАФ agent has no SSH)
+- VPS: `sudo -u www-data php run_ALL_tests.php` (manual — agent has no SSH)
 
 ## Admin assertAdmin SQLite freshness (2026-08-12)
 
@@ -513,12 +513,12 @@ VERIFICATION:
   `banned_until` from SQLite via `user_auth_fields_by_id` on each admin action.
 Files:
 - src/Admin/AdminService.php (`fetchUserAuthFields()`, demotion/ban sync)
-- tests/Manual/test_admin_auth.php (groups 4тАУ6: demotion, still-admin, banned)
+- tests/Manual/test_admin_auth.php (groups 4–6: demotion, still-admin, banned)
 
 Notes: Stale `$connection->isAdmin` cleared on demotion/ban; subsequent calls
 fail fast without DB. Client sees `error.not_your_turn` on demotion (no hint);
 active ban uses existing `banned` packet. One SQLite read per admin action when
-`isAdmin` is true тАФ acceptable (admin panel is low-frequency, not polled in a
+`isAdmin` is true — acceptable (admin panel is low-frequency, not polled in a
 tight loop).
 
 CHANGED:
@@ -531,7 +531,7 @@ VERIFICATION:
 - `php tests/Manual/test_admin_auth.php`
 - `php run_ALL_tests.php`
 
-## EPIC-5a тАФ Per-username login lockout (ADR-028) (2026-08-12)
+## EPIC-5a — Per-username login lockout (ADR-028) (2026-08-12)
 
 - [DONE] RAM-only `LoginThrottleService`; wired into `AuthService` / `server.php`;
   `error.auth_rate_limited` in protocol registry (generic client message only).
@@ -546,9 +546,9 @@ Files:
 - server.php (`$worker->loginThrottle` DI)
 - tests/Manual/test_login_throttle.php (new)
 
-Notes: Defaults тАФ 5 failures / 300s window / 900s lockout. Register throttling
+Notes: Defaults — 5 failures / 300s window / 900s lockout. Register throttling
 deferred to EPIC-5b (placeholder section in ADR-028 only). Client receives
-`Invalid username or password` for rate-limited logins тАФ no attempt count or
+`Invalid username or password` for rate-limited logins — no attempt count or
 remaining lockout time exposed.
 
 CHANGED:
@@ -567,11 +567,11 @@ VERIFICATION:
 
 - [DONE] Constant-time password_verify path for unknown usernames in login()
 Files:
-- src/Auth/AuthService.php (diff тАФ dummy bcrypt hash on missing user row)
-- tests/Manual/test_auth_integration.php (diff тАФ identical error-message assertion)
+- src/Auth/AuthService.php (diff — dummy bcrypt hash on missing user row)
+- tests/Manual/test_auth_integration.php (diff — identical error-message assertion)
 
 Notes: When username is not found, `password_verify()` still runs against a
-precomputed dummy bcrypt hash before throwing тАФ reduces username enumeration via
+precomputed dummy bcrypt hash before throwing — reduces username enumeration via
 response-time analysis. External login() contract unchanged.
 
 CHANGED:
@@ -581,24 +581,24 @@ NOT CHANGED:
 - AuthHandler.php, SessionGuardService.php, exception messages, return shape
 
 VERIFICATION:
-- `php tests/Manual/test_auth_integration.php` тАФ PASS
+- `php tests/Manual/test_auth_integration.php` — PASS
 - Full suite: `php run_ALL_tests.php` (see run below)
 
 ## ANCHOR_CORE Part 6 registry back-fill (2026-08-12)
 
 - [DONE] Back-fill missing protocol registry entries in ANCHOR_CORE.md Part 6
 Files:
-- docs/ANCHOR_CORE.md (diff тАФ `turn_ready` action; `player_status_changed`,
+- docs/ANCHOR_CORE.md (diff — `turn_ready` action; `player_status_changed`,
   `admin_users_data` packet types)
 
-Notes: Pure documentation/registry sync тАФ no code changes. `turn_ready` was
+Notes: Pure documentation/registry sync — no code changes. `turn_ready` was
 implemented (server.php, GameHandler, ANCHOR_PROTOCOL.md ADR-017) but omitted
 from the Part 6 action list. Packet sweep found two additional omissions already
 documented in ANCHOR_PROTOCOL.md and implemented in production code.
 
 CHANGED:
-- ANCHOR_CORE.md Part 6 ┬з Protocol Actions тАФ added `turn_ready`
-- ANCHOR_CORE.md Part 6 ┬з Protocol Packet Types тАФ added `player_status_changed`,
+- ANCHOR_CORE.md Part 6 § Protocol Actions — added `turn_ready`
+- ANCHOR_CORE.md Part 6 § Protocol Packet Types — added `player_status_changed`,
   `admin_users_data`
 
 NOT CHANGED:
@@ -608,20 +608,20 @@ NOT CHANGED:
 VERIFICATION:
 - `git diff --stat` shows only `.md` files modified
 
-## EPIC-028.3 тАФ Asymmetric cross-engine session closure + economy invariant net (2026-08-12)
+## EPIC-028.3 — Asymmetric cross-engine session closure + economy invariant net (2026-08-12)
 
 - [DONE] Close ADR-026 reproduction gap; add EconomyAudit structural safety net
 Files:
-- tests/Manual/test_asymmetric_engine_stress.php (new тАФ asymmetric teardown create+join stress)
-- src/Core/EconomyAudit.php (diff тАФ `checkWorkerInvariants()` duplicate-seat/dual-auth checks)
-- src/Core/Helpers.php (diff тАФ `lottoEconomyCheckInvariants()` helper)
-- src/Core/RoomManager.php (diff тАФ invariant scan on `destroyRoom()`)
-- src/Game/GameService.php (diff тАФ invariant scan on `finishGame()` teardown)
-- docs/ADR/026-fix-concurrent-session-bug.md (append тАФ EPIC-028.3 addendum)
-- tests/Manual/test_economy_audit.php (diff тАФ invariant check regression group)
+- tests/Manual/test_asymmetric_engine_stress.php (new — asymmetric teardown create+join stress)
+- src/Core/EconomyAudit.php (diff — `checkWorkerInvariants()` duplicate-seat/dual-auth checks)
+- src/Core/Helpers.php (diff — `lottoEconomyCheckInvariants()` helper)
+- src/Core/RoomManager.php (diff — invariant scan on `destroyRoom()`)
+- src/Game/GameService.php (diff — invariant scan on `finishGame()` teardown)
+- docs/ADR/026-fix-concurrent-session-bug.md (append — EPIC-028.3 addendum)
+- tests/Manual/test_economy_audit.php (diff — invariant check regression group)
 
 Notes: Part A stress test models delayed onClose after fresh login with both
-sockets attempting create_room/join_room тАФ **no gap reproduced**; existing
+sockets attempting create_room/join_room — **no gap reproduced**; existing
 SessionGuardService sweeps close the window. Part B adds detect-and-log-only
 invariant monitoring (no balance mutation).
 
@@ -630,28 +630,28 @@ CHANGED:
 - EconomyAudit structural checks on room destroy and game finish.
 
 NOT CHANGED:
-- SessionGuardService logic (no fix required тАФ test proves current sweeps sufficient).
+- SessionGuardService logic (no fix required — test proves current sweeps sufficient).
 - Protocol packets, Handler/Service business rules.
 
 VERIFICATION:
-- `php tests/Manual/test_asymmetric_engine_stress.php` тАФ PASS
-- `php tests/Manual/test_economy_audit.php` тАФ PASS
+- `php tests/Manual/test_asymmetric_engine_stress.php` — PASS
+- `php tests/Manual/test_economy_audit.php` — PASS
 - Full suite: `php run_ALL_tests.php` (see run below).
 
 ## TLS/WSS documentation-vs-code fix (2026-08-12)
 
 - [DONE] Close TLS/WSS documentation-vs-code mismatch (ADR-027)
 Files:
-- docs/ADR/027-reverse-proxy-tls-termination.md (new тАФ reverse-proxy TLS decision)
-- README.md (diff тАФ ┬з3 rewritten: nginx/Caddy WSS via proxy; `config/ssl.php` removed)
-- public/index.html (diff тАФ `lotto-ws-port` / `lotto-ws-path` deploy meta tags)
-- public/js/ws.js (diff тАФ `resolveWsUrl()` reads meta; no hardcoded `:8080` on HTTPS)
-- tests/Manual/test_ws_url_resolution.php (new тАФ URL resolution + README/ADR checks)
+- docs/ADR/027-reverse-proxy-tls-termination.md (new — reverse-proxy TLS decision)
+- README.md (diff — §3 rewritten: nginx/Caddy WSS via proxy; `config/ssl.php` removed)
+- public/index.html (diff — `lotto-ws-port` / `lotto-ws-path` deploy meta tags)
+- public/js/ws.js (diff — `resolveWsUrl()` reads meta; no hardcoded `:8080` on HTTPS)
+- tests/Manual/test_ws_url_resolution.php (new — URL resolution + README/ADR checks)
 
 Notes: Chose **option (b) reverse-proxy TLS termination** over native Workerman TLS
 (lower RAM/CPU risk on 1 CPU / 500 MB VPS; avoids growing `server.php`; cert renew
-reloads proxy only). `server.php` unchanged тАФ still plain `websocket://0.0.0.0:8080`.
-Production clients use `wss://host/ws` (443) when meta tags set per README ┬з3.
+reloads proxy only). `server.php` unchanged — still plain `websocket://0.0.0.0:8080`.
+Production clients use `wss://host/ws` (443) when meta tags set per README §3.
 
 CHANGED:
 - README SSL section meaning: **was** native Workerman `config/ssl.php` on port 8443;
@@ -662,47 +662,47 @@ NOT CHANGED:
 - `server.php` bootstrap, protocol packets, Handlers/Services business logic.
 
 VERIFICATION:
-- `php tests/Manual/test_ws_url_resolution.php` тАФ PASS
+- `php tests/Manual/test_ws_url_resolution.php` — PASS
 - Full suite: `php run_ALL_tests.php` (see run below).
 
-## Phase 18 тАФ FIX-30 Multi-session auth hardening (2026-08-06)
+## Phase 18 — FIX-30 Multi-session auth hardening (2026-08-06)
 
 - [DONE] FIX-30 Concurrent multi-session auth bug (single account, multiple browsers)
 Files:
-- src/Auth/AuthHandler.php (diff тАФ `claimUserSession()`, evict superseded connections)
-- src/Auth/AuthService.php (diff тАФ session registry moved out of `login()`)
-- server.php (diff тАФ ownership-safe `userConnections` cleanup on `onClose`)
-- src/Lobby/LobbyService.php (diff тАФ one seat per `user_id`, `user_id` on `player_left`)
-- src/Game/ReconnectService.php (diff тАФ `rebindSeat()`, `user_id` on `player_left`)
-- public/js/app.js (diff тАФ `player_left` by `user_id`; superseded session message)
-- public/locales/en.json, ru.json (diff тАФ `auth_session_superseded`)
+- src/Auth/AuthHandler.php (diff — `claimUserSession()`, evict superseded connections)
+- src/Auth/AuthService.php (diff — session registry moved out of `login()`)
+- server.php (diff — ownership-safe `userConnections` cleanup on `onClose`)
+- src/Lobby/LobbyService.php (diff — one seat per `user_id`, `user_id` on `player_left`)
+- src/Game/ReconnectService.php (diff — `rebindSeat()`, `user_id` on `player_left`)
+- public/js/app.js (diff — `player_left` by `user_id`; superseded session message)
+- public/locales/en.json, ru.json (diff — `auth_session_superseded`)
 - tests/Manual/test_single_session.php, test_session_lifecycle.php, test_multi_session.php
 - docs/ADR/001.md, docs/ANCHOR_PROTOCOL.md
 
-Notes: ADR-001 amended тАФ newest login/reconnect wins (evict prior live session) instead
+Notes: ADR-001 amended — newest login/reconnect wins (evict prior live session) instead
 of reject-only second login. Prevents dual authenticated sockets and duplicate room
 seats; `player_left` no longer resets unrelated clients with the same username.
 
 VERIFICATION:
-- `php tests/Manual/test_single_session.php` тАФ PASS
-- `php tests/Manual/test_session_lifecycle.php` тАФ PASS
-- `php tests/Manual/test_multi_session.php` тАФ PASS
-- MANUAL: Browser A login тЖТ close тЖТ Browser B login тЖТ reopen A тЖТ only one session;
+- `php tests/Manual/test_single_session.php` — PASS
+- `php tests/Manual/test_session_lifecycle.php` — PASS
+- `php tests/Manual/test_multi_session.php` — PASS
+- MANUAL: Browser A login → close → Browser B login → reopen A → only one session;
   leave from one client does not spuriously reset the other.
 
-## Phase 18 тАФ Client Balance Persistence (2026-08-02)
+## Phase 18 — Client Balance Persistence (2026-08-02)
 
 - [DONE] FIX-29 Browser-reopen reconnect + SVG line chart (game-over)
 Files:
-- public/js/app.js (diff тАФ `hasPersistedSession()`; no token wipe on init; reconnect on WS open)
-- public/js/ui.js (diff тАФ SVG `polyline` line chart in `renderWinChanceChart`)
-- public/index.html (diff тАФ chart container div instead of canvas)
-- public/css/style.css (diff тАФ `.win-chance-line-chart` styles)
-- public/locales/*.json (diff тАФ `game.chartTurn`)
-- src/Game/ReconnectService.php (diff тАФ `adoptSessionTokenForUser()`)
-- server.php (diff тАФ login тЖТ adopt token + `handleReconnect()`)
-- tests/Manual/test_reconnect.php (diff тАФ GROUP 3c adopt token)
-- tests/Manual/test_frontend_structure.php (diff тАФ SVG chart + reconnect checks)
+- public/js/app.js (diff — `hasPersistedSession()`; no token wipe on init; reconnect on WS open)
+- public/js/ui.js (diff — SVG `polyline` line chart in `renderWinChanceChart`)
+- public/index.html (diff — chart container div instead of canvas)
+- public/css/style.css (diff — `.win-chance-line-chart` styles)
+- public/locales/*.json (diff — `game.chartTurn`)
+- src/Game/ReconnectService.php (diff — `adoptSessionTokenForUser()`)
+- server.php (diff — login → adopt token + `handleReconnect()`)
+- tests/Manual/test_reconnect.php (diff — GROUP 3c adopt token)
+- tests/Manual/test_frontend_structure.php (diff — SVG chart + reconnect checks)
 
 Notes: Closing the browser clears sessionStorage but kept localStorage token was
 wiped on next visit (`init()` + sessionStorage gate). Reconnect now attempts on
@@ -713,56 +713,56 @@ rendered as SVG line chart (grid, axes, polylines, point markers, legend).
 CHANGED:
 - Client: auto-reconnect on page load when `lotto_session_token` exists
 - Server: `login` action tries room restore after token adoption
-- Game-over modal: canvas chart тЖТ SVG line chart
+- Game-over modal: canvas chart → SVG line chart
 
 NOT CHANGED:
 - 15s playing disconnect grace, lobby immediate removal, F2 QA hotkey
 
 VERIFICATION:
-- `php tests/Manual/test_reconnect.php` тАФ PASS (GROUP 3c).
-- `php tests/Manual/test_frontend_structure.php` тАФ PASS.
-- MANUAL: start game тЖТ close browser tab тЖТ reopen within 15s тЖТ auto-rejoin room;
-  finish game тЖТ game-over modal shows multi-line SVG chart.
+- `php tests/Manual/test_reconnect.php` — PASS (GROUP 3c).
+- `php tests/Manual/test_frontend_structure.php` — PASS.
+- MANUAL: start game → close browser tab → reopen within 15s → auto-rejoin room;
+  finish game → game-over modal shows multi-line SVG chart.
 
 - [DONE] FIX-28 Exponential win-chance formula (LottoEngine)
 Files:
-- src/Game/LottoEngine.php (diff тАФ `calculateWinChances()` static, exponential weights)
-- src/Game/VictoryService.php (diff тАФ delegate to LottoEngine; username wire map)
-- src/Game/GameService.php (diff тАФ pass `room.status` for apartment immune ├Ч1.1)
-- src/Game/ReconnectService.php (diff тАФ same)
-- public/js/ui.js (diff тАФ bar shows 1-decimal server percent)
+- src/Game/LottoEngine.php (diff — `calculateWinChances()` static, exponential weights)
+- src/Game/VictoryService.php (diff — delegate to LottoEngine; username wire map)
+- src/Game/GameService.php (diff — pass `room.status` for apartment immune ×1.1)
+- src/Game/ReconnectService.php (diff — same)
+- public/js/ui.js (diff — bar shows 1-decimal server percent)
 - tests/Manual/test_lotto_engine.php, test_victory.php, test_turn_system.php
 - docs/ADR/014.md (amendment), docs/ANCHOR_PROTOCOL.md, docs/GAME_RULES.md
 
-Notes: Replaces ADR-014 inverse-moves formula with `turnsToWin = 15 тИТ bestCardClosed`,
-`weight = exp(тИТ0.25 ├Ч turnsToWin)`, normalize to 1 decimal summing 100%. Active only;
-disconnected excluded; complete card тЖТ 100% for winner(s). Wire keys remain `username`.
+Notes: Replaces ADR-014 inverse-moves formula with `turnsToWin = 15 − bestCardClosed`,
+`weight = exp(−0.25 × turnsToWin)`, normalize to 1 decimal summing 100%. Active only;
+disconnected excluded; complete card → 100% for winner(s). Wire keys remain `username`.
 
 CHANGED:
-- `LottoEngine::calculateWinChances()` тАФ core math
-- `VictoryService::calculateWinChances()` тАФ conn_id тЖТ username for packets
+- `LottoEngine::calculateWinChances()` — core math
+- `VictoryService::calculateWinChances()` — conn_id → username for packets
 
 NOT CHANGED:
 - Victory/payout logic, client progress-bar placement (FIX-27), game-over chart
 
 VERIFICATION:
-- `php tests/Manual/test_lotto_engine.php` тАФ PASS (+winChance engine group).
-- `php tests/Manual/test_victory.php` тАФ PASS (GROUP 3b updated).
-- `php tests/Manual/test_turn_system.php` тАФ PASS (win_chances numeric, sum 100%).
+- `php tests/Manual/test_lotto_engine.php` — PASS (+winChance engine group).
+- `php tests/Manual/test_victory.php` — PASS (GROUP 3b updated).
+- `php tests/Manual/test_turn_system.php` — PASS (win_chances numeric, sum 100%).
 
 - [DONE] FIX-27 Win-chance progress bar + game-over probability chart
 Files:
-- public/index.html (diff тАФ win-chance track/fill; game-over chart canvas + legend)
-- public/css/style.css (diff тАФ bar gradient styles, chart panel)
-- public/js/ui.js (diff тАФ `updateWinChanceBar`, `renderWinChanceChart`; players list without %)
-- public/js/app.js (diff тАФ track `winChanceHistory` from server `win_chances` snapshots)
-- public/locales/*.json (diff тАФ `game.winChanceHistory`)
-- docs/GAME_RULES.md (diff тАФ single bar location, sidebar fields, end-game graph)
+- public/index.html (diff — win-chance track/fill; game-over chart canvas + legend)
+- public/css/style.css (diff — bar gradient styles, chart panel)
+- public/js/ui.js (diff — `updateWinChanceBar`, `renderWinChanceChart`; players list without %)
+- public/js/app.js (diff — track `winChanceHistory` from server `win_chances` snapshots)
+- public/locales/*.json (diff — `game.winChanceHistory`)
+- docs/GAME_RULES.md (diff — single bar location, sidebar fields, end-game graph)
 
-Notes: Win chance shown only above slot machine as redтЖТblue progress bar (server
+Notes: Win chance shown only above slot machine as red→blue progress bar (server
 comparative % from `barrels_drawn.win_chances`). Player sidebar: nickname, cards,
 status only. Client records per-turn snapshots for game-over line chart (no protocol
-change). History lost on mid-game refresh/reconnect тАФ acceptable client-only scope.
+change). History lost on mid-game refresh/reconnect — acceptable client-only scope.
 
 CHANGED:
 - Personal win-chance UI: progress bar with `winChanceBarColor()` gradient
@@ -773,17 +773,17 @@ NOT CHANGED:
 - `win_chances` server calculation (ADR-014), protocol packets, payout logic
 
 VERIFICATION:
-- `php tests/Manual/test_frontend_structure.php` тАФ PASS.
-- MANUAL: 2-player game тЖТ bar updates after each draw; sidebar has no %; game-over
-  modal shows multi-line chart when тЙе2 turns recorded.
+- `php tests/Manual/test_frontend_structure.php` — PASS.
+- MANUAL: 2-player game → bar updates after each draw; sidebar has no %; game-over
+  modal shows multi-line chart when ≥2 turns recorded.
 
 - [DONE] FIX-26 F2 in-game reconnect QA hotkey + guard fix on page refresh
 Files:
-- public/js/ws.js (diff тАФ `simulateTransportDrop()` closes WS without `intentionalClose`)
-- public/js/app.js (diff тАФ F2 key during `playing`; reconnect guard loads persisted user)
-- public/locales/*.json (diff тАФ `dev.f2Disconnect`, `dev.f2PlayingOnly`)
-- docs/LOCAL_ENVIRONMENT.md (diff тАФ F1/F2 manual reconnect steps)
-- tests/Manual/test_frontend_structure.php (diff тАФ F2 + simulateTransportDrop checks)
+- public/js/ws.js (diff — `simulateTransportDrop()` closes WS without `intentionalClose`)
+- public/js/app.js (diff — F2 key during `playing`; reconnect guard loads persisted user)
+- public/locales/*.json (diff — `dev.f2Disconnect`, `dev.f2PlayingOnly`)
+- docs/LOCAL_ENVIRONMENT.md (diff — F1/F2 manual reconnect steps)
+- tests/Manual/test_frontend_structure.php (diff — F2 + simulateTransportDrop checks)
 
 Notes: F2 reconnect manual test (playing-phase disconnect within 15s) had no way to
 trigger transport loss without closing the tab (which clears sessionStorage and
@@ -801,18 +801,18 @@ NOT CHANGED:
 - Server reconnect/disconnect logic, 15s playing grace, F1 lobby immediate removal
 
 VERIFICATION:
-- `php tests/Manual/test_frontend_structure.php` тАФ PASS (+2 assertions).
-- MANUAL (F2): 2-player game тЖТ press F2 тЖТ reconnect overlay тЖТ game restored with toast
-  ┬лSession restored┬╗; if your turn, draw button enabled (FIX-17). F2 in lobby shows hint only.
+- `php tests/Manual/test_frontend_structure.php` — PASS (+2 assertions).
+- MANUAL (F2): 2-player game → press F2 → reconnect overlay → game restored with toast
+  «Session restored»; if your turn, draw button enabled (FIX-17). F2 in lobby shows hint only.
 
 - [DONE] FIX-25 Quick Start pseudo-random room pick when multiple eligible
 Files:
-- public/js/ui.js (diff тАФ `pickQuickStartRoom()` filters + random choice among eligible)
-- public/js/app.js (diff тАФ `doQuickStart()` uses `pickQuickStartRoom` instead of `.find()`)
-- docs/GAME_RULES.md (diff тАФ ┬з2 quick start multi-room behavior)
+- public/js/ui.js (diff — `pickQuickStartRoom()` filters + random choice among eligible)
+- public/js/app.js (diff — `doQuickStart()` uses `pickQuickStartRoom` instead of `.find()`)
+- docs/GAME_RULES.md (diff — §2 quick start multi-room behavior)
 
 Notes: Previously Quick Start always joined the first eligible room in `room_list` order.
-Now: 0 eligible тЖТ error; 1 тЖТ that room; 2+ тЖТ `Math.floor(Math.random() * n)`.
+Now: 0 eligible → error; 1 → that room; 2+ → `Math.floor(Math.random() * n)`.
 
 CHANGED:
 - `pickQuickStartRoom()` helper exported from UI module
@@ -822,21 +822,21 @@ NOT CHANGED:
 - Eligibility rules (`waiting`, no password, not full), join_room flow, server room_list
 
 VERIFICATION:
-- MANUAL: create 2+ open waiting rooms without password тЖТ Quick Start joins a random one
-  across repeated clicks (before joining); single room тЖТ always that room.
+- MANUAL: create 2+ open waiting rooms without password → Quick Start joins a random one
+  across repeated clicks (before joining); single room → always that room.
 
-- [DONE] FIX-24 No lobby reconnect grace тАФ waiting disconnect removes player immediately
+- [DONE] FIX-24 No lobby reconnect grace — waiting disconnect removes player immediately
 Files:
-- src/Game/ReconnectService.php (diff тАФ `handleDisconnect()` waiting тЖТ `removePlayerFromLobby`; timer callback playing-only)
-- public/js/app.js (diff тАФ `auth_result` clears stale room; `player_left` reason `disconnect` resets lobby)
-- tests/Manual/test_reconnect.php (diff тАФ GROUP 1b waiting immediate removal; GROUP 2 playing timeout)
-- tests/Manual/test_timer_audit.php (diff тАФ GROUP 4 split waiting vs playing)
+- src/Game/ReconnectService.php (diff — `handleDisconnect()` waiting → `removePlayerFromLobby`; timer callback playing-only)
+- public/js/app.js (diff — `auth_result` clears stale room; `player_left` reason `disconnect` resets lobby)
+- tests/Manual/test_reconnect.php (diff — GROUP 1b waiting immediate removal; GROUP 2 playing timeout)
+- tests/Manual/test_timer_audit.php (diff — GROUP 4 split waiting vs playing)
 
 Notes: Closes reconnect F1: disconnected lobby player stayed in `room['players']` as
 `disconnected` with 15s timer, inflating room_list counts and allowing stale reconnect.
 User rule: no reconnect tracking in lobby; only after `start_game` (`playing`). Page-refresh
 re-key in waiting (active before onClose) unchanged via `handleReconnect()` GROUP 3b.
-ANCHOR_CORE.md still lists reconnect in `waiting` тАФ behavior intentionally overridden per
+ANCHOR_CORE.md still lists reconnect in `waiting` — behavior intentionally overridden per
 user instruction (Rule 1); doc sync deferred.
 
 CHANGED:
@@ -847,15 +847,15 @@ NOT CHANGED:
 - Playing-state 15s reconnect timer, apartment immediate removal, in-game `reconnect_state`
 
 VERIFICATION:
-- `php tests/Manual/test_reconnect.php` тАФ **111/111 PASS** (+GROUP 1b, GROUP 2 retargeted).
-- `php tests/Manual/test_timer_audit.php` тАФ **24/24 PASS**.
-- MANUAL (F1): join room in lobby, disconnect tab тЖТ player gone from room_list immediately;
+- `php tests/Manual/test_reconnect.php` — **111/111 PASS** (+GROUP 1b, GROUP 2 retargeted).
+- `php tests/Manual/test_timer_audit.php` — **24/24 PASS**.
+- MANUAL (F1): join room in lobby, disconnect tab → player gone from room_list immediately;
   reconnect shows lobby without stale membership; can join same room again.
 
 - [DONE] FIX-23 Game-over modal lists all winners on shared victory
 Files:
-- public/js/ui.js (diff тАФ `showGameOver()` derives winners from `statistics[].received > 0`)
-- public/locales/*.json (diff тАФ `game.winnersLine` plural headline, 6 locales)
+- public/js/ui.js (diff — `showGameOver()` derives winners from `statistics[].received > 0`)
+- public/locales/*.json (diff — `game.winnersLine` plural headline, 6 locales)
 
 Notes: `game_over.winner` is a single string (first winner, backward-compat field). Bank/payout
 table was already correct via `statistics`. Modal headline now joins all usernames with
@@ -868,17 +868,17 @@ NOT CHANGED:
 - `game_over` protocol, `GameFinishService` payout math, statistics table rendering
 
 VERIFICATION:
-- MANUAL: trigger double victory (2+ winners same barrel) тАФ modal headline names all
+- MANUAL: trigger double victory (2+ winners same barrel) — modal headline names all
   winners and total shared prize matches table sum; single-winner unchanged.
 
 - [DONE] FIX-22 Apartment alert shown immediately (not behind barrel animation)
 Files:
-- public/js/app.js (diff тАФ `onApartmentAlert()` no longer uses `enqueueAnimation`)
+- public/js/app.js (diff — `onApartmentAlert()` no longer uses `enqueueAnimation`)
 
 Notes: Non-immune players were kicked to lobby before seeing agree/refuse: server
 `apartment_timer` (10s per ANCHOR_CORE) starts when `apartment_alert` is sent, but
 the client queued the modal behind `barrels_drawn` slot animation (~8s+). Server timed
-out тЖТ `player_left` reason=refuse тЖТ `resetToLobby()` before modal appeared.
+out → `player_left` reason=refuse → `resetToLobby()` before modal appeared.
 
 CHANGED:
 - `onApartmentAlert()`: call `UI().showApartment()` synchronously on packet receipt
@@ -887,32 +887,32 @@ NOT CHANGED:
 - Server apartment timer duration (10s), `ApartmentService` logic, protocol, animation queue for barrels
 
 VERIFICATION:
-- MANUAL: 2тАУ3 player game, trigger apartment тАФ required (non-immune) player sees
+- MANUAL: 2–3 player game, trigger apartment — required (non-immune) player sees
   agree/refuse modal immediately with full ~10s countdown; not thrown to lobby until
   timeout/refuse. Immune player sees wait screen immediately.
 - No automated test (client UI timing).
 
-- [DONE] FIX-21 GAME_RULES.md ┬з5 ┬л╨Ъ╨▓╨░╤А╤В╨╕╤А╨░┬╗ direction and payment amount corrected
+- [DONE] FIX-21 GAME_RULES.md §5 «Квартира» direction and payment amount corrected
 Files:
-- docs/GAME_RULES.md (diff тАФ swap immune/required categories; 10 тЖТ 5 coins)
+- docs/GAME_RULES.md (diff — swap immune/required categories; 10 → 5 coins)
 
-Notes: Documentation-only correction paired with FIX-20. Prior GAME_RULES.md ┬з5 had
+Notes: Documentation-only correction paired with FIX-20. Prior GAME_RULES.md §5 had
 immunity/payment backwards (source of FIX-19's wrong direction). Payment now matches
 `ApartmentService::APARTMENT_PAYMENT` (5) and ANCHOR_CORE.md.
 
 VERIFICATION:
-- Manual review тАФ immune = closed-row players; required = all others; 5 coins; 10s timer unchanged.
+- Manual review — immune = closed-row players; required = all others; 5 coins; 10s timer unchanged.
 
 - [DONE] FIX-20 Apartment immunity direction corrected (reversal of FIX-19)
 Files:
-- src/Game/ApartmentService.php (diff тАФ `prepareApartment()`: closed row тЖТ immune; no line тЖТ required)
-- tests/Manual/test_apartment.php (diff тАФ GROUP 3/5 assertions flipped to match)
+- src/Game/ApartmentService.php (diff — `prepareApartment()`: closed row → immune; no line → required)
+- tests/Manual/test_apartment.php (diff — GROUP 3/5 assertions flipped to match)
 
 Notes: **Direction correction.** FIX-19 correctly wired `hasLine()` but used inverted
-semantics copied from GAME_RULES.md ┬з5 (which was itself backwards). User-confirmed
+semantics copied from GAME_RULES.md §5 (which was itself backwards). User-confirmed
 correct design (Rule 1 authority): players WITH a closed row earned immunity (triggered
 the event); players WITHOUT must pay APARTMENT_PAYMENT (5). Do NOT revert to FIX-19
-direction even if an old GAME_RULES snapshot suggests otherwise тАФ see FIX-21.
+direction even if an old GAME_RULES snapshot suggests otherwise — see FIX-21.
 
 CHANGED:
 - `prepareApartment()`: `immune = hasLine`, `required = !hasLine`
@@ -921,20 +921,20 @@ NOT CHANGED:
 - `hasLine()`, `shouldTrigger()`, `finishApartment()` post-agree `immune=true`, payment amount
 
 VERIFICATION:
-- `php tests/Manual/test_apartment.php` тАФ **51/51 PASS** (GROUP 3/5 assertions flipped).
+- `php tests/Manual/test_apartment.php` — **51/51 PASS** (GROUP 3/5 assertions flipped).
 - MANUAL: closed-row player sees immune wait screen; others see agree/refuse.
 
-- [SUPERSEDED тАФ direction wrong] FIX-19 Apartment immunity computed from hasLine() at trigger time
+- [SUPERSEDED — direction wrong] FIX-19 Apartment immunity computed from hasLine() at trigger time
 Files:
-- src/Game/ApartmentService.php (diff тАФ `prepareApartment()` derives required/immune from `hasLine()`, persists `player['immune']`)
-- tests/Manual/test_apartment.php (diff тАФ GROUP 3 real cards/masks; 3-player regression)
+- src/Game/ApartmentService.php (diff — `prepareApartment()` derives required/immune from `hasLine()`, persists `player['immune']`)
+- tests/Manual/test_apartment.php (diff — GROUP 3 real cards/masks; 3-player regression)
 
 Notes: Introduced `hasLine()`-based immunity (good) but inverted who pays vs who is immune
-(wrong тАФ copied from backwards GAME_RULES.md ┬з5). Corrected by FIX-20/FIX-21.
+(wrong — copied from backwards GAME_RULES.md §5). Corrected by FIX-20/FIX-21.
 
 - [DONE] FIX-18 Persist post-game_over balance to localStorage (client-only)
 Files:
-- public/js/app.js (diff тАФ `onGameOver()` calls `persistUser()` after updating `state.user.coins`)
+- public/js/app.js (diff — `onGameOver()` calls `persistUser()` after updating `state.user.coins`)
 
 Notes: Server-side payout math confirmed correct (GameFinishService / game.db).
 Symptom "coins not given out" was stale localStorage after refresh: `onGameOver()`
@@ -949,9 +949,9 @@ NOT CHANGED:
   GameService bank/payout, PreparedStatements
 
 VERIFICATION:
-- MANUAL VERIFICATION REQUIRED: play 2тАУ3 player game to victory; confirm winner
-  balance on screen; hard-refresh тЖТ balance matches post-win (not pre-game).
-- Repeat for loser (paid > 0, received = 0) тАФ deduction survives refresh.
+- MANUAL VERIFICATION REQUIRED: play 2–3 player game to victory; confirm winner
+  balance on screen; hard-refresh → balance matches post-win (not pre-game).
+- Repeat for loser (paid > 0, received = 0) — deduction survives refresh.
 
 - [PROPOSED] ADR-016 Server-authoritative client balance (`coins` field)
 Files:
@@ -962,18 +962,18 @@ and optional `balance_updated` for admin/apartment paths. Implementation blocked
 until ADR accepted (Rule 7). FIX-18 is interim mitigation only.
 
 VERIFICATION:
-- N/A тАФ ADR draft for user review. Post-approval verification matrix in ADR ┬зImplementation Epic.
+- N/A — ADR draft for user review. Post-approval verification matrix in ADR §Implementation Epic.
 
-## Phase 17 тАФ Compliance Audit Fixes (2026-08-02)
+## Phase 17 — Compliance Audit Fixes (2026-08-02)
 
 - [DONE] FIX-17 Reconnecting active drawer restores draw-button UI (client-only)
 Files:
-- public/js/app.js (diff тАФ `onReconnectState()` playing branch sets `state.isMyTurn` from `current_drawer`)
+- public/js/app.js (diff — `onReconnectState()` playing branch sets `state.isMyTurn` from `current_drawer`)
 
 Notes: `reconnect_state.current_drawer` was already correct; `syncTurnUi()` branches
 on `state.isMyTurn`, which was only set by `your_turn`. No protocol change. Server
 AFK re-arm in `ReconnectService::restorePlayerConnection()` unchanged; no in-flight
-auto-draw race тАФ `current_drawer` reflects `active_drawer_conn_id` at reconnect time.
+auto-draw race — `current_drawer` reflects `active_drawer_conn_id` at reconnect time.
 
 CHANGED:
 - `onReconnectState()` playing: derive `isMyTurn`, then `syncTurnUi()`
@@ -983,18 +983,18 @@ NOT CHANGED:
 
 VERIFICATION:
 - MANUAL VERIFICATION REQUIRED: 2-player game, player A's turn, disconnect tab,
-  reconnect within 15s тЖТ draw button visible/enabled; non-drawer sees waiting state.
+  reconnect within 15s → draw button visible/enabled; non-drawer sees waiting state.
 - No automated test (client UI).
 
 - [DONE] EPIC-9.3b Host transfer on player removal during apartment state
 Files:
-- src/Game/ApartmentService.php (diff тАФ `removePlayerFromApartment()` host FIFO reassignment + `host_changed` broadcast)
-- tests/Manual/test_apartment.php (diff тАФ GROUP 10 host-refuse scenario)
+- src/Game/ApartmentService.php (diff — `removePlayerFromApartment()` host FIFO reassignment + `host_changed` broadcast)
+- tests/Manual/test_apartment.php (diff — GROUP 10 host-refuse scenario)
 
 Notes: Closes KNOWN GAP from EPIC-9.3 (`removePlayerFromApartment` stale `host_conn_id`).
 Mirrors `ReconnectService::removePlayerFromGame()` FIFO-over-`drawer_order` logic.
 `host_changed` broadcast matches `LobbyService` pattern (ADR-009); lobby timeout fields
-omitted тАФ not applicable in apartment phase.
+omitted — not applicable in apartment phase.
 
 CHANGED:
 - Host reassignment when removed conn was `host_conn_id`
@@ -1004,19 +1004,19 @@ NOT CHANGED:
 - `removePlayerFromGame()` host path, lobby host transfer, Room/Player structure
 
 VERIFICATION:
-- `php tests/Manual/test_apartment.php` тАФ **45/45 PASS** (was 40; +GROUP 10).
+- `php tests/Manual/test_apartment.php` — **45/45 PASS** (was 40; +GROUP 10).
 
 - [DONE] EPIC-17.1 GAME_RULES.md win-chance description aligned with ADR-014
 Files:
-- docs/GAME_RULES.md (diff тАФ ┬з2 comparative win-chance wording)
+- docs/GAME_RULES.md (diff — §2 comparative win-chance wording)
 
 Notes: Documentation-only. Player-facing language; no formula reproduction.
 
 VERIFICATION:
-- Manual review against ADR-014 ┬з Formula тАФ concept accurate, no new claims.
+- Manual review against ADR-014 § Formula — concept accurate, no new claims.
 
 - [PENDING USER DECISION] EPIC-17.2 Protocol registry cleanup (`admin_stats_data`, `error.banned`)
-Status: Blocked тАФ requires explicit path (implement vs deprecate via ADR). See ISSUE 4 in audit prompt.
+Status: Blocked — requires explicit path (implement vs deprecate via ADR). See ISSUE 4 in audit prompt.
 
 - [PROPOSED] ADR-015 GameTurnService extraction draft (GameService file-size policy)
 Files:
@@ -1025,149 +1025,149 @@ Files:
 Notes: No code extraction in this pass (Epic Isolation). Decomposition proposal only.
 
 VERIFICATION:
-- N/A тАФ written ADR for user review.
+- N/A — written ADR for user review.
 
-## Phase 16 тАФ Comparative Win-Chance (Server-Side)
+## Phase 16 — Comparative Win-Chance (Server-Side)
 
 - [DONE] EPIC-16.1 Comparative win-chance calculation and protocol wiring (ADR-014)
 Files:
 - docs/ADR/014.md (new)
-- docs/ANCHOR_PROTOCOL.md (diff тАФ `win_chances` on `barrels_drawn` / `reconnect_state`)
-- src/Game/VictoryService.php (diff тАФ `calculateWinChances()`)
-- src/Game/GameService.php (diff тАФ wire into `broadcastBarrelsDrawn()`; passthrough; skip on victory draw)
-- src/Game/ReconnectService.php (diff тАФ `reconnect_state` playing branch)
-- public/js/app.js (diff тАФ opponents use server `win_chances`; self indicator unchanged)
-- tests/Manual/test_victory.php (diff тАФ GROUP 7 unit tests)
-- tests/Manual/test_turn_system.php (diff тАФ GROUP 7 integration)
-- tests/Manual/test_reconnect.php (diff тАФ `MockGameService::calculateWinChances`; reconnect_state assert)
+- docs/ANCHOR_PROTOCOL.md (diff — `win_chances` on `barrels_drawn` / `reconnect_state`)
+- src/Game/VictoryService.php (diff — `calculateWinChances()`)
+- src/Game/GameService.php (diff — wire into `broadcastBarrelsDrawn()`; passthrough; skip on victory draw)
+- src/Game/ReconnectService.php (diff — `reconnect_state` playing branch)
+- public/js/app.js (diff — opponents use server `win_chances`; self indicator unchanged)
+- tests/Manual/test_victory.php (diff — GROUP 7 unit tests)
+- tests/Manual/test_turn_system.php (diff — GROUP 7 integration)
+- tests/Manual/test_reconnect.php (diff — `MockGameService::calculateWinChances`; reconnect_state assert)
 
 Notes: Fixes silently broken opponent win-chance (~0% always) by moving comparative
-move-distance formula server-side. Informational only тАФ zero changes to victory
+move-distance formula server-side. Informational only — zero changes to victory
 detection, prize calculation, apartment, AFK, economy, or state machine.
 Opponent card numbers remain hidden; only coarse percentage exposed.
 
 VERIFICATION:
-- `php tests/Manual/test_victory.php` тАФ **48/48 PASS** (was 40; +GROUP 3b unit tests).
-- `php tests/Manual/test_turn_system.php` тАФ **47/47 PASS** (was 42; +GROUP 7).
-- `php tests/Manual/test_reconnect.php` тАФ **107/107 PASS** (+2 reconnect_state asserts).
-- `php run_ALL_tests.php` тАФ baseline unchanged; no victory/prize regressions.
+- `php tests/Manual/test_victory.php` — **48/48 PASS** (was 40; +GROUP 3b unit tests).
+- `php tests/Manual/test_turn_system.php` — **47/47 PASS** (was 42; +GROUP 7).
+- `php tests/Manual/test_reconnect.php` — **107/107 PASS** (+2 reconnect_state asserts).
+- `php run_ALL_tests.php` — baseline unchanged; no victory/prize regressions.
 
-## Phase 15 тАФ AFK Audit Fixes (Fresh Findings)
+## Phase 15 — AFK Audit Fixes (Fresh Findings)
 
 - [DONE] EPIC-15.4 AFK-cascade last survivor excludes equally idle player (ADR-013)
 Files:
 - docs/ADR/013.md (new)
-- docs/ANCHOR_CORE.md (diff тАФ ┬з Last Survivor qualifying condition for AFK removal)
-- docs/GAME_RULES.md (diff тАФ Last Survivor vs mutual-AFK refund wording)
-- src/Game/ReconnectService.php (diff тАФ `removePlayerFromGame()` AFK + survivor `auto_draws>0` тЖТ `handleNoSurvivors()`)
-- tests/Manual/test_reconnect.php (diff тАФ GROUP 5 engaged survivor; 5b/5c both-idle refund; 5d non-afk unchanged)
-- tests/Manual/test_timer_integrity.php (diff тАФ noop `handleNoSurvivors` mock for TEST 6b)
+- docs/ANCHOR_CORE.md (diff — § Last Survivor qualifying condition for AFK removal)
+- docs/GAME_RULES.md (diff — Last Survivor vs mutual-AFK refund wording)
+- src/Game/ReconnectService.php (diff — `removePlayerFromGame()` AFK + survivor `auto_draws>0` → `handleNoSurvivors()`)
+- tests/Manual/test_reconnect.php (diff — GROUP 5 engaged survivor; 5b/5c both-idle refund; 5d non-afk unchanged)
+- tests/Manual/test_timer_integrity.php (diff — noop `handleNoSurvivors` mock for TEST 6b)
 
 Notes: Closes economy loophole where second-to-last player removed for `afk` paid entire bank to a
 survivor who had themselves accumulated `auto_draws > 0`. Option A (ADR-013): reuse existing
 `handleNoSurvivors()` refund path; no new Player Structure field. Removal reasons `disconnect`,
 `leave`, `refuse`, `kicked`, `banned` unchanged. `ApartmentService::removePlayerFromApartment()` has
-no `count(active)===1` last-survivor branch тАФ out of scope.
+no `count(active)===1` last-survivor branch — out of scope.
 
 VERIFICATION:
-- `php tests/Manual/test_reconnect.php` тАФ **105/105 PASS** (was 77; +GROUP 5b/5c/5d, GROUP 5 split).
-- `php tests/Manual/test_timer_integrity.php` тАФ **14/14 PASS**.
-- `php tests/Manual/test_admin_kick.php` тАФ **39/39 PASS** (no double-refund regression).
-- `php run_ALL_tests.php` тАФ **32/41** files pass (baseline unchanged; `test_timer_integrity` fixed).
+- `php tests/Manual/test_reconnect.php` — **105/105 PASS** (was 77; +GROUP 5b/5c/5d, GROUP 5 split).
+- `php tests/Manual/test_timer_integrity.php` — **14/14 PASS**.
+- `php tests/Manual/test_admin_kick.php` — **39/39 PASS** (no double-refund regression).
+- `php run_ALL_tests.php` — **32/41** files pass (baseline unchanged; `test_timer_integrity` fixed).
 
 - [DONE] EPIC-15.1 Zero-active no-survivors refund during playing (economic integrity)
 Files:
-- src/Game/GameFinishService.php (diff тАФ `handleNoSurvivors()`, `cancelRoomTimers()`, `snapshotRemainingPlayersToHistory()`; constructor `object` deps for testability)
-- src/Game/GameService.php (diff тАФ `handleNoSurvivors()` passthrough)
-- src/Game/ReconnectService.php (diff тАФ `count(active)===0` тЖТ refund path; unified active-player dispatch; removed dead `destroyRoom()`)
-- src/Game/ApartmentService.php (diff тАФ delegate no-survivors to `GameService`; fix `removePlayerFromApartment` empty path; `sendJson` import)
-- tests/Manual/test_reconnect.php (diff тАФ GROUP 8/8b no-survivors + refund assertions)
-- tests/Manual/test_apartment.php (diff тАФ GROUP 9 apartment empty-path refund; `makeSvc()` wires real `GameFinishService`)
+- src/Game/GameFinishService.php (diff — `handleNoSurvivors()`, `cancelRoomTimers()`, `snapshotRemainingPlayersToHistory()`; constructor `object` deps for testability)
+- src/Game/GameService.php (diff — `handleNoSurvivors()` passthrough)
+- src/Game/ReconnectService.php (diff — `count(active)===0` → refund path; unified active-player dispatch; removed dead `destroyRoom()`)
+- src/Game/ApartmentService.php (diff — delegate no-survivors to `GameService`; fix `removePlayerFromApartment` empty path; `sendJson` import)
+- tests/Manual/test_reconnect.php (diff — GROUP 8/8b no-survivors + refund assertions)
+- tests/Manual/test_apartment.php (diff — GROUP 9 apartment empty-path refund; `makeSvc()` wires real `GameFinishService`)
 
-Notes: Closes ANCHOR_CORE Part 2 ┬з No Survivors / ┬з Economic Integrity Rule gap where
+Notes: Closes ANCHOR_CORE Part 2 § No Survivors / § Economic Integrity Rule gap where
 `removePlayerFromGame()` called bare `destroyRoom()` when `count(active)===0` or
-`empty(players)` тАФ coins lost, zombie rooms with disconnected stragglers. Chose option (a):
+`empty(players)` — coins lost, zombie rooms with disconnected stragglers. Chose option (a):
 refund logic centralized in `GameFinishService` (ADR-002 payout owner). Disconnected
 stragglers snapshotted into `all_players_history` before refund; reconnect timers cancelled;
 `bank` explicitly zeroed.
 
 VERIFICATION:
-- `php tests/Manual/test_reconnect.php` тАФ **65/65 PASS** (was 52; +GROUP 8/8b).
-- `php tests/Manual/test_apartment.php` тАФ **38/38 PASS** (was 36; +GROUP 9).
-- `php run_ALL_tests.php` тАФ **32/41** files pass (baseline 31/41 pre-epic; `test_apartment.php` fixed).
+- `php tests/Manual/test_reconnect.php` — **65/65 PASS** (was 52; +GROUP 8/8b).
+- `php tests/Manual/test_apartment.php` — **38/38 PASS** (was 36; +GROUP 9).
+- `php run_ALL_tests.php` — **32/41** files pass (baseline 31/41 pre-epic; `test_apartment.php` fixed).
 
 - [DONE] EPIC-15.2 Progressive game AFK strike windows 30s / 15s / 5s (ADR-012)
 Files:
 - docs/ADR/012.md (new)
-- docs/ANCHOR_CORE.md (diff тАФ ┬з Game AFK Timer thresholds table)
-- docs/ANCHOR_PROTOCOL.md (diff тАФ `turn_seconds` semantics for `your_turn` / `afk_warning`)
-- src/Core/Constants.php (diff тАФ `gameAfkStrikeWindowSeconds()`; removed dead flat-30 helpers)
-- src/Game/ReconnectService.php (diff тАФ `tickGameAfk()` per-strike window lookup)
-- src/Game/GameService.php (diff тАФ `sendYourTurn()` / packet `turn_seconds` per `auto_draws`)
-- tests/Manual/test_reconnect.php (diff тАФ GROUP 4/4b/4c/5/6 boundary + `turn_seconds` assertions)
-- tests/Manual/test_timer_audit.php (diff тАФ `LOTTO_GAME_AFK_STRIKE1/2/3` env override tests)
+- docs/ANCHOR_CORE.md (diff — § Game AFK Timer thresholds table)
+- docs/ANCHOR_PROTOCOL.md (diff — `turn_seconds` semantics for `your_turn` / `afk_warning`)
+- src/Core/Constants.php (diff — `gameAfkStrikeWindowSeconds()`; removed dead flat-30 helpers)
+- src/Game/ReconnectService.php (diff — `tickGameAfk()` per-strike window lookup)
+- src/Game/GameService.php (diff — `sendYourTurn()` / packet `turn_seconds` per `auto_draws`)
+- tests/Manual/test_reconnect.php (diff — GROUP 4/4b/4c/5/6 boundary + `turn_seconds` assertions)
+- tests/Manual/test_timer_audit.php (diff — `LOTTO_GAME_AFK_STRIKE1/2/3` env override tests)
 
 Notes: `auto_draws` semantics unchanged (ADR-008). Client (`public/js/ui.js`) already uses
-server `turn_seconds` тАФ no hardcoded 30s dependency beyond falsy fallback.
+server `turn_seconds` — no hardcoded 30s dependency beyond falsy fallback.
 
 VERIFICATION:
-- `php tests/Manual/test_reconnect.php` тАФ **71/71 PASS** (strike 1тЙе30s, strike 2тЙе15s, strike 3тЙе5s boundaries; `turn_seconds` 30/15 in packets).
-- `php tests/Manual/test_timer_audit.php` тАФ **22/22 PASS**.
-- `php run_ALL_tests.php` тАФ **32/41** files pass (no new failures vs EPIC-15.1 sign-off).
+- `php tests/Manual/test_reconnect.php` — **71/71 PASS** (strike 1≥30s, strike 2≥15s, strike 3≥5s boundaries; `turn_seconds` 30/15 in packets).
+- `php tests/Manual/test_timer_audit.php` — **22/22 PASS**.
+- `php run_ALL_tests.php` — **32/41** files pass (no new failures vs EPIC-15.1 sign-off).
 
-## Phase 14 тАФ AFK Timer Audit Fixes
+## Phase 14 — AFK Timer Audit Fixes
 
 - [DONE] EPIC-14.9 GAME_RULES.md: align lobby AFK activity examples with allowlist
 Files:
-- docs/GAME_RULES.md (diff тАФ ┬з4 ┬л╨Т ╨╗╨╛╨▒╨▒╨╕┬╗: drop misleading ┬л╨Э╨░╤З╨░╤В╤М ╨╕╨│╤А╤Г┬╗ example;
+- docs/GAME_RULES.md (diff — §4 «В лобби»: drop misleading «Начать игру» example;
   list `room_list` / create / join / leave; note start_game ends waiting phase)
 
 Notes: Documentation-only polish. Matches EPIC-14.5 `$lobbyHostActivityActions` in
 server.php. No code or test changes.
 
 VERIFICATION:
-- Manual review against ANCHOR_CORE.md ┬з Lobby AFK Timer and ADR-010 тАФ consistent.
+- Manual review against ANCHOR_CORE.md § Lobby AFK Timer and ADR-010 — consistent.
 
 - [DONE] EPIC-14.8 Fix stale ADR-007 citations in lobby integration test comments
 Files:
-- tests/Manual/test_lobby_integration.php (diff тАФ SUITE 5 comments: ADR-007 тЖТ ADR-011)
+- tests/Manual/test_lobby_integration.php (diff — SUITE 5 comments: ADR-007 → ADR-011)
 
 Notes: Comment-only traceability cleanup (ADR-011 retroactive doc). No logic change.
-Grep confirmed no remaining incorrect ┬лADR-007┬╗ / ┬лA7 spec┬╗ citations outside
+Grep confirmed no remaining incorrect «ADR-007» / «A7 spec» citations outside
 legitimate ADR-007 subjects (`error.banned`, `afk_warning` protocol audit).
 
 VERIFICATION:
-- `php tests/Manual/test_lobby_integration.php` тАФ 133/133 PASS (unchanged logic).
+- `php tests/Manual/test_lobby_integration.php` — 133/133 PASS (unchanged logic).
 
 - [DONE] EPIC-14.6 Clear stale lobby joined message on leave room
 Files:
-- public/js/app.js (diff тАФ `resetToLobby()` clears `#lobby-message`)
+- public/js/app.js (diff — `resetToLobby()` clears `#lobby-message`)
 
-Notes: Cosmetic UI fix only; unrelated to AFK timing logic. Stale ┬л╨Т╤Л ╨▓ ╨║╨╛╨╝╨╜╨░╤В╨╡
-#N┬╗ text persisted after `leave_room` because `onRoomJoined` set the message but
+Notes: Cosmetic UI fix only; unrelated to AFK timing logic. Stale «Вы в комнате
+#N» text persisted after `leave_room` because `onRoomJoined` set the message but
 `resetToLobby()` did not clear it.
 
 VERIFICATION:
-- Manual UI: leave room тЖТ `#lobby-message` empty; lobby timers unaffected.
-- `php tests/Manual/test_lobby_integration.php` тАФ 133/133 PASS (no test change).
-- `php run_ALL_tests.php` тАФ 30/41 test files PASS (11 pre-existing failures
+- Manual UI: leave room → `#lobby-message` empty; lobby timers unaffected.
+- `php tests/Manual/test_lobby_integration.php` — 133/133 PASS (no test change).
+- `php run_ALL_tests.php` — 30/41 test files PASS (11 pre-existing failures
   unrelated to this one-line client fix; same baseline as EPIC-14.1 sign-off).
 
 - [DONE] EPIC-14.5 Fix lobby AFK 120s display and turn passing after start_game
 Files:
-- server.php (diff тАФ `hello` packet gains `server_time`; `touchLobbyHostActivity`
+- server.php (diff — `hello` packet gains `server_time`; `touchLobbyHostActivity`
   restricted to waiting-room lobby-action allowlist: `room_list`, `create_room`,
-  `join_room`, `leave_room` тАФ excludes `start_game` and all in-game/admin actions)
-- public/js/app.js (diff тАФ server clock skew from `hello`; `onHostChanged` ignored
+  `join_room`, `leave_room` — excludes `start_game` and all in-game/admin actions)
+- public/js/app.js (diff — server clock skew from `hello`; `onHostChanged` ignored
   while `state.inGame`)
-- public/js/ui.js (diff тАФ `setServerClockSkew` / `serverNowSec()` for lobby and
+- public/js/ui.js (diff — `setServerClockSkew` / `serverNowSec()` for lobby and
   game AFK countdown displays)
-- src/Game/ReconnectService.php (diff тАФ `reconnect_state` `host_timeout_start`
+- src/Game/ReconnectService.php (diff — `reconnect_state` `host_timeout_start`
   sourced from `host_activity_at`, not stale `last_action`)
-- src/Lobby/LobbyService.php (diff тАФ `startLobbyAfkTimer()` refreshes
+- src/Lobby/LobbyService.php (diff — `startLobbyAfkTimer()` refreshes
   `host_activity_at` + broadcasts on arm; `touchLobbyHostActivity` broadcasts via
   `broadcastHostChanged` only)
-- tests/Manual/test_lobby_integration.php (diff тАФ SUITE 7: timer arm sets full
+- tests/Manual/test_lobby_integration.php (diff — SUITE 7: timer arm sets full
   120s window assertion)
 
 Notes: Closes residual EPIC-14.1 gap where `touchLobbyHostActivity` was wired
@@ -1176,112 +1176,112 @@ unconditionally for every action (including `start_game`), which re-broadcast
 lobby countdown to open at ~105s instead of 120s when client clock led server.
 
 VERIFICATION:
-- `php tests/Manual/test_lobby_integration.php` тАФ 133/133 PASS (includes SUITE 7
-  ┬лtimer arm sets full 120s window┬╗ + SUITE 8 ping-immunity from EPIC-14.1).
-- `php run_ALL_tests.php` тАФ 30/41 test files PASS (11 pre-existing failures on
+- `php tests/Manual/test_lobby_integration.php` — 133/133 PASS (includes SUITE 7
+  «timer arm sets full 120s window» + SUITE 8 ping-immunity from EPIC-14.1).
+- `php run_ALL_tests.php` — 30/41 test files PASS (11 pre-existing failures on
   Windows dev host: live WS subprocess tests, `sendJson` bootstrap gaps in some
-  apartment/admin manual tests тАФ unchanged from EPIC-14.1 baseline).
+  apartment/admin manual tests — unchanged from EPIC-14.1 baseline).
 
 - [DONE] EPIC-14.4 Update GAME_RULES.md AFK section to match per-turn model (ADR-008)
 Files:
-- docs/GAME_RULES.md (diff тАФ ┬з4 AFK: per-turn 30s threshold, cross-turn strike counting)
+- docs/GAME_RULES.md (diff — §4 AFK: per-turn 30s threshold, cross-turn strike counting)
 
-Notes: Documentation-only. Aligned with ANCHOR_CORE.md ┬з Game AFK Timer and ADR-008.
+Notes: Documentation-only. Aligned with ANCHOR_CORE.md § Game AFK Timer and ADR-008.
 
 VERIFICATION:
-- Manual review against ANCHOR_CORE.md ┬з Game AFK Timer тАФ wording consistent.
+- Manual review against ANCHOR_CORE.md § Game AFK Timer — wording consistent.
 
 - [DONE] EPIC-14.3 Cancel game_afk_timer immediately on apartment transition
 Files:
-- src/Game/ApartmentService.php (diff тАФ explicit game_afk_timer_id cancel in triggerApartment)
-- tests/Manual/test_apartment.php (diff тАФ GROUP 5b assertion; mock_timer bootstrap)
+- src/Game/ApartmentService.php (diff — explicit game_afk_timer_id cancel in triggerApartment)
+- tests/Manual/test_apartment.php (diff — GROUP 5b assertion; mock_timer bootstrap)
 
 Notes: Defensive self-stop in ReconnectService::tickGameAfk() retained.
 
 VERIFICATION:
-- `php tests/Manual/test_apartment.php` тАФ all PASS (including GROUP 5b)
+- `php tests/Manual/test_apartment.php` — all PASS (including GROUP 5b)
 
 - [DONE] EPIC-14.2 Lobby AFK: document forward-only rotation + queue exhaustion (ADR-011)
 Files:
-- docs/ADR/011.md (╨╜╨╛╨▓╤Л╨╣ тАФ retroactive ADR for host rotation + room destruction)
-- docs/ANCHOR_CORE.md (diff тАФ Room Destruction Rules 4th bullet; ADR-011 citation)
-- src/Lobby/LobbyService.php (diff тАФ comment/citation corrections only)
+- docs/ADR/011.md (новый — retroactive ADR for host rotation + room destruction)
+- docs/ANCHOR_CORE.md (diff — Room Destruction Rules 4th bullet; ADR-011 citation)
+- src/Lobby/LobbyService.php (diff — comment/citation corrections only)
 
 Notes: No runtime behavior change. Replaces incorrect ADR-007 / "A7 spec" citations.
 
 VERIFICATION:
-- `php tests/Manual/test_lobby_integration.php` тАФ 132/132 PASS (unmodified logic)
+- `php tests/Manual/test_lobby_integration.php` — 132/132 PASS (unmodified logic)
 
 - [DONE] EPIC-14.1 Lobby AFK timer: separate host_activity_at from ping keepalive
 Files:
-- docs/ADR/010.md (╨╜╨╛╨▓╤Л╨╣ тАФ host_activity_at Player Structure key)
-- docs/ANCHOR_CORE.md (diff тАФ Player Structure, Lobby AFK Timer, Naming Registry)
-- src/Lobby/LobbyService.php (diff тАФ host_activity_at, touchLobbyHostActivity, timer check)
-- server.php (diff тАФ ping no longer syncs lobby AFK; touchLobbyHostActivity on real actions)
-- tests/Manual/test_lobby_integration.php (diff тАФ SUITE 8 ping-immunity regression)
+- docs/ADR/010.md (новый — host_activity_at Player Structure key)
+- docs/ANCHOR_CORE.md (diff — Player Structure, Lobby AFK Timer, Naming Registry)
+- src/Lobby/LobbyService.php (diff — host_activity_at, touchLobbyHostActivity, timer check)
+- server.php (diff — ping no longer syncs lobby AFK; touchLobbyHostActivity on real actions)
+- tests/Manual/test_lobby_integration.php (diff — SUITE 8 ping-immunity regression)
 
 Notes: `ping` still updates `last_action` for connection liveness; lobby AFK reads
 `host_activity_at` only (ADR-010). Game AFK unchanged.
 
 VERIFICATION:
-- `php tests/Manual/test_lobby_integration.php` тАФ all PASS (including SUITE 8)
-- `php run_ALL_tests.php` тАФ 0 failures
+- `php tests/Manual/test_lobby_integration.php` — all PASS (including SUITE 8)
+- `php run_ALL_tests.php` — 0 failures
 
 ---
 
-## Phase 13 тАФ Game AFK Wiring & Orphaned-Method Fixes
+## Phase 13 — Game AFK Wiring & Orphaned-Method Fixes
 
 - [DONE] EPIC-13.0 ADR: Game AFK timer wiring decision
 Files:
-- docs/AUDIT_ORPHANED_METHODS_2026-07-28.md (╨╜╨╛╨▓╤Л╨╣ тАФ archived audit report)
-- docs/ADR/008.md (╨╜╨╛╨▓╤Л╨╣ тАФ startTurn + setter wiring decision)
-- docs/ROADMAP.md (diff тАФ Phase 13 added, skip note updated)
+- docs/AUDIT_ORPHANED_METHODS_2026-07-28.md (новый — archived audit report)
+- docs/ADR/008.md (новый — startTurn + setter wiring decision)
+- docs/ROADMAP.md (diff — Phase 13 added, skip note updated)
 
-Decision: ADR-008 option (c) тАФ `GameService::startTurn()` atomically sends
+Decision: ADR-008 option (c) — `GameService::startTurn()` atomically sends
 `your_turn` and arms AFK timer via post-construction `setReconnectService()`.
 
 - [DONE] EPIC-13.1 Wire first-turn your_turn + AFK arm into handleStartGame()
 Files:
-- src/Game/GameService.php (diff тАФ startTurn, setReconnectService, handleStartGame)
-- server.php (diff тАФ setReconnectService wiring)
+- src/Game/GameService.php (diff — startTurn, setReconnectService, handleStartGame)
+- server.php (diff — setReconnectService wiring)
 
-Verification: `php tests/Manual/test_game_start.php` тАФ 46/46 PASS (Group 7 lines
-401тАУ402 updated; Group 10 afk_start assertion updated for drawer).
+Verification: `php tests/Manual/test_game_start.php` — 46/46 PASS (Group 7 lines
+401–402 updated; Group 10 afk_start assertion updated for drawer).
 
 - [DONE] EPIC-13.2 Wire AFK arm into handleDrawBarrel() turn rotation
 Files:
-- src/Game/GameService.php (diff тАФ handleDrawBarrel uses startTurn)
+- src/Game/GameService.php (diff — handleDrawBarrel uses startTurn)
 
-Verification: `php tests/Manual/test_turn_system.php` тАФ 38/38 PASS. Group 4
+Verification: `php tests/Manual/test_turn_system.php` — 38/38 PASS. Group 4
 flagged for EPIC-13.4: added afk_start assertion on next drawer.
 
 - [DONE] EPIC-13.3 Wire AFK arm into drawer-replacement paths
 Files:
-- src/Game/ReconnectService.php (diff тАФ removePlayerFromGame uses startTurn)
-- src/Game/ApartmentService.php (diff тАФ finishApartment uses startTurn)
+- src/Game/ReconnectService.php (diff — removePlayerFromGame uses startTurn)
+- src/Game/ApartmentService.php (diff — finishApartment uses startTurn)
 
 Verification: `php tests/Manual/test_reconnect.php` 20/20, `test_apartment.php` 32/32.
 
 - [DONE] EPIC-13.4 Test corrections + turn-start integration test
 Files:
-- tests/Manual/test_game_start.php (diff тАФ Group 7/10 assertions)
-- tests/Manual/test_turn_system.php (diff тАФ Group 4 afk_start)
-- tests/Manual/test_game_packet_routing.php (diff тАФ TEST 2 your_turn)
-- tests/Manual/test_phase11_core_flows.php (diff тАФ your_turn assertion)
-- tests/Manual/test_game_start_turn_integration.php (╨╜╨╛╨▓╤Л╨╣ тАФ 7/7 PASS)
-- tests/Manual/test_admin_ban.php (diff тАФ MockApartmentService stub)
+- tests/Manual/test_game_start.php (diff — Group 7/10 assertions)
+- tests/Manual/test_turn_system.php (diff — Group 4 afk_start)
+- tests/Manual/test_game_packet_routing.php (diff — TEST 2 your_turn)
+- tests/Manual/test_phase11_core_flows.php (diff — your_turn assertion)
+- tests/Manual/test_game_start_turn_integration.php (новый — 7/7 PASS)
+- tests/Manual/test_admin_ban.php (diff — MockApartmentService stub)
 
-Verification: `php run_ALL_tests.php` тАФ 41/41 test files PASS (local Windows
+Verification: `php run_ALL_tests.php` — 41/41 test files PASS (local Windows
 dev host, 2026-07-28). VPS `./run_ALL_tests.sh` initially failed with FIX-16
-(8 live WS subprocess tests тАФ server.php fatal on missing bootstrap helper);
-re-verify on VPS after `0de46d0` тАФ see FIX-16.
+(8 live WS subprocess tests — server.php fatal on missing bootstrap helper);
+re-verify on VPS after `0de46d0` — see FIX-16.
 
 - [DONE] EPIC-13.5 Apartment early-finish check on kick/ban removal
 Files:
-- src/Game/ApartmentService.php (diff тАФ bindGameService, maybeFinishApartmentEarly)
-- src/Admin/AdminService.php (diff тАФ kick/ban apartment paths)
-- server.php (diff тАФ bindGameService)
-- tests/Manual/test_admin_kick.php (diff тАФ TEST 9 early-finish scenario)
+- src/Game/ApartmentService.php (diff — bindGameService, maybeFinishApartmentEarly)
+- src/Admin/AdminService.php (diff — kick/ban apartment paths)
+- server.php (diff — bindGameService)
+- tests/Manual/test_admin_kick.php (diff — TEST 9 early-finish scenario)
 
 Verification: test_admin_kick TEST 9 PASS; test_apartment 32/32.
 
@@ -1289,40 +1289,40 @@ Verification: test_admin_kick TEST 9 PASS; test_apartment 32/32.
 Finding: **Frontend does NOT self-activate draw button from reconnect_state.**
 `onReconnectState` (playing) calls `UI().setDrawButton(false, false)` and
 `reconnect_state` carries no active-drawer field. Reconnecting drawer needs
-separate `your_turn` resend or protocol extension тАФ deferred to follow-up Epic.
+separate `your_turn` resend or protocol extension — deferred to follow-up Epic.
 
 - [DONE] EPIC-13.7 Cleanup: RoomManager::findRoomIdByUserId()
-Decision: **(b) intentionally-retained utility** тАФ docblock updated; no
+Decision: **(b) intentionally-retained utility** — docblock updated; no
 production consumer planned; test coverage in test_lobby_integration.php kept.
 
-**Process deviation (Rule 16 тАФ Git Checkpoint Rule):** Phase 13 commits on
+**Process deviation (Rule 16 — Git Checkpoint Rule):** Phase 13 commits on
 branch `cursor/epic-11-1-vps-ws-test-isolation` did not strictly follow the
 one-Epic-one-commit convention. EPIC-13.3 appears in **two** commit messages:
-`8cd1434` (`EPIC-13.3 wire-afk-drawer-replacement` тАФ ReconnectService only)
+`8cd1434` (`EPIC-13.3 wire-afk-drawer-replacement` — ReconnectService only)
 and `f4cf0f4` (`EPIC-13.2-13.3 wire-afk-turn-rotation-and-apartment-resume`
-тАФ ApartmentService `finishApartment`). EPIC-13.2 landed inside `b203493`
+— ApartmentService `finishApartment`). EPIC-13.2 landed inside `b203493`
 (`EPIC-13.1 start-game-first-turn`) because `handleDrawBarrel()` and
 `handleStartGame()` share `GameService.php` in a single diff. All epics are
 implemented and verified; numbering in commit messages is authoritative for
-audit only тАФ see DECISION LOG 2026-07-28.
+audit only — see DECISION LOG 2026-07-28.
 
 ---
 
-- [IN PROGRESS] EPIC-11.6 Load testing (Phase 11 тАФ instrumentation complete 2026-07-27; VPS load runs pending)
+- [IN PROGRESS] EPIC-11.6 Load testing (Phase 11 — instrumentation complete 2026-07-27; VPS load runs pending)
 Files:
-- src/Core/LoadAudit.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ opt-in handler latency + snapshots тЖТ logs/load_audit.log)
-- server.php (diff тАФ LoadAudit wiring, onMessage latency recording, periodic snapshots)
-- scripts/load_test_runner.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ ramp/steady/storm/long VPS scenarios)
-- scripts/analyze_load_log.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ p95/CPU/memory acceptance validator)
-- tests/Manual/test_load_audit.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ 30 mock regression tests)
-- docs/PHASE_11_REPORT.md (diff тАФ EPIC-11.6 section updated)
+- src/Core/LoadAudit.php (новый файл — opt-in handler latency + snapshots → logs/load_audit.log)
+- server.php (diff — LoadAudit wiring, onMessage latency recording, periodic snapshots)
+- scripts/load_test_runner.php (новый файл — ramp/steady/storm/long VPS scenarios)
+- scripts/analyze_load_log.php (новый файл — p95/CPU/memory acceptance validator)
+- tests/Manual/test_load_audit.php (новый файл — 30 mock regression tests)
+- docs/PHASE_11_REPORT.md (diff — EPIC-11.6 section updated)
 
 Implemented:
 - LoadAudit utility: LOTTO_LOAD_AUDIT=1 logs per-action handler latency_ms and
   periodic snapshots (mem, connections, rooms) for EPIC-11.6 targets.
 - load_test_runner.php: four scenarios (ramp, steady, storm, long) with
-  realistic register/room/game flows; client RTT тЖТ logs/load_client.log;
-  CPU/memory sampling тЖТ logs/load_resource.log.
+  realistic register/room/game flows; client RTT → logs/load_client.log;
+  CPU/memory sampling → logs/load_resource.log.
 - analyze_load_log.php: validates p95 < 100ms (register/login/draw_barrel),
   peak memory < 450 MB, peak CPU < 80%.
 - test_load_audit.php: utility, percentile math, client/resource log parsing.
@@ -1338,17 +1338,17 @@ Remaining: Run load scenarios on Ubuntu VPS (1 CPU / 512 MB target):
   php scripts/load_test_runner.php --scenario=storm
   php scripts/load_test_runner.php --scenario=long --duration=3600
 
-Next in Phase 11: Complete EPIC-11.1тАУ11.6 VPS sign-off runs per docs/PHASE_11_REPORT.md.
+Next in Phase 11: Complete EPIC-11.1–11.6 VPS sign-off runs per docs/PHASE_11_REPORT.md.
 
-- [IN PROGRESS] EPIC-11.5 Protocol audit (Phase 11 тАФ instrumentation complete 2026-07-27; VPS live replay pending)
+- [IN PROGRESS] EPIC-11.5 Protocol audit (Phase 11 — instrumentation complete 2026-07-27; VPS live replay pending)
 Files:
-- docs/ANCHOR_CORE.md (diff тАФ afk_warning added to packet registry)
-- docs/ANCHOR_PROTOCOL.md (diff тАФ afk_warning packet spec, error.banned note)
-- docs/ADR/007.md (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ documentation alignment decisions)
-- tests/Manual/test_protocol_audit.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ 7 live WS acceptance tests)
-- scripts/ws_emulator.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ CLI client emulator + replay)
-- tests/Manual/test_protocol_completeness.php (diff тАФ afk_warning gap closed)
-- docs/PHASE_11_REPORT.md (diff тАФ EPIC-11.5 section updated)
+- docs/ANCHOR_CORE.md (diff — afk_warning added to packet registry)
+- docs/ANCHOR_PROTOCOL.md (diff — afk_warning packet spec, error.banned note)
+- docs/ADR/007.md (новый файл — documentation alignment decisions)
+- tests/Manual/test_protocol_audit.php (новый файл — 7 live WS acceptance tests)
+- scripts/ws_emulator.php (новый файл — CLI client emulator + replay)
+- tests/Manual/test_protocol_completeness.php (diff — afk_warning gap closed)
+- docs/PHASE_11_REPORT.md (diff — EPIC-11.5 section updated)
 
 Implemented:
 - afk_warning registered in ANCHOR_CORE.md and documented in ANCHOR_PROTOCOL.md
@@ -1360,33 +1360,33 @@ Implemented:
 - ws_emulator.php: --send, --replay (.jsonl), --interactive modes for
   protocol replay and manual audit.
 - test_protocol_completeness.php: 50/50 PASS, 2 warnings (admin_stats_data,
-  error.banned reserved тАФ both documented KNOWN GAPS).
+  error.banned reserved — both documented KNOWN GAPS).
 
 Verification (Windows dev host):
 - test_protocol_completeness.php: 50/50 PASS, 2 warnings (expected)
 - test_protocol_audit.php: requires Linux/VPS (live Workerman subprocess)
-- Full suite: php run_ALL_tests.php тАФ 29/29 test files passed (Windows;
+- Full suite: php run_ALL_tests.php — 29/29 test files passed (Windows;
   9 live-server tests skipped)
 
 Remaining: Run test_protocol_audit.php on Ubuntu VPS; use ws_emulator.php
 for session replay during live-game protocol sign-off.
 
-- [IN PROGRESS] EPIC-11.4 State machine audit (Phase 11 тАФ instrumentation complete 2026-07-27; VPS live-game run pending)
+- [IN PROGRESS] EPIC-11.4 State machine audit (Phase 11 — instrumentation complete 2026-07-27; VPS live-game run pending)
 Files:
-- src/Core/StateMachineAudit.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ opt-in state transition logging тЖТ logs/state_machine_audit.log)
-- src/Core/Helpers.php (diff тАФ lottoStateTransition/lottoStateReject/lottoPlayerStateTransition)
-- server.php (diff тАФ StateMachineAudit wiring)
+- src/Core/StateMachineAudit.php (новый файл — opt-in state transition logging → logs/state_machine_audit.log)
+- src/Core/Helpers.php (diff — lottoStateTransition/lottoStateReject/lottoPlayerStateTransition)
+- server.php (diff — StateMachineAudit wiring)
 - src/Core/RoomManager.php, src/Game/GameService.php, src/Game/GameFinishService.php,
   src/Game/ApartmentService.php, src/Game/ReconnectService.php, src/Lobby/LobbyService.php,
-  src/Admin/AdminService.php (diff тАФ transition/rejection hooks)
-- tests/Manual/test_state_machine_audit.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ 29 mock regression tests)
-- scripts/analyze_state_machine_log.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ log replay + transition validation)
-- docs/PHASE_11_REPORT.md (diff тАФ EPIC-11.4 section updated)
+  src/Admin/AdminService.php (diff — transition/rejection hooks)
+- tests/Manual/test_state_machine_audit.php (новый файл — 29 mock regression tests)
+- scripts/analyze_state_machine_log.php (новый файл — log replay + transition validation)
+- docs/PHASE_11_REPORT.md (diff — EPIC-11.4 section updated)
 
 Implemented:
 - StateMachineAudit utility: LOTTO_STATE_AUDIT=1 logs room transitions, player
   transitions, and rejected actions per ANCHOR_CORE.md Part 4.
-- Transition graph encoded: waitingтЖТplayingтЖТapartmentтЖТplayingтЖТfinishedтЖТdestroyed.
+- Transition graph encoded: waiting→playing→apartment→playing→finished→destroyed.
 - Instrumentation at all status mutation sites + key rejection guards.
 - test_state_machine_audit.php: utility, valid/invalid transitions, apartment
   cycle, apartment timeout, host disconnect/reconnect, join_room guard.
@@ -1394,7 +1394,7 @@ Implemented:
 
 Verification (Windows dev host):
 - test_state_machine_audit.php: 29/29 PASS
-- Full suite: php run_ALL_tests.php тАФ 28/28 test files passed
+- Full suite: php run_ALL_tests.php — 28/28 test files passed
 - Existing state tests unchanged: test_phase11_core_flows.php (17/17),
   test_apartment.php (32/32), test_reconnect.php (20/20)
 
@@ -1404,17 +1404,17 @@ run analyze_state_machine_log.php after sessions for full sign-off.
 Next in Phase 11: EPIC-11.5 Protocol audit, then 11.6 per
 docs/prompt phase 11 detail.md and docs/PHASE_11_REPORT.md.
 
-- [IN PROGRESS] EPIC-11.3 Economy audit (Phase 11 тАФ instrumentation complete 2026-07-27; VPS live-game run pending)
+- [IN PROGRESS] EPIC-11.3 Economy audit (Phase 11 — instrumentation complete 2026-07-27; VPS live-game run pending)
 Files:
-- src/Core/EconomyAudit.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ opt-in financial event logging тЖТ logs/economy_audit.log)
-- src/Core/Helpers.php (diff тАФ lottoEconomyRecord() helper)
-- server.php (diff тАФ EconomyAudit wiring)
+- src/Core/EconomyAudit.php (новый файл — opt-in financial event logging → logs/economy_audit.log)
+- src/Core/Helpers.php (diff — lottoEconomyRecord() helper)
+- server.php (diff — EconomyAudit wiring)
 - src/Game/GameService.php, src/Game/GameFinishService.php, src/Game/ApartmentService.php,
-  src/Admin/AdminService.php (diff тАФ audit hooks on stake/prize/burn/apartment/refund)
-- tests/Manual/test_economy_audit.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ 32 mock regression tests)
-- scripts/economy_integrity_runner.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ multi-scenario conservation check)
-- scripts/analyze_economy_log.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ log replay + duplicate tx_id check)
-- docs/PHASE_11_REPORT.md (diff тАФ EPIC-11.3 section updated)
+  src/Admin/AdminService.php (diff — audit hooks on stake/prize/burn/apartment/refund)
+- tests/Manual/test_economy_audit.php (новый файл — 32 mock regression tests)
+- scripts/economy_integrity_runner.php (новый файл — multi-scenario conservation check)
+- scripts/analyze_economy_log.php (новый файл — log replay + duplicate tx_id check)
+- docs/PHASE_11_REPORT.md (diff — EPIC-11.3 section updated)
 
 Implemented:
 - EconomyAudit utility: LOTTO_ECONOMY_AUDIT=1 logs stake/prize/apartment/refund/burn
@@ -1423,7 +1423,7 @@ Implemented:
   apartment payments, admin kick/close refunds, no-survivors refunds.
 - Conservation invariant: sum(user coins) + room banks + burned = initial total.
 - test_economy_audit.php: utility, replay, VictoryService math, GameFinishService integration.
-- economy_integrity_runner.php: 4-scenario chain (stake тЖТ prize/burn тЖТ apartment тЖТ refund).
+- economy_integrity_runner.php: 4-scenario chain (stake → prize/burn → apartment → refund).
 - analyze_economy_log.php: parse log, optional --initial replay verification.
 
 Verification (Windows dev host):
@@ -1438,21 +1438,21 @@ run analyze_economy_log.php with --initial balances for full sign-off.
 Next in Phase 11: EPIC-11.5 Protocol audit, then 11.6 per
 docs/prompt phase 11 detail.md and docs/PHASE_11_REPORT.md.
 
-- [IN PROGRESS] EPIC-11.2 Timer audit (Phase 11 тАФ instrumentation complete 2026-07-27; VPS accelerated run pending)
+- [IN PROGRESS] EPIC-11.2 Timer audit (Phase 11 — instrumentation complete 2026-07-27; VPS accelerated run pending)
 Files:
-- src/Core/TimerAudit.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ opt-in timer lifecycle logging тЖТ logs/timer_audit.log)
-- src/Core/Constants.php (diff тАФ env-resolved timeout accessors + AFK/APARTMENT constants)
-- src/Core/Helpers.php (diff тАФ lottoTimerAdd/lottoTimerDel wrappers with audit hooks)
-- server.php (diff тАФ TimerAudit wiring, watchdog uses env-resolved timeouts)
+- src/Core/TimerAudit.php (новый файл — opt-in timer lifecycle logging → logs/timer_audit.log)
+- src/Core/Constants.php (diff — env-resolved timeout accessors + AFK/APARTMENT constants)
+- src/Core/Helpers.php (diff — lottoTimerAdd/lottoTimerDel wrappers with audit hooks)
+- server.php (diff — TimerAudit wiring, watchdog uses env-resolved timeouts)
 - src/Lobby/LobbyService.php, src/Game/ReconnectService.php, src/Game/ApartmentService.php,
   src/Game/GameService.php, src/Game/GameFinishService.php, src/Core/RoomManager.php
-  (diff тАФ all Timer::add/del migrated to lottoTimer* wrappers)
-- tests/Manual/test_timer_audit.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ 20 mock regression tests)
-- tests/Manual/mock_timer.php (diff тАФ fire()/fireAll() for accelerated mock tests)
-- scripts/timer_accelerated_runner.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ VPS accelerated timer scenarios)
-- scripts/analyze_timer_log.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ drift ┬▒200ms + orphan check)
-- tests/Manual/ws_test_harness.php (diff тАФ LOTTO_TIMER_AUDIT_LOG isolation)
-- docs/PHASE_11_REPORT.md (diff тАФ EPIC-11.2 section updated)
+  (diff — all Timer::add/del migrated to lottoTimer* wrappers)
+- tests/Manual/test_timer_audit.php (новый файл — 20 mock regression tests)
+- tests/Manual/mock_timer.php (diff — fire()/fireAll() for accelerated mock tests)
+- scripts/timer_accelerated_runner.php (новый файл — VPS accelerated timer scenarios)
+- scripts/analyze_timer_log.php (новый файл — drift ±200ms + orphan check)
+- tests/Manual/ws_test_harness.php (diff — LOTTO_TIMER_AUDIT_LOG isolation)
+- docs/PHASE_11_REPORT.md (diff — EPIC-11.2 section updated)
 
 Implemented:
 - TimerAudit utility: LOTTO_TIMER_AUDIT=1 logs add/del/fire with microsecond timestamps.
@@ -1464,12 +1464,12 @@ Implemented:
 - test_timer_audit.php: TimerAudit utility, env overrides, RoomManager cleanup,
   reconnect schedule/cancel, lobby AFK start/stop, single-shot fire semantics.
 - VPS tooling: timer_accelerated_runner.php (5s reconnect default) +
-  analyze_timer_log.php (acceptance: no orphans, drift тЙд200ms).
+  analyze_timer_log.php (acceptance: no orphans, drift ≤200ms).
 
 Verification (Windows dev host):
 - test_timer_audit.php: 20/20 PASS
 - test_timer_integrity.php: 5/5 PASS (FIX-6 regression, unchanged)
-- Full suite: php run_ALL_tests.php тАФ 26/26 test files passed
+- Full suite: php run_ALL_tests.php — 26/26 test files passed
 
 Remaining: Run timer_accelerated_runner.php on Ubuntu VPS for live drift
 acceptance sign-off per EPIC-11.2 acceptance criteria.
@@ -1477,15 +1477,15 @@ acceptance sign-off per EPIC-11.2 acceptance criteria.
 Next in Phase 11: EPIC-11.5 Protocol audit, then 11.6 per
 docs/prompt phase 11 detail.md and docs/PHASE_11_REPORT.md.
 
-- [IN PROGRESS] EPIC-11.1 Memory audit (Phase 11 тАФ instrumentation complete 2026-07-27; VPS 6h run pending)
+- [IN PROGRESS] EPIC-11.1 Memory audit (Phase 11 — instrumentation complete 2026-07-27; VPS 6h run pending)
 Files:
-- src/Core/MemoryAudit.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ opt-in memory snapshots тЖТ logs/memory_audit.log)
-- server.php (diff тАФ worker_start/connection/packet/periodic snapshots)
-- src/Core/RoomManager.php (diff тАФ room_created/room_destroyed snapshots)
-- tests/Manual/test_memory_audit.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ mock regression: map cleanup, bounded growth)
-- scripts/memory_stability_runner.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ 6-hour VPS load test, Linux only)
-- scripts/analyze_memory_log.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ validates тЙд120% baseline threshold)
-- docs/PHASE_11_REPORT.md (diff тАФ EPIC-11.1 section updated)
+- src/Core/MemoryAudit.php (новый файл — opt-in memory snapshots → logs/memory_audit.log)
+- server.php (diff — worker_start/connection/packet/periodic snapshots)
+- src/Core/RoomManager.php (diff — room_created/room_destroyed snapshots)
+- tests/Manual/test_memory_audit.php (новый файл — mock regression: map cleanup, bounded growth)
+- scripts/memory_stability_runner.php (новый файл — 6-hour VPS load test, Linux only)
+- scripts/analyze_memory_log.php (новый файл — validates ≤120% baseline threshold)
+- docs/PHASE_11_REPORT.md (diff — EPIC-11.1 section updated)
 
 Implemented:
 - MemoryAudit utility: LOTTO_MEMORY_AUDIT=1 enables structured snapshots;
@@ -1501,7 +1501,7 @@ Implemented:
 - test_memory_audit.php: map cleanup, timer orphan check, 50-cycle
   create/destroy bounded-growth test, log file write verification.
 - VPS tooling: memory_stability_runner.php (6h default) +
-  analyze_memory_log.php (acceptance: memory тЙд120% baseline).
+  analyze_memory_log.php (acceptance: memory ≤120% baseline).
 
 Verification (Windows dev host):
 - test_memory_audit.php: all groups PASS
@@ -1511,7 +1511,7 @@ Remaining: Run memory_stability_runner.php on Ubuntu VPS for 6-hour
 acceptance sign-off per EPIC-11.1 acceptance criteria.
 
 FIX-14 (VPS test isolation, 2026-07-27): Live WS tests now use port 18080
-and temp-dir logs via tests/Manual/ws_test_harness.php тАФ no collision with
+and temp-dir logs via tests/Manual/ws_test_harness.php — no collision with
 production lotto-server.service on 8080, no writes to root-owned logs/.
 test_helpers_runner.php scenario 4 no longer writes to production server.log.
 test_logger.php removed (superseded by FIX-12). server.php accepts
@@ -1524,227 +1524,227 @@ docs/prompt phase 11 detail.md and docs/PHASE_11_REPORT.md.
 <<<<<<< HEAD
 - [DONE] EPIC-11.0 Full integration testing (Phase 11 audit, 2026-07-27)
 =======
-- [DONE] EPIC-11.0 Full integration testing (Phase 11 audit тАФ 2026-07-27)
+- [DONE] EPIC-11.0 Full integration testing (Phase 11 audit — 2026-07-27)
 >>>>>>> cursor/epic-11-1-vps-ws-test-isolation
 Files:
-- tests/Manual/test_admin_ban.php (diff тАФ FIX-11 MockConnection::close())
-- tests/Manual/test_admin_integration.php (diff тАФ FIX-11 SpyConnection::close())
-- tests/Manual/test_phase11_core_flows.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ chained authтЖТlobbyтЖТgame flows)
-- run_ALL_tests.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ cross-platform runner, SQLite on Windows)
-- docs/PHASE_11_REPORT.md (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ consolidated Phase 11 audit report)
+- tests/Manual/test_admin_ban.php (diff — FIX-11 MockConnection::close())
+- tests/Manual/test_admin_integration.php (diff — FIX-11 SpyConnection::close())
+- tests/Manual/test_phase11_core_flows.php (новый файл — chained auth→lobby→game flows)
+- run_ALL_tests.php (новый файл — cross-platform runner, SQLite on Windows)
+- docs/PHASE_11_REPORT.md (новый файл — consolidated Phase 11 audit report)
 
-тЪая╕П CORRECTION (2026-07-27, post-VPS regression): ╨┐╤А╨╡╨┤╤Л╨┤╤Г╤Й╨░╤П ╨▓╨╡╤А╤Б╨╕╤П ╤Н╤В╨╛╨╣
-╨╖╨░╨┐╨╕╤Б╨╕ ╨╛╤И╨╕╨▒╨╛╤З╨╜╨╛ ╤Г╤В╨▓╨╡╤А╨╢╨┤╨░╨╗╨░, ╤З╤В╨╛ `server.php` ╨▒╤Л╨╗ ╨╕╨╖╨╝╨╡╨╜╤С╨╜ ╨▓ ╤А╨░╨╝╨║╨░╤Е ╨┤╨░╨╜╨╜╨╛╨│╨╛
-Epic ╨┤╨╗╤П ╤Г╤Б╤В╤А╨░╨╜╨╡╨╜╨╕╤П "╨║╤А╨╕╤В╨╕╤З╨╡╤Б╨║╨╛╨│╨╛ ╨┐╤А╨╛╨▒╨╡╨╗╨░ P11-001" (admin_* wiring
-╤П╨║╨╛╨▒╤Л ╨╛╤В╤Б╤Г╤В╤Б╤В╨▓╨╛╨▓╨░╨╗). ╨н╤В╨╛ ╨▒╤Л╨╗╨╛ ╨╗╨╛╨╢╨╜╤Л╨╝ ╤Б╤А╨░╨▒╨░╤В╤Л╨▓╨░╨╜╨╕╨╡╨╝, ╨┐╨╛╨╗╤Г╤З╨╡╨╜╨╜╤Л╨╝ ╨╜╨░
-Windows-╨╛╨║╤А╤Г╨╢╨╡╨╜╨╕╨╕ ╤Б ╨╜╨╡╤Б╨╕╨╜╤Е╤А╨╛╨╜╨╕╨╖╨╕╤А╨╛╨▓╨░╨╜╨╜╨╛╨╣ ╨╗╨╛╨║╨░╨╗╤М╨╜╨╛╨╣ ╨║╨╛╨┐╨╕╨╡╨╣: ╤А╨╡╨░╨╗╤М╨╜╤Л╨╣
-`server.php` ╤Г╨╢╨╡ ╤Б╨╛╨┤╨╡╤А╨╢╨░╨╗ ╨┐╨╛╨╗╨╜╤Л╨╣ admin-╤А╨╛╤Г╤В╨╕╨╜╨│ ╤Б 2026-07-25
-(commit 5ad67d5, EPIC-10.6). ╨Ф╨╕╤Д ╨║╨╛╨╝╨╝╨╕╤В╨░ 6efede1 (git show --stat)
-╨┐╨╛╨┤╤В╨▓╨╡╤А╨╢╨┤╨░╨╡╤В, ╤З╤В╨╛ `server.php` ╨▓ ╨╜╤С╨╝ ╨Э╨Х ╨╝╨╡╨╜╤П╨╗╤Б╤П. Rule 22 (Test
-Philosophy) ╤В╤А╨╡╨▒╤Г╨╡╤В, ╤З╤В╨╛╨▒╤Л ╨║╨░╨╢╨┤╤Л╨╣ ╤Д╨╕╨║╤Б ╨▒╤Л╨╗ ╨┐╨╛╨┤╤В╨▓╨╡╤А╨╢╨┤╤С╨╜ ╨║╨░╨║
-non-false-positive ╨┤╨╛ ╨╖╨░╨╜╨╡╤Б╨╡╨╜╨╕╤П ╨▓ ╤Б╤В╨░╤В╤Г╤Б; ╨┤╨╗╤П P11-001 ╤Н╤В╨╛ ╨┐╤А╨░╨▓╨╕╨╗╨╛ ╨▒╤Л╨╗╨╛
-╨╜╨░╤А╤Г╤И╨╡╨╜╨╛. ╨Ч╨░╨┐╨╕╤Б╤М ╨╕╤Б╨┐╤А╨░╨▓╨╗╨╡╨╜╨░ ╨╖╨░╨┤╨╜╨╕╨╝ ╤З╨╕╤Б╨╗╨╛╨╝; ╤Б╨░╨╝ ╨║╨╛╨┤ admin-╤А╨╛╤Г╤В╨╕╨╜╨│╨░
-╨┐╨╛╨┤╤В╨▓╨╡╤А╨╢╨┤╤С╨╜ ╤А╨░╨▒╨╛╤З╨╕╨╝ (╤Б╨╝. Verification ╨╜╨╕╨╢╨╡) тАФ ╤А╨╡╨│╤А╨╡╤Б╤Б╨╕╨╕ ╨┐╨╛ ╤Б╤Г╤Й╨╡╤Б╤В╨▓╤Г ╨╜╨╡╤В,
-╨╛╤И╨╕╨▒╨╛╤З╨╜╨╛╨╣ ╨▒╤Л╨╗╨░ ╤В╨╛╨╗╤М╨║╨╛ ╨░╤В╤А╨╕╨▒╤Г╤Ж╨╕╤П ╨╕╨╖╨╝╨╡╨╜╨╡╨╜╨╕╤П.
+⚠️ CORRECTION (2026-07-27, post-VPS regression): предыдущая версия этой
+записи ошибочно утверждала, что `server.php` был изменён в рамках данного
+Epic для устранения "критического пробела P11-001" (admin_* wiring
+якобы отсутствовал). Это было ложным срабатыванием, полученным на
+Windows-окружении с несинхронизированной локальной копией: реальный
+`server.php` уже содержал полный admin-роутинг с 2026-07-25
+(commit 5ad67d5, EPIC-10.6). Диф коммита 6efede1 (git show --stat)
+подтверждает, что `server.php` в нём НЕ менялся. Rule 22 (Test
+Philosophy) требует, чтобы каждый фикс был подтверждён как
+non-false-positive до занесения в статус; для P11-001 это правило было
+нарушено. Запись исправлена задним числом; сам код admin-роутинга
+подтверждён рабочим (см. Verification ниже) — регрессии по существу нет,
+ошибочной была только атрибуция изменения.
 
 Implemented:
-- FIX-11 mock close() ╨▓╨╛╤Б╤Б╤В╨░╨╜╨╛╨▓╨╗╨╡╨╜ ╨▓ test_admin_ban.php ╨╕
-  test_admin_integration.php (AdminService::handleBanUser() ╨╖╨░╨║╤А╤Л╨▓╨░╨╡╤В
-  ╨╛╨╜╨╗╨░╨╣╨╜-╤Ж╨╡╨╗╤М тАФ ╨▒╨╡╨╖ close() ╤В╨╡╤Б╤В╤Л ╨┐╨░╨┤╨░╨╗╨╕ Fatal error).
-- ╨Э╨╛╨▓╤Л╨╣ test_phase11_core_flows.php: registerтЖТloginтЖТcreate_roomтЖТjoin_roomтЖТ
-  start_game, invalid state transitions, rate-limit constants тАФ 17/17 PASSED.
-- docs/PHASE_11_REPORT.md: ╨┐╨╡╤А╨▓╤Л╨╣ consolidated ╨╛╤В╤З╤С╤В Phase 11 (╤В╤А╨╡╨▒╤Г╨╡╤В
-  ╤Б╨▓╨╡╤А╨║╨╕ ╤Б CORRECTION ╨▓╤Л╤И╨╡ ╨▓ ╤З╨░╤Б╤В╨╕ P11-001).
+- FIX-11 mock close() восстановлен в test_admin_ban.php и
+  test_admin_integration.php (AdminService::handleBanUser() закрывает
+  онлайн-цель — без close() тесты падали Fatal error).
+- Новый test_phase11_core_flows.php: register→login→create_room→join_room→
+  start_game, invalid state transitions, rate-limit constants — 17/17 PASSED.
+- docs/PHASE_11_REPORT.md: первый consolidated отчёт Phase 11 (требует
+  сверки с CORRECTION выше в части P11-001).
 
 Verification:
-- ╨Я╤А╨╡╨┤╨▓╨░╤А╨╕╤В╨╡╨╗╤М╨╜╨╛ (Windows dev host, php run_ALL_tests.php): 25/25
+- Предварительно (Windows dev host, php run_ALL_tests.php): 25/25
   runnable test files PASSED, 8 live-WS subprocess tests SKIP
-  (Workerman ╤В╤А╨╡╨▒╤Г╨╡╤В Linux).
-- ╨Ю╨Ъ╨Ю╨Э╨з╨Р╨в╨Х╨Ы╨м╨Э╨Ю (Ubuntu VPS, root@box-918838:/opt/lotto-game,
-  php run_ALL_tests.php, 2026-07-27): ╨┐╨╛╨╗╨╜╤Л╨╣ ╤А╨╡╨│╤А╨╡╤Б╤Б ╨▓╤Б╨╡╤Е 31 ╤Д╨░╨╣╨╗╨╛╨▓ тАФ
-  **31/31 test files PASSED**, ╨▓╨║╨╗╤О╤З╨░╤П ╨▓╤Б╨╡ 8 ╤А╨░╨╜╨╡╨╡ ╨┐╤А╨╛╨┐╤Г╤Й╨╡╨╜╨╜╤Л╤Е live-WS
-  subprocess ╤В╨╡╤Б╤В╨╛╨▓ (test_server_bootstrap 18/18, test_packet_validation
+  (Workerman требует Linux).
+- ОКОНЧАТЕЛЬНО (Ubuntu VPS, root@box-918838:/opt/lotto-game,
+  php run_ALL_tests.php, 2026-07-27): полный регресс всех 31 файлов —
+  **31/31 test files PASSED**, включая все 8 ранее пропущенных live-WS
+  subprocess тестов (test_server_bootstrap 18/18, test_packet_validation
   11/11, test_auth_packet_routing 18/18, test_lobby_packet_routing
   23/23, test_game_packet_routing 21/21, test_admin_packet_routing
   15/15, test_session_lifecycle 6/6, test_protocol_completeness
-  50/50 + 3 known warnings). ╨н╤В╨╛ ╨┐╨╡╤А╨▓╨╛╨╡ ╨┐╨╛╨┤╤В╨▓╨╡╤А╨╢╨┤╨╡╨╜╨╕╨╡ ╨▓╤Б╨╡╨╣ Phase 10/11
-  ╤Ж╨╡╨┐╨╛╤З╨║╨╕ ╨╜╨░ ╤А╨╡╨░╨╗╤М╨╜╨╛╨╝ Workerman-╨┐╤А╨╛╤Ж╨╡╤Б╤Б╨╡ ╤Б ╨╝╨╛╨╝╨╡╨╜╤В╨░ EPIC-10.7 тАФ
-  admin-╤А╨╛╤Г╤В╨╕╨╜╨│ (EPIC-10.6) ╨╕ ╨▓╤Б╤П ╨╛╤Б╤В╨░╨╗╤М╨╜╨░╤П ╨┐╤А╨╛╤В╨╛╨║╨╛╨╗╤М╨╜╨░╤П ╨╝╨░╤А╤И╤А╤Г╤В╨╕╨╖╨░╤Ж╨╕╤П
-  ╨┐╨╛╨┤╤В╨▓╨╡╤А╨╢╨┤╨╡╨╜╤Л ╤А╨░╨▒╨╛╤З╨╕╨╝╨╕ end-to-end ╨╜╨░ ╤Ж╨╡╨╗╨╡╨▓╨╛╨╣ ╨┐╨╗╨░╤В╤Д╨╛╤А╨╝╨╡, ╨╜╨╡ ╤В╨╛╨╗╤М╨║╨╛
-  ╤Б╤В╨░╤В╨╕╤З╨╡╤Б╨║╨╕/╨╜╨░ ╨╝╨╛╨║╨░╤Е.
+  50/50 + 3 known warnings). Это первое подтверждение всей Phase 10/11
+  цепочки на реальном Workerman-процессе с момента EPIC-10.7 —
+  admin-роутинг (EPIC-10.6) и вся остальная протокольная маршрутизация
+  подтверждены рабочими end-to-end на целевой платформе, не только
+  статически/на моках.
 
 - [DONE] EPIC-10.1 Packet validation
 Files:
-- docs/ADR/003-rate-limiting-and-invalid-json-policy.md (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗)
-- docs/ANCHOR_CORE.md (diff тАФ Connection Runtime Fields + Global Constants,
-  Part 1 ╨╕ Part 6, ╤Б╨╛╨│╨╗╨░╤Б╨╜╨╛ ADR-003)
-- docs/ANCHOR_PROTOCOL.md (diff тАФ ╤Г╤В╨╛╤З╨╜╨╡╨╜╨╕╨╡ ╤Б╨╡╨╝╨░╨╜╤В╨╕╨║╨╕ error.invalid_json)
-- src/Core/Constants.php (diff тАФ RATE_LIMIT_PACKETS_PER_WINDOW=15,
+- docs/ADR/003-rate-limiting-and-invalid-json-policy.md (новый файл)
+- docs/ANCHOR_CORE.md (diff — Connection Runtime Fields + Global Constants,
+  Part 1 и Part 6, согласно ADR-003)
+- docs/ANCHOR_PROTOCOL.md (diff — уточнение семантики error.invalid_json)
+- src/Core/Constants.php (diff — RATE_LIMIT_PACKETS_PER_WINDOW=15,
   RATE_LIMIT_WINDOW_SECONDS=1)
-- server.php (diff тАФ ╤А╨╡╨░╨╗╨╕╨╖╨░╤Ж╨╕╤П rate limiting ╨▓ onMessage, ╨╕╨╜╨╕╤Ж╨╕╨░╨╗╨╕╨╖╨░╤Ж╨╕╤П
-  packetCount/packetWindowStart ╨▓ onWebSocketConnected)
-- tests/Manual/test_packet_validation.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗)
-- .gitignore (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ ╨┐╨╛╨┐╤Г╤В╨╜╨╛ ╨╛╨▒╨╜╨░╤А╤Г╨╢╨╡╨╜╤Л ╤Б╨╗╤Г╤З╨░╨╣╨╜╨╛ ╨╖╨░╨║╨╛╨╝╨╝╨╕╤З╨╡╨╜╨╜╤Л╨╡
-  ╤А╨░╨╜╤В╨░╨╣╨╝-╨░╤А╤В╨╡╤Д╨░╨║╤В╤Л game.db-shm/game.db-wal/workerman.*.pid)
+- server.php (diff — реализация rate limiting в onMessage, инициализация
+  packetCount/packetWindowStart в onWebSocketConnected)
+- tests/Manual/test_packet_validation.php (новый файл)
+- .gitignore (новый файл — попутно обнаружены случайно закоммиченные
+  рантайм-артефакты game.db-shm/game.db-wal/workerman.*.pid)
 
 Implemented:
-- ADR-003 ╨╖╨░╨║╤А╤Л╨▓╨░╨╡╤В ╨╛╨▒╨░ KNOWN GAP, ╨╖╨░╤Д╨╕╨║╤Б╨╕╤А╨╛╨▓╨░╨╜╨╜╤Л╤Е ╨┐╤А╨╕ ╨┐╤А╨╡-Phase-10 ╨░╤Г╨┤╨╕╤В╨╡:
+- ADR-003 закрывает оба KNOWN GAP, зафиксированных при пре-Phase-10 аудите:
   1. Rate limiting (docs/prompt.md): > RATE_LIMIT_PACKETS_PER_WINDOW (15)
-     ╨┐╨░╨║╨╡╤В╨╛╨▓ ╨╖╨░ RATE_LIMIT_WINDOW_SECONDS (1) ╤Б╨╡╨║╤Г╨╜╨┤╤Г ╨╛╤В ╨╛╨┤╨╜╨╛╨│╨╛ ╤Б╨╛╨╡╨┤╨╕╨╜╨╡╨╜╨╕╤П
-     тЖТ ╨╜╨╡╨╝╨╡╨┤╨╗╨╡╨╜╨╜╨╛╨╡ ╨╖╨░╨║╤А╤Л╤В╨╕╨╡ ╨С╨Х╨Ч error-╨┐╨░╨║╨╡╤В╨░. ╨б╤З╨╕╤В╨░╨╡╤В ╨Ы╨о╨С╨л╨Х ╨▓╤Е╨╛╨┤╤П╤Й╨╕╨╡
-     ╤Б╨╛╨╛╨▒╤Й╨╡╨╜╨╕╤П (╨▓╨░╨╗╨╕╨┤╨╜╤Л╨╡/╨╜╨╡╨▓╨░╨╗╨╕╨┤╨╜╤Л╨╡/ping) тАФ ╨╕╨╜╨║╤А╨╡╨╝╨╡╨╜╤В ╨┤╨╛ json_decode.
-  2. Invalid-JSON policy (╨┐╤А╨╛╤В╨╕╨▓╨╛╤А╨╡╤З╨╕╨╡ prompt.md "╨╖╨░╨║╤А╤Л╤В╤М ╤Б╨╛╨╡╨┤╨╕╨╜╨╡╨╜╨╕╨╡" vs
-     ANCHOR_PROTOCOL.md error.invalid_json): ╤А╨╡╤И╨╡╨╜╨╛ ╨▓ ╨┐╨╛╨╗╤М╨╖╤Г
-     ANCHOR_PROTOCOL.md тАФ ╨║╨╛╨┤ ╨╛╤И╨╕╨▒╨║╨╕ ╨┐╤А╨╡╨┤╨┐╨╛╨╗╨░╨│╨░╨╡╤В, ╤З╤В╨╛ ╨║╨╗╨╕╨╡╨╜╤В ╨╡╨│╨╛ ╨┐╨╛╨╗╤Г╤З╨╕╤В
-     ╨╕ ╤А╨░╨╖╨▒╨╡╤А╤С╤В, ╨╖╨╜╨░╤З╨╕╤В ╤Б╨╛╨╡╨┤╨╕╨╜╨╡╨╜╨╕╨╡ ╨Э╨Х ╨╖╨░╨║╤А╤Л╨▓╨░╨╡╤В╤Б╤П. ╨Я╨╛╨┤╨║╤А╨╡╨┐╨╗╨╡╨╜╨╛ ╨┐╤А╨╡╤Ж╨╡╨┤╨╡╨╜╤В╨╛╨╝
-     error.server_full (╤Г╨╢╨╡ ╤А╨╡╨░╨╗╨╕╨╖╨╛╨▓╨░╨╜ ╨▓ LobbyService ╤З╨╡╤А╨╡╨╖ sendError(),
-     ╨╜╨╡ ╤З╨╡╤А╨╡╨╖ ╤А╨░╨╖╤А╤Л╨▓). ╨Ч╨░╤Й╨╕╤В╤Г ╨╛╤В ╤Д╨╗╤Г╨┤╨░ ╨╝╨░╨╗╤Д╨╛╤А╨╝╨╡╨┤-JSON ╨╛╨▒╨╡╤Б╨┐╨╡╤З╨╕╨▓╨░╨╡╤В rate
-     limiting, ╨░ ╨╜╨╡ ╤А╨░╨╖╤А╤Л╨▓ ╨╜╨░ ╨┐╨╡╤А╨▓╨╛╨╝ ╨╜╨╡╨▓╨░╨╗╨╕╨┤╨╜╨╛╨╝ ╨┐╨░╨║╨╡╤В╨╡.
-- ╨Ю╨▒╨░ ╤А╨╡╤И╨╡╨╜╨╕╤П ╤Д╨╛╤А╨╝╨░╨╗╨╕╨╖╨╛╨▓╨░╨╜╤Л ╨║╨░╨║ ADR-003 ╨╕ ╨╛╤В╤А╨░╨╢╨╡╨╜╤Л ╨▓ ANCHOR_CORE.md
-  (╨╜╨╛╨▓╤Л╨╡ Connection Runtime Fields: packetCount, packetWindowStart) ╨╕
-  ANCHOR_PROTOCOL.md (╤П╨▓╨╜╨╛╨╡ ╤Г╤В╨╛╤З╨╜╨╡╨╜╨╕╨╡ ╨┐╤А╨╛ error.invalid_json).
+     пакетов за RATE_LIMIT_WINDOW_SECONDS (1) секунду от одного соединения
+     → немедленное закрытие БЕЗ error-пакета. Считает ЛЮБЫЕ входящие
+     сообщения (валидные/невалидные/ping) — инкремент до json_decode.
+  2. Invalid-JSON policy (противоречие prompt.md "закрыть соединение" vs
+     ANCHOR_PROTOCOL.md error.invalid_json): решено в пользу
+     ANCHOR_PROTOCOL.md — код ошибки предполагает, что клиент его получит
+     и разберёт, значит соединение НЕ закрывается. Подкреплено прецедентом
+     error.server_full (уже реализован в LobbyService через sendError(),
+     не через разрыв). Защиту от флуда малформед-JSON обеспечивает rate
+     limiting, а не разрыв на первом невалидном пакете.
+- Оба решения формализованы как ADR-003 и отражены в ANCHOR_CORE.md
+  (новые Connection Runtime Fields: packetCount, packetWindowStart) и
+  ANCHOR_PROTOCOL.md (явное уточнение про error.invalid_json).
 
-Verification (╨┐╨╛╨╗╨╜╨╛╤Б╤В╤М╤О ╨░╨▓╤В╨╛╨╝╨░╤В╨╕╤З╨╡╤Б╨║╨░╤П, ╤А╨╡╨░╨╗╤М╨╜╤Л╨╣ WebSocket-╨║╨╗╨╕╨╡╨╜╤В):
-- tests/Manual/test_packet_validation.php тАФ 11/11 PASSED, 5 ╤Б╤Ж╨╡╨╜╨░╤А╨╕╨╡╨▓:
-  1. ╨а╨╛╨▓╨╜╨╛ 15 ╨╜╨╡╨▓╨░╨╗╨╕╨┤╨╜╤Л╤Е ╨┐╨░╨║╨╡╤В╨╛╨▓ тАФ ╨▓╤Б╨╡ ╨┐╨╛╨╗╤Г╤З╨░╤О╤В error.invalid_json,
-     ╤Б╨╛╨╡╨┤╨╕╨╜╨╡╨╜╨╕╨╡ ╨╢╨╕╨▓╨╛.
-  2. 16-╨╣ ╨┐╨░╨║╨╡╤В ╨▓ ╤В╨╛╨╝ ╨╢╨╡ ╨╛╨║╨╜╨╡ тАФ ╨╖╨░╨║╤А╤Л╤В╨╕╨╡ ╨С╨Х╨Ч error-╨┐╨░╨║╨╡╤В╨░ (╨╛╤В╨╗╨╕╤З╨░╨╡╤В╤Б╤П ╨╛╤В
-     ╤В╨░╨╣╨╝╨░╤Г╤В╨░ ╤З╨╡╤А╨╡╨╖ feof()-╨┐╤А╨╛╨▓╨╡╤А╨║╤Г, ╨╜╨╡ ╤В╨╛╨╗╤М╨║╨╛ ╨┐╨╛ ╨╛╤В╤Б╤Г╤В╤Б╤В╨▓╨╕╤О ╨╛╤В╨▓╨╡╤В╨░).
-  3. Rate limit ╤Б╤З╨╕╤В╨░╨╡╤В ping ╨╜╨░╤А╨░╨▓╨╜╨╡ ╤Б ╨┐╤А╨╛╤З╨╕╨╝╨╕ (╨╜╨╡ ╨┤╨╡╨╗╨░╨╡╤В ╨╕╤Б╨║╨╗╤О╤З╨╡╨╜╨╕╤П ╨┤╨╗╤П
-     ╨▓╨░╨╗╨╕╨┤╨╜╤Л╤Е action) тАФ 15 ping ╨╛╨║, 16-╨╣ ╨╖╨░╨║╤А╤Л╨▓╨░╨╡╤В ╤Б╨╛╨╡╨┤╨╕╨╜╨╡╨╜╨╕╨╡.
-  4. ╨Ю╨║╨╜╨╛ ╤А╨╡╨░╨╗╤М╨╜╨╛ ╤Б╨▒╤А╨░╤Б╤Л╨▓╨░╨╡╤В╤Б╤П тАФ burst 15+╨┐╨░╤Г╨╖╨░>1s+burst 15 ╨╜╨╡ ╤Б╤Г╨╝╨╝╨╕╤А╤Г╨╡╤В╤Б╤П
-     ╨▓ ╨╖╨░╨║╤А╤Л╤В╨╕╨╡.
-  5. ╨Х╨┤╨╕╨╜╨╕╤З╨╜╤Л╨╣ ╨╜╨╡╨▓╨░╨╗╨╕╨┤╨╜╤Л╨╣ JSON ╨╜╨╡ ╨╖╨░╨║╤А╤Л╨▓╨░╨╡╤В ╤Б╨╛╨╡╨┤╨╕╨╜╨╡╨╜╨╕╨╡ (╨▒╨░╨╖╨╛╨▓╤Л╨╣ ADR-003
-     ╤Б╤Ж╨╡╨╜╨░╤А╨╕╨╣ ╨▓╨╜╨╡ ╨║╨╛╨╜╤В╨╡╨║╤Б╤В╨░ rate limit).
-- ╨Я╤А╨╛╨│╨╜╨░╨╜╨╛ 3 ╤А╨░╨╖╨░ ╨┐╨╛╨┤╤А╤П╨┤ тАФ ╤Б╤В╨░╨▒╨╕╨╗╤М╨╜╨╛, ~4s ╨║╨░╨╢╨┤╤Л╨╣, ╨▒╨╡╨╖ ╨╖╨╛╨╝╨▒╨╕-╨┐╤А╨╛╤Ж╨╡╤Б╤Б╨╛╨▓.
-- ╨Я╨╛╨╗╨╜╤Л╨╣ ╤А╨╡╨│╤А╨╡╤Б╤Б ╨┐╨╛ ╨▓╤Б╨╡╨╝ 25 ╤Д╨░╨╣╨╗╨░╨╝ tests/Manual/*.php (╨▒╤Л╨╗╨╛ 24, ╨┤╨╛╨▒╨░╨▓╨╗╨╡╨╜
-  test_packet_validation.php) тАФ 0 failed.
+Verification (полностью автоматическая, реальный WebSocket-клиент):
+- tests/Manual/test_packet_validation.php — 11/11 PASSED, 5 сценариев:
+  1. Ровно 15 невалидных пакетов — все получают error.invalid_json,
+     соединение живо.
+  2. 16-й пакет в том же окне — закрытие БЕЗ error-пакета (отличается от
+     таймаута через feof()-проверку, не только по отсутствию ответа).
+  3. Rate limit считает ping наравне с прочими (не делает исключения для
+     валидных action) — 15 ping ок, 16-й закрывает соединение.
+  4. Окно реально сбрасывается — burst 15+пауза>1s+burst 15 не суммируется
+     в закрытие.
+  5. Единичный невалидный JSON не закрывает соединение (базовый ADR-003
+     сценарий вне контекста rate limit).
+- Прогнано 3 раза подряд — стабильно, ~4s каждый, без зомби-процессов.
+- Полный регресс по всем 25 файлам tests/Manual/*.php (было 24, добавлен
+  test_packet_validation.php) — 0 failed.
 
-PHASE 10 тАФ WEBSOCKET PROTOCOL: IN PROGRESS (10.0, 10.1 done). ╨б╨╗╨╡╨┤╤Г╤О╤Й╨╕╨╣:
+PHASE 10 — WEBSOCKET PROTOCOL: IN PROGRESS (10.0, 10.1 done). Следующий:
 EPIC-10.2 Protocol error handling.
 
 - [DONE] EPIC-10.0 Protocol router
 Files:
-- server.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗, 175 ╤Б╤В╤А╨╛╨║)
-- tests/Manual/test_server_bootstrap.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗, 227 ╤Б╤В╤А╨╛╨║)
+- server.php (новый файл, 175 строк)
+- tests/Manual/test_server_bootstrap.php (новый файл, 227 строк)
 
 Implemented:
 - Workerman bootstrap: websocket://0.0.0.0:8080, single worker (count=1),
-  ╤Б╨╛╨│╨╗╨░╤Б╨╜╨╛ LOCAL_ENVIRONMENT.md ╨╕ ANCHOR_CORE.md Part 1.
-- onWorkerStart: ╨╕╨╜╨╕╤Ж╨╕╨░╨╗╨╕╨╖╨░╤Ж╨╕╤П Database/Logger/RoomManager-╤Б╨╛╨▓╨╝╨╡╤Б╤В╨╕╨╝╨╛╨╣
-  runtime-╨┐╨░╨╝╤П╤В╨╕ ($worker->rooms/userConnections/sessionTokens = []),
-  Global Watchdog Timer (60s, ╨╖╨░╨║╤А╤Л╤В╨╕╨╡ ╨╝╤С╤А╤В╨▓╤Л╤Е ╤Б╨╛╨╡╨┤╨╕╨╜╨╡╨╜╨╕╨╣ ╨┐╨╛ ╨┐╨╛╤А╨╛╨│╨░╨╝
-  AUTHORIZED_TIMEOUT/UNAUTHORIZED_TIMEOUT тАФ ANCHOR_CORE.md Part 5).
-- onWebSocketConnected (╨╜╨╡ onConnect тАФ handshake ╨╜╨░ ╤Н╤В╨╛╤В ╨╝╨╛╨╝╨╡╨╜╤В ╤Г╨╢╨╡
-  ╨╖╨░╨▓╨╡╤А╤И╤С╨╜, ╤З╤В╨╛ ╨┐╨╛╨┤╤В╨▓╨╡╤А╨╢╨┤╨╡╨╜╨╛ ╨┤╨╛╨║╨▒╨╗╨╛╨║╨╛╨╝ Workerman "Emitted after websocket
-  handshake"): ╨╕╨╜╨╕╤Ж╨╕╨░╨╗╨╕╨╖╨░╤Ж╨╕╤П Connection Runtime Fields (userId/username/
-  isAdmin/sessionToken/lastPing), ╨╜╨╡╨╝╨╡╨┤╨╗╨╡╨╜╨╜╨░╤П ╨╛╤В╨┐╤А╨░╨▓╨║╨░ hello
+  согласно LOCAL_ENVIRONMENT.md и ANCHOR_CORE.md Part 1.
+- onWorkerStart: инициализация Database/Logger/RoomManager-совместимой
+  runtime-памяти ($worker->rooms/userConnections/sessionTokens = []),
+  Global Watchdog Timer (60s, закрытие мёртвых соединений по порогам
+  AUTHORIZED_TIMEOUT/UNAUTHORIZED_TIMEOUT — ANCHOR_CORE.md Part 5).
+- onWebSocketConnected (не onConnect — handshake на этот момент уже
+  завершён, что подтверждено докблоком Workerman "Emitted after websocket
+  handshake"): инициализация Connection Runtime Fields (userId/username/
+  isAdmin/sessionToken/lastPing), немедленная отправка hello
   {"type":"hello","protocol_version":1}.
-- onMessage: ╨▒╨╡╨╖╨╛╨┐╨░╤Б╨╜╤Л╨╣ json_decode (╨╜╨╡-╨╛╨▒╤К╨╡╨║╤В тЖТ error.invalid_json),
-  ping ╨▒╨╡╨╖ ╨╛╤В╨▓╨╡╤В╨░ (ANCHOR_PROTOCOL.md ┬з Heartbeat), ╨┐╤Г╤Б╤В╨╛╨╣ action-╨┤╨╕╤Б╨┐╨╡╤В╤З╨╡╤А
-  (match/default тЖТ error.invalid_json ╨┤╨╗╤П ╨╗╤О╨▒╨╛╨│╨╛ ╨╡╤Й╤С ╨╜╨╡ ╨┐╨╛╨┤╨║╨╗╤О╤З╤С╨╜╨╜╨╛╨│╨╛ action).
-- onClose: ╨┤╨╕╨░╨│╨╜╨╛╤Б╤В╨╕╤З╨╡╤Б╨║╨╛╨╡ ╨╗╨╛╨│╨╕╤А╨╛╨▓╨░╨╜╨╕╨╡ + ╤П╨▓╨╜╤Л╨╣ TODO тАФ ╨┐╨╛╨╗╨╜╨░╤П ╤А╨╡╨║╨╛╨╜╨╜╨╡╨║╤В-
-  ╨╗╨╛╨│╨╕╨║╨░ ╨╜╨╡╨▓╨╛╨╖╨╝╨╛╨╢╨╜╨░ ╨▓ ╤Н╤В╨╛╨╝ Epic (╤Б╨╝. ╨╜╨╕╨╢╨╡).
+- onMessage: безопасный json_decode (не-объект → error.invalid_json),
+  ping без ответа (ANCHOR_PROTOCOL.md § Heartbeat), пустой action-диспетчер
+  (match/default → error.invalid_json для любого ещё не подключённого action).
+- onClose: диагностическое логирование + явный TODO — полная реконнект-
+  логика невозможна в этом Epic (см. ниже).
 
-╨б╨╛╨╖╨╜╨░╤В╨╡╨╗╤М╨╜╨╛ ╨Э╨Х ╤А╨╡╨░╨╗╨╕╨╖╨╛╨▓╨░╨╜╨╛ (Rule 11 Epic Isolation):
-- ╨Ь╨░╤А╤И╤А╤Г╤В╨╕╨╖╨░╤Ж╨╕╤П auth/lobby/game/admin-╨┐╨░╨║╨╡╤В╨╛╨▓ тАФ EPIC-10.3/10.4/10.5/10.6.
-  AuthHandler ╤Г╨╢╨╡ ╤Б╤Г╤Й╨╡╤Б╤В╨▓╤Г╨╡╤В (Phase 1), ╨╜╨╛ ╨╜╨╡ ╨┐╨╛╨┤╨║╨╗╤О╤З╤С╨╜.
-  LobbyHandler/GameHandler/AdminHandler ╨╡╤Й╤С ╨┐╤А╨╡╨┤╤Б╤В╨╛╨╕╤В ╤Б╨╛╨╖╨┤╨░╤В╤М.
-- Rate limiting (>15 ╨┐╨░╨║╨╡╤В╨╛╨▓/╤Б╨╡╨║) ╨╕ ╤В╨╛╤З╨╜╨░╤П policy ╨╜╨╡╨▓╨░╨╗╨╕╨┤╨╜╨╛╨│╨╛ JSON тАФ
-  EPIC-10.1 (╤А╨╡╤И╨╡╨╜╨╛ ╤Б ╨┐╨╛╨╗╤М╨╖╨╛╨▓╨░╤В╨╡╨╗╨╡╨╝ ╤П╨▓╨╜╨╛, ╤Б╨╝. KNOWN GAPS).
-- onClose тЖТ ReconnectService::handleDisconnect() ╨╜╨╡ ╨┐╨╛╨┤╨║╨╗╤О╤З╤С╨╜: ╤Б╨░╨╝
-  ╨║╨╛╨╜╤Б╤В╤А╤Г╨║╤В╨╛╤А ReconnectService ╤В╤А╨╡╨▒╤Г╨╡╤В ╨Ю╨Ф╨Э╨Ю╨Т╨а╨Х╨Ь╨Х╨Э╨Э╨Ю LobbyService ╨Ш
-  GameService тАФ ╨┐╨╛╨┤╨║╨╗╤О╤З╨╕╤В╤М ╨╡╨│╨╛ ╨▓ server.php ╤А╨░╨╜╤М╤И╨╡ EPIC-10.4/10.5
-  ╨╛╨╖╨╜╨░╤З╨░╨╗╨╛ ╨▒╤Л ╨╜╨░╤А╤Г╤И╨╕╤В╤М Rule 11 (Auth+Lobby+Game ╨▓ ╨╛╨┤╨╜╨╛╨╝ Epic).
+Сознательно НЕ реализовано (Rule 11 Epic Isolation):
+- Маршрутизация auth/lobby/game/admin-пакетов — EPIC-10.3/10.4/10.5/10.6.
+  AuthHandler уже существует (Phase 1), но не подключён.
+  LobbyHandler/GameHandler/AdminHandler ещё предстоит создать.
+- Rate limiting (>15 пакетов/сек) и точная policy невалидного JSON —
+  EPIC-10.1 (решено с пользователем явно, см. KNOWN GAPS).
+- onClose → ReconnectService::handleDisconnect() не подключён: сам
+  конструктор ReconnectService требует ОДНОВРЕМЕННО LobbyService И
+  GameService — подключить его в server.php раньше EPIC-10.4/10.5
+  означало бы нарушить Rule 11 (Auth+Lobby+Game в одном Epic).
 
-Verification (╨░╨▓╤В╨╛╨╝╨░╤В╨╕╤З╨╡╤Б╨║╨░╤П, ╨┐╨╛╨╗╨╜╨╛╤Б╤В╤М╤О ╤Б╨░╨╝╨╛╨┤╨╛╤Б╤В╨░╤В╨╛╤З╨╜╨░╤П):
-- tests/Manual/test_server_bootstrap.php ╨┐╨╛╨┤╨╜╨╕╨╝╨░╨╡╤В server.php ╨║╨░╨║
-  ╤А╨╡╨░╨╗╤М╨╜╤Л╨╣ ╨┐╨╛╨┤╨┐╤А╨╛╤Ж╨╡╤Б╤Б (proc_open), ╨╛╨▒╤Й╨░╨╡╤В╤Б╤П ╤Б ╨╜╨╕╨╝ ╤З╨╡╤А╨╡╨╖ ╤Б╨╛╨▒╤Б╤В╨▓╨╡╨╜╨╜╨╛╤А╤Г╤З╨╜╨╛
-  ╨╜╨░╨┐╨╕╤Б╨░╨╜╨╜╤Л╨╣ RFC6455 WebSocket-╨║╨╗╨╕╨╡╨╜╤В (╨▒╨╡╨╖ ╨▓╨╜╨╡╤И╨╜╨╕╤Е ╨▒╨╕╨▒╨╗╨╕╨╛╤В╨╡╨║) ╨┐╨╛
-  ╨╜╨░╤Б╤В╨╛╤П╤Й╨╡╨╝╤Г TCP-╤Б╨╛╨║╨╡╤В╤Г ╨╜╨░ 127.0.0.1:8080, ╨╖╨░╤В╨╡╨╝ ╨║╨╛╤А╤А╨╡╨║╤В╨╜╨╛ ╨╛╤Б╤В╨░╨╜╨░╨▓╨╗╨╕╨▓╨░╨╡╤В
-  ╨┐╤А╨╛╤Ж╨╡╤Б╤Б (SIGTERM тЖТ graceful shutdown, SIGKILL ╨║╨░╨║ fallback).
-- ╨а╨╡╨╖╤Г╨╗╤М╤В╨░╤В: 8/8 PASSED. ╨Я╤А╨╛╨│╨╜╨░╨╜ ╨┤╨▓╨░╨╢╨┤╤Л ╨┐╨╛╨┤╤А╤П╨┤ тАФ ╨┐╨╛╤А╤В ╨║╨╛╤А╤А╨╡╨║╤В╨╜╨╛
-  ╨╛╤Б╨▓╨╛╨▒╨╛╨╢╨┤╨░╨╡╤В╤Б╤П ╨╝╨╡╨╢╨┤╤Г ╨╖╨░╨┐╤Г╤Б╨║╨░╨╝╨╕.
-- ╨а╤Г╤З╨╜╨░╤П ╨┐╤А╨╛╨▓╨╡╤А╨║╨░ `php server.php start` тАФ Workerman ╨┐╨╛╨┤╨╜╨╕╨╝╨░╨╡╤В╤Б╤П,
-  ╤В╨░╨▒╨╗╨╕╤Ж╨░ ╨▓╨╛╤А╨║╨╡╤А╨╛╨▓ ╨┐╨╛╨║╨░╨╖╤Л╨▓╨░╨╡╤В [OK], graceful stop ╨┐╨╛ SIGTERM.
-- тЪая╕ПтЖТтЬЕ ╨Ш╨б╨Я╨а╨Р╨Т╨Ы╨Х╨Э╨Ю (2026-07-21): ╨┐╨╡╤А╨▓╨░╤П ╨▓╨╡╤А╤Б╨╕╤П test_server_bootstrap.php
-  ╨╖╨░╨▓╨╕╤Б╨░╨╗╨░ ╨╜╨░ VPS (╤В╤А╨╡╨▒╨╛╨▓╨░╨╗╤Б╤П Ctrl+C). ╨Я╤А╨╕╤З╨╕╨╜╨░ тАФ ╨║╨╗╨░╤Б╤Б╨╕╤З╨╡╤Б╨║╨╕╨╣ proc_open
-  deadlock: stdout/stderr ╨┤╨╛╤З╨╡╤А╨╜╨╡╨│╨╛ ╨┐╤А╨╛╤Ж╨╡╤Б╤Б╨░ ╤И╨╗╨╕ ╨▓ pipe, ╨║╨╛╤В╨╛╤А╤Л╨╣ ╨╜╨╕╨║╨╛╨│╨┤╨░
-  ╨╜╨╡ ╨▓╤Л╤З╨╕╤В╤Л╨▓╨░╨╗╤Б╤П; ╨Ю╨б-╨▒╤Г╤Д╨╡╤А ╨┐╨░╨╣╨┐╨░ ╨╖╨░╨┐╨╛╨╗╨╜╤П╨╗╤Б╤П ╨▓╤Л╨▓╨╛╨┤╨╛╨╝ Workerman, ╨┤╨╛╤З╨╡╤А╨╜╨╕╨╣
-  ╨┐╤А╨╛╤Ж╨╡╤Б╤Б ╨▒╨╗╨╛╨║╨╕╤А╨╛╨▓╨░╨╗╤Б╤П ╨╜╨░ write() ╨┤╨╛ ╤А╨╡╨░╨╗╤М╨╜╨╛╨│╨╛ ╨▒╨╕╨╜╨┤╨╕╨╜╨│╨░ ╨┐╨╛╤А╤В╨░. ╨Т ╨┐╨╡╤Б╨╛╤З╨╜╨╕╤Ж╨╡
-  ╨╜╨╡ ╨▓╨╛╤Б╨┐╤А╨╛╨╕╨╖╨▓╨╛╨┤╨╕╨╗╨╛╤Б╤М ╨╕╨╖-╨╖╨░ ╨╜╨╡╨▒╨╛╨╗╤М╤И╨╛╨│╨╛ ╨╛╨▒╤К╤С╨╝╨░ ╨▓╤Л╨▓╨╛╨┤╨░, ╨┐╨╛╨╝╨╡╤Й╨░╨▓╤И╨╡╨│╨╛╤Б╤П ╨▓ ╨▒╤Г╤Д╨╡╤А.
-  ╨Ш╤Б╨┐╤А╨░╨▓╨╗╨╡╨╜╨╛: ╨▓╤Л╨▓╨╛╨┤ ╨┤╨╛╤З╨╡╤А╨╜╨╡╨│╨╛ ╨┐╤А╨╛╤Ж╨╡╤Б╤Б╨░ ╤В╨╡╨┐╨╡╤А╤М ╨╕╨┤╤С╤В ╨▓ ╤Д╨░╨╣╨╗╤Л (['file', ...],
-  ╨╜╨╡ ['pipe', ...] тАФ ╨╖╨░╨┐╨╕╤Б╤М ╨▓ ╤Д╨░╨╣╨╗ ╨╜╨╡ ╨▒╨╗╨╛╨║╨╕╤А╤Г╨╡╤В╤Б╤П ╨┐╨╛ ╨╛╨▒╤К╤С╨╝╤Г), ╨╛╨┐╤А╨╛╤Б ╨┐╨╛╤А╤В╨░
-  ╨▓╨╝╨╡╤Б╤В╨╛ ╤Д╨╕╨║╤Б╨╕╤А╨╛╨▓╨░╨╜╨╜╨╛╨│╨╛ sleep, ╨┤╨╕╨░╨│╨╜╨╛╤Б╤В╨╕╨║╨░ stdout/stderr ╨┐╤А╨╕ ╤Б╨▒╨╛╨╡ ╨▒╨╕╨╜╨┤╨╕╨╜╨│╨░,
-  ╨╢╤С╤Б╤В╨║╨╕╨╣ watchdog ╨┐╨╛ SIGALRM (HARD_TIMEOUT_SECONDS=20) ╨║╨░╨║ ╨┐╨╛╤Б╨╗╨╡╨┤╨╜╨╕╨╣
-  ╤А╤Г╨▒╨╡╨╢ тАФ ╤Б╨║╤А╨╕╨┐╤В ╤Д╨╕╨╖╨╕╤З╨╡╤Б╨║╨╕ ╨╜╨╡ ╨╝╨╛╨╢╨╡╤В ╨╖╨░╨▓╨╕╤Б╨╜╤Г╤В╤М ╨╜╨░╨▓╤Б╨╡╨│╨┤╨░. ╨Я╤А╨╛╨▓╨╡╤А╨╡╨╜╨╛ 5
-  ╨┐╤А╨╛╨│╨╛╨╜╨╛╨▓ ╨┐╨╛╨┤╤А╤П╨┤ (~3-4s ╨║╨░╨╢╨┤╤Л╨╣) + ╨╛╤В╨┤╨╡╨╗╤М╨╜╨╛ ╨┐╤Г╤В╤М ╨┤╨╕╨░╨│╨╜╨╛╤Б╤В╨╕╨║╨╕ ╨┐╤А╨╕ ╨╖╨░╨▓╨╡╨┤╨╛╨╝╨╛
-  ╨╜╨╡╤А╨░╨▒╨╛╤З╨╡╨╝ ╨┐╨╛╤А╤В╨╡ (5s, ╤З╨╕╤Б╤В╨╛╨╡ ╤Б╨╛╨╛╨▒╤Й╨╡╨╜╨╕╨╡ ╨╛╨▒ ╨╛╤И╨╕╨▒╨║╨╡, ╨▒╨╡╨╖ ╨╖╨░╨▓╨╕╤Б╨░╨╜╨╕╤П).
-- тЪая╕ПтЖТтЬЕ ╨Ш╨б╨Я╨а╨Р╨Т╨Ы╨Х╨Э╨Ю (╨▓╤В╨╛╤А╨╛╨╣ ╤А╨░╤Г╨╜╨┤, ╤В╨╛╤В ╨╢╨╡ ╨┤╨╡╨╜╤М): ╨┐╨╛╤Б╨╗╨╡ ╨┐╨╡╤А╨▓╨╛╨│╨╛ ╤Д╨╕╨║╤Б╨░ ╤В╨╡╤Б╤В
-  ╨▓╤Б╤С ╨╡╤Й╤С ╨┐╨░╨┤╨░╨╗ ╨╜╨░ VPS тАФ "WS handshake failed" ╤Б ╨┐╤Г╤Б╤В╤Л╨╝ ╨╛╤В╨▓╨╡╤В╨╛╨╝.
-  ╨Я╤А╨╕╤З╨╕╨╜╨░: ╨╛╤Б╨╕╤А╨╛╤В╨╡╨▓╤И╨╕╨╣ ╨┐╤А╨╛╤Ж╨╡╤Б╤Б server.php ╤Б ╨Я╨Х╨а╨Т╨Ю╨Щ (╨╖╨░╨▓╨╕╤Б╤И╨╡╨╣) ╨┐╨╛╨┐╤Л╤В╨║╨╕
-  ╨╛╤Б╤В╨░╨╗╤Б╤П ╨╢╨╕╤В╤М ╨╕ ╨┤╨╡╤А╨╢╨░╤В╤М ╨┐╨╛╤А╤В 8080 (Workerman stdout ╤З╨╡╤Б╤В╨╜╨╛ ╨┐╨╕╤Б╨░╨╗
-  "already running"), ╨░ ╤В╨╡╤Б╤В ╨┐╨╛ ╨╛╤И╨╕╨▒╨║╨╡ ╨┐╨╛╨┤╨║╨╗╤О╤З╨░╨╗╤Б╤П ╨║ ╨н╨в╨Ю╨Ь╨г ╤Б╤В╨░╤А╨╛╨╝╤Г
-  ╨┐╤А╨╛╤Ж╨╡╤Б╤Б╤Г ╨▓╨╝╨╡╤Б╤В╨╛ ╤Б╨▓╨╛╨╡╨│╨╛ ╤Б╨▓╨╡╨╢╨╡╤Б╨╛╨╖╨┤╨░╨╜╨╜╨╛╨│╨╛. ╨Ш╤Б╨┐╤А╨░╨▓╨╗╨╡╨╜╨╛: ╨┐╨╡╤А╨╡╨┤ ╤Б╤В╨░╤А╤В╨╛╨╝
-  ╤В╨╡╤Б╤В ╤В╨╡╨┐╨╡╤А╤М ╤Б╨░╨╝ ╨▓╤Л╨╖╤Л╨▓╨░╨╡╤В `php server.php stop` (idempotent, ╨▒╨╡╨╖╨╛╨┐╨░╤Б╨╜╨╛
-  ╨┐╤А╨╕ ╨╛╤В╤Б╤Г╤В╤Б╤В╨▓╨╕╨╕ ╨╖╨░╨┐╤Г╤Й╨╡╨╜╨╜╨╛╨│╨╛ ╨┐╤А╨╛╤Ж╨╡╤Б╤Б╨░) ╨┤╨╗╤П ╨│╨░╤А╨░╨╜╤В╨╕╤А╨╛╨▓╨░╨╜╨╜╨╛ ╤З╨╕╤Б╤В╨╛╨│╨╛
-  ╤Б╨╛╤Б╤В╨╛╤П╨╜╨╕╤П, ╨┐╨╗╤О╤Б ╤П╨▓╨╜╨░╤П ╨┤╨╕╨░╨│╨╜╨╛╤Б╤В╨╕╨║╨░ "already running" ╤Б ╨┐╨╛╨┤╤Б╨║╨░╨╖╨║╨╛╨╣
-  ╤А╤Г╤З╨╜╨╛╨╣ ╨║╨╛╨╝╨░╨╜╨┤╤Л ╨╜╨░ ╤Б╨╗╤Г╤З╨░╨╣, ╨╡╤Б╨╗╨╕ self-healing ╨╜╨╡ ╤Б╤А╨░╨▒╨╛╤В╨░╨╡╤В. ╨Я╤А╨╛╨▓╨╡╤А╨╡╨╜╨╛:
-  ╨▓╤А╤Г╤З╨╜╤Г╤О ╤Б╨╛╨╖╨┤╨░╨╜ ╨╛╤Б╨╕╤А╨╛╤В╨╡╨▓╤И╨╕╨╣ ╨┐╤А╨╛╤Ж╨╡╤Б╤Б тЖТ ╤В╨╡╤Б╤В ╤Б╨░╨╝ ╨╡╨│╨╛ ╨┐╨╛╨│╨░╤Б╨╕╨╗ ╨╕ ╤Б╤В╨░╤А╤В╨╛╨▓╨░╨╗
-  ╨╖╨░╨╜╨╛╨▓╨╛ тАФ 8/8 PASSED, ╨▒╨╡╨╖ ╨╖╨╛╨╝╨▒╨╕-╨┐╤А╨╛╤Ж╨╡╤Б╤Б╨╛╨▓ ╨┐╨╛╤Б╨╗╨╡. 3 ╨┤╨╛╨┐╨╛╨╗╨╜╨╕╤В╨╡╨╗╤М╨╜╤Л╤Е
-  ╨┐╤А╨╛╨│╨╛╨╜╨░ ╤Б ╤З╨╕╤Б╤В╨╛╨│╨╛ ╤Б╨╛╤Б╤В╨╛╤П╨╜╨╕╤П тАФ ╤Б╤В╨░╨▒╨╕╨╗╤М╨╜╨╛ 8/8, ~3-4s ╨║╨░╨╢╨┤╤Л╨╣.
-- ╨Я╨╛╨╗╨╜╤Л╨╣ ╤А╨╡╨│╤А╨╡╤Б╤Б ╨┐╨╛ ╨▓╤Б╨╡╨╝ 24 ╤Д╨░╨╣╨╗╨░╨╝ tests/Manual/*.php (╨▒╤Л╨╗ 23, ╨┤╨╛╨▒╨░╨▓╨╗╨╡╨╜
-  test_server_bootstrap.php) тАФ 0 failed.
+Verification (автоматическая, полностью самодостаточная):
+- tests/Manual/test_server_bootstrap.php поднимает server.php как
+  реальный подпроцесс (proc_open), общается с ним через собственноручно
+  написанный RFC6455 WebSocket-клиент (без внешних библиотек) по
+  настоящему TCP-сокету на 127.0.0.1:8080, затем корректно останавливает
+  процесс (SIGTERM → graceful shutdown, SIGKILL как fallback).
+- Результат: 8/8 PASSED. Прогнан дважды подряд — порт корректно
+  освобождается между запусками.
+- Ручная проверка `php server.php start` — Workerman поднимается,
+  таблица воркеров показывает [OK], graceful stop по SIGTERM.
+- ⚠️→✅ ИСПРАВЛЕНО (2026-07-21): первая версия test_server_bootstrap.php
+  зависала на VPS (требовался Ctrl+C). Причина — классический proc_open
+  deadlock: stdout/stderr дочернего процесса шли в pipe, который никогда
+  не вычитывался; ОС-буфер пайпа заполнялся выводом Workerman, дочерний
+  процесс блокировался на write() до реального биндинга порта. В песочнице
+  не воспроизводилось из-за небольшого объёма вывода, помещавшегося в буфер.
+  Исправлено: вывод дочернего процесса теперь идёт в файлы (['file', ...],
+  не ['pipe', ...] — запись в файл не блокируется по объёму), опрос порта
+  вместо фиксированного sleep, диагностика stdout/stderr при сбое биндинга,
+  жёсткий watchdog по SIGALRM (HARD_TIMEOUT_SECONDS=20) как последний
+  рубеж — скрипт физически не может зависнуть навсегда. Проверено 5
+  прогонов подряд (~3-4s каждый) + отдельно путь диагностики при заведомо
+  нерабочем порте (5s, чистое сообщение об ошибке, без зависания).
+- ⚠️→✅ ИСПРАВЛЕНО (второй раунд, тот же день): после первого фикса тест
+  всё ещё падал на VPS — "WS handshake failed" с пустым ответом.
+  Причина: осиротевший процесс server.php с ПЕРВОЙ (зависшей) попытки
+  остался жить и держать порт 8080 (Workerman stdout честно писал
+  "already running"), а тест по ошибке подключался к ЭТОМУ старому
+  процессу вместо своего свежесозданного. Исправлено: перед стартом
+  тест теперь сам вызывает `php server.php stop` (idempotent, безопасно
+  при отсутствии запущенного процесса) для гарантированно чистого
+  состояния, плюс явная диагностика "already running" с подсказкой
+  ручной команды на случай, если self-healing не сработает. Проверено:
+  вручную создан осиротевший процесс → тест сам его погасил и стартовал
+  заново — 8/8 PASSED, без зомби-процессов после. 3 дополнительных
+  прогона с чистого состояния — стабильно 8/8, ~3-4s каждый.
+- Полный регресс по всем 24 файлам tests/Manual/*.php (был 23, добавлен
+  test_server_bootstrap.php) — 0 failed.
 
-PHASE 10 тАФ WEBSOCKET PROTOCOL: IN PROGRESS (10.0 done, 10.1 Packet
-validation next тАФ ╨▓╨║╨╗╤О╤З╨░╨╡╤В ╤А╨╡╤И╨╡╨╜╨╕╨╡ ╨┐╨╛ rate limiting ╨╕ invalid-JSON policy)
+PHASE 10 — WEBSOCKET PROTOCOL: IN PROGRESS (10.0 done, 10.1 Packet
+validation next — включает решение по rate limiting и invalid-JSON policy)
 
 - [DONE] EPIC-9.6 Admin integration tests
 Files:
-- src/Admin/AdminService.php (diff тАФ FIX-3, ╤Б╨╝. ╨╜╨╕╨╢╨╡)
-- tests/Manual/test_admin_logs.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗)
-- tests/Manual/test_admin_integration.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗)
-- test_logger.php (╤Г╨┤╨░╨╗╤С╨╜ ╨╕╨╖ ╨║╨╛╤А╨╜╤П ╨┐╤А╨╛╨╡╨║╤В╨░)
+- src/Admin/AdminService.php (diff — FIX-3, см. ниже)
+- tests/Manual/test_admin_logs.php (новый файл)
+- tests/Manual/test_admin_integration.php (новый файл)
+- test_logger.php (удалён из корня проекта)
 
 Implemented:
-- tests/Manual/test_admin_logs.php: assert-based ╨▓╨╡╤А╨╕╤Д╨╕╨║╨░╤Ж╨╕╤П AdminService::handleGetLogs()
-  (guard auth_required/not_your_turn, ╨┐╨░╨║╨╡╤В admin_logs_data, ╨╛╤В╤Б╤Г╤В╤Б╤В╨▓╨╕╨╡ logger, ╤Б╤А╨╡╨╖
-  limit=100 ╤З╨╡╤А╨╡╨╖ Logger::getLastLines(), ╤А╨╡╨░╨╗╤М╨╜╤Л╨╣ Logger ╨┐╤А╨╛╤В╨╕╨▓ ╤Д╨░╨╣╨╗╨░). ╨Ч╨░╨║╤А╤Л╨▓╨░╨╡╤В
-  ╨┐╤А╨╛╨▒╨╡╨╗ ╨▓╨╡╤А╨╕╤Д╨╕╨║╨░╤Ж╨╕╨╕ EPIC-9.5 тАФ ╨┐╤А╨╡╨╢╨╜╨╕╨╣ tests/Manual/test_logger.php ╨▒╤Л╨╗ print_r()
-  ╤Б╨╝╨╛╤Г╨║-╤Б╨║╤А╨╕╨┐╤В╨╛╨╝ ╨▒╨╡╨╖ assert'╨╛╨▓ ╨╕ ╨╜╨╡ ╨┐╤А╨╛╨▓╨╡╤А╤П╨╗ AdminService ╨▓╨╛╨╛╨▒╤Й╨╡.
-- tests/Manual/test_admin_integration.php: ╨║╤А╨╛╤Б╤Б-╤Б╤Ж╨╡╨╜╨░╤А╨╕╨╕ ╨╝╨╡╨╢╨┤╤Г admin-╨┤╨╡╨╣╤Б╤В╨▓╨╕╤П╨╝╨╕
-  (test_admin_ban/unban/kick/close_room.php ╨┐╨╛╨║╤А╤Л╨▓╨░╤О╤В ╨║╨╛╨╜╤В╤А╨░╨║╤В╤Л ╨║╨░╨╢╨┤╨╛╨│╨╛ ╨┤╨╡╨╣╤Б╤В╨▓╨╕╤П
-  ╨Ш╨Ч╨Ю╨Ы╨Ш╨а╨Ю╨Т╨Р╨Э╨Э╨Ю; ╤Н╤В╨╛╤В ╤Д╨░╨╣╨╗ ╨┐╤А╨╛╨▓╨╡╤А╤П╨╡╤В ╨┐╨╛╤Б╨╗╨╡╨┤╨╛╨▓╨░╤В╨╡╨╗╤М╨╜╨╛╤Б╤В╨╕ ╨╕╨╖ ╨╜╨╡╤Б╨║╨╛╨╗╤М╨║╨╕╤Е ╨┤╨╡╨╣╤Б╤В╨▓╨╕╨╣ ╨▓
-  ╨╛╨┤╨╜╨╛╨╣ ╨║╨╛╨╝╨╜╨░╤В╨╡, ╨│╨┤╨╡ ╨╕╨╜╨▓╨░╤А╨╕╨░╨╜╤В ╤Н╨║╨╛╨╜╨╛╨╝╨╕╨║╨╕ ╨╝╨╛╨╢╨╡╤В ╨╜╨░╤А╤Г╤И╨░╤В╤М╤Б╤П ╨╜╨░ ╤Б╤В╤Л╨║╨╡ ╨║╨╛╨╜╤В╤А╨░╨║╤В╨╛╨▓).
+- tests/Manual/test_admin_logs.php: assert-based верификация AdminService::handleGetLogs()
+  (guard auth_required/not_your_turn, пакет admin_logs_data, отсутствие logger, срез
+  limit=100 через Logger::getLastLines(), реальный Logger против файла). Закрывает
+  пробел верификации EPIC-9.5 — прежний tests/Manual/test_logger.php был print_r()
+  смоук-скриптом без assert'ов и не проверял AdminService вообще.
+- tests/Manual/test_admin_integration.php: кросс-сценарии между admin-действиями
+  (test_admin_ban/unban/kick/close_room.php покрывают контракты каждого действия
+  ИЗОЛИРОВАННО; этот файл проверяет последовательности из нескольких действий в
+  одной комнате, где инвариант экономики может нарушаться на стыке контрактов).
 
-╨Ю╨▒╨╜╨░╤А╤Г╨╢╨╡╨╜ ╨╕ ╨╕╤Б╨┐╤А╨░╨▓╨╗╨╡╨╜ ╨▒╨░╨│ (FIX-3, ╤Б╨╝. ╤Б╨╡╨║╤Ж╨╕╤О PATCHES):
-- handleKickUser() ╤А╨╡╤Д╨░╨╜╨┤╨╕╨╗ total_paid ╨╕ ╤Г╨╝╨╡╨╜╤М╤И╨░╨╗ bank, ╨╜╨╛ ╨╜╨╡ ╨╛╨▒╨╜╤Г╨╗╤П╨╗ total_paid
-  ╨╕╨│╤А╨╛╨║╨░ ╨▓ ╨┐╨░╨╝╤П╤В╨╕. ╨Ф╨╡╨╗╨╡╨│╨░╤В ╤Г╨┤╨░╨╗╨╡╨╜╨╕╤П (removePlayerFromLobby/Game/Apartment) ╨┐╨╕╤Б╨░╨╗
-  ╨▓ all_players_history ╨б╨в╨Р╨а╨Ю╨Х (╨┤╨╛╤А╨╡╤Д╨░╨╜╨┤╨╜╨╛╨╡) ╨╖╨╜╨░╤З╨╡╨╜╨╕╨╡ total_paid. ╨Я╨╛╤Б╨╗╨╡╨┤╤Г╤О╤Й╨╕╨╣
-  admin_close_room() ╨▒╨╡╨╖╤Г╤Б╨╗╨╛╨▓╨╜╨╛ ╤А╨╡╤Д╨░╨╜╨┤╨╕╨╗ total_paid ╨╕╨╖ ╨╕╤Б╤В╨╛╤А╨╕╨╕ ╨║╨░╨╢╨┤╨╛╨╝╤Г ╤Г╤З╨░╤Б╤В╨╜╨╕╨║╤Г тАФ
-  ╨║╨╕╨║╨╜╤Г╤В╤Л╨╣ ╨╕╨│╤А╨╛╨║ ╨┐╨╛╨╗╤Г╤З╨░╨╗ ╨┤╨╡╨╜╤М╨│╨╕ ╨┤╨▓╨░╨╢╨┤╤Л. ╨Э╨░╤А╤Г╤И╨╡╨╜╨╕╨╡ Economic Integrity Rule
+Обнаружен и исправлен баг (FIX-3, см. секцию PATCHES):
+- handleKickUser() рефандил total_paid и уменьшал bank, но не обнулял total_paid
+  игрока в памяти. Делегат удаления (removePlayerFromLobby/Game/Apartment) писал
+  в all_players_history СТАРОЕ (дорефандное) значение total_paid. Последующий
+  admin_close_room() безусловно рефандил total_paid из истории каждому участнику —
+  кикнутый игрок получал деньги дважды. Нарушение Economic Integrity Rule
   (ANCHOR_CORE.md Part 2).
-- Regression-╤В╨╡╤Б╤В (TEST 1 ╨╕ TEST 3 ╨▓ test_admin_integration.php) ╨┐╤А╨╛╨▓╨╡╤А╨╡╨╜ ╨╜╨░
-  ╨╗╨╛╨╢╨╜╨╛╨┐╨╛╨╗╨╛╨╢╨╕╤В╨╡╨╗╤М╨╜╨╛╤Б╤В╤М: ╨▓╤А╨╡╨╝╨╡╨╜╨╜╨╛ ╨╛╤В╨║╨░╤В╤Л╨▓╨░╨╗╤Б╤П FIX-3 тЖТ ╤В╨╡╤Б╤В ╨┤╨░╨╗ 5 ╤З╨╡╤Б╤В╨╜╤Л╤Е FAIL
-  (520 ╨┐╤А╨╛╤В╨╕╨▓ ╤Д╨░╨║╤В╨╕╤З╨╡╤Б╨║╨╕╤Е 540, 40 ╨┐╤А╨╛╤В╨╕╨▓ 60); ╨┐╨╛╤Б╨╗╨╡ ╨▓╨╛╤Б╤Б╤В╨░╨╜╨╛╨▓╨╗╨╡╨╜╨╕╤П ╤Д╨╕╨║╤Б╨░ тАФ ╤Б╨╜╨╛╨▓╨░
+- Regression-тест (TEST 1 и TEST 3 в test_admin_integration.php) проверен на
+  ложноположительность: временно откатывался FIX-3 → тест дал 5 честных FAIL
+  (520 против фактических 540, 40 против 60); после восстановления фикса — снова
   20/20 PASSED.
 
 Manual verification:
 - test_admin_logs.php: 16/16 PASSED
 - test_admin_integration.php: 20/20 PASSED
-- ╨а╨╡╨│╤А╨╡╤Б╤Б╨╕╤П ╨┐╤А╨╛╤В╨╕╨▓ ╨▓╤Б╨╡╤Е ╤Б╤Г╤Й╨╡╤Б╤В╨▓╤Г╤О╤Й╨╕╤Е admin-╤В╨╡╤Б╤В╨╛╨▓ ╨┐╨╛╤Б╨╗╨╡ FIX-3:
+- Регрессия против всех существующих admin-тестов после FIX-3:
   test_admin_auth.php 8/8, test_admin_ban.php 9/9, test_admin_unban.php 8/8,
-  test_admin_kick.php 37/37, test_admin_close_room.php 28/28 тАФ ╨▓╤Б╨╡ ╤З╨╕╤Б╤В╤Л.
+  test_admin_kick.php 37/37, test_admin_close_room.php 28/28 — все чисты.
 
-PHASE 9 тАФ ADMIN: COMPLETE (9.0тАУ9.6 done)
+PHASE 9 — ADMIN: COMPLETE (9.0–9.6 done)
 
 Integration tests:
 48 / 48 PASSED (auth)
 90 / 90 PASSED (lobby)
-164 / 164 PASSED (lotto engine) тАФ ╤Б╨╝. KNOWN GAPS: ╤В╨╡╤Б╤В╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ ╨┐╨░╨┤╨░╨╡╤В ╨┐╨╛ ╨╜╨╡╨╖╨░╨▓╨╕╤Б╨╕╨╝╨╛╨╣ ╨┐╤А╨╕╤З╨╕╨╜╨╡
-44 / 44 PASSED (game start) тАФ ╤Б╨╝. KNOWN GAPS: ╤В╨╡╤Б╤В╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ ╨┐╨░╨┤╨░╨╡╤В ╨┐╨╛ ╨╜╨╡╨╖╨░╨▓╨╕╤Б╨╕╨╝╨╛╨╣ ╨┐╤А╨╕╤З╨╕╨╜╨╡
+164 / 164 PASSED (lotto engine) — см. KNOWN GAPS: тестовый файл падает по независимой причине
+44 / 44 PASSED (game start) — см. KNOWN GAPS: тестовый файл падает по независимой причине
 37 / 37 PASSED (turn system)
-38 / 38 PASSED (victory system) тАФ ╤Б╨╝. KNOWN GAPS: ╤В╨╡╤Б╤В╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ ╨┐╨░╨┤╨░╨╡╤В ╨┐╨╛ ╨╜╨╡╨╖╨░╨▓╨╕╤Б╨╕╨╝╨╛╨╣ ╨┐╤А╨╕╤З╨╕╨╜╨╡
+38 / 38 PASSED (victory system) — см. KNOWN GAPS: тестовый файл падает по независимой причине
 32 / 32 PASSED (apartment)
 15 / 15 PASSED (reconnect)
 8 / 8 PASSED (admin auth)
@@ -1755,7 +1755,7 @@ Integration tests:
 16 / 16 PASSED (admin logs)
 20 / 20 PASSED (admin integration)
 
-Next planned Epic: EPIC-10.0 Protocol router (╨╕╤Б╤В╨╛╤А╨╕╤З╨╡╤Б╨║╨░╤П ╨╖╨░╨┐╨╕╤Б╤М ╨╜╨░ ╨╝╨╛╨╝╨╡╨╜╤В ╨╖╨░╨▓╨╡╤А╤И╨╡╨╜╨╕╤П EPIC-9.6 тАФ ╨▓╤Л╨┐╨╛╨╗╨╜╨╡╨╜╨╛, ╤Б╨╝. ╨╖╨░╨┐╨╕╤Б╤М ╨▓╤Л╤И╨╡)
+Next planned Epic: EPIC-10.0 Protocol router (историческая запись на момент завершения EPIC-9.6 — выполнено, см. запись выше)
 
 - [DONE] EPIC-9.5 Logs access
 Files:
@@ -1785,24 +1785,24 @@ Limitations:
 - Reads the log using file(); optimized tail-reading is intentionally deferred.
 - Packet routing will be integrated during Phase 10 (Admin packet integration).
 
-- [DONE] EPIC-9.4 Close room тАФ AdminService::handleCloseRoom()
+- [DONE] EPIC-9.4 Close room — AdminService::handleCloseRoom()
 Files:
-- src/Admin/AdminService.php (diff тАФ ╨┤╨╛╨▒╨░╨▓╨╗╨╡╨╜ handleCloseRoom())
-- tests/Manual/test_admin_close_room.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗)
+- src/Admin/AdminService.php (diff — добавлен handleCloseRoom())
+- tests/Manual/test_admin_close_room.php (новый файл)
 Notes:
-- 28/28 ╤В╨╡╤Б╤В╨╛╨▓ ╨┐╤А╨╛╨╣╨┤╨╡╨╜╨╛ (php test_admin_close_room.php)
-- ╨Я╨╛╨║╤А╤Л╤В╨╛: ╨╖╨░╨║╤А╤Л╤В╨╕╨╡ waiting-╨║╨╛╨╝╨╜╨░╤В╤Л ╨▒╨╡╨╖ ╤А╨╡╤Д╨░╨╜╨┤╨╛╨▓ ╨┐╤А╨╕ total_paid=0,
-  ╨╖╨░╨║╤А╤Л╤В╨╕╨╡ playing-╨║╨╛╨╝╨╜╨░╤В╤Л ╤Б ╨┐╨╛╨╗╨╜╤Л╨╝ ╨▓╨╛╨╖╨▓╤А╨░╤В╨╛╨╝ ╤Б╤А╨╡╨┤╤Б╤В╨▓,
-  ╨▓╨╛╨╖╨▓╤А╨░╤В ╤А╨░╨╜╨╡╨╡ ╤Г╨┤╨░╨╗╤С╨╜╨╜╤Л╨╝ ╨╕╨│╤А╨╛╨║╨░╨╝ ╤З╨╡╤А╨╡╨╖ all_players_history,
-  ╤Г╨▓╨╡╨┤╨╛╨╝╨╗╨╡╨╜╨╕╨╡ ╤В╨╛╨╗╤М╨║╨╛ active-╨╕╨│╤А╨╛╨║╨╛╨▓ (disconnected ╨╜╨╡ ╨┐╨╛╨╗╤Г╤З╨░╤О╤В packet, ╨╜╨╛ ╨┐╨╛╨╗╤Г╤З╨░╤О╤В refund),
-  room_not_found, guard ╨┤╨╗╤П ╨╜╨╡-╨░╨┤╨╝╨╕╨╜╨╕╤Б╤В╤А╨░╤В╨╛╤А╨░,
-  rollback ╨┐╤А╨╕ ╨╛╤И╨╕╨▒╨║╨╡ refund-╤В╤А╨░╨╜╨╖╨░╨║╤Ж╨╕╨╕ (coins/bank ╨╜╨╡ ╨╕╨╖╨╝╨╡╨╜╤П╤О╤В╤Б╤П, destroyRoom ╨╜╨╡ ╨▓╤Л╨╖╤Л╨▓╨░╨╡╤В╤Б╤П,
-  ╨║╨╛╨╝╨╜╨░╤В╨░ ╤Б╨╛╤Е╤А╨░╨╜╤П╨╡╤В╤Б╤П, PDO transaction ╨║╨╛╤А╤А╨╡╨║╤В╨╜╨╛ ╨╛╤В╨║╨░╤В╤Л╨▓╨░╨╡╤В╤Б╤П)
-- ╨н╨║╨╛╨╜╨╛╨╝╨╕╨║╨░: ANCHOR_CORE.md Part 2 ┬з Admin Close Room тАФ
-  ╨▓╤Б╨╡╨╝ ╤Г╤З╨░╤Б╤В╨╜╨╕╨║╨░╨╝ ╨▓╨╛╨╖╨▓╤А╨░╤Й╨░╨╡╤В╤Б╤П 100% total_paid (╨▓╨║╨╗╤О╤З╨░╤П apartment payments),
-  ╨╕╤Б╤В╨╛╤З╨╜╨╕╨║ ╨┤╨░╨╜╨╜╤Л╤Е тАФ all_players_history, ╨╛╨┐╨╡╤А╨░╤Ж╨╕╤П ╨▓╤Л╨┐╨╛╨╗╨╜╤П╨╡╤В╤Б╤П ╨▓ ╨╛╨┤╨╜╨╛╨╣ PDO-╤В╤А╨░╨╜╨╖╨░╨║╤Ж╨╕╨╕
+- 28/28 тестов пройдено (php test_admin_close_room.php)
+- Покрыто: закрытие waiting-комнаты без рефандов при total_paid=0,
+  закрытие playing-комнаты с полным возвратом средств,
+  возврат ранее удалённым игрокам через all_players_history,
+  уведомление только active-игроков (disconnected не получают packet, но получают refund),
+  room_not_found, guard для не-администратора,
+  rollback при ошибке refund-транзакции (coins/bank не изменяются, destroyRoom не вызывается,
+  комната сохраняется, PDO transaction корректно откатывается)
+- Экономика: ANCHOR_CORE.md Part 2 § Admin Close Room —
+  всем участникам возвращается 100% total_paid (включая apartment payments),
+  источник данных — all_players_history, операция выполняется в одной PDO-транзакции
 
-PHASE 9 тАФ ADMIN: IN PROGRESS (9.0/9.1/9.2/9.3/9.4 done, 9.5 Logs access next)
+PHASE 9 — ADMIN: IN PROGRESS (9.0/9.1/9.2/9.3/9.4 done, 9.5 Logs access next)
 
 Integration tests:
 48 / 48 PASSED (auth)
@@ -1817,36 +1817,36 @@ Integration tests:
 
 Next planned Epic: EPIC-9.5 Logs access
 
-- [DONE] EPIC-9.3 Kick player тАФ AdminService::handleKickUser()
+- [DONE] EPIC-9.3 Kick player — AdminService::handleKickUser()
 Files:
-- src/Admin/AdminService.php (diff тАФ ╨┤╨╛╨▒╨░╨▓╨╗╨╡╨╜ ╨┐╨░╤А╨░╨╝╨╡╤В╤А $db ╨▓ ╨║╨╛╨╜╤Б╤В╤А╤Г╨║╤В╨╛╤А + handleKickUser())
-- tests/Manual/test_admin_kick.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗)
+- src/Admin/AdminService.php (diff — добавлен параметр $db в конструктор + handleKickUser())
+- tests/Manual/test_admin_kick.php (новый файл)
 Notes:
-- 37/37 ╤В╨╡╤Б╤В╨╛╨▓ ╨┐╤А╨╛╨╣╨┤╨╡╨╜╨╛ (php test_admin_kick.php)
-- ╨Я╨╛╨║╤А╤Л╤В╨╛: waiting ╨▒╨╡╨╖ total_paid (╨╜╨╡╤В ╤А╨╡╤Д╨░╨╜╨┤╨░), kick ╤Е╨╛╤Б╤В╨░ ╨▓ waiting тЖТ transferHost(),
-  playing ╤Б ╤А╨╡╤Д╨░╨╜╨┤╨╛╨╝ (users.coins += total_paid, bank -= total_paid, removePlayerFromGame
-  ╤Б reason='kicked'), apartment ╤Б ╤А╨╡╤Д╨░╨╜╨┤╨╛╨╝ (removePlayerFromApartment ╤Б reason='kicked'),
-  cannot_moderate_admin (╨╜╨╡╨╗╤М╨╖╤П ╨║╨╕╨║╨╜╤Г╤В╤М ╨░╨┤╨╝╨╕╨╜╨░), room_not_found (╤Ж╨╡╨╗╤М ╨╜╨╡ ╨▓ ╨║╨╛╨╝╨╜╨░╤В╨╡),
-  not_your_turn guard (╨╜╨╡-╨░╨┤╨╝╨╕╨╜), rollback ╨┐╤А╨╕ ╤Б╨▒╨╛╨╡ refund-╤В╤А╨░╨╜╨╖╨░╨║╤Ж╨╕╨╕ (bank/room ╨╜╨╡ ╤В╤А╨╛╨╜╤Г╤В╤Л,
-  delegation ╨╜╨╡ ╨▓╤Л╨╖╨▓╨░╨╜, no dangling PDO transaction)
-- ╨н╨║╨╛╨╜╨╛╨╝╨╕╨║╨░: ANCHOR_CORE.md Part 2 ┬з Kick тАФ bank -= total_paid; coins += total_paid,
-  ╤В╤А╨░╨╜╨╖╨░╨║╤Ж╨╕╤П ╨╛╨▒╤П╨╖╨░╤В╨╡╨╗╤М╨╜╨░, ╤А╨╡╨░╨╗╨╕╨╖╨╛╨▓╨░╨╜╨╛ ╤З╨╡╤А╨╡╨╖ ╤Б╤Г╤Й╨╡╤Б╤В╨▓╤Г╤О╤Й╨╕╨╣ stmt 'add_user_coins'
-- ╨Ъ╨╛╨╜╤Б╤В╤А╤Г╨║╤В╨╛╤А AdminService ╤А╨░╤Б╤И╨╕╤А╨╡╨╜ nullable-╨┐╨░╤А╨░╨╝╨╡╤В╤А╨╛╨╝ $db (╨╛╨▒╤А╨░╤В╨╜╨░╤П ╤Б╨╛╨▓╨╝╨╡╤Б╤В╨╕╨╝╨╛╤Б╤В╤М
-  ╤Б╨╛╤Е╤А╨░╨╜╨╡╨╜╨░ тАФ ╤Б╤Г╤Й╨╡╤Б╤В╨▓╤Г╤О╤Й╨╕╨╡ ╨▓╤Л╨╖╨╛╨▓╤Л ╤Б 5 ╨░╤А╨│╤Г╨╝╨╡╨╜╤В╨░╨╝╨╕ ╨╜╨╡ ╨╗╨╛╨╝╨░╤О╤В╤Б╤П)
+- 37/37 тестов пройдено (php test_admin_kick.php)
+- Покрыто: waiting без total_paid (нет рефанда), kick хоста в waiting → transferHost(),
+  playing с рефандом (users.coins += total_paid, bank -= total_paid, removePlayerFromGame
+  с reason='kicked'), apartment с рефандом (removePlayerFromApartment с reason='kicked'),
+  cannot_moderate_admin (нельзя кикнуть админа), room_not_found (цель не в комнате),
+  not_your_turn guard (не-админ), rollback при сбое refund-транзакции (bank/room не тронуты,
+  delegation не вызван, no dangling PDO transaction)
+- Экономика: ANCHOR_CORE.md Part 2 § Kick — bank -= total_paid; coins += total_paid,
+  транзакция обязательна, реализовано через существующий stmt 'add_user_coins'
+- Конструктор AdminService расширен nullable-параметром $db (обратная совместимость
+  сохранена — существующие вызовы с 5 аргументами не ломаются)
 
-тЪая╕П KNOWN GAP (RESOLVED EPIC-9.3b, 2026-08-02):
-~~removePlayerFromApartment() (ApartmentService) ╨╜╨╡ ╨▓╤Л╨┐╨╛╨╗╨╜╤П╨╡╤В host transfer ╨┐╤А╨╕
-kick/ban ╤Е╨╛╤Б╤В╨░ ╨▓ apartment-╤Б╨╛╤Б╤В╨╛╤П╨╜╨╕╨╕~~ тАФ fixed in EPIC-9.3b.
+⚠️ KNOWN GAP (RESOLVED EPIC-9.3b, 2026-08-02):
+~~removePlayerFromApartment() (ApartmentService) не выполняет host transfer при
+kick/ban хоста в apartment-состоянии~~ — fixed in EPIC-9.3b.
 
-тЪая╕П KNOWN GAP (historical, EPIC-9.3):
-removePlayerFromApartment() (ApartmentService) ╨╜╨╡ ╨▓╤Л╨┐╨╛╨╗╨╜╤П╨╗ host transfer ╨┐╤А╨╕
-kick/ban ╤Е╨╛╤Б╤В╨░ ╨▓ apartment-╤Б╨╛╤Б╤В╨╛╤П╨╜╨╕╨╕, ╤Е╨╛╤В╤П ANCHOR_CORE.md Host Rules ╨╜╨░╨╖╤Л╨▓╨░╨╡╤В
-'kicked'/'banned' ╨▓╨░╨╗╨╕╨┤╨╜╤Л╨╝╨╕ ╨┐╤А╨╕╤З╨╕╨╜╨░╨╝╨╕ ╤Б╨╝╨╡╨╜╤Л ╤Е╨╛╤Б╤В╨░. ╨в╨╛╤В ╨╢╨╡ ╨┐╤А╨╛╨▒╨╡╨╗ ╨┐╤А╨╕╤Б╤Г╤В╤Б╤В╨▓╤Г╨╡╤В
-╨╕ ╨▓ ╤Б╤Г╤Й╨╡╤Б╤В╨▓╤Г╤О╤Й╨╡╨╝ handleBanUser() ╨┤╨╗╤П 'waiting' (╨╜╨╡ ╨╕╤Б╨┐╤А╨░╨▓╨╗╤П╨╗╤Б╤П тАФ ╨▓╨╜╨╡ scope
+⚠️ KNOWN GAP (historical, EPIC-9.3):
+removePlayerFromApartment() (ApartmentService) не выполнял host transfer при
+kick/ban хоста в apartment-состоянии, хотя ANCHOR_CORE.md Host Rules называет
+'kicked'/'banned' валидными причинами смены хоста. Тот же пробел присутствует
+и в существующем handleBanUser() для 'waiting' (не исправлялся — вне scope
 EPIC-9.3, Epic Isolation). **Apartment path closed EPIC-9.3b; waiting ban path
 still open.**
 
-PHASE 9 тАФ ADMIN: IN PROGRESS (9.0/9.1/9.2/9.3 done, 9.4 Close room next)
+PHASE 9 — ADMIN: IN PROGRESS (9.0/9.1/9.2/9.3 done, 9.4 Close room next)
 
 Integration tests:
 48 / 48 PASSED (auth)
@@ -1863,24 +1863,24 @@ Next planned Epic: EPIC-9.4 Close room
 - [DONE] EPIC-9.2 Unban user
 Files:
 - src/Admin/AdminService.php (diff)
-- tests/manual/test_admin_unban.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗)
+- tests/manual/test_admin_unban.php (новый файл)
 Notes:
-- ╨а╨╡╨░╨╗╨╕╨╖╨╛╨▓╨░╨╜ handleUnbanUser() ╨┤╨╗╤П admin_unban_user
-- Guard: ╤В╨╛╨╗╤М╨║╨╛ admin (assertAdmin)
-- ╨Т╨░╨╗╨╕╨┤╨░╤Ж╨╕╤П: user_id > 0
+- Реализован handleUnbanUser() для admin_unban_user
+- Guard: только admin (assertAdmin)
+- Валидация: user_id > 0
 - DB: PreparedStatements key unban_user (banned_until=0)
 - Manual tests: 8/8 PASSED
 
 - [DONE] EPIC-9.1 Ban user
 Files:
 - src/Admin/AdminService.php (diff)
-- src/Infrastructure/PreparedStatements.php (╨┤╨╛╨▒╨░╨▓╨╗╨╡╨╜ user_admin_by_id)
-- tests/manual/test_admin_ban.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗)
+- src/Infrastructure/PreparedStatements.php (добавлен user_admin_by_id)
+- tests/manual/test_admin_ban.php (новый файл)
 Notes:
-- ╨а╨╡╨░╨╗╨╕╨╖╨╛╨▓╨░╨╜ handleBanUser() ╤Б duration: 1d / 3d / permanent
-- ╨Ч╨░╨┐╤А╨╡╤В ╨▒╨░╨╜╨░ ╨░╨┤╨╝╨╕╨╜╨╕╤Б╤В╤А╨░╤В╨╛╤А╨░: error.cannot_moderate_admin
-- ╨Ф╨╗╤П ╨╛╨╜╨╗╨░╨╣╨╜-╤Ж╨╡╨╗╨╕ ╨╛╤В╨┐╤А╨░╨▓╨╗╤П╨╡╤В╤Б╤П ╨┐╨░╨║╨╡╤В banned {until}
-- ╨г╨┤╨░╨╗╨╡╨╜╨╕╨╡ ╨╕╨╖ ╨║╨╛╨╝╨╜╨░╤В╤Л ╨┐╨╛ ╤Б╤В╨░╤В╤Г╤Б╤Г:
+- Реализован handleBanUser() с duration: 1d / 3d / permanent
+- Запрет бана администратора: error.cannot_moderate_admin
+- Для онлайн-цели отправляется пакет banned {until}
+- Удаление из комнаты по статусу:
   waiting -> removePlayerFromLobby(..., 'banned')
   playing -> removePlayerFromGame(..., 'banned')
   apartment -> removePlayerFromApartment(..., 'banned')
@@ -1888,59 +1888,59 @@ Notes:
 
 - [DONE] EPIC-9.0 Admin authentication
 Files:
-- src/Admin/AdminService.php (╤А╨╡╨░╨╗╨╕╨╖╨╛╨▓╨░╨╜)
-- tests/manual/test_admin_auth.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗)
+- src/Admin/AdminService.php (реализован)
+- tests/manual/test_admin_auth.php (новый файл)
 Notes:
-- ╨Ф╨╛╨▒╨░╨▓╨╗╨╡╨╜ ╨╡╨┤╨╕╨╜╤Л╨╣ admin guard: AdminService::assertAdmin(object $connection): bool
-- ╨Ъ╨╛╨╜╤В╤А╨░╨║╤В: unauthenticated -> error.auth_required, non-admin -> error.not_your_turn
+- Добавлен единый admin guard: AdminService::assertAdmin(object $connection): bool
+- Контракт: unauthenticated -> error.auth_required, non-admin -> error.not_your_turn
 - Manual tests: 8/8 PASSED
 
 - [DONE] EPIC-8.6 Reconnect tests
 Files:
-- tests/manual/test_reconnect.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗)
+- tests/manual/test_reconnect.php (новый файл)
 Notes:
-- 15/15 ╤В╨╡╤Б╤В╨╛╨▓ ╨┐╤А╨╛╨╣╨┤╨╡╨╜╨╛
-- ╨Я╨╛╨║╤А╤Л╤В╨╛: disconnect->disconnected+timer, waiting-timeout removal, reconnect restore,
+- 15/15 тестов пройдено
+- Покрыто: disconnect->disconnected+timer, waiting-timeout removal, reconnect restore,
   reconnect_state payload, game AFK warning, auto-draw, afk removal
 
-- [DONE] EPIC-8.5 AFK removal тАФ ReconnectService::removePlayerFromGame(..., 'afk')
-- [DONE] EPIC-8.4 Auto draw тАФ ReconnectService::performAutoDraw()
-- [DONE] EPIC-8.3 Game AFK protection тАФ ReconnectService::ensureGameAfkTimer()/tickGameAfk()
-- [DONE] EPIC-8.2 Reconnect restoration тАФ ReconnectService::handleReconnect()
-- [DONE] EPIC-8.1 Disconnect processing тАФ ReconnectService::handleDisconnect()
-- [DONE] EPIC-8.0 ReconnectService тАФ src/Game/ReconnectService.php (╤А╨╡╨░╨╗╨╕╨╖╨░╤Ж╨╕╤П)
-Files (8.0тАУ8.5):
-- src/Game/ReconnectService.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗, ╤А╨╡╨░╨╗╨╕╨╖╨╛╨▓╨░╨╜)
+- [DONE] EPIC-8.5 AFK removal — ReconnectService::removePlayerFromGame(..., 'afk')
+- [DONE] EPIC-8.4 Auto draw — ReconnectService::performAutoDraw()
+- [DONE] EPIC-8.3 Game AFK protection — ReconnectService::ensureGameAfkTimer()/tickGameAfk()
+- [DONE] EPIC-8.2 Reconnect restoration — ReconnectService::handleReconnect()
+- [DONE] EPIC-8.1 Disconnect processing — ReconnectService::handleDisconnect()
+- [DONE] EPIC-8.0 ReconnectService — src/Game/ReconnectService.php (реализация)
+Files (8.0–8.5):
+- src/Game/ReconnectService.php (новый файл, реализован)
 Notes:
-- ╨а╨╡╨░╨╗╨╕╨╖╨╛╨▓╨░╨╜╤Л reconnect timers (15s, single-shot) ╨╕ ╨▓╨╛╤Б╤Б╤В╨░╨╜╨╛╨▓╨╗╨╡╨╜╨╕╨╡ ╨╕╨│╤А╨╛╨║╨░ ╨┐╨╛ session_token
-- ╨а╨╡╨░╨╗╨╕╨╖╨╛╨▓╨░╨╜╨░ game AFK ╨╖╨░╤Й╨╕╤В╨░ ╤Б ╨┐╨╛╤А╨╛╨│╨░╨╝╨╕ 15/25/30╤Б, auto draw ╨╕ ╤Г╨┤╨░╨╗╨╡╨╜╨╕╨╡╨╝ ╨┐╨╛ afk ╨┐╤А╨╕ 3 ╨░╨▓╤В╨╛╤Е╨╛╨┤╨░╤Е
+- Реализованы reconnect timers (15s, single-shot) и восстановление игрока по session_token
+- Реализована game AFK защита с порогами 15/25/30с, auto draw и удалением по afk при 3 автоходах
 
-PHASE 8 тАФ RECONNECT & AFK: COMPLETE (service + manual tests)
+PHASE 8 — RECONNECT & AFK: COMPLETE (service + manual tests)
 
 - [DONE] EPIC-7.6 Apartment integration tests
 Files:
-- tests/Manual/test_apartment.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗)
+- tests/Manual/test_apartment.php (новый файл)
 Notes:
-- 32/32 ╤В╨╡╤Б╤В╨╛╨▓ ╨┐╤А╨╛╨╣╨┤╨╡╨╜╨╛
-- ╨Я╨╛╨║╤А╤Л╤В╨╛: hasLine, shouldTrigger, prepareApartment, allRequiredAnswered,
-  alert broadcast, agreeтЖТpayment, refuseтЖТremoval, re-trigger blocked
+- 32/32 тестов пройдено
+- Покрыто: hasLine, shouldTrigger, prepareApartment, allRequiredAnswered,
+  alert broadcast, agree→payment, refuse→removal, re-trigger blocked
 
-- [DONE] EPIC-7.5 Apartment timeout тАФ ApartmentService::onApartmentTimeout()
-- [DONE] EPIC-7.4 Apartment payment transaction тАФ ApartmentService::finishApartment()
-- [DONE] EPIC-7.3 Apartment voting тАФ ApartmentService::handleApartmentChoice()
-- [DONE] EPIC-7.2 Apartment state тАФ ApartmentService::triggerApartment()
-- [DONE] EPIC-7.1 Apartment trigger тАФ ApartmentService::shouldTrigger() / prepareApartment()
-- [DONE] EPIC-7.0 Line detection тАФ ApartmentService::hasLine()
-Files (7.0тАУ7.5):
-- src/Game/ApartmentService.php (470 ╤Б╤В╤А╨╛╨║ тАФ ╨┐╨╛╨╗╨╜╤Л╨╣ ╨╛╤А╨║╨╡╤Б╤В╤А╨░╤В╨╛╤А)
-- src/Game/GameService.php (735 ╤Б╤В╤А╨╛╨║ тАФ ╤В╨╛╨╜╨║╨╕╨╡ ╨┤╨╡╨╗╨╡╨│╨░╤В╨╛╤А╤Л)
+- [DONE] EPIC-7.5 Apartment timeout — ApartmentService::onApartmentTimeout()
+- [DONE] EPIC-7.4 Apartment payment transaction — ApartmentService::finishApartment()
+- [DONE] EPIC-7.3 Apartment voting — ApartmentService::handleApartmentChoice()
+- [DONE] EPIC-7.2 Apartment state — ApartmentService::triggerApartment()
+- [DONE] EPIC-7.1 Apartment trigger — ApartmentService::shouldTrigger() / prepareApartment()
+- [DONE] EPIC-7.0 Line detection — ApartmentService::hasLine()
+Files (7.0–7.5):
+- src/Game/ApartmentService.php (470 строк — полный оркестратор)
+- src/Game/GameService.php (735 строк — тонкие делегаторы)
 Notes:
-- ApartmentService ╤А╨░╤Б╤И╨╕╤А╨╡╨╜ ╨┤╨╛ ╨╛╤А╨║╨╡╤Б╤В╤А╨░╤В╨╛╤А╨░ (db, stmts, logger ╨▓ ╨║╨╛╨╜╤Б╤В╤А╤Г╨║╤В╨╛╤А╨╡)
-- GameService ╤Б╨╛╨║╤А╨░╤Й╤С╨╜ ╤Б 985 ╨┤╨╛ 735 ╤Б╤В╤А╨╛╨║
-- GameService::handleApartmentChoice() / triggerApartment() тАФ ╨┐╤Г╨▒╨╗╨╕╤З╨╜╤Л╨╡ ╨┤╨╡╨╗╨╡╨│╨░╤В╨╛╤А╤Л
+- ApartmentService расширен до оркестратора (db, stmts, logger в конструкторе)
+- GameService сокращён с 985 до 735 строк
+- GameService::handleApartmentChoice() / triggerApartment() — публичные делегаторы
 
-PHASE 7 тАФ APARTMENT: COMPLETE
-PHASE 8 тАФ RECONNECT & AFK: COMPLETE
+PHASE 7 — APARTMENT: COMPLETE
+PHASE 8 — RECONNECT & AFK: COMPLETE
 
 Integration tests:
 48 / 48 PASSED (auth)
@@ -1955,34 +1955,34 @@ Next planned Epic: EPIC-8.0 ReconnectService
 
 - [DONE] EPIC-7.6 Apartment integration tests
 Files:
-- tests/Manual/test_apartment.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗)
+- tests/Manual/test_apartment.php (новый файл)
 Notes:
-- 32/32 ╤В╨╡╤Б╤В╨╛╨▓ ╨┐╤А╨╛╨╣╨┤╨╡╨╜╨╛
-- ╨Я╨╛╨║╤А╤Л╤В╨╛: hasLine (empty/full/partial), shouldTrigger (line/fired/disconnected),
+- 32/32 тестов пройдено
+- Покрыто: hasLine (empty/full/partial), shouldTrigger (line/fired/disconnected),
   prepareApartment (status, flags, required), allRequiredAnswered,
-  alert broadcast (required/immune), agreeтЖТpayment (bank, immune, commit),
-  refuseтЖТremoval (player_left, drawer_order), re-trigger blocked
+  alert broadcast (required/immune), agree→payment (bank, immune, commit),
+  refuse→removal (player_left, drawer_order), re-trigger blocked
 
-- [DONE] EPIC-7.5 Apartment timeout тАФ GameService::onApartmentTimeout()
-- [DONE] EPIC-7.4 Apartment payment transaction тАФ finishApartment() PDO
-- [DONE] EPIC-7.3 Apartment voting тАФ GameService::handleApartmentChoice()
-- [DONE] EPIC-7.2 Apartment state тАФ GameService::triggerApartment()
-- [DONE] EPIC-7.1 Apartment trigger тАФ ApartmentService::shouldTrigger() / prepareApartment()
-- [DONE] EPIC-7.0 Line detection тАФ ApartmentService::hasLine()
-Files (7.0тАУ7.5):
-- src/Game/ApartmentService.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗, 222 ╤Б╤В╤А╨╛╨║╨╕)
-- src/Game/GameService.php (diff, 985 ╤Б╤В╤А╨╛╨║)
+- [DONE] EPIC-7.5 Apartment timeout — GameService::onApartmentTimeout()
+- [DONE] EPIC-7.4 Apartment payment transaction — finishApartment() PDO
+- [DONE] EPIC-7.3 Apartment voting — GameService::handleApartmentChoice()
+- [DONE] EPIC-7.2 Apartment state — GameService::triggerApartment()
+- [DONE] EPIC-7.1 Apartment trigger — ApartmentService::shouldTrigger() / prepareApartment()
+- [DONE] EPIC-7.0 Line detection — ApartmentService::hasLine()
+Files (7.0–7.5):
+- src/Game/ApartmentService.php (новый файл, 222 строки)
+- src/Game/GameService.php (diff, 985 строк)
 Notes:
-- Victory > Apartment: ╨┐╤А╨╛╨▓╨╡╤А╨║╨░ ╨┐╨╛╨▒╨╡╨┤╤Л ╨╕╨┤╤С╤В ╨┤╨╛ shouldTrigger() ╨▓ handleDrawBarrel()
-- immune=true ╨┐╨╛╤Б╨╗╨╡ agree тАФ ╨┐╨╛╨▓╤В╨╛╤А╨╜╤Л╨╣ ╨░╨┐╨░╤А╤В╨░╨╝╨╡╨╜╤В ╨╜╨╡ ╤В╤А╨╡╨▒╤Г╨╡╤В ╨┐╨╗╨░╤В╤Л
-- apartment_fired тАФ at most once per game
+- Victory > Apartment: проверка победы идёт до shouldTrigger() в handleDrawBarrel()
+- immune=true после agree — повторный апартамент не требует платы
+- apartment_fired — at most once per game
 
-PHASE 7 тАФ APARTMENT: COMPLETE
+PHASE 7 — APARTMENT: COMPLETE
 
-тЪая╕П KNOWN GAP тАФ ADR REQUIRED:
-GameService 985 ╤Б╤В╤А╨╛╨║ тАФ ╨▓╨┐╨╗╨╛╤В╨╜╤Г╤О ╨║ mandatory refactor (1000).
-╨Ъ╨░╨╜╨┤╨╕╨┤╨░╤В╤Л ╨╜╨░ ╨┤╨╡╨║╨╛╨╝╨┐╨╛╨╖╨╕╤Ж╨╕╤О: finishGame(), handleNoSurvivors() тЖТ ╨╛╤В╨┤╨╡╨╗╤М╨╜╤Л╨╣ GameFinishService.
-╨Э╨╡╨╛╨▒╤Е╨╛╨┤╨╕╨╝╨╛ ╨┤╨╛ ╨╜╨░╤З╨░╨╗╨░ Phase 8.
+⚠️ KNOWN GAP — ADR REQUIRED:
+GameService 985 строк — вплотную к mandatory refactor (1000).
+Кандидаты на декомпозицию: finishGame(), handleNoSurvivors() → отдельный GameFinishService.
+Необходимо до начала Phase 8.
 
 Integration tests:
 48 / 48 PASSED (auth)
@@ -1994,31 +1994,31 @@ Integration tests:
 32 / 32 PASSED (apartment)
 
 Next planned Epic: EPIC-8.0 ReconnectService
-тЪая╕П Before Phase 8: ADR for GameService decomposition required.
+⚠️ Before Phase 8: ADR for GameService decomposition required.
 
 - [DONE] EPIC-6.5 Victory system tests
 Files:
-- tests/Manual/test_victory.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗)
+- tests/Manual/test_victory.php (новый файл)
 Notes:
-- 38/38 ╤В╨╡╤Б╤В╨╛╨▓ ╨┐╤А╨╛╨╣╨┤╨╡╨╜╨╛
-- ╨Я╨╛╨║╤А╤Л╤В╨╛: checkCardVictory (0/1/2 wins), checkAllVictories (disconnected skip),
+- 38/38 тестов пройдено
+- Покрыто: checkCardVictory (0/1/2 wins), checkAllVictories (disconnected skip),
   calculatePrize (floor division, remainder burn, double+normal),
   finishGame (payout, room destruction, game_over broadcast, DB rollback),
   full draw-until-victory integration test
 
-- [DONE] EPIC-6.4 Game finish flow тАФ GameService::finishGame()
-- [DONE] EPIC-6.3 Winner payout transaction тАФ all-or-nothing PDO
-- [DONE] EPIC-6.2 Prize calculation тАФ VictoryService::calculatePrize()
-- [DONE] EPIC-6.1 Double victory detection тАФ ╨▓╤Б╤В╤А╨╛╨╡╨╜╨░ ╨▓ checkCardVictory()
-- [DONE] EPIC-6.0 Victory detection тАФ VictoryService::checkCardVictory() / checkAllVictories()
-Files (6.0тАУ6.4):
-- src/Game/VictoryService.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗, 146 ╤Б╤В╤А╨╛╨║)
-- src/Game/GameService.php (diff, 703 ╤Б╤В╤А╨╛╨║╨╕)
+- [DONE] EPIC-6.4 Game finish flow — GameService::finishGame()
+- [DONE] EPIC-6.3 Winner payout transaction — all-or-nothing PDO
+- [DONE] EPIC-6.2 Prize calculation — VictoryService::calculatePrize()
+- [DONE] EPIC-6.1 Double victory detection — встроена в checkCardVictory()
+- [DONE] EPIC-6.0 Victory detection — VictoryService::checkCardVictory() / checkAllVictories()
+Files (6.0–6.4):
+- src/Game/VictoryService.php (новый файл, 146 строк)
+- src/Game/GameService.php (diff, 703 строки)
 Notes:
-- markNumber() ╨▓ handleDrawBarrel() ╨┐╤А╨╕╨╝╨╡╨╜╤П╨╡╤В╤Б╤П ╨║╨╛ ╨▓╤Б╨╡╨╝ ╨░╨║╤В╨╕╨▓╨╜╤Л╨╝ ╨╕╨│╤А╨╛╨║╨░╨╝
-- GameService 703 ╤Б╤В╤А╨╛╨║╨╕ тАФ ╨╖╨╛╨╜╨░ warning; finishGame() ╨║╨░╨╜╨┤╨╕╨┤╨░╤В ╨╜╨░ ADR-╨┤╨╡╨║╨╛╨╝╨┐╨╛╨╖╨╕╤Ж╨╕╤О
+- markNumber() в handleDrawBarrel() применяется ко всем активным игрокам
+- GameService 703 строки — зона warning; finishGame() кандидат на ADR-декомпозицию
 
-PHASE 6 тАФ VICTORY SYSTEM: COMPLETE
+PHASE 6 — VICTORY SYSTEM: COMPLETE
 
 Integration tests:
 48 / 48 PASSED (auth)
@@ -2031,27 +2031,27 @@ Integration tests:
 Next planned Epic: EPIC-7.0 Line detection (Apartment)
 - [DONE] EPIC-5.5 Turn system tests
 Files:
-- tests/Manual/test_turn_system.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗)
+- tests/Manual/test_turn_system.php (новый файл)
 Notes:
-- 37/37 ╤В╨╡╤Б╤В╨╛╨▓ ╨┐╤А╨╛╨╣╨┤╨╡╨╜╨╛
-- ╨Я╨╛╨║╤А╤Л╤В╨╛: sendYourTurn, nextDrawer (cyclic, skip disconnected, skip removed, null),
+- 37/37 тестов пройдено
+- Покрыто: sendYourTurn, nextDrawer (cyclic, skip disconnected, skip removed, null),
   handleDrawBarrel (guards, bag, drawn_numbers, AFK reset, broadcast, rotation),
   markNumber (column mapping, multi-cell, unknown number),
   full 2-player 3-turn cycle
 
-- [DONE] EPIC-5.4 Player card marking тАФ GameService::markNumber()
-- [DONE] EPIC-5.3 Broadcast drawn barrel тАФ barrels_drawn packet
-- [DONE] EPIC-5.2 Draw barrel тАФ GameService::handleDrawBarrel()
-- [DONE] EPIC-5.1 Drawer rotation тАФ GameService::nextDrawer()
-- [DONE] EPIC-5.0 Drawer queue тАФ GameService::sendYourTurn()
-Files (5.0тАУ5.4):
-- src/Game/GameService.php (diff, 564 ╤Б╤В╤А╨╛╨║╨╕)
+- [DONE] EPIC-5.4 Player card marking — GameService::markNumber()
+- [DONE] EPIC-5.3 Broadcast drawn barrel — barrels_drawn packet
+- [DONE] EPIC-5.2 Draw barrel — GameService::handleDrawBarrel()
+- [DONE] EPIC-5.1 Drawer rotation — GameService::nextDrawer()
+- [DONE] EPIC-5.0 Drawer queue — GameService::sendYourTurn()
+Files (5.0–5.4):
+- src/Game/GameService.php (diff, 564 строки)
 Notes:
-- masks ╨╕╨╜╨╕╤Ж╨╕╨░╨╗╨╕╨╖╨╕╤А╤Г╤О╤В╤Б╤П ╨▓ handleStartGame (bool[cardsCount][3][9], ╨▓╤Б╨╡ false)
-- markNumber() ╨┐╤Г╨▒╨╗╨╕╤З╨╜╤Л╨╣ тАФ ╨╕╤Б╨┐╨╛╨╗╤М╨╖╤Г╨╡╤В╤Б╤П VictoryService ╨▓ Phase 6
-- peekNextDrawer() ╨┐╤А╨╕╨▓╨░╤В╨╜╤Л╨╣ тАФ ╤В╨╛╨╗╤М╨║╨╛ ╨┤╨╗╤П next_drawer ╨▓ ╨┐╨░╨║╨╡╤В╨╡ barrels_drawn
+- masks инициализируются в handleStartGame (bool[cardsCount][3][9], все false)
+- markNumber() публичный — используется VictoryService в Phase 6
+- peekNextDrawer() приватный — только для next_drawer в пакете barrels_drawn
 
-PHASE 5 тАФ TURN SYSTEM: COMPLETE
+PHASE 5 — TURN SYSTEM: COMPLETE
 
 Integration tests:
 48 / 48 PASSED (auth)
@@ -2063,24 +2063,24 @@ Integration tests:
 Next planned Epic: EPIC-6.0 Victory detection
 - [DONE] EPIC-4.5 Game initialization tests
 Files:
-- tests/Manual/test_game_start.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗)
+- tests/Manual/test_game_start.php (новый файл)
 Notes:
-- 44/44 ╤В╨╡╤Б╤В╨╛╨▓ ╨┐╤А╨╛╨╣╨┤╨╡╨╜╨╛
-- ╨Я╨╛╨║╤А╤Л╤В╨╛: auth guard, room guard, host guard, status guard, min players,
+- 44/44 тестов пройдено
+- Покрыто: auth guard, room guard, host guard, status guard, min players,
   insufficient coins, bank calculation, bag generation, card assignment,
   transaction commit, game_started packet (is_self, cards, masks, drawer_order),
   AFK fields reset
 
-- [DONE] EPIC-4.4 Game start protocol тАФ GameService::handleStartGame()
-- [DONE] EPIC-4.3 StartGame transaction тАФ all-or-nothing PDO transaction
-- [DONE] EPIC-4.2 Bank creation тАФ bank = sum(total_paid)
-- [DONE] EPIC-4.1 Game initialization тАФ status=playing, bag, cards, drawer
-- [DONE] EPIC-4.0 Player card purchase logic тАФ total_paid = cards_count ├Ч BET_PER_CARD
-Files (4.0тАУ4.4):
-- src/Game/GameService.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗, 301 ╤Б╤В╤А╨╛╨║╨░)
-- src/Infrastructure/PreparedStatements.php (╨┤╨╛╨▒╨░╨▓╨╗╨╡╨╜ user_by_id)
+- [DONE] EPIC-4.4 Game start protocol — GameService::handleStartGame()
+- [DONE] EPIC-4.3 StartGame transaction — all-or-nothing PDO transaction
+- [DONE] EPIC-4.2 Bank creation — bank = sum(total_paid)
+- [DONE] EPIC-4.1 Game initialization — status=playing, bag, cards, drawer
+- [DONE] EPIC-4.0 Player card purchase logic — total_paid = cards_count × BET_PER_CARD
+Files (4.0–4.4):
+- src/Game/GameService.php (новый файл, 301 строка)
+- src/Infrastructure/PreparedStatements.php (добавлен user_by_id)
 
-PHASE 4 тАФ GAME START: COMPLETE
+PHASE 4 — GAME START: COMPLETE
 
 Integration tests:
 48 / 48 PASSED (auth)
@@ -2091,34 +2091,34 @@ Integration tests:
 Next planned Epic: EPIC-5.0 Drawer queue
 - [DONE] EPIC-3.4 Engine test suite
 Files:
-- tests/Manual/test_lotto_engine.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗)
+- tests/Manual/test_lotto_engine.php (новый файл)
 Notes:
-- 164/164 ╤В╨╡╤Б╤В╨╛╨▓ ╨┐╤А╨╛╨╣╨┤╨╡╨╜╨╛
-- ╨Я╨╛╨║╤А╤Л╤В╤Л: generateCard, generateBag, validateCard, validateBag
-- 100 ╨╕╤В╨╡╤А╨░╤Ж╨╕╨╣ generateCard, 20 ╨╕╤В╨╡╤А╨░╤Ж╨╕╨╣ generateBag
-- ╨Ъ╨╛╨╗╨╛╨╜╨╛╤З╨╜╤Л╨╡ ╨╕╨╜╨▓╨░╤А╨╕╨░╨╜╤В╤Л: >=1 ╤З╨╕╤Б╨╗╨╛ ╨╜╨░ ╤Б╤В╨╛╨╗╨▒╨╡╤Ж, ╤Б╨╛╤А╤В╨╕╤А╨╛╨▓╨║╨░ top-to-bottom
-- CSPRNG: Fisher-Yates + random_int() ╨▓╨╛ ╨▓╤Б╨╡╤Е shuffle-╨╛╨┐╨╡╤А╨░╤Ж╨╕╤П╤Е
+- 164/164 тестов пройдено
+- Покрыты: generateCard, generateBag, validateCard, validateBag
+- 100 итераций generateCard, 20 итераций generateBag
+- Колоночные инварианты: >=1 число на столбец, сортировка top-to-bottom
+- CSPRNG: Fisher-Yates + random_int() во всех shuffle-операциях
 
-- [DONE] EPIC-3.3 Bag validator тАФ LottoEngine::validateBag()
-- [DONE] EPIC-3.2 Card validator тАФ LottoEngine::validateCard()
-- [DONE] EPIC-3.1 Bag generator тАФ LottoEngine::generateBag()
-- [DONE] EPIC-3.0 Card generator тАФ LottoEngine::generateCard() (mask-based ╨░╨╗╨│╨╛╤А╨╕╤В╨╝)
-Files (3.0тАУ3.3):
-- src/Game/LottoEngine.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗, ╨╖╨░╨╝╨╡╨╜╨╡╨╜╨░ ╨╖╨░╨│╨╗╤Г╤И╨║╨░)
+- [DONE] EPIC-3.3 Bag validator — LottoEngine::validateBag()
+- [DONE] EPIC-3.2 Card validator — LottoEngine::validateCard()
+- [DONE] EPIC-3.1 Bag generator — LottoEngine::generateBag()
+- [DONE] EPIC-3.0 Card generator — LottoEngine::generateCard() (mask-based алгоритм)
+Files (3.0–3.3):
+- src/Game/LottoEngine.php (новый файл, заменена заглушка)
 
-PHASE 3 тАФ LOTTO ENGINE: COMPLETE
+PHASE 3 — LOTTO ENGINE: COMPLETE
 
 - [DONE] EPIC-2.7 Lobby integration tests
 Files:
-- tests/Manual/test_lobby_integration.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗)
-- tests/Manual/mock_timer.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗)
+- tests/Manual/test_lobby_integration.php (новый файл)
+- tests/Manual/mock_timer.php (новый файл)
 Notes:
-- 90/90 ╤В╨╡╤Б╤В╨╛╨▓ ╨┐╤А╨╛╨╣╨┤╨╡╨╜╨╛
-- ╨Я╨╛╨║╤А╤Л╤В╨╛: RoomManager, handleCreateRoom, handleJoinRoom, handleLeaveRoom,
+- 90/90 тестов пройдено
+- Покрыто: RoomManager, handleCreateRoom, handleJoinRoom, handleLeaveRoom,
   removePlayerFromLobby, all_players_history, transferHost, handleRoomList,
-  Lobby AFK Timer (MockTimer stub ╨▒╨╡╨╖ event loop)
-- Workerman\Timer ╨┐╨╛╨┤╨╝╨╡╨╜╤С╨╜ ╤З╨╡╤А╨╡╨╖ mock_timer.php (namespace stub)
-- ╨д╤Г╨╜╨║╤Ж╨╕╨╛╨╜╨░╨╗╤М╨╜╤Л╨╣ WebSocket ╤В╨╡╤Б╤В ╨╛╤В╨╗╨╛╨╢╨╡╨╜ ╨┤╨╛ EPIC-10.x (server.php ╨╜╨╡ ╤Б╨╛╨╖╨┤╨░╨╜)
+  Lobby AFK Timer (MockTimer stub без event loop)
+- Workerman\Timer подменён через mock_timer.php (namespace stub)
+- Функциональный WebSocket тест отложен до EPIC-10.x (server.php не создан)
 
 Commit: EPIC-2.7 lobby-integration-tests
 
@@ -2126,36 +2126,36 @@ Commit: EPIC-2.7 lobby-integration-tests
 Files:
 - src/Lobby/LobbyService.php (diff)
 Notes:
-- startLobbyAfkTimer(): ╨╛╤В╨╝╨╡╨╜╤П╨╡╤В ╨┐╤А╨╡╨┤╤Л╨┤╤Г╤Й╨╕╨╣ тЖТ Timer::add(1s repeat) тЖТ ╨┐╤А╨╛╨▓╨╡╤А╤П╨╡╤В time()-host.last_action >= 120s тЖТ transferHost()
+- startLobbyAfkTimer(): отменяет предыдущий → Timer::add(1s repeat) → проверяет time()-host.last_action >= 120s → transferHost()
 - stopLobbyAfkTimer(): Timer::del + lobby_afk_timer_id = null
-- handleJoinRoom(): ╨▓╤Л╨╖╨╛╨▓ startLobbyAfkTimer() ╨║╨╛╨│╨┤╨░ count(players) >= 2
-- handleLeaveRoom(): ╨▓╤Л╨╖╨╛╨▓ stopLobbyAfkTimer() ╨║╨╛╨│╨┤╨░ count(players) < 2 ╨┐╨╛╤Б╨╗╨╡ ╤Г╨┤╨░╨╗╨╡╨╜╨╕╤П
-- destroyRoom() ╤Г╨╢╨╡ ╨╛╤В╨╝╨╡╨╜╤П╨╡╤В ╤В╨░╨╣╨╝╨╡╤А тАФ ╨┤╤Г╨▒╨╗╨╕╤А╨╛╨▓╨░╨╜╨╕╤П ╨╜╨╡╤В
-- ╨Ф╨╛╨▒╨░╨▓╨╗╨╡╨╜ use Workerman\Timer
-- Known gap ╨╖╨░╨║╤А╤Л╤В (╨╖╨░╤Д╨╕╨║╤Б╨╕╤А╨╛╨▓╨░╨╜ ╨▓ EPIC-2.3)
-- ╨д╤Г╨╜╨║╤Ж╨╕╨╛╨╜╨░╨╗╤М╨╜╤Л╨╣ ╤В╨╡╤Б╤В (WebSocket) ╨╛╤В╨╗╨╛╨╢╨╡╨╜ ╨┤╨╛ EPIC-10.x (server.php ╨╜╨╡ ╤Б╨╛╨╖╨┤╨░╨╜)
+- handleJoinRoom(): вызов startLobbyAfkTimer() когда count(players) >= 2
+- handleLeaveRoom(): вызов stopLobbyAfkTimer() когда count(players) < 2 после удаления
+- destroyRoom() уже отменяет таймер — дублирования нет
+- Добавлен use Workerman\Timer
+- Known gap закрыт (зафиксирован в EPIC-2.3)
+- Функциональный тест (WebSocket) отложен до EPIC-10.x (server.php не создан)
 
 Commit: EPIC-2.6 lobby-afk-system
 
 - [DONE] EPIC-2.5 Host transfer
 Files:
-- src/Lobby/LobbyService.php (╤А╨╡╨░╨╗╨╕╨╖╨╛╨▓╨░╨╜╨╛ ╨▓ ╤А╨░╨╝╨║╨░╤Е EPIC-2.3)
+- src/Lobby/LobbyService.php (реализовано в рамках EPIC-2.3)
 Notes:
-- transferHost(): FIFO ╨┐╨╛ drawer_order ╤Б╤А╨╡╨┤╨╕ active тЖТ ╨╜╨╛╨▓╤Л╨╣ host_conn_id
-- ╨Т╤Л╨╖╤Л╨▓╨░╨╡╤В╤Б╤П ╨╕╨╖ handleLeaveRoom() ╨┐╤А╨╕ $wasHost === true
-- ╨Х╤Б╨╗╨╕ ╨╜╨╡╤В ╨░╨║╤В╨╕╨▓╨╜╤Л╤Е ╨╕╨│╤А╨╛╨║╨╛╨▓ тЖТ destroyRoom()
-- ╨Ю╤В╨┤╨╡╨╗╤М╨╜╨╛╨│╨╛ ╨║╨╛╨┤╨░ ╨╜╨╡ ╨┐╨╛╤В╤А╨╡╨▒╨╛╨▓╨░╨╗╨╛╤Б╤М: ╨╗╨╛╨│╨╕╨║╨░ ╨┐╨╛╨║╤А╤Л╤В╨░ EPIC-2.3
+- transferHost(): FIFO по drawer_order среди active → новый host_conn_id
+- Вызывается из handleLeaveRoom() при $wasHost === true
+- Если нет активных игроков → destroyRoom()
+- Отдельного кода не потребовалось: логика покрыта EPIC-2.3
 
-Commit: (╨▓╤Е╨╛╨┤╨╕╤В ╨▓ EPIC-2.3 leave-room)
+Commit: (входит в EPIC-2.3 leave-room)
 
 - [DONE] EPIC-2.4 Room list
 Files:
 - src/Lobby/LobbyService.php (diff)
 Notes:
-- handleRoomList(): auth guard тЖТ ╨╕╤В╨╡╤А╨░╤Ж╨╕╤П $worker->rooms тЖТ buildRoomListEntry() тЖТ room_list ╨┐╨░╨║╨╡╤В
-- ╨Т╨╛╨╖╨▓╤А╨░╤Й╨░╤О╤В╤Б╤П ╨▓╤Б╨╡ ╨║╨╛╨╝╨╜╨░╤В╤Л ╨▓ ╨╗╤О╨▒╨╛╨╝ ╤Б╤В╨░╤В╤Г╤Б╨╡ (waiting / playing / apartment)
-- ╨д╨╛╤А╨╝╨╕╤А╨╛╨▓╨░╨╜╨╕╨╡ entry ╨┤╨╡╨╗╨╡╨│╨╕╤А╨╛╨▓╨░╨╜╨╛ RoomManager::buildRoomListEntry() (EPIC-2.0)
-- ╨Я╤А╨╛╤В╨╛╨║╨╛╨╗: {"type":"room_list","rooms":[...]} тАФ ANCHOR_PROTOCOL.md ┬з Lobby
+- handleRoomList(): auth guard → итерация $worker->rooms → buildRoomListEntry() → room_list пакет
+- Возвращаются все комнаты в любом статусе (waiting / playing / apartment)
+- Формирование entry делегировано RoomManager::buildRoomListEntry() (EPIC-2.0)
+- Протокол: {"type":"room_list","rooms":[...]} — ANCHOR_PROTOCOL.md § Lobby
 
 Commit: EPIC-2.4 room-list
 
@@ -2163,60 +2163,60 @@ Commit: EPIC-2.4 room-list
 Files:
 - src/Lobby/LobbyService.php (diff)
 Notes:
-- handleLeaveRoom(): auth тЖТ findRoomIdByConnId тЖТ guard status=waiting тЖТ removePlayerFromLobby тЖТ transferHost ╨╡╤Б╨╗╨╕ ╤Г╤И╤С╨╗ ╤Е╨╛╤Б╤В
-- removePlayerFromLobby(): ╨╖╨░╨┐╨╕╤Б╤М ╨▓ all_players_history тЖТ unset players тЖТ ╨╛╤З╨╕╤Б╤В╨║╨░ drawer_order тЖТ destroyRoom ╨╡╤Б╨╗╨╕ ╨┐╤Г╤Б╤В╨╛ тЖТ broadcast player_left ╨░╨║╤В╨╕╨▓╨╜╤Л╨╝
-- transferHost(): FIFO ╨┐╨╛ drawer_order ╤Б╤А╨╡╨┤╨╕ active тЖТ destroyRoom ╨╡╤Б╨╗╨╕ ╨╜╨╡╤В ╨░╨║╤В╨╕╨▓╨╜╤Л╤Е
-- ╨Я╤А╨╛╤В╨╛╨║╨╛╨╗: player_left {type, username, reason} тАФ ╤В╨╛╨╗╤М╨║╨╛ ╨░╨║╤В╨╕╨▓╨╜╤Л╨╝, ╨╜╨╡ ╤Г╤Е╨╛╨┤╤П╤Й╨╡╨╝╤Г
-- ╨н╨║╨╛╨╜╨╛╨╝╨╕╨║╨░: ╨╝╨╛╨╜╨╡╤В╤Л ╨╜╨╡ ╨╖╨░╤В╤А╨╛╨╜╤Г╤В╤Л (total_paid=0 ╨▓ waiting)
-- Known gap: lobby_afk_timer_id ╨┐╤А╨╕ count<2 ╨╜╨╡ ╨╛╤В╨╝╨╡╨╜╤П╨╡╤В╤Б╤П тАФ ╤Г╤Б╤В╤А╨░╨╜╤П╨╡╤В╤Б╤П ╨▓ EPIC-2.6
+- handleLeaveRoom(): auth → findRoomIdByConnId → guard status=waiting → removePlayerFromLobby → transferHost если ушёл хост
+- removePlayerFromLobby(): запись в all_players_history → unset players → очистка drawer_order → destroyRoom если пусто → broadcast player_left активным
+- transferHost(): FIFO по drawer_order среди active → destroyRoom если нет активных
+- Протокол: player_left {type, username, reason} — только активным, не уходящему
+- Экономика: монеты не затронуты (total_paid=0 в waiting)
+- Known gap: lobby_afk_timer_id при count<2 не отменяется — устраняется в EPIC-2.6
 
-Commit: 5974582 (git commit -m "EPIC-2.3 leave-room")
+Commit: pending (git commit -m "EPIC-2.3 leave-room")
 
-Commit: 5974582 (git commit -m "EPIC-2.0 room-manager")
+Commit: pending (git commit -m "EPIC-2.0 room-manager")
 
 - [DONE] EPIC-2.1 Create room
 Files:
 - src/Lobby/LobbyService.php
 
 Notes:
-- handleCreateRoom(): ╨▓╨░╨╗╨╕╨┤╨░╤Ж╨╕╤П ╨╗╨╕╨╝╨╕╤В╨╛╨▓ тЖТ bcrypt ╨┐╨░╤А╨╛╨╗╤М тЖТ RoomManager::createRoom() тЖТ player entry тЖТ room_joined
-- ╨Я╤А╨╛╨▓╨╡╤А╨║╨╕: MAX_ROOMS, MAX_TOTAL_PLAYERS, cards_count тИИ {1,2}, max_players тИИ [2..10]
-- ╨Ь╨╛╨╜╨╡╤В╤Л ╨╜╨╡ ╤Б╨┐╨╕╤Б╤Л╨▓╨░╤О╤В╤Б╤П (Reservation Rule, ANCHOR_CORE Part 2)
-- drawer_order ╨╕╨╜╨╕╤Ж╨╕╨░╨╗╨╕╨╖╨╕╤А╤Г╨╡╤В╤Б╤П ╤Е╨╛╤Б╤В╨╛╨╝ (ANCHOR_CORE ┬з Drawer Order Rules)
-- ╨Ъ╨░╤А╤В╤Л ╨╜╨╡ ╨╜╨░╨╖╨╜╨░╤З╨░╤О╤В╤Б╤П тАФ ╨┤╨╡╨╗╨╡╨│╨╕╤А╨╛╨▓╨░╨╜╨╛ start_game() (EPIC-4.1)
+- handleCreateRoom(): валидация лимитов → bcrypt пароль → RoomManager::createRoom() → player entry → room_joined
+- Проверки: MAX_ROOMS, MAX_TOTAL_PLAYERS, cards_count ∈ {1,2}, max_players ∈ [2..10]
+- Монеты не списываются (Reservation Rule, ANCHOR_CORE Part 2)
+- drawer_order инициализируется хостом (ANCHOR_CORE § Drawer Order Rules)
+- Карты не назначаются — делегировано start_game() (EPIC-4.1)
 
-Commit: 5974582 (git commit -m "EPIC-2.1 create-room")
+Commit: pending (git commit -m "EPIC-2.1 create-room")
 
 - [DONE] EPIC-2.2 Join room
 Files:
 - src/Lobby/LobbyService.php (diff)
 Notes:
-- handleJoinRoom(): auth тЖТ room exists тЖТ status=waiting тЖТ not full тЖТ MAX_TOTAL_PLAYERS тЖТ password тЖТ cards_count тЖТ player entry тЖТ room_joined тЖТ broadcast player_joined
-- ╨Я╨░╤А╨╛╨╗╤М: password_verify(bcrypt)
-- drawer_order: FIFO append (ANCHOR_CORE ┬з Drawer Order Rules)
-- room_joined тЖТ ╨▓╤Е╨╛╨┤╤П╤Й╨╡╨╝╤Г; player_joined тЖТ ╨╛╤Б╤В╨░╨╗╤М╨╜╤Л╨╝ ╨░╨║╤В╨╕╨▓╨╜╤Л╨╝
-Commit: 5974582
+- handleJoinRoom(): auth → room exists → status=waiting → not full → MAX_TOTAL_PLAYERS → password → cards_count → player entry → room_joined → broadcast player_joined
+- Пароль: password_verify(bcrypt)
+- drawer_order: FIFO append (ANCHOR_CORE § Drawer Order Rules)
+- room_joined → входящему; player_joined → остальным активным
+Commit: pending
 
 ---
 
 ## PRE-BUILT COMPONENTS
 
-### PRE-BUILT-1 тАФ Reconnect Token Infrastructure
-Status: Completed (╨╕╨╖╨╛╨╗╨╕╤А╨╛╨▓╨░╨╜, ╨┐╨╛╨║╨░ ╨╜╨╡ ╨╕╤Б╨┐╨╛╨╗╤М╨╖╤Г╨╡╤В╤Б╤П)
+### PRE-BUILT-1 — Reconnect Token Infrastructure
+Status: Completed (изолирован, пока не используется)
 
 Files:
 - src/Auth/ReconnectTokenService.php
 
 Notes:
-- ╨У╨╡╨╜╨╡╤А╨░╤Ж╨╕╤П ╨╕ ╨▓╨░╨╗╨╕╨┤╨░╤Ж╨╕╤П 64-╤Б╨╕╨╝╨▓╨╛╨╗╤М╨╜╤Л╤Е HEX ╤В╨╛╨║╨╡╨╜╨╛╨▓ ╨┐╨╡╤А╨╡╨┐╨╛╨┤╨║╨╗╤О╤З╨╡╨╜╨╕╤П.
-- ╨Э╨╡ ╨╕╨╜╤В╨╡╨│╤А╨╕╤А╨╛╨▓╨░╨╜ ╨▓ ╤В╨╡╨║╤Г╤Й╨╕╨╣ ╨┐╤А╨╛╤В╨╛╨║╨╛╨╗.
-- ╨Я╨╗╨░╨╜╨╕╤А╤Г╨╡╨╝╤Л╨╣ ╨┐╨╛╤В╤А╨╡╨▒╨╕╤В╨╡╨╗╤М: EPIC-8.0 ReconnectService.
+- Генерация и валидация 64-символьных HEX токенов переподключения.
+- Не интегрирован в текущий протокол.
+- Планируемый потребитель: EPIC-8.0 ReconnectService.
 
 ---
 
 ## PATCHES
 
-## FIX-12 тАФ Test loggers writing into the production log file
+## FIX-12 — Test loggers writing into the production log file
 Status: Completed
 Date: 2026-07-25
 
@@ -2226,43 +2226,43 @@ time. A permission-ownership mismatch (`game.db`/`workerman.log`/
 against the live VPS, while the production `lotto-server.service` runs
 as `www-data`) caused a real crash-loop on the production service.
 While diagnosing that, a confusing `[ERROR] ... CHECK constraint failed:
-coins <= 200` line was found in `logs/server.log` тАФ alarming at first
+coins <= 200` line was found in `logs/server.log` — alarming at first
 glance, since no such constraint exists in the real schema
 (`docs/... .schema users` confirmed no CHECK clause). Traced to its
 actual source rather than assumed.
 
 Files:
-- src/Core/Logger.php (diff тАФ optional `?string $logFilePath = null`
+- src/Core/Logger.php (diff — optional `?string $logFilePath = null`
   constructor parameter, mirroring the FIX-4 precedent for
   `Database::__construct(?PDO $pdo = null)`. Default (no argument)
-  preserves exact prior behavior тАФ server.php's own `new Logger()` needs
+  preserves exact prior behavior — server.php's own `new Logger()` needs
   no change at all.)
 - tests/Manual/test_login.php (diff)
 - tests/Manual/test_register.php (diff)
 - tests/Manual/test_session_service.php (diff)
 - tests/Manual/test_single_session.php (diff)
-- tests/Manual/test_victory.php (diff тАФ the actual source of the
+- tests/Manual/test_victory.php (diff — the actual source of the
   incident's confusing ERROR line)
 - tests/Manual/test_admin_logs.php (diff)
 - tests/Manual/test_admin_integration.php (diff)
-- tests/Manual/test_logger.php (DELETED тАФ see below)
+- tests/Manual/test_logger.php (DELETED — see below)
 
 Problem:
 - `Logger::__construct()` hardcoded the log path to `logs/server.log`
   with no way to inject a different one. Any test constructing a real
-  `Logger` (not a `MockLogger`) тАФ which several do purely incidentally,
+  `Logger` (not a `MockLogger`) — which several do purely incidentally,
   as a required dependency of `AuthService`/`GameFinishService`/
-  `AdminService`, with no interest in testing logging itself тАФ wrote
+  `AdminService`, with no interest in testing logging itself — wrote
   straight into the shared production log on every run.
 - `tests/Manual/test_victory.php`'s `makeSvc()` (added in FIX-4) builds a
   real `GameFinishService` over an isolated **in-memory** SQLite database
   specifically to test transaction rollback via a deliberately-rigged
-  `CHECK(coins <= 200)` constraint тАФ genuinely correct DB isolation. But
+  `CHECK(coins <= 200)` constraint — genuinely correct DB isolation. But
   it paired that with a real, default-path `Logger`, so the rigged
   failure's error message still landed in the real `logs/server.log`,
   indistinguishable from an actual production incident. The existing
-  code comment at that exact line already said "╨┐╨╛╨▒╨╛╤З╨╜╤Л╨╣ ╤Н╤Д╤Д╨╡╨║╤В тАФ ╨╖╨░╨┐╨╕╤Б╤М
-  ╨▓ logs/server.log" (side effect тАФ writes to logs/server.log) тАФ
+  code comment at that exact line already said "побочный эффект — запись
+  в logs/server.log" (side effect — writes to logs/server.log) —
   correctly identified by whoever wrote FIX-4, but never fixed, and this
   is exactly what it eventually caused.
 - Two more genuine instances found by a full sweep of every `new
@@ -2273,14 +2273,14 @@ Problem:
   `AdminService`, with no reason to specifically target the production
   path.
 - A latent, interesting side-discovery: `test_lobby_integration.php` and
-  `test_auth_integration.php` already called `new Logger('/dev/null')` тАФ
+  `test_auth_integration.php` already called `new Logger('/dev/null')` —
   an earlier session's own attempt to solve exactly this problem. It
   never worked: PHP does not error when extra arguments are passed to a
   zero-parameter constructor (unlike stricter-arity languages), so the
   `'/dev/null'` argument was silently discarded and the call was
   equivalent to `new Logger()` the whole time. This fix makes that
   existing, previously-non-functional intent actually work, at zero
-  additional cost тАФ no code change needed in either file.
+  additional cost — no code change needed in either file.
 - `tests/Manual/test_logger.php` (distinct from the project-root copy
   already deleted in a much earlier session, per the 2026-07-03 decision
   log entry) was a leftover duplicate: a print_r()-based smoke script
@@ -2288,52 +2288,52 @@ Problem:
   EPIC-9.6 entry and by `test_admin_logs.php`'s own header comment as
   superseded. It ran on every `run_ALL_tests.sh` pass, wrote generic
   "test 1"/"test 2"/"test 3" lines into the real log, and contributed
-  nothing (no pass/fail signal at all) тАФ deleted.
+  nothing (no pass/fail signal at all) — deleted.
 
 Deliberately NOT changed: `tests/Manual/test_helpers_runner.php`
 Scenario 4 and `server.php` itself. Scenario 4's entire purpose is
 verifying that the *default* `Logger` path is genuinely
-`logs/server.log` тАФ redirecting it would break the one thing it's
+`logs/server.log` — redirecting it would break the one thing it's
 testing. `server.php`'s own `new Logger()` is correct production code by
 definition.
 
 Known, explicitly out-of-scope for this fix (lower severity, different
-category тАФ see decision log): the real-WS-client subprocess tests
+category — see decision log): the real-WS-client subprocess tests
 (`test_auth_packet_routing.php`, `test_lobby_packet_routing.php`,
 `test_game_packet_routing.php`, `test_admin_packet_routing.php`,
 `test_session_lifecycle.php`, `test_packet_validation.php`,
 `test_server_bootstrap.php`) each spawn a genuine `php server.php start`
-subprocess to exercise real end-to-end routing тАФ that subprocess's
+subprocess to exercise real end-to-end routing — that subprocess's
 `Logger` is unmodified production code, correctly writing to the real
 log path, because it *is* the real server. This still leaves
 test-generated `INFO`/`WARNING` lines with test-like usernames
-(`fix10_user1`, `e106_admin`, etc.) in the production log тАФ clearly
+(`fix10_user1`, `e106_admin`, etc.) in the production log — clearly
 identifiable as test noise, not the confusing false-`ERROR` class of
 problem this fix targets. Properly isolating it would require making
 `server.php`'s own log path configurable (an env var, defaulting to the
-current path) and updating all seven harnesses to set it тАФ a larger,
+current path) and updating all seven harnesses to set it — a larger,
 separate change touching production code, left for an explicit future
 decision rather than folded in here silently.
 
 Verified:
 - All 5 originally-affected tests re-run individually with an MD5 hash
-  of `logs/server.log` captured before and after each тАФ byte-identical
+  of `logs/server.log` captured before and after each — byte-identical
   in every case (confirmed no write occurred).
 - Full `run_ALL_tests.sh` re-run with the same before/after hash check
-  across the *entire* suite тАФ the only lines that appear afterward
+  across the *entire* suite — the only lines that appear afterward
   originate from the real-WS-subprocess tests described above (expected,
   out of scope), not from any of the fixed files.
-- `test_helpers_runner.php` re-run in isolation тАФ still correctly writes
+- `test_helpers_runner.php` re-run in isolation — still correctly writes
   to and reads back from the real default path, confirming `Logger`'s
   default behavior is byte-for-byte unchanged.
 - Every affected test's pass count matches its previously-documented
   count exactly (40/40 victory, 91/91 lobby integration, 55/55 auth
-  integration, 20/20 admin integration, etc.) тАФ no behavior change, only
+  integration, 20/20 admin integration, etc.) — no behavior change, only
   the log destination.
 - Full regression across all 29 remaining `tests/Manual/*.php` files (30
-  minus the deleted `test_logger.php`) тАФ 0 failed.
+  minus the deleted `test_logger.php`) — 0 failed.
 
-No ADR required тАФ no protocol, economy, timer, or room/player structure
+No ADR required — no protocol, economy, timer, or room/player structure
 touched. Purely a test-isolation and logging-infrastructure fix.
 
 Diff: patches/FIX-12-Logger.patch, patches/FIX-12-test-login.patch,
@@ -2341,12 +2341,12 @@ patches/FIX-12-test-register.patch, patches/FIX-12-test-session-service.patch,
 patches/FIX-12-test-single-session.patch, patches/FIX-12-test-victory.patch,
 patches/FIX-12-test-admin-logs.patch, patches/FIX-12-test-admin-integration.patch
 
-## FIX-16 тАФ server.php bootstrap helper missing from committed Helpers.php
+## FIX-16 — server.php bootstrap helper missing from committed Helpers.php
 Status: Completed
 Date: 2026-07-28
 
 Found during: full `./run_ALL_tests.sh` on the Ubuntu VPS at the end of
-EPIC-13.4 sign-off тАФ not during local Windows dev, where the committed
+EPIC-13.4 sign-off — not during local Windows dev, where the committed
 `run_ALL_tests.php` still skips the eight live-WS-subprocess tests via
 `$skipOnWindows` (FIX-15 intent documented in `docs/LOCAL_ENVIRONMENT.md`
 but the bootstrap helpers themselves were never committed).
@@ -2358,14 +2358,14 @@ were developed locally for Windows SQLite bootstrap and child-process
 
 Breaking commit: `b203493` (EPIC-13.1) added
 `lottoBootstrapPhpExtensions()` to `server.php:109` (and the corresponding
-`use function` import) тАФ copied from the local uncommitted state тАФ without
+`use function` import) — copied from the local uncommitted state — without
 the function definition being present in the repository. On Linux/VPS the
 call is a no-op when defined, but **fatal when undefined**.
 
 Symptom on VPS (`/opt/lotto-game`, `./run_ALL_tests.sh` after `git pull`
 to Phase 13 HEAD before this fix):
 - Eight live WS subprocess tests failed with
-  `server.php did not bind port тАж in time (running=no)`.
+  `server.php did not bind port … in time (running=no)`.
 - stderr on every spawned `server.php`:
   `PHP Fatal error: Call to undefined function
   Lotto\Core\lottoBootstrapPhpExtensions() in server.php:109`.
@@ -2377,24 +2377,24 @@ Affected tests (all subprocess-spawned `server.php`):
 `test_session_lifecycle.php`, `test_protocol_audit.php`.
 
 Files:
-- src/Core/Helpers.php (diff тАФ add `lottoBootstrapPhpExtensions()` and
+- src/Core/Helpers.php (diff — add `lottoBootstrapPhpExtensions()` and
   `lottoPhpIniArgs()`; both no-op / empty-array on Linux)
 
-Fix commit: `0de46d0` тАФ `Fix missing lottoBootstrapPhpExtensions in committed
+Fix commit: `0de46d0` — `Fix missing lottoBootstrapPhpExtensions in committed
 Helpers.php.`
 
 Verified:
 - Fresh `git clone` from GitHub at `0de46d0` (branch
   `cursor/epic-11-1-vps-ws-test-isolation`, no workspace-local files):
   `php server.php start` with isolated `LOTTO_WS_PORT` reaches Workerman
-  `[ok]` тАФ no fatal error (Windows dev host, 2026-07-28; `composer install`
-  not available in agent environment тАФ vendor copied from lockfile-matched
+  `[ok]` — no fatal error (Windows dev host, 2026-07-28; `composer install`
+  not available in agent environment — vendor copied from lockfile-matched
   tree for bind test only).
 - Local workspace `php run_ALL_tests.php` at `0de46d0`+: **41/41** test
   files PASS (Windows dev host, 2026-07-28; uses uncommitted runner with
   FIX-15 Windows WS enablement).
 - VPS `./run_ALL_tests.sh` after `git pull` to `0de46d0`:
-  **MANUAL VERIFICATION REQUIRED** тАФ agent has no SSH access to
+  **MANUAL VERIFICATION REQUIRED** — agent has no SSH access to
   `/opt/lotto-game`. Expected: all `tests/Manual/test_*.php` pass (41 files
   at HEAD); the eight subprocess tests above must reach port bind.
 
@@ -2402,24 +2402,24 @@ Process lesson (same class as FIX-12): local-only or root-owned artifacts
 masked a production-breaking gap until the VPS-authoritative test run.
 Any symbol `server.php` calls must be committed **in the same commit or an
 earlier one** before the call lands. Uncommitted helper functions
-referenced by committed entrypoints are a release blocker тАФ Windows skips
+referenced by committed entrypoints are a release blocker — Windows skips
 are not a substitute for Ubuntu sign-off per `LOCAL_ENVIRONMENT.md`.
 
-No ADR required тАФ no protocol, economy, timer, or room/player structure
+No ADR required — no protocol, economy, timer, or room/player structure
 touched. Purely a missing-dependency / process-discipline fix.
 
 Diff: commit `0de46d0` (src/Core/Helpers.php only)
 
-## EPIC-10.7 тАФ Protocol integration tests
+## EPIC-10.7 — Protocol integration tests
 Status: Completed
 Date: 2026-07-24
 
 Files:
-- tests/Manual/test_protocol_completeness.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ 50 assertions)
+- tests/Manual/test_protocol_completeness.php (новый файл — 50 assertions)
 
 Scope, per explicit user direction: this Epic checks that everything
 ANCHOR_CORE.md/ANCHOR_PROTOCOL.md *declare* is actually *present* on the
-server side тАФ a completeness/coverage audit, not a re-test of business
+server side — a completeness/coverage audit, not a re-test of business
 logic. Business logic is already exhaustively covered: every module has
 its own real-WS-client routing test (test_auth_packet_routing.php,
 test_lobby_packet_routing.php, test_game_packet_routing.php,
@@ -2427,7 +2427,7 @@ test_admin_packet_routing.php) plus dozens of Phase-specific unit tests.
 Re-testing that logic here would be redundant, not thorough.
 
 Deliberately a static source-cross-reference test, not a live-server one
-тАФ it parses the actual registries out of docs/ANCHOR_CORE.md and
+— it parses the actual registries out of docs/ANCHOR_CORE.md and
 docs/ANCHOR_PROTOCOL.md at run time (not a hardcoded copy of them), so it
 stays honest against drift in either direction: it would catch a future
 session adding a new packet/action to the docs without implementing it,
@@ -2441,66 +2441,66 @@ Authority). Checks:
 5. All four protocol handlers (AuthHandler/LobbyHandler/GameHandler/
    AdminHandler) actually instantiated in server.php's onWorkerStart.
 
-Result: 50/50 PASSED, 0 failed, 3 warnings тАФ all three warnings match
+Result: 50/50 PASSED, 0 failed, 3 warnings — all three warnings match
 already-documented KNOWN GAPS, no new surprises:
-- `admin_stats_data` (packet type): declared, zero emission sites тАФ
+- `admin_stats_data` (packet type): declared, zero emission sites —
   already flagged (2026-07-03 audit) as unimplemented/no Epic assigned.
 - `afk_warning` (packet type): emitted (ReconnectService, EPIC-8.3), not
-  declared in the registry тАФ already flagged as documentation debt.
-- `error.banned` (error code): declared, zero usage sites тАФ **new
+  declared in the registry — already flagged as documentation debt.
+- `error.banned` (error code): declared, zero usage sites — **new
   finding this Epic**. Not a functional gap: the dedicated `banned`
   packet type (`{"type":"banned","until":...}`) already covers every
   ban-rejection path (login, reconnect since FIX-11, admin notification)
-  тАФ `error.banned` appears to be a redundant/unused declaration in the
+  — `error.banned` appears to be a redundant/unused declaration in the
   Error Packet Codes registry, never actually needed once the dedicated
   packet type existed. Logged as a new KNOWN GAP (low priority,
   documentation-only) rather than touched: ANCHOR_PROTOCOL.md states it
-  "Never changes," and removing a declared code тАФ even an unused one тАФ
+  "Never changes," and removing a declared code — even an unused one —
   is arguably a change to that document; left for an explicit user
   decision (same treatment as the admin_stats_data gap: either assign it
   a purpose or formally deprecate it).
 
-No code defects found by this Epic тАФ confirms the wiring built across
+No code defects found by this Epic — confirms the wiring built across
 EPIC-10.0-10.6 is genuinely complete against the declared protocol
 surface, not just working for the specific scenarios the routing tests
 happened to cover.
 
-PHASE 10 тАФ WEBSOCKET PROTOCOL: COMPLETE (10.0-10.7 all done).
+PHASE 10 — WEBSOCKET PROTOCOL: COMPLETE (10.0-10.7 all done).
 
 Diff: patches/EPIC-10.7-test-protocol-completeness.patch (new file, full
-content тАФ see also tests/Manual/test_protocol_completeness.php directly)
+content — see also tests/Manual/test_protocol_completeness.php directly)
 
 
 Status: Completed
 Date: 2026-07-24
 
 Files:
-- src/Admin/AdminHandler.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ thin wrapper ╨╜╨░╨┤ AdminService,
-  ╤В╨╛╤В ╨╢╨╡ ╨┐╨░╤В╤В╨╡╤А╨╜ ╤З╤В╨╛ GameHandler/LobbyHandler)
-- server.php (diff тАФ AdminService/AdminHandler dependency wiring in
-  onWorkerStart, ╨▓╤Б╨╡ 5 admin_* actions ╨┤╨╛╨▒╨░╨▓╨╗╨╡╨╜╤Л ╨▓ dispatcher; ╤Б╨╝. FIX-11
-  ╨╜╨╕╨╢╨╡ тАФ ╤З╨░╤Б╤В╤М ╤Н╤В╨╛╨│╨╛ ╨╢╨╡ diff)
-- src/Admin/AdminService.php (diff тАФ FIX-11, ╤Б╨╝. ╨╜╨╕╨╢╨╡)
-- src/Auth/AuthHandler.php (diff тАФ FIX-11, ban check in handleReconnect())
-- src/Auth/AuthService.php (diff тАФ FIX-11, getUserById() returns
+- src/Admin/AdminHandler.php (новый файл — thin wrapper над AdminService,
+  тот же паттерн что GameHandler/LobbyHandler)
+- server.php (diff — AdminService/AdminHandler dependency wiring in
+  onWorkerStart, все 5 admin_* actions добавлены в dispatcher; см. FIX-11
+  ниже — часть этого же diff)
+- src/Admin/AdminService.php (diff — FIX-11, см. ниже)
+- src/Auth/AuthHandler.php (diff — FIX-11, ban check in handleReconnect())
+- src/Auth/AuthService.php (diff — FIX-11, getUserById() returns
   banned_until now too)
-- src/Infrastructure/PreparedStatements.php (diff тАФ FIX-11, extended
+- src/Infrastructure/PreparedStatements.php (diff — FIX-11, extended
   user_auth_fields_by_id to include banned_until)
-- tests/Manual/test_admin_ban.php (diff тАФ FIX-11, MockConnection needs a
+- tests/Manual/test_admin_ban.php (diff — FIX-11, MockConnection needs a
   close() method now that handleBanUser() actually calls it)
-- tests/Manual/test_admin_integration.php (diff тАФ FIX-11, same fix for
+- tests/Manual/test_admin_integration.php (diff — FIX-11, same fix for
   SpyConnection)
-- tests/Manual/test_admin_packet_routing.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ 15 assertions,
+- tests/Manual/test_admin_packet_routing.php (новый файл — 15 assertions,
   real WS client, covers both EPIC-10.6 routing and FIX-11 regression
   scenarios together since FIX-11 was found while probing this Epic's own
-  wiring тАФ same pattern as EPIC-10.5/FIX-9)
+  wiring — same pattern as EPIC-10.5/FIX-9)
 
-AdminService already existed and was fully tested (Phase 9) тАФ the routing
+AdminService already existed and was fully tested (Phase 9) — the routing
 part of this Epic is, like every other EPIC-10.x, pure dependency wiring.
 The one thing that made this wiring non-trivial: AdminService's
 constructor takes 7 nullable dependencies (stmts, logger, lobbyService,
 reconnectService, apartmentService, db, roomManager), and several of them
-degrade silently rather than erroring if omitted тАФ missing
+degrade silently rather than erroring if omitted — missing
 lobbyService/reconnectService/apartmentService means a banned/kicked
 online player is never actually removed from their room (money still
 moves correctly, but a "ghost" player entry lingers); missing roomManager
@@ -2509,13 +2509,13 @@ cleanup, the exact class of bug FIX-6 fixed elsewhere. All seven are now
 wired. $apartmentService is deliberately the same local variable already
 in scope from the EPIC-10.5 block (never stored as a $worker property,
 since only GameService needed it there) rather than retroactively
-touching completed EPIC-10.5 code тАФ captured by closure scope instead.
+touching completed EPIC-10.5 code — captured by closure scope instead.
 
-Found and fixed during this Epic's audit (FIX-11) тАФ proactively looking
+Found and fixed during this Epic's audit (FIX-11) — proactively looking
 for another FIX-9/FIX-10-class interaction bug before shipping, per user
 request:
 
-Problem (three compounding gaps, all in the ban path specifically тАФ
+Problem (three compounding gaps, all in the ban path specifically —
 handleKickUser() was already correct):
 1. AdminService::handleBanUser()'s structural room-removal
    (findPlayerMembership() + removePlayerFromLobby/Game/Apartment) was
@@ -2524,12 +2524,12 @@ handleKickUser() was already correct):
    accidentally always ran for anyone who'd ever been online. After
    FIX-10 correctly started clearing it on genuine disconnect, a banned
    player who happened to be mid-reconnect-window (disconnected, not yet
-   timed out) at ban time no longer had a userConnections entry тАФ so the
+   timed out) at ban time no longer had a userConnections entry — so the
    entire removal branch was skipped. They kept their room seat and
    active reconnect_timer, and reconnecting before it expired let them
    fully resume playing seconds after being banned.
 2. Banning a currently-*online* target never closed their WebSocket
-   connection тАФ only sent them a `banned` packet. $connection->userId/
+   connection — only sent them a `banned` packet. $connection->userId/
    isAdmin/sessionToken stayed bound; they could keep issuing any action
    not tied to the now-removed room indefinitely, until they happened to
    disconnect on their own.
@@ -2537,7 +2537,7 @@ handleKickUser() was already correct):
    banned_until at all, unlike AuthService::login() which does. A banned
    user could bypass the ban indefinitely simply by sending
    {"action":"reconnect","token":<their existing session_token>} instead
-   of logging in fresh тАФ reconnect was a complete, permanent end-run
+   of logging in fresh — reconnect was a complete, permanent end-run
    around moderation, independent of anything room-related.
 - Verified empirically end-to-end (not simulated) before writing any fix,
   same discipline as FIX-10: reproduced all three independently with a
@@ -2545,7 +2545,7 @@ handleKickUser() was already correct):
 
 Fix:
 1. handleBanUser()'s removal logic un-nested from the userConnections
-   check тАФ now runs unconditionally based on findPlayerMembership(),
+   check — now runs unconditionally based on findPlayerMembership(),
    identical in shape to handleKickUser()'s already-correct pattern. The
    "notify + close" part remains conditional on the target being
    currently online (that part is correctly conditional).
@@ -2553,13 +2553,13 @@ Fix:
    now explicitly closed ($targetConnection->close()). Order matters:
    room removal happens first, so onClose's own
    ReconnectService::handleDisconnect() correctly no-ops afterward (the
-   player is already gone from $room['players'] by the time it runs) тАФ
+   player is already gone from $room['players'] by the time it runs) —
    no double-removal/double-refund risk (the FIX-3 class of bug).
 3. AuthService::getUserById() (added in FIX-10) now also returns
    banned_until (new column in the user_auth_fields_by_id query).
    AuthHandler::handleReconnect() checks it immediately after fetching
    the user and, if currently banned, responds with the exact same
-   {"type":"banned","until":...} packet login() already sends тАФ reusing
+   {"type":"banned","until":...} packet login() already sends — reusing
    the existing contract, not introducing a new one.
 
 Verified non-false-positive (each of the three independently, by
@@ -2575,7 +2575,7 @@ reverting only that piece and re-running the relevant scenario):
   exactly as before the fix); restored -> fixed again.
 
 Result:
-- tests/Manual/test_admin_packet_routing.php (new): 15/15 PASSED тАФ
+- tests/Manual/test_admin_packet_routing.php (new): 15/15 PASSED —
   real WS client against a live server.php. Covers admin_get_logs/
   admin_ban_user/admin_unban_user/admin_kick_user/admin_close_room
   routing, the assertAdmin guard (both auth_required and not_your_turn
@@ -2584,22 +2584,22 @@ Result:
   correctly blocked, room structurally cleaned up despite the target
   being offline at ban time), and unban-then-relogin.
 - tests/Manual/test_admin_ban.php: 9/9 PASSED after adding close() to
-  MockConnection (fixture update, not a business-logic change тАФ Rule 22).
+  MockConnection (fixture update, not a business-logic change — Rule 22).
 - tests/Manual/test_admin_integration.php: 20/20 PASSED after the same
   fixture update to SpyConnection.
 - Full regression across every tests/Manual/*.php file (30 files,
-  including the new one) тАФ 0 failed.
+  including the new one) — 0 failed.
 
 Also fixed in this Epic (trivial, unrelated to FIX-11's substance): a
 pre-existing PHP warning ("Undefined property: ...TcpConnection::$userId")
 in onClose when a raw TCP connection closes before ever completing the
 WebSocket handshake (so onWebSocketConnected's field initialization never
-ran) тАФ direct property access changed to null-coalescing, matching the
+ran) — direct property access changed to null-coalescing, matching the
 adjacent log line's existing style.
 
 No ADR required for the routing wiring (no protocol change). FIX-11 also
 requires no ADR: no protocol packet, error code, room/player structure
-key, or timer changed тАФ `banned` is the same existing packet login()
+key, or timer changed — `banned` is the same existing packet login()
 already sends, reused from a second call site where it had been missing.
 
 Diff: patches/EPIC-10.6-server.patch, patches/FIX-11-AdminService.patch,
@@ -2607,7 +2607,7 @@ patches/FIX-11-AuthHandler.patch, patches/FIX-11-AuthService.patch,
 patches/FIX-11-PreparedStatements.patch,
 patches/FIX-11-test-admin-ban.patch, patches/FIX-11-test-admin-integration.patch
 
-## FIX-10 тАФ Permanent session lockout after any disconnect outside room membership
+## FIX-10 — Permanent session lockout after any disconnect outside room membership
 Status: Completed
 Date: 2026-07-24
 
@@ -2617,69 +2617,69 @@ end-to-end routing exists) before adding more admin-side removal paths
 that would have inherited the same defect.
 
 Files:
-- src/Infrastructure/PreparedStatements.php (diff тАФ new query
+- src/Infrastructure/PreparedStatements.php (diff — new query
   `user_auth_fields_by_id`: id/username/is_admin by id; neither existing
   `user_by_id` (id, coins) nor `user_admin_by_id` (id, is_admin) return
   username, which AuthHandler::bindConnection() requires)
-- src/Auth/AuthService.php (diff тАФ new `getUserById(int $userId): ?array`,
+- src/Auth/AuthService.php (diff — new `getUserById(int $userId): ?array`,
   using the statement above; returns null on missing user, which the
   caller treats as an invalid session rather than throwing)
-- src/Auth/AuthHandler.php (diff тАФ `handleReconnect()` now calls
+- src/Auth/AuthHandler.php (diff — `handleReconnect()` now calls
   `getUserById()` and `bindConnection()`, mirroring what register()/
   login() already do; previously only `$worker->userConnections[$userId]`
   was restored and `$connection->userId` was never set)
-- server.php (diff тАФ `onClose` now unsets
+- server.php (diff — `onClose` now unsets
   `$worker->userConnections[$connection->userId]` when the closing
   connection had one)
-- tests/Manual/test_session_lifecycle.php (new file тАФ real WS client
+- tests/Manual/test_session_lifecycle.php (new file — real WS client
   against a live server.php, 6 assertions, no MockConnection)
 
 Problem:
-- `$worker->userConnections[$userId]` (ADR-001 ┬з Single Active Session)
+- `$worker->userConnections[$userId]` (ADR-001 § Single Active Session)
   is written by register/login/reconnect but was **never unset by any
-  code path whatsoever** тАФ not in `onClose`, not in
+  code path whatsoever** — not in `onClose`, not in
   `removePlayerFromLobby()/removePlayerFromGame()/removePlayerFromApartment()`,
   not on reconnect-timer expiry, not in `admin_close_room`. Once set, an
   account's slot in that map is permanent for the life of the worker
   process.
 - `AuthService::login()`'s single-session guard is a plain `isset()`
-  check against that map тАФ so once a user disconnects, EVERY subsequent
+  check against that map — so once a user disconnects, EVERY subsequent
   `login` attempt with correct credentials fails with the generic
   `error.auth_invalid_credentials` (message text: "User already logged
   in", though the client has no reliable way to distinguish this from a
-  wrong password since the error *code* is deliberately generic тАФ see
+  wrong password since the error *code* is deliberately generic — see
   `AuthHandler::mapLoginError()`).
 - The only theoretical way back in is the `reconnect` action, per
-  ADR-001 ┬з5-6 ("reconnect is the only supported method for restoring
+  ADR-001 §5-6 ("reconnect is the only supported method for restoring
   access"). But `AuthHandler::handleReconnect()` only ever restored
-  `$worker->userConnections[$userId]` тАФ it never set
+  `$worker->userConnections[$userId]` — it never set
   `$connection->userId` itself (a second, related gap: this is the same
   class of omission flagged as a KNOWN GAP in EPIC-10.5, just with a much
   larger blast radius than originally scoped there). For a user with an
   active room, `ReconnectService::handleReconnect()` (wired in EPIC-10.5)
   closes that gap by binding `$connection->userId` when it finds a
   matching disconnected room player. **For a user who was never in a
-  room тАФ or whose room session already ended тАФ nothing ever binds
+  room — or whose room session already ended — nothing ever binds
   `$connection->userId`,** so the `error.auth_required` guard in
   `server.php` blocks every subsequent action, including `create_room`/
   `join_room`.
 - Net effect: any account that disconnects while not currently seated in
   a room (idling in the lobby, between games, after `leave_room`, after
   a finished game's room was destroyed, or simply a network blip before
-  ever joining a room) is **permanently locked out** тАФ neither `login`
+  ever joining a room) is **permanently locked out** — neither `login`
   nor `reconnect` can recover it. Only a full server restart clears
   `$worker->userConnections`.
 - Why this was undetected until now: unreachable through any real code
   path before EPIC-10.5, since `onClose` was a stub that never called
-  `ReconnectService::handleDisconnect()` at all prior to that Epic тАФ no
+  `ReconnectService::handleDisconnect()` at all prior to that Epic — no
   disconnect ever triggered any downstream state change. The one test
   that exercises the single-session concept,
   `tests/Manual/test_single_session.php` (Phase 1), manually performs
   `unset($worker->userConnections[$userId])` inside the test itself
-  before asserting a second login succeeds тАФ simulating the cleanup step
+  before asserting a second login succeeds — simulating the cleanup step
   that production code never actually implements, rather than exercising
   a real code path. Textbook instance of ANCHOR_RULES.md Part 22 ("Tests
-  must not compensate for missing contracts") тАФ except the missing
+  must not compensate for missing contracts") — except the missing
   contract was on the implementation side, not the test's own logic, and
   had gone unnoticed because nothing forced the two to be compared until
   real routing existed.
@@ -2687,7 +2687,7 @@ Problem:
   registered a user, closed the connection via a raw TCP close without
   ever joining a room, then confirmed both `login` (rejected,
   "already logged in") and `reconnect` (silently "succeeded" at the
-  protocol level but left the connection unauthenticated тАФ
+  protocol level but left the connection unauthenticated —
   `room_list`/`create_room` afterward returned `error.auth_required`)
   failed to restore access.
 
@@ -2696,36 +2696,36 @@ Fix:
   confirming `$worker->sessionTokens[$token]` exists, now looks up the
   user via the new `AuthService::getUserById()` and, on success, calls
   the same private `bindConnection()` helper register()/login() already
-  use тАФ setting `$connection->userId`/`username`/`isAdmin`/`sessionToken`.
-  If the user row is somehow gone (defensive тАФ a session token pointing
+  use — setting `$connection->userId`/`username`/`isAdmin`/`sessionToken`.
+  If the user row is somehow gone (defensive — a session token pointing
   at a deleted account), responds `error.auth_invalid_token` rather than
   proceeding with a half-bound connection.
 - `server.php`'s `onClose`: unsets
   `$worker->userConnections[$connection->userId]` whenever the closing
   connection had a bound `userId`, after `ReconnectService::handleDisconnect()`
   runs. This does not interfere with the intended reconnect path (ADR-001
-  ┬з5-6): `reconnect` never depended on `userConnections` still being
-  occupied тАФ it works off `$worker->sessionTokens` plus a session_token
+  §5-6): `reconnect` never depended on `userConnections` still being
+  occupied — it works off `$worker->sessionTokens` plus a session_token
   match against room player state, both independent of this map. The
   only behavioral change is that a user who disconnects can now also
   fall back to a fresh `login` instead of being force-funneled through
-  `reconnect` тАФ which was previously not just "not preferred" but
+  `reconnect` — which was previously not just "not preferred" but
   completely broken for any player outside a room.
 - Regression guard preserved on purpose: `onClose` only fires on an
-  actual connection close, so ADR-001's core guarantee тАФ rejecting a
-  *concurrent* second login while the first connection is still open тАФ
+  actual connection close, so ADR-001's core guarantee — rejecting a
+  *concurrent* second login while the first connection is still open —
   is untouched. Verified explicitly (TEST 3 below).
 
 Verified non-false-positive (each half of the fix independently):
-- Reverted only the `onClose` change тЖТ `tests/Manual/test_session_lifecycle.php`
+- Reverted only the `onClose` change → `tests/Manual/test_session_lifecycle.php`
   TEST 1 failed exactly as predicted (login still permanently blocked);
-  TEST 2/3 unaffected. Restored тЖТ 6/6 again.
-- Reverted only the `AuthHandler::handleReconnect()` change тЖТ TEST 2
+  TEST 2/3 unaffected. Restored → 6/6 again.
+- Reverted only the `AuthHandler::handleReconnect()` change → TEST 2
   failed exactly as predicted (create_room after reconnect-only still
-  `error.auth_required`); TEST 1/3 unaffected. Restored тЖТ 6/6 again.
+  `error.auth_required`); TEST 1/3 unaffected. Restored → 6/6 again.
 
 Result:
-- tests/Manual/test_session_lifecycle.php (new): 6/6 PASSED тАФ real WS
+- tests/Manual/test_session_lifecycle.php (new): 6/6 PASSED — real WS
   client against a live server.php subprocess, no MockConnection. Covers:
   disconnect-then-login (no room), disconnect-then-reconnect-only (no
   room, no login fallback), and a regression guard confirming concurrent
@@ -2734,65 +2734,65 @@ Result:
 - tests/Manual/test_single_session.php: unchanged, still 3/3 scenarios
   PASSED (Phase-1-era unit test against AuthService in isolation; left
   as-is since it tests a real contract, just not the one this FIX closes
-  тАФ no false claims to correct here, unlike the EPIC-10.5 test_auth_packet_routing.php
+  — no false claims to correct here, unlike the EPIC-10.5 test_auth_packet_routing.php
   fix).
 - Full regression across every tests/Manual/*.php file (29 files,
-  including the new one) тАФ 0 failed.
+  including the new one) — 0 failed.
 
-No ADR required тАФ no protocol packet, error code, room/player structure
+No ADR required — no protocol packet, error code, room/player structure
 key, or timer changed. `error.auth_invalid_token`/`error.auth_invalid_credentials`
 are pre-existing codes, used exactly as already documented.
 
 Diff: patches/FIX-10-server.patch, patches/FIX-10-AuthHandler.patch,
 patches/FIX-10-AuthService.patch, patches/FIX-10-PreparedStatements.patch
 
-## EPIC-10.5 тАФ Game packet routing (+ FIX-9, found during wiring)
+## EPIC-10.5 — Game packet routing (+ FIX-9, found during wiring)
 Status: Completed
 Date: 2026-07-23
 
 Files:
-- src/Game/GameHandler.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ thin wrapper ╨╜╨░╨┤ GameService,
-  ╤В╨╛╤В ╨╢╨╡ ╨┐╨░╤В╤В╨╡╤А╨╜ ╤З╤В╨╛ LobbyHandler/AuthHandler)
-- server.php (diff тАФ LottoEngine/VictoryService/ApartmentService/
+- src/Game/GameHandler.php (новый файл — thin wrapper над GameService,
+  тот же паттерн что LobbyHandler/AuthHandler)
+- server.php (diff — LottoEngine/VictoryService/ApartmentService/
   GameFinishService/GameService/GameHandler dependency wiring in
-  onWorkerStart, ╨╕╨┤╨╡╨╜╤В╨╕╤З╨╜╤Л╨╣ ╨┐╨╛╤А╤П╨┤╨╛╨║ ╨║╨╛╨╜╤Б╤В╤А╤Г╨║╤В╨╛╤А╨░ ╤Г╨╢╨╡ ╨┐╤А╨╕╨╜╤П╤В╨╛╨╝╤Г ╨▓
+  onWorkerStart, идентичный порядок конструктора уже принятому в
   tests/Manual/test_game_start.php; start_game/draw_barrel/
-  apartment_choice wired in onMessage dispatch; ReconnectService ╤В╨╡╨┐╨╡╤А╤М
-  ╤В╨╛╨╢╨╡ ╤Б╨╛╨▒╤А╨░╨╜ тАФ ╨╛╨▒╨░ ╨╡╨│╨╛ ╨╖╨░╨▓╨╕╤Б╨╕╨╝╤Л╤Е ╤Б╨╡╤А╨▓╨╕╤Б╨░, LobbyService (EPIC-10.4) ╨╕
-  GameService (╤Н╤В╨╛╤В Epic), ╨╜╨░╨║╨╛╨╜╨╡╤Ж ╨│╨╛╤В╨╛╨▓╤Л ╨╛╨┤╨╜╨╛╨▓╤А╨╡╨╝╨╡╨╜╨╜╨╛; onClose ╨┤╨╡╨╗╨╡╨│╨╕╤А╤Г╨╡╤В
-  ReconnectService::handleDisconnect(); action 'reconnect' ╨┤╨╛╨┐╨╛╨╗╨╜╨╕╤В╨╡╨╗╤М╨╜╨╛
-  ╨▓╤Л╨╖╤Л╨▓╨░╨╡╤В ReconnectService::handleReconnect() ╨┐╨╛╤Б╨╗╨╡ AuthHandler ╨┤╨╗╤П
-  ╨▓╨╛╤Б╤Б╤В╨░╨╜╨╛╨▓╨╗╨╡╨╜╨╕╤П ╨╕╨│╤А╨╛╨▓╨╛╨│╨╛ ╤Б╨╛╤Б╤В╨╛╤П╨╜╨╕╤П/reconnect_state)
-- src/Game/ReconnectService.php (diff тАФ FIX-9, ╤Б╨╝. ╨╜╨╕╨╢╨╡)
-- tests/Manual/test_reconnect.php (diff тАФ GROUP 3 assertions ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╤Л ╨┐╨╛╨┤
-  FIX-9: ╨╖╨░╨┐╨╕╤Б╤М ╨┐╨╡╤А╨╡╨╡╨╖╨╢╨░╨╡╤В ╨╜╨░ ╨╜╨╛╨▓╤Л╨╣ conn_id, ╨░ ╨╜╨╡ ╨╛╤Б╤В╨░╤С╤В╤Б╤П ╨╜╨░ ╤Б╤В╨░╤А╨╛╨╝; +3
-  ╨╜╨╛╨▓╤Л╤Е assertion ╨╜╨░ host_conn_id/active_drawer_conn_id/drawer_order)
-- tests/Manual/test_game_packet_routing.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ 21 assertions,
+  apartment_choice wired in onMessage dispatch; ReconnectService теперь
+  тоже собран — оба его зависимых сервиса, LobbyService (EPIC-10.4) и
+  GameService (этот Epic), наконец готовы одновременно; onClose делегирует
+  ReconnectService::handleDisconnect(); action 'reconnect' дополнительно
+  вызывает ReconnectService::handleReconnect() после AuthHandler для
+  восстановления игрового состояния/reconnect_state)
+- src/Game/ReconnectService.php (diff — FIX-9, см. ниже)
+- tests/Manual/test_reconnect.php (diff — GROUP 3 assertions обновлены под
+  FIX-9: запись переезжает на новый conn_id, а не остаётся на старом; +3
+  новых assertion на host_conn_id/active_drawer_conn_id/drawer_order)
+- tests/Manual/test_game_packet_routing.php (новый файл — 21 assertions,
   real WS client against live server.php, `e105_` username prefix)
 
 GameService/VictoryService/ApartmentService/GameFinishService already
 existed (Phase 4-7) and required no new business logic for the packet-
-routing part itself тАФ matching every other EPIC-10.x so far, this is pure
+routing part itself — matching every other EPIC-10.x so far, this is pure
 dependency wiring + routing. The one router-level addition is in
 GameHandler::handleApartmentChoice(): validates that `choice` is a
-non-empty string before delegating (error.invalid_json otherwise) тАФ
+non-empty string before delegating (error.invalid_json otherwise) —
 GameService/ApartmentService already validate the actual value
 ('agree'/'refuse') internally.
 
 Reconnect wiring was deliberately bundled into this Epic rather than left
 pending further, because ReconnectService's constructor is the literal
-reason onClose and 'reconnect' were stubbed out since EPIC-10.0 тАФ both of
+reason onClose and 'reconnect' were stubbed out since EPIC-10.0 — both of
 its dependencies (LobbyService, GameService) are only both available as of
 this Epic. This is not a new/separate feature so much as completing what
 EPIC-10.0's own code comments already earmarked for "EPIC-10.4/10.5".
 
-Found and fixed during wiring (FIX-9, see PATCHES-style note below тАФ
+Found and fixed during wiring (FIX-9, see PATCHES-style note below —
 kept inline here since it's this Epic's direct blocker, not a standalone
 older-code audit finding):
 - ReconnectService::handleReconnect() restored player state and sent
   reconnect_state, but left the `$room['players']` array entry keyed
   under the OLD (disconnected) connection id. A new WS connection created
-  by the client on reconnect gets a brand-new Workerman connection->id тАФ
+  by the client on reconnect gets a brand-new Workerman connection->id —
   every downstream handler (draw_barrel, leave_room, apartment_choice, ...)
   looks the player up by the CURRENT connection's id, so none of them
   could find the reconnected player. Reconnect looked successful
@@ -2800,7 +2800,7 @@ older-code audit finding):
   functionally dead for anything after it.
 - Root cause of why this was never caught: tests/Manual/test_reconnect.php
   (EPIC-8.6) only unit-tests handleReconnect() in isolation with
-  MockConnection and asserts state at the OLD key тАФ it never simulates a
+  MockConnection and asserts state at the OLD key — it never simulates a
   subsequent action arriving from the NEW connection through real routing,
   because until this Epic there was no real routing to go through.
 - Fix: handleReconnect() now re-keys the players array entry from the old
@@ -2809,20 +2809,20 @@ older-code audit finding):
   every matching entry in `drawer_order`. Timer, connection object, and
   session_token handling unchanged.
 - Verified non-false-positive: reverted the fix locally, re-ran
-  tests/Manual/test_game_packet_routing.php TEST 8 тАФ draw_barrel after
+  tests/Manual/test_game_packet_routing.php TEST 8 — draw_barrel after
   reconnect failed with error.room_not_found as predicted (new conn_id not
-  found in `$room['players']`); restored the fix тАФ 21/21 PASSED again.
+  found in `$room['players']`); restored the fix — 21/21 PASSED again.
 
-No ADR required тАФ no protocol packet, error code, or ANCHOR document
+No ADR required — no protocol packet, error code, or ANCHOR document
 changed. Room/Player structure keys are unchanged (Rule 7 No Hidden
-Features) тАФ FIX-9 only changes which array key an existing structure is
+Features) — FIX-9 only changes which array key an existing structure is
 stored under, at the moment of reconnect.
 
-Also fixed in this Epic (stale pre-existing test assertion, not a FIX-N тАФ
+Also fixed in this Epic (stale pre-existing test assertion, not a FIX-N —
 Rule 22 Test Philosophy: fix the test, not the implementation, since the
 implementation was already correct): tests/Manual/test_auth_packet_routing.php
 TEST 2 still asserted `error.invalid_json` for create_room after register,
-a leftover from before EPIC-10.4 wired lobby routing тАФ despite this
+a leftover from before EPIC-10.4 wired lobby routing — despite this
 project's own IMPLEMENTATION_STATUS.md EPIC-10.4 entry already claiming
 this assertion was updated. It had not been, in the actual committed file.
 Corrected to assert `room_joined`.
@@ -2831,7 +2831,7 @@ Housekeeping (found during this Epic's audit, unrelated to game routing
 itself): the repository had two case-variant test directories,
 `tests/Manual/` and `tests/manual/`, byte-identical except that
 `tests/manual/test_lobby_packet_routing.php` (EPIC-10.4) existed only in
-the lowercase copy тАФ almost certainly a case-insensitive-filesystem
+the lowercase copy — almost certainly a case-insensitive-filesystem
 artifact from a local dev machine, invisible on that machine but tracked
 as two separate directories in git. Consequence: `run_ALL_tests.sh` (globs
 `tests/Manual/test_*.php` only) was silently never running
@@ -2841,104 +2841,104 @@ re-run 23/23 PASSED post-move), the stray `tests/manual/` directory
 removed entirely.
 
 Result:
-- tests/Manual/test_game_packet_routing.php (new): 21/21 PASSED тАФ full
+- tests/Manual/test_game_packet_routing.php (new): 21/21 PASSED — full
   flow verified end-to-end through a real WS client against a live
   server.php subprocess: non-host start_game guard, game_started
   broadcast (bank/drawer_order), turn-order draw_barrel guard,
   barrels_drawn + your_turn rotation, apartment_choice with no apartment
   active, apartment_choice missing `choice` field, unauth draw_barrel,
-  and тАФ critically тАФ a real TCP disconnect mid-game followed by
+  and — critically — a real TCP disconnect mid-game followed by
   reconnect on a brand-new connection, then a successful draw_barrel from
   that new connection (this last step is the FIX-9 regression check).
-- tests/Manual/test_reconnect.php: 20/20 PASSED (was 15 тАФ +5 new FIX-9
+- tests/Manual/test_reconnect.php: 20/20 PASSED (was 15 — +5 new FIX-9
   assertions in GROUP 3).
 - tests/Manual/test_auth_packet_routing.php: 18/18 PASSED (TEST 2 fixed).
 - tests/Manual/test_lobby_packet_routing.php: 23/23 PASSED (moved,
   unchanged otherwise).
-- Full regression across every tests/Manual/*.php file тАФ 0 failed.
+- Full regression across every tests/Manual/*.php file — 0 failed.
 
-тЬЕ RESOLVED (FIX-10, 2026-07-24): if a client sends `{"action":
+✅ RESOLVED (FIX-10, 2026-07-24): if a client sends `{"action":
 "reconnect", "token": ...}` with a token AuthHandler considers valid, but
 ReconnectService::handleReconnect() finds no matching disconnected player
 in any room (i.e. the user was never in a room-level session, or it was
-already cleaned up), `$connection->userId` is never set тАФ AuthHandler::
+already cleaned up), `$connection->userId` is never set — AuthHandler::
 handleReconnect() itself never sets it, only ReconnectService does, only
 on a match. Symmetric in spirit to FIX-8 (EPIC-10.3) but a distinct fix,
 deliberately left for a follow-up rather than folded into this Epic.
-Turned out to be far more severe than "narrow" once actually audited тАФ
+Turned out to be far more severe than "narrow" once actually audited —
 see FIX-10: AuthHandler::handleReconnect() now unconditionally binds the
 connection via bindConnection() once the token/user is validated,
 regardless of room membership.
 
 Diff: patches/EPIC-10.5-game-routing.patch
 
-## EPIC-10.4 тАФ Lobby packet routing
+## EPIC-10.4 — Lobby packet routing
 Status: Completed
 Date: 2026-07-23
 
 Files:
-- src/Lobby/LobbyHandler.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ thin wrapper ╨╜╨░╨┤ LobbyService)
-- server.php (diff тАФ RoomManager/LobbyService/LobbyHandler dependency wiring
+- src/Lobby/LobbyHandler.php (новый файл — thin wrapper над LobbyService)
+- server.php (diff — RoomManager/LobbyService/LobbyHandler dependency wiring
   in onWorkerStart; room_list/create_room/join_room/leave_room wired in
-  onMessage dispatch; ┬лAlready in a room┬╗ guard for create_room/join_room)
-- tests/Manual/test_lobby_packet_routing.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ 22 assertions,
+  onMessage dispatch; «Already in a room» guard for create_room/join_room)
+- tests/Manual/test_lobby_packet_routing.php (новый файл — 22 assertions,
   real WS client against live server.php)
-- tests/Manual/test_auth_packet_routing.php (diff тАФ TEST 2 updated: ╨┐╨╛╤Б╨╗╨╡
-  register create_room ╤В╨╡╨┐╨╡╤А╤М ╨▓╨╛╨╖╨▓╤А╨░╤Й╨░╨╡╤В room_joined, ╨╜╨╡ error.invalid_json)
+- tests/Manual/test_auth_packet_routing.php (diff — TEST 2 updated: после
+  register create_room теперь возвращает room_joined, не error.invalid_json)
 
 LobbyService already existed (EPIC-2.x) and required no new business
-logic тАФ EPIC-10.4 itself is pure dependency wiring + routing + one router-
+logic — EPIC-10.4 itself is pure dependency wiring + routing + one router-
 level guard, matching every other EPIC-10.x so far.
 
-┬лAlready in a room┬╗ guard: LobbyService::handleCreateRoom() ╨┤╨╛╨║╤Г╨╝╨╡╨╜╤В╨╕╤А╤Г╨╡╤В,
-╤З╤В╨╛ ╨┐╨╛╨╗╤М╨╖╨╛╨▓╨░╤В╨╡╨╗╤М ╨╜╨╡ ╨┤╨╛╨╗╨╢╨╡╨╜ ╤Г╨╢╨╡ ╨╜╨░╤Е╨╛╨┤╨╕╤В╤М╤Б╤П ╨▓ ╨┤╤А╤Г╨│╨╛╨╣ ╨║╨╛╨╝╨╜╨░╤В╨╡ тАФ ╨┐╤А╨╛╨▓╨╡╤А╨║╨░
-╨┤╨╡╨╗╨╡╨│╨╕╤А╨╛╨▓╨░╨╜╨░ router'╤Г (server.php), ╨╛╨┤╨╕╨╜ ╤А╨░╨╖ ╨┤╨╗╤П create_room ╨╕ join_room,
-╤З╨╡╤А╨╡╨╖ RoomManager::findRoomIdByConnId(). ╨Ъ╨╛╨┤ ╨╛╤И╨╕╨▒╨║╨╕: error.invalid_json
-(╨╛╤В╨┤╨╡╨╗╤М╨╜╨╛╨│╨╛ ╨║╨╛╨┤╨░ ╨▓ ANCHOR_PROTOCOL.md ╨╜╨╡╤В).
+«Already in a room» guard: LobbyService::handleCreateRoom() документирует,
+что пользователь не должен уже находиться в другой комнате — проверка
+делегирована router'у (server.php), один раз для create_room и join_room,
+через RoomManager::findRoomIdByConnId(). Код ошибки: error.invalid_json
+(отдельного кода в ANCHOR_PROTOCOL.md нет).
 
-No ADR required тАФ no protocol packet, error code, or ANCHOR document changed.
+No ADR required — no protocol packet, error code, or ANCHOR document changed.
 
 Result:
-- tests/Manual/test_lobby_packet_routing.php (new): 22/22 PASSED тАФ
+- tests/Manual/test_lobby_packet_routing.php (new): 22/22 PASSED —
   create_room/room_list/join_room/leave_room verified end-to-end through
   a real WS client against a live server.php subprocess (real game.db,
   `e104_` username prefix, cleaned up before/after). Includes router-level
-  ┬лAlready in a room┬╗ guard checks (TEST 4, TEST 5).
+  «Already in a room» guard checks (TEST 4, TEST 5).
 - tests/Manual/test_auth_packet_routing.php: TEST 2 updated for EPIC-10.4
-  (create_room after register тЖТ room_joined).
+  (create_room after register → room_joined).
 - tests/Manual/test_lobby_integration.php: 91/91 PASSED (unchanged).
-- Full regression across all tests/Manual/*.php files тАФ 0 failed.
+- Full regression across all tests/Manual/*.php files — 0 failed.
 
 Diff: patches/EPIC-10.4-lobby-routing.patch
 
-## EPIC-10.3 тАФ Auth packet routing (+ FIX-8, found during wiring)
+## EPIC-10.3 — Auth packet routing (+ FIX-8, found during wiring)
 Status: Completed
 Date: 2026-07-22
 
 Files:
-- server.php (diff тАФ AuthHandler dependency wiring in onWorkerStart;
+- server.php (diff — AuthHandler dependency wiring in onWorkerStart;
   register/login/reconnect wired to AuthHandler in onMessage dispatch)
-- src/Auth/AuthHandler.php (diff тАФ FIX-8: new bindConnection() private
+- src/Auth/AuthHandler.php (diff — FIX-8: new bindConnection() private
   helper, called from handleRegister()/handleLogin())
-- tests/Manual/test_auth_integration.php (diff тАФ 7 new FIX-8 assertions
+- tests/Manual/test_auth_integration.php (diff — 7 new FIX-8 assertions
   via MockConnection)
-- tests/Manual/test_auth_packet_routing.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗ тАФ 18 assertions,
+- tests/Manual/test_auth_packet_routing.php (новый файл — 18 assertions,
   real WS client against live server.php)
 
 AuthHandler already existed (EPIC-1.3) and required no new business
-logic тАФ EPIC-10.3 itself is pure dependency wiring + routing, matching
+logic — EPIC-10.3 itself is pure dependency wiring + routing, matching
 every other EPIC-10.x so far.
 
-FIX-8 found while wiring (not a pre-existing regression тАФ the bug was
+FIX-8 found while wiring (not a pre-existing regression — the bug was
 latent until this Epic connected AuthHandler to the newly-added
 auth_required guard, ADR-006, in the same code path): `AuthService::
-login()` only ever set `$worker->userConnections[$userId]` тАФ it never
+login()` only ever set `$worker->userConnections[$userId]` — it never
 set `$connection->userId` itself. Confirmed by grep: the ONLY place in
 the entire codebase that set `$connection->userId` was
 `ReconnectService::attemptReconnect()`, for its own, unrelated scenario.
 Without a fix, a client could register/login successfully, receive a
 valid `auth_result`, and then have EVERY subsequent action rejected with
-`error.auth_required` forever тАФ the auth_required guard checks exactly
+`error.auth_required` forever — the auth_required guard checks exactly
 `$connection->userId === null`, which never became false.
 
 Fix: new `AuthHandler::bindConnection(object $connection, array $user,
@@ -2949,46 +2949,46 @@ AuthHandler's login result, unlike in ReconnectService's context). Called
 from both `handleRegister()` (after its internal auto-login) and
 `handleLogin()`, right before `sendAuthResult()`.
 
-No ADR required тАФ this is a code-correctness fix within the existing,
-already-documented `ANCHOR_CORE.md` ┬з Connection Runtime Fields registry
+No ADR required — this is a code-correctness fix within the existing,
+already-documented `ANCHOR_CORE.md` § Connection Runtime Fields registry
 (all four fields were already declared there); no protocol packet, error
 code, or ANCHOR document changed.
 
 Result:
-- tests/Manual/test_auth_integration.php: 55/55 PASSED (was 48; +7 тАФ
+- tests/Manual/test_auth_integration.php: 55/55 PASSED (was 48; +7 —
   FIX-8 assertions verifying `$connection->userId/username/isAdmin/
   sessionToken` are correctly bound after both handleRegister() and
   handleLogin() via MockConnection).
-- tests/Manual/test_auth_packet_routing.php (new): 18/18 PASSED тАФ
+- tests/Manual/test_auth_packet_routing.php (new): 18/18 PASSED —
   register/login/reconnect verified end-to-end through a real WS client
   against a live server.php subprocess (real game.db, `e103_` username
   prefix, cleaned up before/after). Critically includes two FIX-8
   end-to-end checks (TEST 2, TEST 6): after a real register/login over
   the real protocol, a subsequent non-exempt action no longer receives
-  `error.auth_required` тАФ confirming the fix works through the actual
+  `error.auth_required` — confirming the fix works through the actual
   router, not only in the MockConnection unit test.
 - Full regression across all tests/Manual/*.php files (28 files,
-  including the new one) тАФ 0 failed ([FAIL] marker searched explicitly).
+  including the new one) — 0 failed ([FAIL] marker searched explicitly).
 
 Diff: patches/EPIC-10.3-auth-routing.patch
 
-## EPIC-10.2 continuation тАФ Generic auth_required guard
+## EPIC-10.2 continuation — Generic auth_required guard
 Status: Completed
 Date: 2026-07-22
 
 Files:
-- server.php (diff тАФ auth_required guard in onMessage, before dispatch)
-- docs/ANCHOR_PROTOCOL.md (diff тАФ error.auth_required semantics documented)
-- docs/ADR/006.md (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗)
-- tests/Manual/test_server_bootstrap.php (diff тАФ TEST 4 tightened to
+- server.php (diff — auth_required guard in onMessage, before dispatch)
+- docs/ANCHOR_PROTOCOL.md (diff — error.auth_required semantics documented)
+- docs/ADR/006.md (новый файл)
+- tests/Manual/test_server_bootstrap.php (diff — TEST 4 tightened to
   assert the specific code; new TEST 8 for the exempt-actions set)
 
-Closes the second, previously-deferred half of EPIC-10.2 (first half тАФ
-connection-level MAX_TOTAL_PLAYERS gate тАФ completed separately, ADR-005).
+Closes the second, previously-deferred half of EPIC-10.2 (first half —
+connection-level MAX_TOTAL_PLAYERS gate — completed separately, ADR-005).
 EPIC-10.2 is now fully complete.
 
-Implements prompt.md ╨д╨░╨╖╨░ 1: "╨┐╤А╨╛╨▓╨╡╤А╨║╨░ userId ╨┤╨╗╤П ╨▓╤Б╨╡╤Е ╨║╨╡╨╣╤Б╨╛╨▓ ╨║╤А╨╛╨╝╨╡
-register, login, reconnect" тАФ checked once, generically, by the router
+Implements prompt.md Фаза 1: "проверка userId для всех кейсов кроме
+register, login, reconnect" — checked once, generically, by the router
 in onMessage, before the (still empty) action dispatcher. Exempt set is
 exactly {register, login, reconnect}; `ping` isn't listed because it
 already short-circuits earlier in onMessage and never reaches this
@@ -2997,53 +2997,53 @@ check.
 Side effect verified explicitly (not a defect, documented in ADR-006):
 the dispatcher's `default => error.invalid_json` fallback is now
 unreachable for an unauthenticated connection sending any non-exempt
-action тАФ the guard intercepts first with error.auth_required. Remains
+action — the guard intercepts first with error.auth_required. Remains
 reachable only for the exempt actions themselves (not yet wired to real
 handlers until EPIC-10.3).
 
 Result:
-- tests/Manual/test_server_bootstrap.php: 18/18 PASSED (was 14; +4 тАФ TEST
+- tests/Manual/test_server_bootstrap.php: 18/18 PASSED (was 14; +4 — TEST
   4 tightened to assert code=error.auth_required specifically instead of
   just type=error; new TEST 8 confirms register/login/reconnect are NOT
   blocked by the guard, falling through to the empty dispatcher's
   not-yet-wired response instead).
-- Full regression across all tests/Manual/*.php files (25 files) тАФ 0
+- Full regression across all tests/Manual/*.php files (25 files) — 0
   failed ([FAIL] marker searched explicitly, not just "failed" text
   appearing in unrelated log messages).
 
 Diff: patches/EPIC-10.2-auth-guard.patch
 
-## EPIC-10.2 тАФ Protocol error handling (partial: connection-level capacity gate)
-Status: Partially completed (by user decision тАФ scope explicitly narrowed)
+## EPIC-10.2 — Protocol error handling (partial: connection-level capacity gate)
+Status: Partially completed (by user decision — scope explicitly narrowed)
 Date: 2026-07-22
 
 Files:
-- src/Core/Helpers.php (diff тАФ new closeWithCode() helper)
-- server.php (diff тАФ global connection-level MAX_TOTAL_PLAYERS gate in
+- src/Core/Helpers.php (diff — new closeWithCode() helper)
+- server.php (diff — global connection-level MAX_TOTAL_PLAYERS gate in
   onWebSocketConnected, before hello)
-- docs/ANCHOR_PROTOCOL.md (diff тАФ new ┬з WebSocket Close Codes, code 4001)
-- docs/ADR/005.md (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗)
-- tests/Manual/test_server_bootstrap.php (diff тАФ TEST 7: 150 ╤А╨╡╨░╨╗╤М╨╜╤Л╤Е
-  TCP+WS ╤Б╨╛╨╡╨┤╨╕╨╜╨╡╨╜╨╕╨╣ + 151-╨╡ ╨╛╤В╨║╨╗╨╛╨╜╤С╨╜╨╜╨╛╨╡, ╨┐╤А╨╛╨▓╨╡╤А╨║╨░ close code 4001)
+- docs/ANCHOR_PROTOCOL.md (diff — new § WebSocket Close Codes, code 4001)
+- docs/ADR/005.md (новый файл)
+- tests/Manual/test_server_bootstrap.php (diff — TEST 7: 150 реальных
+  TCP+WS соединений + 151-е отклонённое, проверка close code 4001)
 
 Scope decision: user chose to implement ONLY the connection-level
-`error.server_full` + WS close 4001 gate (prompt.md ╨д╨░╨╖╨░ 1, previously
+`error.server_full` + WS close 4001 gate (prompt.md Фаза 1, previously
 undocumented in any ANCHOR file) in this round. The generic
-`auth_required` router guard (also prompt.md ╨д╨░╨╖╨░ 1, for actions outside
-{register, login, reconnect, ping}) was explicitly deferred тАФ not
+`auth_required` router guard (also prompt.md Фаза 1, for actions outside
+{register, login, reconnect, ping}) was explicitly deferred — not
 implemented, tracked as open for a future round.
 
-Problem: `docs/prompt.md` line 41 specified "╨┐╤А╨╕ ╨┐╤А╨╡╨▓╤Л╤И╨╡╨╜╨╕╨╕ 150 тАФ
-╨╖╨░╨║╤А╤Л╤В╤М ╤Б╨╛╨╡╨┤╨╕╨╜╨╡╨╜╨╕╨╡ ╤Б ╨║╨╛╨┤╨╛╨╝ 4001 ╨╕ error.server_full", never formalized
+Problem: `docs/prompt.md` line 41 specified "при превышении 150 —
+закрыть соединение с кодом 4001 и error.server_full", never formalized
 in ANCHOR_PROTOCOL.md and never implemented. Distinct from the
-room-join-time capacity check in LobbyService (FIX-7/ADR-004) тАФ this one
+room-join-time capacity check in LobbyService (FIX-7/ADR-004) — this one
 runs at the connection layer, before authentication, against ALL live
 sockets (`count($worker->connections)`), not just players seated in
 rooms.
 
 Technical finding: the installed Workerman version has no built-in API
 to close a WebSocket connection with an explicit close-frame status
-code тАФ `closeWithCode()` builds the RFC 6455 ┬з5.5.1 close frame by hand
+code — `closeWithCode()` builds the RFC 6455 §5.5.1 close frame by hand
 (opcode 0x8, 2-byte big-endian status code + reason) and sends it via
 `$connection->close($frame, true)`.
 
@@ -3053,10 +3053,10 @@ Fix:
 - Gate added at the top of `onWebSocketConnected`: if
   `count($worker->connections) > Constants::MAX_TOTAL_PLAYERS`, sends
   `error.server_full` (JSON, normal protocol-encoded) then closes with
-  WS code 4001 тАФ before any connection-field init, before `hello`.
+  WS code 4001 — before any connection-field init, before `hello`.
 - Comparison uses `>` (not `>=`, unlike LobbyService's checks) because
   Workerman registers the connection into `$worker->connections` at
-  TCP-accept time, before this callback runs тАФ so the count already
+  TCP-accept time, before this callback runs — so the count already
   includes the connection being evaluated. Effective capacity is
   identical either way: exactly MAX_TOTAL_PLAYERS concurrent connections
   allowed, the (N+1)-th rejected. Documented explicitly in ADR-005 to
@@ -3066,30 +3066,30 @@ Fix:
 
 Result:
 - tests/Manual/test_server_bootstrap.php: 14/14 PASSED (was 8; +6 new
-  checks in TEST 7 тАФ opened exactly 150 real TCP+WS connections against
+  checks in TEST 7 — opened exactly 150 real TCP+WS connections against
   a live server.php subprocess, verified the 151st receives
   error.server_full as a text frame followed by a close frame carrying
   status code 4001, decoded from the raw close-frame payload).
-- Full regression across all tests/Manual/*.php files (25 files) тАФ 0
+- Full regression across all tests/Manual/*.php files (25 files) — 0
   failed.
 
 Diff: patches/EPIC-10.2-partial.patch
 
-### FIX-7 тАФ `error.server_full` reused for room-full condition + wrong check order
+### FIX-7 — `error.server_full` reused for room-full condition + wrong check order
 Status: Completed
 Date: 2026-07-22
 
 Files:
-- src/Lobby/LobbyService.php (diff тАФ reorder checks in handleJoinRoom(),
+- src/Lobby/LobbyService.php (diff — reorder checks in handleJoinRoom(),
   new error.room_full code)
-- docs/ANCHOR_PROTOCOL.md (diff тАФ error.room_full added to registry,
+- docs/ANCHOR_PROTOCOL.md (diff — error.room_full added to registry,
   note distinguishing it from error.server_full and documenting
   join-order precedence)
-- docs/ADR/004.md (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗)
-- tests/Manual/test_lobby_integration.php (diff тАФ ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╨░╤Б╤Б╨╡╤А╤Ж╨╕╤П ╨┐╨╛╨┤
-  ╨╜╨╛╨▓╤Л╨╣ ╨║╨╛╨┤, ╨┤╨╛╨▒╨░╨▓╨╗╨╡╨╜ regression-╤В╨╡╤Б╤В ╨╜╨░ ╨┐╨╛╤А╤П╨┤╨╛╨║ ╨┐╤А╨╛╨▓╨╡╤А╨╛╨║)
+- docs/ADR/004.md (новый файл)
+- tests/Manual/test_lobby_integration.php (diff — обновлена ассерция под
+  новый код, добавлен regression-тест на порядок проверок)
 
-Found during: user-reported review (not an audit round) тАФ user flagged
+Found during: user-reported review (not an audit round) — user flagged
 that a full room and a full server must not share an error code, and
 that server capacity must be checked before room capacity.
 
@@ -3098,7 +3098,7 @@ Problem:
   distinct conditions: the genuine global MAX_TOTAL_PLAYERS limit, and a
   single room reaching its own max_players. ANCHOR_PROTOCOL.md had no
   dedicated code for the room-full case.
-- Check order was room-capacity-first, server-capacity-second тАФ so if
+- Check order was room-capacity-first, server-capacity-second — so if
   both conditions were true simultaneously, the client would receive the
   less accurate/less actionable of the two.
 
@@ -3110,67 +3110,67 @@ Fix:
   now runs BEFORE the per-room capacity check, so error.server_full
   always wins when both apply.
 - handleCreateRoom() required no change (only ever had the global check).
-- Formalized as ADR-004 (protocol addition, no rename/removal тАФ permitted
+- Formalized as ADR-004 (protocol addition, no rename/removal — permitted
   under ANCHOR_PROTOCOL.md's Compatibility Rule without a version bump).
 
 Result:
 - tests/Manual/test_lobby_integration.php: 91/91 PASSED (was 90; +1 new
   regression test verifying error.server_full wins when both room and
-  server are full simultaneously тАФ verified by manually seeding both
+  server are full simultaneously — verified by manually seeding both
   conditions via direct room-state manipulation and RoomManager::
   getTotalPlayerCount()).
-- Full regression across all tests/Manual/*.php files тАФ 0 failed.
+- Full regression across all tests/Manual/*.php files — 0 failed.
 
 Diff: patches/FIX-7.patch
 
-### FIX-6 тАФ Reconnect timer leak on kick/ban removal (Timer Integrity)
+### FIX-6 — Reconnect timer leak on kick/ban removal (Timer Integrity)
 Status: Completed
 Date: 2026-07-03
 
 Files:
 - src/Lobby/LobbyService.php
 - src/Game/ApartmentService.php
-- tests/Manual/test_timer_integrity.php (╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗)
+- tests/Manual/test_timer_integrity.php (новый файл)
 
 Found during: post-Phase-9 audit for bugs similar in class to FIX-3
-(╨╖╨░╨┐╤А╨╛╤И╨╡╨╜ ╨┐╨╛╨╗╤М╨╖╨╛╨▓╨░╤В╨╡╨╗╨╡╨╝ ╨┐╨╡╤А╨╡╨┤ ╤Б╤В╨░╤А╤В╨╛╨╝ Phase 10).
+(запрошен пользователем перед стартом Phase 10).
 
 Problem:
-- ANCHOR_CORE.md Part 5 ┬з Timer Integrity Rules: "No reconnect timer
-  survives player removal" / "A destroyed owner keeps no timers" тАФ
-  ╨▒╨╡╨╖╤Г╤Б╨╗╨╛╨▓╨╜╨╛╨╡ ╨┐╤А╨░╨▓╨╕╨╗╨╛.
-- ReconnectService::removePlayerFromGame() ╨║╨╛╤А╤А╨╡╨║╤В╨╜╨╛ ╨╛╤В╨╝╨╡╨╜╤П╨╡╤В
-  player['reconnect_timer'] ╨Я╨Х╨а╨Х╨Ф ╤Г╨┤╨░╨╗╨╡╨╜╨╕╨╡╨╝ ╨╕╨│╤А╨╛╨║╨░.
-- LobbyService::removePlayerFromLobby() ╨╕ ApartmentService::
-  removePlayerFromApartment() тАФ ╨Э╨Х ╨╛╤В╨╝╨╡╨╜╤П╨╗╨╕, ╨░╤Б╨╕╨╝╨╝╨╡╤В╤А╨╕╤П ╨╝╨╡╨╢╨┤╤Г ╤В╤А╨╡╨╝╤П
-  "╤Б╤С╤Б╤В╤А╨╕╨╜╤Б╨║╨╕╨╝╨╕" ╨╝╨╡╤В╨╛╨┤╨░╨╝╨╕ ╤Г╨┤╨░╨╗╨╡╨╜╨╕╤П ╨╕╨│╤А╨╛╨║╨░.
-- ╨Ф╨╛╤Б╤В╨╕╨╢╨╕╨╝╨╛╤Б╤В╤М (╤А╨╡╨░╨╗╤М╨╜╤Л╨╣ ╤Б╤Ж╨╡╨╜╨░╤А╨╕╨╣, ╨╜╨╡ ╨│╨╕╨┐╨╛╤В╨╡╤В╨╕╤З╨╡╤Б╨║╨╕╨╣): disconnected-╨╕╨│╤А╨╛╨║
-  ╨▓ waiting-╨║╨╛╨╝╨╜╨░╤В╨╡ ╨╕╨╝╨╡╨╡╤В ╨░╨║╤В╨╕╨▓╨╜╤Л╨╣ 15s reconnect_timer (ANCHOR_CORE ┬з
-  Reconnect Timer). ╨Х╤Б╨╗╨╕ ╨░╨┤╨╝╨╕╨╜╨╕╤Б╤В╤А╨░╤В╨╛╤А ╨║╨╕╨║╨░╨╡╤В/╨▒╨░╨╜╨╕╤В ╨╡╨│╨╛ ╨┤╨╛ ╨╕╤Б╤В╨╡╤З╨╡╨╜╨╕╤П
-  ╤В╨░╨╣╨╝╨╡╤А╨░, removePlayerFromLobby() ╤Г╨┤╨░╨╗╤П╨╡╤В ╨╕╨│╤А╨╛╨║╨░, ╨╜╨╛ ╤В╨░╨╣╨╝╨╡╤А ╨╛╤Б╤В╨░╤С╤В╤Б╤П
-  ╨╖╨░╤А╨╡╨│╨╕╤Б╤В╤А╨╕╤А╨╛╨▓╨░╨╜╨╜╤Л╨╝ ╨▓ Workerman. RoomManager::generateRoomId()
-  ╨┐╨╡╤А╨╡╨╕╤Б╨┐╨╛╨╗╤М╨╖╤Г╨╡╤В ╨Я╨Х╨а╨Т╨л╨Щ ╤Б╨▓╨╛╨▒╨╛╨┤╨╜╤Л╨╣ room_id ╤Б╤А╨░╨╖╤Г ╨┐╨╛╤Б╨╗╨╡ ╤Г╨╜╨╕╤З╤В╨╛╨╢╨╡╨╜╨╕╤П ╨║╨╛╨╝╨╜╨░╤В╤Л
-  (MAX_ROOMS=30) тАФ ╤В╨╛ ╨╡╤Б╤В╤М ╤Н╤В╨╛ ╨╜╨╡ ╨┐╤А╨╛╤Б╤В╨╛ ╤Г╤В╨╡╤З╨║╨░ ╨┐╨░╨╝╤П╤В╨╕ ╨╜╨░ 15 ╤Б╨╡╨║╤Г╨╜╨┤, ╨░
-  ╨╜╨░╤А╤Г╤И╨╡╨╜╨╕╨╡ ╨╕╨╜╨▓╨░╤А╨╕╨░╨╜╤В╨░ ╨╜╨░ ╨░╨║╤В╨╕╨▓╨╜╨╛ ╨┐╨╡╤А╨╡╨╕╤Б╨┐╨╛╨╗╤М╨╖╤Г╨╡╨╝╨╛╨╝ ╤А╨╡╤Б╤Г╤А╤Б╨╡ (Rule 28 VPS
+- ANCHOR_CORE.md Part 5 § Timer Integrity Rules: "No reconnect timer
+  survives player removal" / "A destroyed owner keeps no timers" —
+  безусловное правило.
+- ReconnectService::removePlayerFromGame() корректно отменяет
+  player['reconnect_timer'] ПЕРЕД удалением игрока.
+- LobbyService::removePlayerFromLobby() и ApartmentService::
+  removePlayerFromApartment() — НЕ отменяли, асимметрия между тремя
+  "сёстринскими" методами удаления игрока.
+- Достижимость (реальный сценарий, не гипотетический): disconnected-игрок
+  в waiting-комнате имеет активный 15s reconnect_timer (ANCHOR_CORE §
+  Reconnect Timer). Если администратор кикает/банит его до истечения
+  таймера, removePlayerFromLobby() удаляет игрока, но таймер остаётся
+  зарегистрированным в Workerman. RoomManager::generateRoomId()
+  переиспользует ПЕРВЫЙ свободный room_id сразу после уничтожения комнаты
+  (MAX_ROOMS=30) — то есть это не просто утечка памяти на 15 секунд, а
+  нарушение инварианта на активно переиспользуемом ресурсе (Rule 28 VPS
   Awareness: 1 CPU/500MB RAM).
-- removePlayerFromApartment(): ╤В╨╛╤В ╨╢╨╡ ╨┐╤А╨╛╨▒╨╡╨╗, ╨╜╨╛ ╨┐╨╛ state machine
-  (ANCHOR_CORE ┬з Reconnect Rules: reconnect ╨╖╨░╨┐╤А╨╡╤Й╤С╨╜ ╨▓ apartment) ╨▓
-  ╨╜╨╛╤А╨╝╨╡ ╨╜╨╡╨┤╨╛╤Б╤В╨╕╨╢╨╕╨╝ тАФ ╨╕╤Б╨┐╤А╨░╨▓╨╗╨╡╨╜╨╛ ╨╖╨░╤Й╨╕╤В╨╜╨╛, ╤В.╨║. ╨┐╤А╨░╨▓╨╕╨╗╨╛ ╨▒╨╡╨╖╤Г╤Б╨╗╨╛╨▓╨╜╨╛╨╡.
+- removePlayerFromApartment(): тот же пробел, но по state machine
+  (ANCHOR_CORE § Reconnect Rules: reconnect запрещён в apartment) в
+  норме недостижим — исправлено защитно, т.к. правило безусловное.
 
 Fix:
-- Timer::del($player['reconnect_timer']) ╨┤╨╛╨▒╨░╨▓╨╗╨╡╨╜ ╨▓ ╨╛╨▒╨░ ╨╝╨╡╤В╨╛╨┤╨░ ╨Ф╨Ю
-  ╤Г╨┤╨░╨╗╨╡╨╜╨╕╤П ╨╕╨│╤А╨╛╨║╨░ тАФ ╨╕╨┤╨╡╨╜╤В╨╕╤З╨╜╤Л╨╣ ╤Г╨╢╨╡ ╨║╨╛╤А╤А╨╡╨║╤В╨╜╨╛╨╝╤Г ╨┐╨░╤В╤В╨╡╤А╨╜╤Г ╨▓
+- Timer::del($player['reconnect_timer']) добавлен в оба метода ДО
+  удаления игрока — идентичный уже корректному паттерну в
   ReconnectService::removePlayerFromGame().
 
 Result:
 - tests/Manual/test_timer_integrity.php: 5/5 PASSED.
-- Regression ╨┐╤А╨╛╨▓╨╡╤А╨╡╨╜ ╨╜╨░ ╨╗╨╛╨╢╨╜╨╛╨┐╨╛╨╗╨╛╨╢╨╕╤В╨╡╨╗╤М╨╜╨╛╤Б╤В╤М: ╨▓╤А╨╡╨╝╨╡╨╜╨╜╨╛ ╨╛╤В╨║╨░╤В╤Л╨▓╨░╨╗╨╕╤Б╤М ╨╛╨▒╨╡
-  ╨┐╤А╨░╨▓╨║╨╕ тЖТ 3/5 ╤З╨╡╤Б╤В╨╜╤Л╤Е FAIL; ╨┐╨╛╤Б╨╗╨╡ ╨▓╨╛╤Б╤Б╤В╨░╨╜╨╛╨▓╨╗╨╡╨╜╨╕╤П тАФ ╤Б╨╜╨╛╨▓╨░ 5/5.
-- ╨Я╨╛╨╗╨╜╤Л╨╣ ╤А╨╡╨│╤А╨╡╤Б╤Б ╨┐╨╛ ╨▓╤Б╨╡╨╝ 23 ╤Д╨░╨╣╨╗╨░╨╝ tests/Manual/*.php тАФ 0 failed.
+- Regression проверен на ложноположительность: временно откатывались обе
+  правки → 3/5 честных FAIL; после восстановления — снова 5/5.
+- Полный регресс по всем 23 файлам tests/Manual/*.php — 0 failed.
 
 Diff: patches/FIX-6.patch
 
-### FIX-4 тАФ Stale test fixtures after ADR-002 (GameFinishService)
+### FIX-4 — Stale test fixtures after ADR-002 (GameFinishService)
 Status: Completed
 Date: 2026-07-03
 
@@ -3180,43 +3180,43 @@ Files:
 - tests/Manual/test_victory.php
 
 Problem:
-- ADR-002 (╨▓╤Л╨╜╨╛╤Б GameFinishService, final class ╤Б╨╛ ╤Б╤В╤А╨╛╨│╨╛╨╣ ╤В╨╕╨┐╨╕╨╖╨░╤Ж╨╕╨╡╨╣
-  Database/PreparedStatements/Logger) ╨╜╨╡ ╨▒╤Л╨╗ ╨┐╤А╨╛╨▒╤А╨░╤Б╤С╨╜ ╨▓ ╤В╨╡╤Б╤В╨╛╨▓╤Л╨╡ ╤Д╨╕╨║╤Б╤В╤Г╤А╤Л
-  test_game_start.php ╨╕ test_victory.php тАФ ╨╛╨▒╨╡ ╨┐╤А╨╛╨┤╨╛╨╗╨╢╨░╨╗╨╕ ╨╕╤Б╨┐╨╛╨╗╤М╨╖╨╛╨▓╨░╤В╤М
-  ╨░╨╜╨╛╨╜╨╕╨╝╨╜╤Л╨╡ ╨║╨╗╨░╤Б╤Б╤Л ╨▓╨╝╨╡╤Б╤В╨╛ GameFinishService, ╤З╤В╨╛ ╨╜╨╡╤Б╨╛╨▓╨╝╨╡╤Б╤В╨╕╨╝╨╛ ╨┐╨╛ ╤В╨╕╨┐╤Г ╤Б
-  GameService::__construct(). ╨Ю╨▒╨░ ╤Д╨░╨╣╨╗╨░ ╨┐╨░╨┤╨░╨╗╨╕ ╤Б Fatal TypeError.
-- ╨Ъ╨╛╤А╨╜╨╡╨▓╨░╤П ╨┐╤А╨╕╤З╨╕╨╜╨░ ╨╜╨╡╨▓╨╛╨╖╨╝╨╛╨╢╨╜╨╛╤Б╤В╨╕ ╤З╨╡╤Б╤В╨╜╨╛╨│╨╛ (╨▒╨╡╨╖ reflection тАФ ╨╖╨░╨┐╤А╨╡╤Й╤С╨╜╨╜╨╛╨│╨╛
-  ANCHOR_RULES.md Part 22) ╨╕╤Б╨┐╤А╨░╨▓╨╗╨╡╨╜╨╕╤П: Database ╨╢╤С╤Б╤В╨║╨╛ ╤Е╨░╤А╨┤╨║╨╛╨┤╨╕╨╗╨░ ╨┐╤Г╤В╤М ╨║
-  game.db ╨▓ ╨║╨╛╨╜╤Б╤В╤А╤Г╨║╤В╨╛╤А╨╡ ╨▒╨╡╨╖ ╤В╨╛╤З╨║╨╕ ╨▓╨╜╨╡╨┤╤А╨╡╨╜╨╕╤П ╨╖╨░╨▓╨╕╤Б╨╕╨╝╨╛╤Б╤В╨╡╨╣.
+- ADR-002 (вынос GameFinishService, final class со строгой типизацией
+  Database/PreparedStatements/Logger) не был пробрасён в тестовые фикстуры
+  test_game_start.php и test_victory.php — обе продолжали использовать
+  анонимные классы вместо GameFinishService, что несовместимо по типу с
+  GameService::__construct(). Оба файла падали с Fatal TypeError.
+- Корневая причина невозможности честного (без reflection — запрещённого
+  ANCHOR_RULES.md Part 22) исправления: Database жёстко хардкодила путь к
+  game.db в конструкторе без точки внедрения зависимостей.
 
 Fix:
-- Database::__construct() ╤А╨░╤Б╤И╨╕╤А╨╡╨╜ ╨╛╨┐╤Ж╨╕╨╛╨╜╨░╨╗╤М╨╜╤Л╨╝ ╨┐╨░╤А╨░╨╝╨╡╤В╤А╨╛╨╝ `?PDO $pdo = null`
-  (╨╛╨▒╤А╨░╤В╨╜╨╛ ╤Б╨╛╨▓╨╝╨╡╤Б╤В╨╕╨╝╨╛ тАФ ╨╜╨░ ╨╝╨╛╨╝╨╡╨╜╤В ╤Д╨╕╨║╤Б╨░ `new Database()` ╨╜╨╕╨│╨┤╨╡ ╨▓ ╨┐╤А╨╛╨╡╨║╤В╨╡ ╨╜╨╡
-  ╨▓╤Л╨╖╤Л╨▓╨░╨╡╤В╤Б╤П ╨╜╨░╨┐╤А╤П╨╝╤Г╤О, server.php/init_db.php ╨╡╤Й╤С ╨╜╨╡ ╤А╨╡╨░╨╗╨╕╨╖╨╛╨▓╨░╨╜╤Л; ╨┐╨╛╨▓╨╡╨┤╨╡╨╜╨╕╨╡
-  ╨▒╨╡╨╖ ╨░╤А╨│╤Г╨╝╨╡╨╜╤В╨░ ╨╕╨┤╨╡╨╜╤В╨╕╤З╨╜╨╛ ╨┐╤А╨╡╨╢╨╜╨╡╨╝╤Г).
-- test_game_start.php: finishGame() ╨╜╨╡ ╨▓╤Л╨╖╤Л╨▓╨░╨╡╤В╤Б╤П ╨╜╨╕ ╨▓ ╨╛╨┤╨╜╨╛╨╝ ╤Б╤Ж╨╡╨╜╨░╤А╨╕╨╕
-  EPIC-4.5 тЖТ ╨░╨╜╨╛╨╜╨╕╨╝╨╜╤Л╨╣ ╨║╨╗╨░╤Б╤Б ╨╖╨░╨╝╨╡╨╜╤С╨╜ ╨╜╨░ ╤Г╨╢╨╡ ╨┐╤А╨╕╨╜╤П╤В╤Л╨╣ ╨▓ ╨┐╤А╨╛╨╡╨║╤В╨╡ ╨┐╨░╤В╤В╨╡╤А╨╜
-  ReflectionClass::newInstanceWithoutConstructor() (╤Б╨╝. test_apartment.php,
+- Database::__construct() расширен опциональным параметром `?PDO $pdo = null`
+  (обратно совместимо — на момент фикса `new Database()` нигде в проекте не
+  вызывается напрямую, server.php/init_db.php ещё не реализованы; поведение
+  без аргумента идентично прежнему).
+- test_game_start.php: finishGame() не вызывается ни в одном сценарии
+  EPIC-4.5 → анонимный класс заменён на уже принятый в проекте паттерн
+  ReflectionClass::newInstanceWithoutConstructor() (см. test_apartment.php,
   test_turn_system.php).
-- test_victory.php: GROUP 4/5/6 ╤А╨╡╨░╨╗╤М╨╜╨╛ ╨▓╤Л╨╖╤Л╨▓╨░╤О╤В finishGame() тЖТ makeSvc()
-  ╤В╨╡╨┐╨╡╤А╤М ╤Б╤В╤А╨╛╨╕╤В ╨╜╨░╤Б╤В╨╛╤П╤Й╨╕╨╣ GameFinishService(Database, PreparedStatements,
-  Logger) ╨┐╨╛╨▓╨╡╤А╤Е in-memory SQLite. GROUP 5 (╤Б╨▒╨╛╨╣ ╨С╨Ф тЖТ rollback) ╨┐╨╡╤А╨╡╨┐╨╕╤Б╨░╨╜ ╤Б
-  ╨╕╤Б╨║╤Г╤Б╤Б╤В╨▓╨╡╨╜╨╜╨╛╨│╨╛ MockPDO->shouldFail ╤Д╨╗╨░╨│╨░ ╨╜╨░ ╤З╨╡╤Б╤В╨╜╨╛╨╡ ╨╜╨░╤А╤Г╤И╨╡╨╜╨╕╨╡ SQL
-  CHECK-╨╛╨│╤А╨░╨╜╨╕╤З╨╡╨╜╨╕╤П (coins<=200) тАФ ╤В╨╡╤Б╤В╨╕╤А╤Г╨╡╤В ╤А╨╡╨░╨╗╤М╨╜╤Л╨╣ ╨┐╤Г╤В╤М ╨╛╤В╨║╨░╤В╨░ ╨▓╨╜╤Г╤В╤А╨╕
-  GameFinishService, ╨░ ╨╜╨╡ ╨╕╨╝╨╕╤В╨░╤Ж╨╕╤О.
+- test_victory.php: GROUP 4/5/6 реально вызывают finishGame() → makeSvc()
+  теперь строит настоящий GameFinishService(Database, PreparedStatements,
+  Logger) поверх in-memory SQLite. GROUP 5 (сбой БД → rollback) переписан с
+  искусственного MockPDO->shouldFail флага на честное нарушение SQL
+  CHECK-ограничения (coins<=200) — тестирует реальный путь отката внутри
+  GameFinishService, а не имитацию.
 
 Result:
 - test_game_start.php: 44/44 PASSED
-- test_victory.php: 40/40 PASSED (╨▒╤Л╨╗╨╛ 38 ╨╖╨░╤П╨▓╨╗╨╡╨╜╨╛ ╨▓ ╤Б╤В╨░╤В╤Г╤Б╨╡; +2 ╨▒╨╛╨╗╨╡╨╡
-  ╤Б╤В╤А╨╛╨│╨╕╨╡ ╨┐╤А╨╛╨▓╨╡╤А╨║╨╕ ╨┤╨╛╨▒╨░╨▓╨╗╨╡╨╜╤Л ╨▓ GROUP 5 тАФ inTransaction()===false,
-  room ╨╜╨╡ ╤Г╨╜╨╕╤З╤В╨╛╨╢╨╡╨╜╨░ ╨┐╤А╨╕ ╨╛╤В╨║╨░╤В╨╡)
-- ╨Я╨╛╨╗╨╜╤Л╨╣ ╤А╨╡╨│╤А╨╡╤Б╤Б╨╕╨╛╨╜╨╜╤Л╨╣ ╨┐╤А╨╛╨│╨╛╨╜ ╨▓╤Б╨╡╤Е 22 ╤Д╨░╨╣╨╗╨╛╨▓ tests/Manual/*.php тАФ 0 failed.
+- test_victory.php: 40/40 PASSED (было 38 заявлено в статусе; +2 более
+  строгие проверки добавлены в GROUP 5 — inTransaction()===false,
+  room не уничтожена при откате)
+- Полный регрессионный прогон всех 22 файлов tests/Manual/*.php — 0 failed.
 
 Diff: patches/FIX-4.patch
 
 ---
 
-### FIX-5 тАФ Stale sendError() assertion (pre-FIX-1 contract)
+### FIX-5 — Stale sendError() assertion (pre-FIX-1 contract)
 Status: Completed
 Date: 2026-07-03
 
@@ -3224,25 +3224,25 @@ Files:
 - tests/Manual/test_helpers_runner.php
 
 Problem:
-- Scenario 2 ╨▓╤Л╨╖╤Л╨▓╨░╨╗╨░ sendError($conn, 'Invalid action syntax') ╨┐╨╛ ╤Б╤В╨░╤А╨╛╨╝╤Г
-  ╨╛╨┤╨╜╨╛╨┐╨░╤А╨░╨╝╨╡╤В╤А╨╛╨▓╨╛╨╝╤Г ╨║╨╛╨╜╤В╤А╨░╨║╤В╤Г (╨┤╨╛ FIX-1) ╨╕ ╨╛╨╢╨╕╨┤╨░╨╗╨░ ╨┐╨░╨║╨╡╤В ╨▒╨╡╨╖ ╨┐╨╛╨╗╤П code.
-  ╨а╨╡╨░╨╗╤М╨╜╤Л╨╣ sendError(object $connection, string $code, string $message = '')
-  ╨┐╨╛╤Б╨╗╨╡ FIX-1 ╨║╨╛╤А╤А╨╡╨║╤В╨╜╨╛ ╤В╤А╨╡╨▒╤Г╨╡╤В code тАФ ╤В╨╡╤Б╤В ╨╜╨╡ ╨▒╤Л╨╗ ╨╛╨▒╨╜╨╛╨▓╨╗╤С╨╜ ╨▓╨╝╨╡╤Б╤В╨╡ ╤Б FIX-1.
+- Scenario 2 вызывала sendError($conn, 'Invalid action syntax') по старому
+  однопараметровому контракту (до FIX-1) и ожидала пакет без поля code.
+  Реальный sendError(object $connection, string $code, string $message = '')
+  после FIX-1 корректно требует code — тест не был обновлён вместе с FIX-1.
 
 Fix:
-- Scenario 2 ╨┐╨╡╤А╨╡╨┐╨╕╤Б╨░╨╜ ╨┐╨╛╨┤ ╨░╨║╤В╤Г╨░╨╗╤М╨╜╤Л╨╣ ╨▓╤Л╨╖╨╛╨▓
-  sendError($conn2, 'error.invalid_json', 'Invalid action syntax') ╨╕
-  ╨╛╨╢╨╕╨┤╨░╨╡╨╝╤Л╨╣ ╨┐╨░╨║╨╡╤В {"type":"error","code":"error.invalid_json","message":"..."}
-  (ANCHOR_PROTOCOL.md ┬з Error Packet). ╨Я╤А╨░╨▓╨╕╨╗╤Б╤П ╤В╨╡╤Б╤В, ╨╜╨╡ ╤А╨╡╨░╨╗╨╕╨╖╨░╤Ж╨╕╤П тАФ
-  ANCHOR_RULES.md Part 22 (Test Philosophy): sendError() ╤Г╨╢╨╡ ╨▓╨╡╤А╨╜╨╛
-  ╤А╨╡╨░╨╗╨╕╨╖╤Г╨╡╤В ╨░╨║╤В╤Г╨░╨╗╤М╨╜╤Л╨╣ ╨║╨╛╨╜╤В╤А╨░╨║╤В.
+- Scenario 2 переписан под актуальный вызов
+  sendError($conn2, 'error.invalid_json', 'Invalid action syntax') и
+  ожидаемый пакет {"type":"error","code":"error.invalid_json","message":"..."}
+  (ANCHOR_PROTOCOL.md § Error Packet). Правился тест, не реализация —
+  ANCHOR_RULES.md Part 22 (Test Philosophy): sendError() уже верно
+  реализует актуальный контракт.
 
 Result:
-- test_helpers_runner.php: ╨▓╤Б╨╡ 4 ╤Б╤Ж╨╡╨╜╨░╤А╨╕╤П PASSED.
+- test_helpers_runner.php: все 4 сценария PASSED.
 
 Diff: patches/FIX-5.patch
 
-### FIX-3 тАФ Double refund on kick + admin_close_room
+### FIX-3 — Double refund on kick + admin_close_room
 Status: Completed
 Date: 2026-07-03
 
@@ -3250,33 +3250,33 @@ Files:
 - src/Admin/AdminService.php
 
 Problem:
-- handleKickUser() ╤А╨╡╤Д╨░╨╜╨┤╨╕╨╗ total_paid ╨╕╨│╤А╨╛╨║╤Г ╨╕ ╤Г╨╝╨╡╨╜╤М╤И╨░╨╗ room bank, ╨╜╨╛ ╨Э╨Х
-  ╨╛╨▒╨╜╤Г╨╗╤П╨╗ total_paid ╨╕╨│╤А╨╛╨║╨░ ╨▓ ╨┐╨░╨╝╤П╤В╨╕ room state.
-- ╨Ф╨╡╨╗╨╡╨│╨░╤В ╤Г╨┤╨░╨╗╨╡╨╜╨╕╤П (removePlayerFromLobby/removePlayerFromGame/
-  removePlayerFromApartment) ╨╖╨░╨┐╨╕╤Б╤Л╨▓╨░╨╗ ╨▓ all_players_history ╤Б╤В╨░╤А╨╛╨╡
-  (╨┤╨╛╤А╨╡╤Д╨░╨╜╨┤╨╜╨╛╨╡) ╨╖╨╜╨░╤З╨╡╨╜╨╕╨╡ total_paid.
-- handleCloseRoom() ╨▒╨╡╨╖╤Г╤Б╨╗╨╛╨▓╨╜╨╛ ╤А╨╡╤Д╨░╨╜╨┤╨╕╤В total_paid ╨╕╨╖ all_players_history
-  ╨║╨░╨╢╨┤╨╛╨╝╤Г ╤Г╤З╨░╤Б╤В╨╜╨╕╨║╤Г тАФ ╨┐╤А╨╕ ╨┐╨╛╤Б╨╗╨╡╨┤╤Г╤О╤Й╨╡╨╝ admin_close_room() ╤А╨░╨╜╨╡╨╡ ╨║╨╕╨║╨╜╤Г╤В╤Л╨╣
-  ╨╕╨│╤А╨╛╨║ ╨┐╨╛╨╗╤Г╤З╨░╨╗ ╤Б╤В╨░╨▓╨║╤Г ╨╡╤Й╤С ╤А╨░╨╖. ╨Э╨░╤А╤Г╤И╨╡╨╜╨╕╨╡ ANCHOR_CORE.md Part 2 ┬з
+- handleKickUser() рефандил total_paid игроку и уменьшал room bank, но НЕ
+  обнулял total_paid игрока в памяти room state.
+- Делегат удаления (removePlayerFromLobby/removePlayerFromGame/
+  removePlayerFromApartment) записывал в all_players_history старое
+  (дорефандное) значение total_paid.
+- handleCloseRoom() безусловно рефандит total_paid из all_players_history
+  каждому участнику — при последующем admin_close_room() ранее кикнутый
+  игрок получал ставку ещё раз. Нарушение ANCHOR_CORE.md Part 2 §
   Economic Integrity Rule.
 
 Fix:
-- ╨Я╨╛╤Б╨╗╨╡ ╤Г╤Б╨┐╨╡╤И╨╜╨╛╨╣ refund-╤В╤А╨░╨╜╨╖╨░╨║╤Ж╨╕╨╕ ╨▓ handleKickUser() ╨┤╨╛╨▒╨░╨▓╨╗╨╡╨╜╨░ ╤Б╤В╤А╨╛╨║╨░
-  `$room['players'][$connId]['total_paid'] = 0;` тАФ ╨╛╨▒╨╜╤Г╨╗╨╡╨╜╨╕╨╡ ╨Ф╨Ю ╨▓╤Л╨╖╨╛╨▓╨░
-  ╨┤╨╡╨╗╨╡╨│╨░╤В╨░ ╤Г╨┤╨░╨╗╨╡╨╜╨╕╤П, ╤З╤В╨╛╨▒╤Л all_players_history ╤Д╨╕╨║╤Б╨╕╤А╨╛╨▓╨░╨╗ 0 (╨╜╨╡╤З╨╡╨│╨╛ ╨▒╨╛╨╗╤М╤И╨╡
-  ╨▓╨╛╨╖╨▓╤А╨░╤Й╨░╤В╤М ╤Н╤В╨╛╨╝╤Г ╨╕╨│╤А╨╛╨║╤Г).
+- После успешной refund-транзакции в handleKickUser() добавлена строка
+  `$room['players'][$connId]['total_paid'] = 0;` — обнуление ДО вызова
+  делегата удаления, чтобы all_players_history фиксировал 0 (нечего больше
+  возвращать этому игроку).
 
 Result:
-- ╨Ю╨▒╨╜╨░╤А╤Г╨╢╨╡╨╜╨╛ ╨╕ ╨╖╨░╤Д╨╕╨║╤Б╨╕╤А╨╛╨▓╨░╨╜╨╛ regression-╤В╨╡╤Б╤В╨░╨╝╨╕ ╨▓
+- Обнаружено и зафиксировано regression-тестами в
   tests/Manual/test_admin_integration.php (TEST 1, TEST 3).
-- ╨Я╤А╨╛╨▓╨╡╤А╨╡╨╜╨╛ ╨╜╨░ ╨╗╨╛╨╢╨╜╨╛╨┐╨╛╨╗╨╛╨╢╨╕╤В╨╡╨╗╤М╨╜╨╛╤Б╤В╤М: ╨▒╨╡╨╖ ╤Д╨╕╨║╤Б╨░ ╤В╨╡╤Б╤В ╨┤╨░╤С╤В 5 ╤З╨╡╤Б╤В╨╜╤Л╤Е FAIL,
-  ╤Б ╤Д╨╕╨║╤Б╨╛╨╝ тАФ 20/20 PASSED.
-- ╨Т╤Б╤П ╤Б╤Г╤Й╨╡╤Б╤В╨▓╤Г╤О╤Й╨░╤П ╤А╨╡╨│╤А╨╡╤Б╤Б╨╕╤П (test_admin_kick.php, test_admin_close_room.php
-  ╨╕ ╨┤╤А.) ╨╛╤Б╤В╨░╤С╤В╤Б╤П ╨╖╨╡╨╗╤С╨╜╨╛╨╣.
+- Проверено на ложноположительность: без фикса тест даёт 5 честных FAIL,
+  с фиксом — 20/20 PASSED.
+- Вся существующая регрессия (test_admin_kick.php, test_admin_close_room.php
+  и др.) остаётся зелёной.
 
 Diff: patches/FIX-3.patch
 
-### FIX-1 тАФ sendError() protocol contract
+### FIX-1 — sendError() protocol contract
 Status: Completed
 Date: 2026-06-21
 
@@ -3284,20 +3284,20 @@ Files:
 - src/Core/Helpers.php
 
 Problem:
-- error packet ╨╜╨╡ ╤Б╨╛╨┤╨╡╤А╨╢╨░╨╗ ╨╛╨▒╤П╨╖╨░╤В╨╡╨╗╤М╨╜╨╛╨╡ ╨┐╨╛╨╗╨╡ `code`
+- error packet не содержал обязательное поле `code`
 
 Fix:
-- ╤Б╨╕╨│╨╜╨░╤В╤Г╤А╨░ ╨╕╨╖╨╝╨╡╨╜╨╡╨╜╨░ ╨╜╨░:
+- сигнатура изменена на:
 
 `php
 sendError(object $connection, string $code, string $message = ''): void
 `
 
-- ╨┐╨╛╨╗╨╡ `code` ╨┤╨╛╨▒╨░╨▓╨╗╨╡╨╜╨╛ ╨▓ JSON ╨┐╨░╨║╨╡╤В.
+- поле `code` добавлено в JSON пакет.
 
 ---
 
-### FIX-2 тАФ Registration Daily Bonus Contract
+### FIX-2 — Registration Daily Bonus Contract
 Status: Completed
 Date: 2026-06-22
 
@@ -3305,9 +3305,9 @@ Files:
 - src/Infrastructure/PreparedStatements.php
 
 Problem:
-- ╨Э╨╛╨▓╤Л╨╣ ╨┐╨╛╨╗╤М╨╖╨╛╨▓╨░╤В╨╡╨╗╤М ╤Б╨╛╨╖╨┤╨░╨▓╨░╨╗╤Б╤П ╤Б `last_daily_bonus = 0`
-- ╨Р╨▓╤В╨╛╨╗╨╛╨│╨╕╨╜ ╨┐╨╛╤Б╨╗╨╡ ╤А╨╡╨│╨╕╤Б╤В╤А╨░╤Ж╨╕╨╕ ╨╜╨░╤З╨╕╤Б╨╗╤П╨╗ +100 ╨╝╨╛╨╜╨╡╤В
-- ╨Э╨░╤А╤Г╤И╨░╨╗╤Б╤П ╨║╨╛╨╜╤В╤А╨░╨║╤В EPIC-1.4 (`coins = 500` ╨┐╨╛╤Б╨╗╨╡ ╤А╨╡╨│╨╕╤Б╤В╤А╨░╤Ж╨╕╨╕)
+- Новый пользователь создавался с `last_daily_bonus = 0`
+- Автологин после регистрации начислял +100 монет
+- Нарушался контракт EPIC-1.4 (`coins = 500` после регистрации)
 
 Fix:
 
@@ -3315,18 +3315,18 @@ Fix:
 strftime('%s','now')
 `
 
-╨╕╤Б╨┐╨╛╨╗╤М╨╖╤Г╨╡╤В╤Б╤П ╨┐╤А╨╕ ╤Б╨╛╨╖╨┤╨░╨╜╨╕╨╕ ╨┐╨╛╨╗╤М╨╖╨╛╨▓╨░╤В╨╡╨╗╤П.
+используется при создании пользователя.
 
 Result:
-- ╨С╨░╨╗╨░╨╜╤Б ╨┐╨╛╤Б╨╗╨╡ ╤А╨╡╨│╨╕╤Б╤В╤А╨░╤Ж╨╕╨╕ = 500
-- ╨Т╤Б╨╡ ╨╕╨╜╤В╨╡╨│╤А╨░╤Ж╨╕╨╛╨╜╨╜╤Л╨╡ ╤В╨╡╤Б╤В╤Л ╨┐╤А╨╛╤Е╨╛╨┤╤П╤В.
+- Баланс после регистрации = 500
+- Все интеграционные тесты проходят.
 
 ---
 
 ## DECISION LOG
 
-- 2026-07-28 тАФ FIX-16 Accepted: found during VPS `./run_ALL_tests.sh` at
-  EPIC-13.4 sign-off (not a proactive audit) тАФ `b203493` (EPIC-13.1) called
+- 2026-07-28 — FIX-16 Accepted: found during VPS `./run_ALL_tests.sh` at
+  EPIC-13.4 sign-off (not a proactive audit) — `b203493` (EPIC-13.1) called
   `lottoBootstrapPhpExtensions()` in `server.php` but the function existed
   only in an uncommitted local `src/Core/Helpers.php` diff (FIX-15 Windows
   bootstrap work). Eight live-WS-subprocess tests failed on Ubuntu with a
@@ -3335,7 +3335,7 @@ Result:
   `$skipOnWindows`. Fixed in `0de46d0`. Process takeaway mirrors FIX-12:
   VPS-authoritative runs expose gaps that dev-host shortcuts hide; never
   commit `server.php` calls to symbols not yet in the repository.
-- 2026-07-28 тАФ Phase 13 git checkpoint deviation Accepted (process note, no
+- 2026-07-28 — Phase 13 git checkpoint deviation Accepted (process note, no
   code impact): implementation followed Rule 16 intent (each Epic independently
   verifiable) but commit boundaries did not map 1:1 to Epic numbers. EPIC-13.3
   label duplicated across commits `8cd1434` and `f4cf0f4`; EPIC-13.2 bundled
@@ -3343,7 +3343,7 @@ Result:
   in Phase 13 block above. Future phases: split file edits per Epic before
   committing, or use explicit `EPIC-13.2+13.3` combined messages when files
   cannot be separated without partial commits.
-- 2026-07-26 тАФ ROADMAP.md Phase 11/12/13/14 reorder Accepted (user
+- 2026-07-26 — ROADMAP.md Phase 11/12/13/14 reorder Accepted (user
   decision, following up on a concern raised after EPIC-10.7): Frontend
   depends entirely on the server implementation, so auditing the server
   first avoids redoing client work if an audit surfaces a protocol
@@ -3354,17 +3354,17 @@ Result:
   Phase 14 (was EPIC-12.7/12.8): Release Candidate -> v1.0 Release, given
   its own phase number since Phase 12 was reassigned to Frontend.
   docs/ROADMAP.md updated with the new structure plus an explanatory
-  note mapping old->new numbering. No code, protocol, or test changes тАФ
+  note mapping old->new numbering. No code, protocol, or test changes —
   none of the affected epics were implemented yet, so this is pure
   documentation with zero migration risk.
-- 2026-07-25 тАФ FIX-12 Accepted: found during a live operational incident
-  (not a proactive audit) тАФ test runs executed as root against the live
+- 2026-07-25 — FIX-12 Accepted: found during a live operational incident
+  (not a proactive audit) — test runs executed as root against the live
   VPS left game.db/workerman.log/logs/server.log root-owned while the
   production systemd service runs as www-data, causing a real crash-loop
   (Permission denied on every log write, worker respawning repeatedly).
   Fixed operationally via chown (see incident thread). While diagnosing
   it, a confusing [ERROR] "CHECK constraint failed: coins <= 200" line
-  was found in the production log тАФ traced to tests/Manual/
+  was found in the production log — traced to tests/Manual/
   test_victory.php's makeSvc(), which correctly isolates its DATABASE via
   an in-memory PDO (FIX-4) but paired it with a real, default-path
   Logger, so a deliberately-rigged rollback test's error message still
@@ -3376,47 +3376,47 @@ Result:
   every real-Logger call site project-wide: 6 test files fixed, 2 more
   (test_admin_logs.php, test_admin_integration.php) found bleeding the
   same way via the same sweep, one stale already-superseded test file
-  (test_logger.php) deleted, and тАФ as a side benefit тАФ confirmed that
+  (test_logger.php) deleted, and — as a side benefit — confirmed that
   test_lobby_integration.php/test_auth_integration.php's existing (but
   silently non-functional, since PHP doesn't error on extra constructor
   arguments) attempt to redirect to '/dev/null' now actually works.
   Explicitly left out of scope: real-WS-subprocess tests (EPIC-10.3-10.7)
   spawn genuine server.php instances whose Logger is correct production
-  code by definition тАФ a different, lower-severity category of test
+  code by definition — a different, lower-severity category of test
   noise than the false-ERROR incident this fix targets; making
   server.php's log path itself configurable is a separate, larger
   decision left for later. Verified via MD5 hash of logs/server.log
   before/after each affected test, individually and across the full
   suite. Full regression 0 failed (29 files, one deleted).
-- 2026-07-24 тАФ EPIC-10.7 Accepted: per explicit user scoping, this Epic is
+- 2026-07-24 — EPIC-10.7 Accepted: per explicit user scoping, this Epic is
   a completeness/coverage audit (does the server side have everything
   ANCHOR_CORE.md/ANCHOR_PROTOCOL.md declare?), not a re-test of business
   logic already covered by the per-module routing tests and Phase-
   specific unit tests. New tests/Manual/test_protocol_completeness.php
   parses the actual declared registries out of the ANCHOR docs at run
   time (not a hardcoded copy) and cross-references against server.php/
-  src/ тАФ 50/50 PASSED, 3 warnings, all matching already-documented KNOWN
+  src/ — 50/50 PASSED, 3 warnings, all matching already-documented KNOWN
   GAPS (admin_stats_data unimplemented, afk_warning undeclared) plus one
-  new low-priority finding (error.banned declared but unused тАФ superseded
+  new low-priority finding (error.banned declared but unused — superseded
   by the dedicated `banned` packet type, not a functional gap). No code
-  defects found тАФ confirms EPIC-10.0-10.6's wiring is genuinely complete
-  against the full declared protocol surface. PHASE 10 тАФ WEBSOCKET
+  defects found — confirms EPIC-10.0-10.6's wiring is genuinely complete
+  against the full declared protocol surface. PHASE 10 — WEBSOCKET
   PROTOCOL: COMPLETE.
-- 2026-07-24 тАФ EPIC-10.6 Accepted + FIX-11: admin_ban_user/admin_unban_user/
+- 2026-07-24 — EPIC-10.6 Accepted + FIX-11: admin_ban_user/admin_unban_user/
   admin_kick_user/admin_close_room/admin_get_logs wired to new
-  AdminHandler (AdminService Phase 9 already existed тАФ dependency wiring
+  AdminHandler (AdminService Phase 9 already existed — dependency wiring
   + routing, all 7 of its nullable dependencies wired this time, unlike a
   partial wiring which would have silently degraded kick/ban removal or
   admin_close_room's timer cleanup). Proactive audit (again requested by
   user, same pattern as FIX-9/FIX-10) found FIX-11: banned users could
   fully bypass their ban. Three compounding gaps in the ban path only
-  (kick was already correct) тАФ handleBanUser()'s room-removal was
+  (kick was already correct) — handleBanUser()'s room-removal was
   incorrectly gated behind isset($worker->userConnections[...]), which
   FIX-10 (same day) had just made behave correctly, exposing that a
   disconnected-but-reconnect-pending banned player was never removed;
   banning an online player never closed their connection, leaving a
-  stale-but-authenticated session able to keep acting; and тАФ the most
-  severe тАФ AuthHandler::handleReconnect() never checked banned_until at
+  stale-but-authenticated session able to keep acting; and — the most
+  severe — AuthHandler::handleReconnect() never checked banned_until at
   all, unlike login(), so reconnect was a total, permanent bypass of any
   ban regardless of room state. All three fixed and independently
   verified non-false-positive. Two existing unit tests' mock connection
@@ -3425,16 +3425,16 @@ Result:
   tests/Manual/test_admin_packet_routing.php: 15/15 PASSED, real WS
   client, covering both the Epic's routing and FIX-11 together. Full
   regression 0 failed (30 files).
-- 2026-07-24 тАФ FIX-10 Accepted: proactive audit before EPIC-10.6 (requested
+- 2026-07-24 — FIX-10 Accepted: proactive audit before EPIC-10.6 (requested
   by user, same spirit as the FIX-6 audit before Phase 10 and the FIX-9
   discovery during EPIC-10.5) found that $worker->userConnections is never
-  unset by ANY code path тАФ permanent single-session lockout for any
+  unset by ANY code path — permanent single-session lockout for any
   account that disconnects without being seated in a room, since neither
   login (blocked by the stale isset() check) nor reconnect (never bound
   $connection->userId for room-less sessions) could recover access.
   Undetected until now because onClose never called
-  ReconnectService::handleDisconnect() before EPIC-10.5 тАФ no disconnect
-  ever reached this code at all тАФ and the one relevant test
+  ReconnectService::handleDisconnect() before EPIC-10.5 — no disconnect
+  ever reached this code at all — and the one relevant test
   (test_single_session.php, Phase 1) manually fakes the missing cleanup
   step rather than exercising it. Fixed in AuthHandler::handleReconnect()
   (now binds the connection via the same bindConnection() login/register
@@ -3444,234 +3444,234 @@ Result:
   halves independently verified non-false-positive. New
   tests/Manual/test_session_lifecycle.php: 6/6 PASSED, real WS client,
   no MockConnection. Full regression 0 failed. EPIC-10.6 not yet started.
-- 2026-06-21 тАФ ROADMAP.md ╨┐╤А╨╕╨╖╨╜╨░╨╜ ╨╕╤Б╤В╨╛╤З╨╜╨╕╨║╨╛╨╝ ╨╕╤Б╤В╨╕╨╜╤Л ╨┐╨╛ ╨╜╤Г╨╝╨╡╤А╨░╤Ж╨╕╨╕ Epic.
-- 2026-06-21 тАФ Reconnect Token Infrastructure ╨▓╤Л╨╜╨╡╤Б╨╡╨╜ ╨▓ PRE-BUILT COMPONENTS.
-- 2026-06-22 тАФ PHASE 1 ╨╛╤Д╨╕╤Ж╨╕╨░╨╗╤М╨╜╨╛ ╨╖╨░╨▓╨╡╤А╤И╨╡╨╜╨░ ╨┐╨╛╤Б╨╗╨╡ ╨┐╤А╨╛╤Е╨╛╨╢╨┤╨╡╨╜╨╕╤П ╨╕╨╜╤В╨╡╨│╤А╨░╤Ж╨╕╨╛╨╜╨╜╤Л╤Е ╤В╨╡╤Б╤В╨╛╨▓.
-- 2026-06-23 тАФ EPIC-2.0 RoomManager ╤А╨╡╨░╨╗╨╕╨╖╨╛╨▓╨░╨╜ (src/Core/RoomManager.php, 245 ╤Б╤В╤А╨╛╨║).
-- 2026-06-25 тАФ EPIC-2.3 Leave room ╨╖╨░╨▓╨╡╤А╤И╤С╨╜, FIX: all_players_history ╨▓ removePlayerFromLobby.
-- 2026-06-28 тАФ EPIC-2.4 Room list ╨╖╨░╨▓╨╡╤А╤И╤С╨╜.
-- 2026-07-02 тАФ ADR-002 Accepted: GameFinishService extracted; Phase 7 anchor-compliance fixes applied; Phase 7 tests green.
-- 2026-07-02 тАФ EPIC-9.3 Kick player ╨╖╨░╨▓╨╡╤А╤И╤С╨╜. KNOWN GAP: host transfer ╨┐╤А╨╕ kick/ban ╨▓ apartment-╤Б╨╛╤Б╤В╨╛╤П╨╜╨╕╨╕ ╨╖╨░╤Д╨╕╨║╤Б╨╕╤А╨╛╨▓╨░╨╜ ╨┤╨╗╤П ╨▒╤Г╨┤╤Г╤Й╨╡╨│╨╛ Epic.
-- 2026-07-03 тАФ EPIC-9.5 Logs access ╤Д╨░╨║╤В╨╕╤З╨╡╤Б╨║╨╕ ╤А╨╡╨░╨╗╨╕╨╖╨╛╨▓╨░╨╜ (handleGetLogs()/getLastLines()), ╨╖╨░╨║╤А╤Л╤В╨╛ ╤А╨░╤Б╤Е╨╛╨╢╨┤╨╡╨╜╨╕╨╡ ╨╝╨╡╨╢╨┤╤Г ╤Б╤В╨░╤В╤Г╤Б╨╛╨╝ ╨╕ ╨║╨╛╨┤╨╛╨╝, ╨╛╨▒╨╜╨░╤А╤Г╨╢╨╡╨╜╨╜╨╛╨╡ ╨┐╤А╨╕ ╨┐╨╛╨┤╨│╨╛╤В╨╛╨▓╨║╨╡ EPIC-9.6.
-- 2026-07-03 тАФ FIX-3 Accepted: ╤Г╤Б╤В╤А╨░╨╜╤С╨╜ ╨┤╨▓╨╛╨╣╨╜╨╛╨╣ ╤А╨╡╤Д╨░╨╜╨┤ kick+admin_close_room (Economic Integrity Rule). EPIC-9.6 Admin integration tests ╨╖╨░╨▓╨╡╤А╤И╤С╨╜, PHASE 9 COMPLETE.
-- 2026-07-03 тАФ ╨Ю╨▒╨╜╨░╤А╤Г╨╢╨╡╨╜╤Л pre-existing ╨┐╨░╨┤╨╡╨╜╨╕╤П test_game_start.php/test_victory.php (GameFinishService type mismatch) ╨╕ test_helpers_runner.php (╤Г╤Б╤В╨░╤А╨╡╨▓╤И╨╕╨╣ assert sendError()) тАФ ╨╜╨╡ ╤Б╨▓╤П╨╖╨░╨╜╤Л ╤Б EPIC-9.6, ╨╖╨░╤Д╨╕╨║╤Б╨╕╤А╨╛╨▓╨░╨╜╤Л ╨▓ KNOWN GAPS ╨┤╨╗╤П ╨╛╤В╨┤╨╡╨╗╤М╨╜╨╛╨│╨╛ FIX ╨┐╨╡╤А╨╡╨┤ Phase 10.
-- 2026-07-03 тАФ FIX-4 Accepted: Database ╨┐╨╛╨╗╤Г╤З╨╕╨╗ DI-seam (╨╛╨┐╤Ж╨╕╨╛╨╜╨░╨╗╤М╨╜╤Л╨╣ PDO), test_game_start.php/test_victory.php ╨┐╨╡╤А╨╡╨▓╨╡╨┤╨╡╨╜╤Л ╨╜╨░ ╤А╨╡╨░╨╗╤М╨╜╤Л╨╣ GameFinishService ╨▓╨╝╨╡╤Б╤В╨╛ type-╨╜╨╡╤Б╨╛╨▓╨╝╨╡╤Б╤В╨╕╨╝╤Л╤Е ╨░╨╜╨╛╨╜╨╕╨╝╨╜╤Л╤Е ╨║╨╗╨░╤Б╤Б╨╛╨▓. FIX-5 Accepted: test_helpers_runner.php ╨┐╤А╨╕╨▓╨╡╨┤╤С╨╜ ╨║ ╨░╨║╤В╤Г╨░╨╗╤М╨╜╨╛╨╝╤Г ╨║╨╛╨╜╤В╤А╨░╨║╤В╤Г sendError(). ╨Я╨╛╨╗╨╜╤Л╨╣ ╤А╨╡╨│╤А╨╡╤Б╤Б ╨┐╨╛ ╨▓╤Б╨╡╨╝ 22 ╤Д╨░╨╣╨╗╨░╨╝ tests/Manual/*.php тАФ 0 failed. PHASE 9 ╤Б╤В╨░╨▒╨╕╨╗╤М╨╜╨░, ╨┐╤Г╤В╤М ╨║ Phase 10 ╨╛╤В╨║╤А╤Л╤В ╨▒╨╡╨╖ ╨╕╨╖╨▓╨╡╤Б╤В╨╜╤Л╤Е ╨┤╨╡╤Д╨╡╨║╤В╨╛╨▓.
-- 2026-07-03 тАФ ╨Р╤Г╨┤╨╕╤В ╨╜╨░ ╨▒╨░╨│╨╕, ╨░╨╜╨░╨╗╨╛╨│╨╕╤З╨╜╤Л╨╡ FIX-3 (╨┐╨╛ ╨╖╨░╨┐╤А╨╛╤Б╤Г ╨┐╨╡╤А╨╡╨┤ Phase 10): ╨╜╨░╨╣╨┤╨╡╨╜ ╨╕ ╨╕╤Б╨┐╤А╨░╨▓╨╗╨╡╨╜ FIX-6 (╤Г╤В╨╡╤З╨║╨░ reconnect_timer ╨┐╤А╨╕ kick/ban ╤Г╨┤╨░╨╗╨╡╨╜╨╕╨╕ ╨▓ Lobby/Apartment тАФ Timer Integrity Rule). ╨Я╤А╨╛╨▓╨╡╤А╨╡╨╜╤Л: ╤Н╨║╨╛╨╜╨╛╨╝╨╕╤З╨╡╤Б╨║╨╕╨╡ ╨╝╤Г╤В╨░╤Ж╨╕╨╕ (bank/total_paid/coins тАФ ╤З╨╕╤Б╤В╨╛), reconnect/disconnect ╨╕╤Б╤В╨╛╤А╨╕╤П (╤З╨╕╤Б╤В╨╛), timer cleanup ╨┐╤А╨╕ destroyRoom (╤З╨╕╤Б╤В╨╛, ╨┤╨╡╨╗╨╡╨│╨╕╤А╨╛╨▓╨░╨╜╨╕╨╡ ╨║╨╛╤А╤А╨╡╨║╤В╨╜╨╛), state machine ╨╖╨░╨┐╨╕╤Б╨╕ ╤Б╤В╨░╤В╤Г╤Б╨╛╨▓ (╤З╨╕╤Б╤В╨╛), Module Boundaries AdminтЖТGame (╤З╨╕╤Б╤В╨╛, ╤В╨╛╨╗╤М╨║╨╛ ╨┐╤Г╨▒╨╗╨╕╤З╨╜╤Л╨╡ ╨╝╨╡╤В╨╛╨┤╤Л), host-transfer ╨║╨╛╨╝╨╝╨╡╨╜╤В╨░╤А╨╕╨╣ ╨▓ handleKickUser (╤Б╨╛╨╛╤В╨▓╨╡╤В╤Б╤В╨▓╤Г╨╡╤В ╤Г╨╢╨╡ ╨╖╨░╨┤╨╛╨║╤Г╨╝╨╡╨╜╤В╨╕╤А╨╛╨▓╨░╨╜╨╜╨╛╨╝╤Г KNOWN GAP EPIC-9.3, ╨╜╨╛╨▓╤Л╤Е ╤А╨░╤Б╤Е╨╛╨╢╨┤╨╡╨╜╨╕╨╣ ╨╜╨╡╤В). ╨Я╨╛╨╗╨╜╤Л╨╣ ╤А╨╡╨│╤А╨╡╤Б╤Б ╨┐╨╛ 23 ╤Д╨░╨╣╨╗╨░╨╝ tests/Manual/*.php (╨┤╨╛╨▒╨░╨▓╨╗╨╡╨╜ test_timer_integrity.php) тАФ 0 failed.
-- 2026-07-03 тАФ ╨Т╤В╨╛╤А╨╛╨╣ ╤А╨░╤Г╨╜╨┤ ╨░╤Г╨┤╨╕╤В╨░ (╨┐╤А╨╛╤В╨╛╨║╨╛╨╗/edge cases): ╨╛╨▒╨╜╨░╤А╤Г╨╢╨╡╨╜╤Л ╨╕ ╤Г╨┤╨░╨╗╨╡╨╜╤Л docs/ANCHOR_PROJECT_STATUS.md (╤Г╤Б╤В╨░╤А╨╡╨╗ ╤Б ╨╜╨░╤З╨░╨╗╨░ ╨┐╤А╨╛╨╡╨║╤В╨░, ╨▓╨▓╨╛╨┤╨╕╨╗ ╨▓ ╨╖╨░╨▒╨╗╤Г╨╢╨┤╨╡╨╜╨╕╨╡ ╨▒╤Г╨┤╤Г╤Й╨╕╨╡ ╤Б╨╡╤Б╤Б╨╕╨╕). ╨Ю╨▒╨╜╨░╤А╤Г╨╢╨╡╨╜╤Л docs/prompt.md (╨╕╤Б╤Е╨╛╨┤╨╜╨╛╨╡ ╨в╨Ч v4.0) ╨╕ docs/GAME_RULES.md тАФ ╨╛╨▒╨░ ╤В╨╛╨╢╨╡ ╨╜╨╡ ╨╛╨▒╨╜╨╛╨▓╨╗╤П╨╗╨╕╤Б╤М ╤Б ╨╜╨░╤З╨░╨╗╨░ ╨┐╤А╨╛╨╡╨║╤В╨░; ╨╕╨╖ prompt.md ╨╕╨╖╨▓╨╗╨╡╤З╨╡╨╜╤Л ╨┤╨▓╨░ ╨╜╨╡╨╖╨░╨┤╨╛╨║╤Г╨╝╨╡╨╜╤В╨╕╤А╨╛╨▓╨░╨╜╨╜╤Л╤Е ╤В╤А╨╡╨▒╨╛╨▓╨░╨╜╨╕╤П (rate limiting, invalid-JSON policy) тАФ ╤Б╨╝. KNOWN GAPS, ╤А╨╡╤И╨╡╨╜╨╕╨╡ ╨╛╤В╨╗╨╛╨╢╨╡╨╜╨╛ ╨┤╨╛ EPIC-10.1 ╨┐╨╛ ╤А╨╡╤И╨╡╨╜╨╕╤О ╨┐╨╛╨╗╤М╨╖╨╛╨▓╨░╤В╨╡╨╗╤П. ╨в╨░╨║╨╢╨╡ ╨╛╨▒╨╜╨░╤А╤Г╨╢╨╡╨╜╤Л ╨┤╨▓╨░ ╨┐╤А╨╛╤В╨╛╨║╨╛╨╗╤М╨╜╤Л╤Е ╨┤╨╛╨╗╨│╨░ ╨╜╨╕╨╖╨║╨╛╨│╨╛ ╨┐╤А╨╕╨╛╤А╨╕╤В╨╡╤В╨░: afk_warning (╨╜╨╡ ╨╖╨░╨┤╨╡╨║╨╗╨░╤А╨╕╤А╨╛╨▓╨░╨╜) ╨╕ admin_stats_data (╨╖╨░╨┤╨╡╨║╨╗╨░╤А╨╕╤А╨╛╨▓╨░╨╜, ╨╜╨╡ ╤А╨╡╨░╨╗╨╕╨╖╨╛╨▓╨░╨╜, ╨▒╨╡╨╖ Epic). ╨Ъ╨╛╨┤╨╛╨▓╤Л╤Е ╨▒╨░╨│╨╛╨▓ ╨▓ ╤Н╤В╨╛╨╝ ╤А╨░╤Г╨╜╨┤╨╡ ╨╜╨╡ ╨╜╨░╨╣╨┤╨╡╨╜╨╛ тАФ ╨▓╤Б╨╡ ╨╜╨░╤Е╨╛╨┤╨║╨╕ ╨┤╨╛╨║╤Г╨╝╨╡╨╜╤В╨░╤Ж╨╕╨╛╨╜╨╜╤Л╨╡/╨┐╤А╨╛╤Ж╨╡╤Б╤Б╨╜╤Л╨╡.
-- 2026-07-03 тАФ EPIC-10.0 Protocol router ╨╖╨░╨▓╨╡╤А╤И╤С╨╜: server.php (Workerman bootstrap, onWorkerStart/onWebSocketConnected/onMessage/onClose) ╨▒╨╡╨╖ auth/lobby/game/admin-╨╗╨╛╨│╨╕╨║╨╕ (Rule 11 Epic Isolation тАФ ReconnectService ╤В╤А╨╡╨▒╤Г╨╡╤В LobbyService+GameService ╨╛╨┤╨╜╨╛╨▓╤А╨╡╨╝╨╡╨╜╨╜╨╛, ╨┐╨╛╨┤╨║╨╗╤О╤З╨╡╨╜╨╕╨╡ onClose ╨║ ╤А╨╡╨░╨╗╤М╨╜╨╛╨╣ ╨▒╨╕╨╖╨╜╨╡╤Б-╨╗╨╛╨│╨╕╨║╨╡ ╨╛╤В╨╗╨╛╨╢╨╡╨╜╨╛ ╨┤╨╛ EPIC-10.4/10.5). ╨Т╨╡╤А╨╕╤Д╨╕╤Ж╨╕╤А╨╛╨▓╨░╨╜ ╨┐╨╛╨╗╨╜╨╛╤Б╤В╤М╤О ╨░╨▓╤В╨╛╨╝╨░╤В╨╕╤З╨╡╤Б╨║╨╕ ╤З╨╡╤А╨╡╨╖ ╤А╨╡╨░╨╗╤М╨╜╤Л╨╣ WebSocket-╨║╨╗╨╕╨╡╨╜╤В (╨▒╨╡╨╖ ╨▓╨╜╨╡╤И╨╜╨╕╤Е ╨▒╨╕╨▒╨╗╨╕╨╛╤В╨╡╨║) ╨┐╨╛╨▓╨╡╤А╤Е ╨╜╨░╤Б╤В╨╛╤П╤Й╨╡╨│╨╛ TCP-╤Б╨╛╨║╨╡╤В╨░ тАФ 8/8 PASSED. Rate limiting ╨╕ invalid-JSON policy ╨┐╨╛╨┤╤В╨▓╨╡╤А╨╢╨┤╨╡╨╜╤Л ╨║╨░╨║ ╨╛╤В╨║╤А╤Л╤В╤Л╨╡ ╨▓╨╛╨┐╤А╨╛╤Б╤Л EPIC-10.1 (╨╜╨╡ ╤А╨╡╨░╨╗╨╕╨╖╨╛╨▓╨░╨╜╤Л ╨╜╨░╨╝╨╡╤А╨╡╨╜╨╜╨╛).
-- 2026-07-23 тАФ EPIC-10.5 Accepted + FIX-9: start_game/draw_barrel/
-  apartment_choice ╨┐╨╛╨┤╨║╨╗╤О╤З╨╡╨╜╤Л ╨║ ╨╜╨╛╨▓╨╛╨╝╤Г GameHandler (GameService Phase 4-7
-  ╤Г╨╢╨╡ ╤Б╤Г╤Й╨╡╤Б╤В╨▓╨╛╨▓╨░╨╗ тАФ dependency wiring + routing). ReconnectService ╤В╨░╨║╨╢╨╡
-  ╨┐╨╛╨┤╨║╨╗╤О╤З╤С╨╜ (onClose -> handleDisconnect(), 'reconnect' action ->
-  handleReconnect() ╨┐╨╛╨▓╨╡╤А╤Е AuthHandler) тАФ ╨╛╨▒╨░ ╨╡╨│╨╛ ╨╖╨░╨▓╨╕╤Б╨╕╨╝╤Л╤Е ╤Б╨╡╤А╨▓╨╕╤Б╨░,
-  LobbyService (EPIC-10.4) ╨╕ GameService (╤Н╤В╨╛╤В Epic), ╨╜╨░╨║╨╛╨╜╨╡╤Ж ╤Б╨╛╨▒╤А╨░╨╜╤Л
-  ╨╛╨┤╨╜╨╛╨▓╤А╨╡╨╝╨╡╨╜╨╜╨╛. ╨Э╨░╨╣╨┤╨╡╨╜ ╨╕ ╨╕╤Б╨┐╤А╨░╨▓╨╗╨╡╨╜ FIX-9 ╨▓ ╨┐╤А╨╛╤Ж╨╡╤Б╤Б╨╡: handleReconnect() ╨╜╨╡
-  ╨┐╨╡╤А╨╡╨╕╨╜╨┤╨╡╨║╤Б╨╕╤А╨╛╨▓╨░╨╗ $room['players'] ╨╜╨░ ╨╜╨╛╨▓╤Л╨╣ conn_id ╨╜╨╛╨▓╨╛╨│╨╛ WS-╤Б╨╛╨╡╨┤╨╕╨╜╨╡╨╜╨╕╤П
-  тАФ reconnect_state ╨╛╤В╨┐╤А╨░╨▓╨╗╤П╨╗╤Б╤П, ╨╜╨╛ ╨╗╤О╨▒╨╛╨╡ ╨┤╨░╨╗╤М╨╜╨╡╨╣╤И╨╡╨╡ ╨┤╨╡╨╣╤Б╤В╨▓╨╕╨╡ ╤Б ╨╜╨╛╨▓╨╛╨│╨╛
-  ╤Б╨╛╨╡╨┤╨╕╨╜╨╡╨╜╨╕╤П ╨╜╨╡ ╨╜╨░╤Е╨╛╨┤╨╕╨╗╨╛ ╨╕╨│╤А╨╛╨║╨░ (room_not_found). ╨Ш╤Б╨┐╤А╨░╨▓╨╗╨╡╨╜╨╛: re-key
-  players + host_conn_id/active_drawer_conn_id/drawer_order. ╨Я╨╛╨┐╤Г╤В╨╜╨╛
-  ╨╕╤Б╨┐╤А╨░╨▓╨╗╨╡╨╜╨░ ╤Б╤В╤Г╤Е╤И╨░╤П assertion ╨▓ test_auth_packet_routing.php TEST 2
-  (╨╛╨╢╨╕╨┤╨░╨╗╨░ error.invalid_json ╤В╨░╨╝, ╨│╨┤╨╡ EPIC-10.4 ╤Г╨╢╨╡ ╨┤╨░╨▓╨╜╨╛ ╨▓╨╛╨╖╨▓╤А╨░╤Й╨░╨╡╤В
-  room_joined тАФ ╤А╨░╤Б╤Е╨╛╨╢╨┤╨╡╨╜╨╕╨╡ ╨╝╨╡╨╢╨┤╤Г ╤Н╤В╨╕╨╝ ╤Д╨░╨╣╨╗╨╛╨╝ ╨╕ ╤Д╨░╨║╤В╨╕╤З╨╡╤Б╨║╨╕ ╨╖╨░╨║╨╛╨╝╨╝╨╕╤З╨╡╨╜╨╜╤Л╨╝
-  ╤В╨╡╤Б╤В╨╛╨╝). Housekeeping: ╤Г╨┤╨░╨╗╤С╨╜ ╨┐╨░╤А╨░╨╖╨╕╤В╨╜╤Л╨╣ `tests/manual/` (╨╜╨╕╨╢╨╜╨╕╨╣
-  ╤А╨╡╨│╨╕╤Б╤В╤А) ╨║╨░╤В╨░╨╗╨╛╨│-╨┤╤Г╨▒╨╗╨╕╨║╨░╤В тАФ `test_lobby_packet_routing.php` ╤Б╤Г╤Й╨╡╤Б╤В╨▓╨╛╨▓╨░╨╗
-  ╤В╨╛╨╗╤М╨║╨╛ ╨▓ ╨╜╤С╨╝ ╨╕ ╨╜╨╕╨║╨╛╨│╨┤╨░ ╨╜╨╡ ╨╖╨░╨┐╤Г╤Б╨║╨░╨╗╤Б╤П run_ALL_tests.sh; ╨┐╨╡╤А╨╡╨╜╨╡╤Б╤С╨╜ ╨▓
-  `tests/Manual/`. ╨Э╨╛╨▓╤Л╨╣ test_game_packet_routing.php 21/21 (╤А╨╡╨░╨╗╤М╨╜╤Л╨╣ WS
-  ╨┐╤А╨╛╤В╨╕╨▓ ╨╢╨╕╨▓╨╛╨│╨╛ server.php, ╨▓╨║╨╗╤О╤З╨░╤П ╤Б╨║╨▓╨╛╨╖╨╜╤Г╤О ╨┐╤А╨╛╨▓╨╡╤А╨║╤Г FIX-9: disconnect тЖТ
-  reconnect ╤Б ╨╜╨╛╨▓╨╛╨│╨╛ ╤Б╨╛╨╡╨┤╨╕╨╜╨╡╨╜╨╕╤П тЖТ ╤Г╤Б╨┐╨╡╤И╨╜╤Л╨╣ draw_barrel). test_reconnect.php
-  20/20 (╨▒╤Л╨╗╨╛ 15, +5 assertions ╨┐╨╛╨┤ FIX-9). ╨Я╨╛╨╗╨╜╤Л╨╣ ╤А╨╡╨│╤А╨╡╤Б╤Б 0 failed.
-- 2026-07-23 тАФ EPIC-10.4 Accepted: room_list/create_room/join_room/
-  leave_room ╨┐╨╛╨┤╨║╨╗╤О╤З╨╡╨╜╤Л ╨║ LobbyHandler (LobbyService EPIC-2.x ╤Г╨╢╨╡
-  ╤Б╤Г╤Й╨╡╤Б╤В╨▓╨╛╨▓╨░╨╗ тАФ dependency wiring + routing). ╨Э╨╛╨▓╤Л╨╣ LobbyHandler.php
-  (thin wrapper). Router-level guard ┬лAlready in a room┬╗ ╨┤╨╗╤П
-  create_room/join_room ╤З╨╡╤А╨╡╨╖ RoomManager::findRoomIdByConnId().
-  ╨Э╨╛╨▓╤Л╨╣ test_lobby_packet_routing.php 22/22 (╤А╨╡╨░╨╗╤М╨╜╤Л╨╣ WS ╨┐╤А╨╛╤В╨╕╨▓ ╨╢╨╕╨▓╨╛╨│╨╛
-  server.php). test_auth_packet_routing.php TEST 2 ╨╛╨▒╨╜╨╛╨▓╨╗╤С╨╜ ╨┐╨╛╨┤
-  room_joined. ╨Я╨╛╨╗╨╜╤Л╨╣ ╤А╨╡╨│╤А╨╡╤Б╤Б 0 failed.
-- 2026-07-22 тАФ EPIC-10.3 Accepted + FIX-8: register/login/reconnect
-  ╨┐╨╛╨┤╨║╨╗╤О╤З╨╡╨╜╤Л ╨║ AuthHandler (dependency wiring ╨▓ onWorkerStart, routing ╨▓
-  onMessage). ╨Э╨░╨╣╨┤╨╡╨╜ ╨╕ ╨╕╤Б╨┐╤А╨░╨▓╨╗╨╡╨╜ FIX-8 ╨▓ ╨┐╤А╨╛╤Ж╨╡╤Б╤Б╨╡: AuthService::login()
-  ╨╜╨╕╨║╨╛╨│╨┤╨░ ╨╜╨╡ ╤Г╤Б╤В╨░╨╜╨░╨▓╨╗╨╕╨▓╨░╨╗ $connection->userId (╤В╨╛╨╗╤М╨║╨╛ $worker->
-  userConnections) тАФ ╨▒╨╡╨╖ ╤Д╨╕╨║╤Б╨░ auth_required guard (ADR-006) ╨╜╨░╨▓╤Б╨╡╨│╨┤╨░
-  ╨▒╨╗╨╛╨║╨╕╤А╨╛╨▓╨░╨╗ ╨▒╤Л ╨╗╤О╨▒╨╛╨╡ ╨┤╨╡╨╣╤Б╤В╨▓╨╕╨╡ ╨┐╨╛╤Б╨╗╨╡ ╤Г╤Б╨┐╨╡╤И╨╜╨╛╨│╨╛ ╨╗╨╛╨│╨╕╨╜╨░. ╨Э╨╛╨▓╤Л╨╣
-  AuthHandler::bindConnection() helper, ╨▓╤Л╨╖╤Л╨▓╨░╨╡╤В╤Б╤П ╨╕╨╖ handleRegister()/
-  handleLogin(). 55/55 test_auth_integration.php (╨▒╤Л╨╗╨╛ 48, +7), ╨╜╨╛╨▓╤Л╨╣
-  test_auth_packet_routing.php 18/18 (╤А╨╡╨░╨╗╤М╨╜╤Л╨╣ WS ╨┐╤А╨╛╤В╨╕╨▓ ╨╢╨╕╨▓╨╛╨│╨╛
-  server.php, ╨▓╨║╨╗╤О╤З╨░╤П ╤Б╨║╨▓╨╛╨╖╨╜╤Г╤О ╨┐╤А╨╛╨▓╨╡╤А╨║╤Г FIX-8 ╤З╨╡╤А╨╡╨╖ ╨╜╨░╤Б╤В╨╛╤П╤Й╨╕╨╣ router).
-  ╨Я╨╛╨╗╨╜╤Л╨╣ ╤А╨╡╨│╤А╨╡╤Б╤Б 0 failed.
-- 2026-07-22 тАФ EPIC-10.2 continuation: generic auth_required guard ╨▓
-  onMessage (ADR-006) тАФ prompt.md "╨┐╤А╨╛╨▓╨╡╤А╨║╨░ userId ╨┤╨╗╤П ╨▓╤Б╨╡╤Е ╨║╨╡╨╣╤Б╨╛╨▓ ╨║╤А╨╛╨╝╨╡
-  register, login, reconnect", ╤А╨╡╨░╨╗╨╕╨╖╨╛╨▓╨░╨╜╨╛ ╨╛╨┤╨╕╨╜ ╤А╨░╨╖ ╨▓ router'╨╡, ╨╜╨╡
-  ╨┤╤Г╨▒╨╗╨╕╤А╤Г╨╡╤В╤Б╤П ╨┐╨╛ ╤Е╨╡╨╜╨┤╨╗╨╡╤А╨░╨╝. EPIC-10.2 ╤В╨╡╨┐╨╡╤А╤М ╨┐╨╛╨╗╨╜╨╛╤Б╤В╤М╤О ╨╖╨░╨▓╨╡╤А╤И╤С╨╜.
-  18/18 test_server_bootstrap.php (╨▒╤Л╨╗╨╛ 14, +4 тАФ TEST 4 ╤Г╨╢╨╡╤Б╤В╨╛╤З╤С╨╜,
-  ╨╜╨╛╨▓╤Л╨╣ TEST 8 ╨╜╨░ exempt-╤Б╨┐╨╕╤Б╨╛╨║), ╨┐╨╛╨╗╨╜╤Л╨╣ ╤А╨╡╨│╤А╨╡╤Б╤Б 0 failed.
-- 2026-07-22 тАФ EPIC-10.2 (╤З╨░╤Б╤В╨╕╤З╨╜╨╛, ╨┐╨╛ ╤А╨╡╤И╨╡╨╜╨╕╤О ╨┐╨╛╨╗╤М╨╖╨╛╨▓╨░╤В╨╡╨╗╤П): ╤А╨╡╨░╨╗╨╕╨╖╨╛╨▓╨░╨╜
-  ╤В╨╛╨╗╤М╨║╨╛ connection-level MAX_TOTAL_PLAYERS gate тАФ error.server_full + WS
-  close code 4001 ╨▓ onWebSocketConnected (ADR-005, closeWithCode() helper,
-  ╤А╤Г╤З╨╜╨░╤П ╤Б╨▒╨╛╤А╨║╨░ close-╤Д╤А╨╡╨╣╨╝╨░ тАФ ╨│╨╛╤В╨╛╨▓╨╛╨│╨╛ API ╨▓ ╨╕╤Б╨┐╨╛╨╗╤М╨╖╤Г╨╡╨╝╨╛╨╣ ╨▓╨╡╤А╤Б╨╕╨╕ Workerman
-  ╨╜╨╡╤В). Generic auth_required guard ╨▓ router'╨╡ ╤Б╨╛╨╖╨╜╨░╤В╨╡╨╗╤М╨╜╨╛ ╨╛╤В╨╗╨╛╨╢╨╡╨╜.
-  14/14 test_server_bootstrap.php (╨▒╤Л╨╗╨╛ 8, +6 тАФ TEST 7 ╤З╨╡╤А╨╡╨╖ 150 ╤А╨╡╨░╨╗╤М╨╜╤Л╤Е
-  TCP+WS ╤Б╨╛╨╡╨┤╨╕╨╜╨╡╨╜╨╕╨╣), ╨┐╨╛╨╗╨╜╤Л╨╣ ╤А╨╡╨│╤А╨╡╤Б╤Б 0 failed.
-- 2026-07-22 тАФ FIX-7 Accepted: ╤Г╤Б╤В╤А╨░╨╜╨╡╨╜╨╛ ╤Б╨╝╨╡╤И╨╡╨╜╨╕╨╡ error.server_full (╨│╨╗╨╛╨▒╨░╨╗╤М╨╜╤Л╨╣
-  ╨╗╨╕╨╝╨╕╤В) ╨╕ ╨╖╨░╨┐╨╛╨╗╨╜╨╡╨╜╨╜╨╛╤Б╤В╨╕ ╨╛╤В╨┤╨╡╨╗╤М╨╜╨╛╨╣ ╨║╨╛╨╝╨╜╨░╤В╤Л тАФ ╨▓╨▓╨╡╨┤╤С╨╜ ╨╛╤В╨┤╨╡╨╗╤М╨╜╤Л╨╣ ╨║╨╛╨┤
-  error.room_full (ADR-004), ╨┐╨╛╤А╤П╨┤╨╛╨║ ╨┐╤А╨╛╨▓╨╡╤А╨╛╨║ ╨▓ handleJoinRoom() ╨╕╨╖╨╝╨╡╨╜╤С╨╜ ╨╜╨░
-  server-capacity-first. 91/91 lobby ╤В╨╡╤Б╤В╨╛╨▓ (╨▒╤Л╨╗╨╛ 90, +1 regression-╤В╨╡╤Б╤В ╨╜╨░
-  ╨┐╨╛╤А╤П╨┤╨╛╨║), ╨┐╨╛╨╗╨╜╤Л╨╣ ╤А╨╡╨│╤А╨╡╤Б╤Б ╨┐╨╛ ╨▓╤Б╨╡╨╝ tests/Manual/*.php тАФ 0 failed.
-- 2026-07-21 тАФ EPIC-10.1 Packet validation ╨╖╨░╨▓╨╡╤А╤И╤С╨╜: ADR-003 ╤Д╨╛╤А╨╝╨░╨╗╨╕╨╖╤Г╨╡╤В rate limiting (>15 ╨┐╨░╨║╨╡╤В╨╛╨▓/╤Б╨╡╨║/╤Б╨╛╨╡╨┤╨╕╨╜╨╡╨╜╨╕╨╡ тЖТ ╨╖╨░╨║╤А╤Л╤В╨╕╨╡ ╨▒╨╡╨╖ error-╨┐╨░╨║╨╡╤В╨░, ╤Б╤З╨╕╤В╨░╨╡╤В ╨Т╨б╨Х ╨▓╤Е╨╛╨┤╤П╤Й╨╕╨╡ ╤Б╨╛╨╛╨▒╤Й╨╡╨╜╨╕╤П) ╨╕ invalid-JSON policy (error.invalid_json, ╨▒╨╡╨╖ ╤А╨░╨╖╤А╤Л╨▓╨░ тАФ ╤А╨╡╤И╨╡╨╜╨╛ ╨▓ ╨┐╨╛╨╗╤М╨╖╤Г ANCHOR_PROTOCOL.md, ╨┐╨╛╨┤╨║╤А╨╡╨┐╨╗╨╡╨╜╨╛ ╨┐╤А╨╡╤Ж╨╡╨┤╨╡╨╜╤В╨╛╨╝ error.server_full). ANCHOR_CORE.md/ANCHOR_PROTOCOL.md ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╤Л (Connection Runtime Fields, Global Constants, ╤Б╨╡╨╝╨░╨╜╤В╨╕╨║╨░ error.invalid_json). ╨Ю╨▒╨░ KNOWN GAP ╨╕╨╖ ╨░╤Г╨┤╨╕╤В╨░ ╨┐╤А╨╛╤В╨╛╨║╨╛╨╗╨░ (2026-07-03) ╨╖╨░╨║╤А╤Л╤В╤Л ╨║╨░╨║ RESOLVED. ╨Я╨╛╨┐╤Г╤В╨╜╨╛ ╨╛╨▒╨╜╨░╤А╤Г╨╢╨╡╨╜╤Л ╨╕ ╨╕╤Б╨┐╤А╨░╨▓╨╗╨╡╨╜╤Л ╤Б╨╗╤Г╤З╨░╨╣╨╜╨╛ ╨╖╨░╨║╨╛╨╝╨╝╨╕╤З╨╡╨╜╨╜╤Л╨╡ ╤А╨░╨╜╤В╨░╨╣╨╝-╨░╤А╤В╨╡╤Д╨░╨║╤В╤Л (game.db-shm/game.db-wal/workerman.*.pid) тАФ ╨┤╨╛╨▒╨░╨▓╨╗╨╡╨╜ .gitignore. ╨Т╨╡╤А╨╕╤Д╨╕╤Ж╨╕╤А╨╛╨▓╨░╨╜╨╛ 11/11 PASSED ╤З╨╡╤А╨╡╨╖ ╤А╨╡╨░╨╗╤М╨╜╤Л╨╣ WebSocket-╨║╨╗╨╕╨╡╨╜╤В, 5 ╨│╤А╨░╨╜╨╕╤З╨╜╤Л╤Е ╤Б╤Ж╨╡╨╜╨░╤А╨╕╨╡╨▓ (╤А╨╛╨▓╨╜╨╛ ╨╜╨░ ╨╗╨╕╨╝╨╕╤В╨╡, ╨┐╤А╨╡╨▓╤Л╤И╨╡╨╜╨╕╨╡ ╨╜╨░ 1, ping ╤Б╤З╨╕╤В╨░╨╡╤В╤Б╤П ╨╜╨░╤А╨░╨▓╨╜╨╡, ╤Б╨▒╤А╨╛╤Б ╨╛╨║╨╜╨░, ╨╡╨┤╨╕╨╜╨╕╤З╨╜╤Л╨╣ ╨╜╨╡╨▓╨░╨╗╨╕╨┤╨╜╤Л╨╣ ╨┐╨░╨║╨╡╤В). ╨Я╨╛╨╗╨╜╤Л╨╣ ╤А╨╡╨│╤А╨╡╤Б╤Б тАФ 25/25 tests/Manual/*.php.
+- 2026-06-21 — ROADMAP.md признан источником истины по нумерации Epic.
+- 2026-06-21 — Reconnect Token Infrastructure вынесен в PRE-BUILT COMPONENTS.
+- 2026-06-22 — PHASE 1 официально завершена после прохождения интеграционных тестов.
+- 2026-06-23 — EPIC-2.0 RoomManager реализован (src/Core/RoomManager.php, 245 строк).
+- 2026-06-25 — EPIC-2.3 Leave room завершён, FIX: all_players_history в removePlayerFromLobby.
+- 2026-06-28 — EPIC-2.4 Room list завершён.
+- 2026-07-02 — ADR-002 Accepted: GameFinishService extracted; Phase 7 anchor-compliance fixes applied; Phase 7 tests green.
+- 2026-07-02 — EPIC-9.3 Kick player завершён. KNOWN GAP: host transfer при kick/ban в apartment-состоянии зафиксирован для будущего Epic.
+- 2026-07-03 — EPIC-9.5 Logs access фактически реализован (handleGetLogs()/getLastLines()), закрыто расхождение между статусом и кодом, обнаруженное при подготовке EPIC-9.6.
+- 2026-07-03 — FIX-3 Accepted: устранён двойной рефанд kick+admin_close_room (Economic Integrity Rule). EPIC-9.6 Admin integration tests завершён, PHASE 9 COMPLETE.
+- 2026-07-03 — Обнаружены pre-existing падения test_game_start.php/test_victory.php (GameFinishService type mismatch) и test_helpers_runner.php (устаревший assert sendError()) — не связаны с EPIC-9.6, зафиксированы в KNOWN GAPS для отдельного FIX перед Phase 10.
+- 2026-07-03 — FIX-4 Accepted: Database получил DI-seam (опциональный PDO), test_game_start.php/test_victory.php переведены на реальный GameFinishService вместо type-несовместимых анонимных классов. FIX-5 Accepted: test_helpers_runner.php приведён к актуальному контракту sendError(). Полный регресс по всем 22 файлам tests/Manual/*.php — 0 failed. PHASE 9 стабильна, путь к Phase 10 открыт без известных дефектов.
+- 2026-07-03 — Аудит на баги, аналогичные FIX-3 (по запросу перед Phase 10): найден и исправлен FIX-6 (утечка reconnect_timer при kick/ban удалении в Lobby/Apartment — Timer Integrity Rule). Проверены: экономические мутации (bank/total_paid/coins — чисто), reconnect/disconnect история (чисто), timer cleanup при destroyRoom (чисто, делегирование корректно), state machine записи статусов (чисто), Module Boundaries Admin→Game (чисто, только публичные методы), host-transfer комментарий в handleKickUser (соответствует уже задокументированному KNOWN GAP EPIC-9.3, новых расхождений нет). Полный регресс по 23 файлам tests/Manual/*.php (добавлен test_timer_integrity.php) — 0 failed.
+- 2026-07-03 — Второй раунд аудита (протокол/edge cases): обнаружены и удалены docs/ANCHOR_PROJECT_STATUS.md (устарел с начала проекта, вводил в заблуждение будущие сессии). Обнаружены docs/prompt.md (исходное ТЗ v4.0) и docs/GAME_RULES.md — оба тоже не обновлялись с начала проекта; из prompt.md извлечены два незадокументированных требования (rate limiting, invalid-JSON policy) — см. KNOWN GAPS, решение отложено до EPIC-10.1 по решению пользователя. Также обнаружены два протокольных долга низкого приоритета: afk_warning (не задекларирован) и admin_stats_data (задекларирован, не реализован, без Epic). Кодовых багов в этом раунде не найдено — все находки документационные/процессные.
+- 2026-07-03 — EPIC-10.0 Protocol router завершён: server.php (Workerman bootstrap, onWorkerStart/onWebSocketConnected/onMessage/onClose) без auth/lobby/game/admin-логики (Rule 11 Epic Isolation — ReconnectService требует LobbyService+GameService одновременно, подключение onClose к реальной бизнес-логике отложено до EPIC-10.4/10.5). Верифицирован полностью автоматически через реальный WebSocket-клиент (без внешних библиотек) поверх настоящего TCP-сокета — 8/8 PASSED. Rate limiting и invalid-JSON policy подтверждены как открытые вопросы EPIC-10.1 (не реализованы намеренно).
+- 2026-07-23 — EPIC-10.5 Accepted + FIX-9: start_game/draw_barrel/
+  apartment_choice подключены к новому GameHandler (GameService Phase 4-7
+  уже существовал — dependency wiring + routing). ReconnectService также
+  подключён (onClose -> handleDisconnect(), 'reconnect' action ->
+  handleReconnect() поверх AuthHandler) — оба его зависимых сервиса,
+  LobbyService (EPIC-10.4) и GameService (этот Epic), наконец собраны
+  одновременно. Найден и исправлен FIX-9 в процессе: handleReconnect() не
+  переиндексировал $room['players'] на новый conn_id нового WS-соединения
+  — reconnect_state отправлялся, но любое дальнейшее действие с нового
+  соединения не находило игрока (room_not_found). Исправлено: re-key
+  players + host_conn_id/active_drawer_conn_id/drawer_order. Попутно
+  исправлена стухшая assertion в test_auth_packet_routing.php TEST 2
+  (ожидала error.invalid_json там, где EPIC-10.4 уже давно возвращает
+  room_joined — расхождение между этим файлом и фактически закоммиченным
+  тестом). Housekeeping: удалён паразитный `tests/manual/` (нижний
+  регистр) каталог-дубликат — `test_lobby_packet_routing.php` существовал
+  только в нём и никогда не запускался run_ALL_tests.sh; перенесён в
+  `tests/Manual/`. Новый test_game_packet_routing.php 21/21 (реальный WS
+  против живого server.php, включая сквозную проверку FIX-9: disconnect →
+  reconnect с нового соединения → успешный draw_barrel). test_reconnect.php
+  20/20 (было 15, +5 assertions под FIX-9). Полный регресс 0 failed.
+- 2026-07-23 — EPIC-10.4 Accepted: room_list/create_room/join_room/
+  leave_room подключены к LobbyHandler (LobbyService EPIC-2.x уже
+  существовал — dependency wiring + routing). Новый LobbyHandler.php
+  (thin wrapper). Router-level guard «Already in a room» для
+  create_room/join_room через RoomManager::findRoomIdByConnId().
+  Новый test_lobby_packet_routing.php 22/22 (реальный WS против живого
+  server.php). test_auth_packet_routing.php TEST 2 обновлён под
+  room_joined. Полный регресс 0 failed.
+- 2026-07-22 — EPIC-10.3 Accepted + FIX-8: register/login/reconnect
+  подключены к AuthHandler (dependency wiring в onWorkerStart, routing в
+  onMessage). Найден и исправлен FIX-8 в процессе: AuthService::login()
+  никогда не устанавливал $connection->userId (только $worker->
+  userConnections) — без фикса auth_required guard (ADR-006) навсегда
+  блокировал бы любое действие после успешного логина. Новый
+  AuthHandler::bindConnection() helper, вызывается из handleRegister()/
+  handleLogin(). 55/55 test_auth_integration.php (было 48, +7), новый
+  test_auth_packet_routing.php 18/18 (реальный WS против живого
+  server.php, включая сквозную проверку FIX-8 через настоящий router).
+  Полный регресс 0 failed.
+- 2026-07-22 — EPIC-10.2 continuation: generic auth_required guard в
+  onMessage (ADR-006) — prompt.md "проверка userId для всех кейсов кроме
+  register, login, reconnect", реализовано один раз в router'е, не
+  дублируется по хендлерам. EPIC-10.2 теперь полностью завершён.
+  18/18 test_server_bootstrap.php (было 14, +4 — TEST 4 ужесточён,
+  новый TEST 8 на exempt-список), полный регресс 0 failed.
+- 2026-07-22 — EPIC-10.2 (частично, по решению пользователя): реализован
+  только connection-level MAX_TOTAL_PLAYERS gate — error.server_full + WS
+  close code 4001 в onWebSocketConnected (ADR-005, closeWithCode() helper,
+  ручная сборка close-фрейма — готового API в используемой версии Workerman
+  нет). Generic auth_required guard в router'е сознательно отложен.
+  14/14 test_server_bootstrap.php (было 8, +6 — TEST 7 через 150 реальных
+  TCP+WS соединений), полный регресс 0 failed.
+- 2026-07-22 — FIX-7 Accepted: устранено смешение error.server_full (глобальный
+  лимит) и заполненности отдельной комнаты — введён отдельный код
+  error.room_full (ADR-004), порядок проверок в handleJoinRoom() изменён на
+  server-capacity-first. 91/91 lobby тестов (было 90, +1 regression-тест на
+  порядок), полный регресс по всем tests/Manual/*.php — 0 failed.
+- 2026-07-21 — EPIC-10.1 Packet validation завершён: ADR-003 формализует rate limiting (>15 пакетов/сек/соединение → закрытие без error-пакета, считает ВСЕ входящие сообщения) и invalid-JSON policy (error.invalid_json, без разрыва — решено в пользу ANCHOR_PROTOCOL.md, подкреплено прецедентом error.server_full). ANCHOR_CORE.md/ANCHOR_PROTOCOL.md обновлены (Connection Runtime Fields, Global Constants, семантика error.invalid_json). Оба KNOWN GAP из аудита протокола (2026-07-03) закрыты как RESOLVED. Попутно обнаружены и исправлены случайно закоммиченные рантайм-артефакты (game.db-shm/game.db-wal/workerman.*.pid) — добавлен .gitignore. Верифицировано 11/11 PASSED через реальный WebSocket-клиент, 5 граничных сценариев (ровно на лимите, превышение на 1, ping считается наравне, сброс окна, единичный невалидный пакет). Полный регресс — 25/25 tests/Manual/*.php.
 ---
 
 ## KNOWN GAPS / NOT VERIFIED
 
-- тЪая╕П OPEN (ADR-033 / EPIC-033C, 2026-08-23): Some load/stress scripts historically
+- ⚠️ OPEN (ADR-033 / EPIC-033C, 2026-08-23): Some load/stress scripts historically
   register via the real registration path against the environment `game.db`
   instead of isolating via `LOTTO_DB_PATH` / `LOTTO_TEST_CONFIG`, leaving junk
-  usernames (`steady*`, `ramp_*`, `login_banned`, тАж) in production SQLite.
+  usernames (`steady*`, `ramp_*`, `login_banned`, …) in production SQLite.
   Admin bulk delete is the operational cleanup path; root-cause isolation of
   load-test DB writes is a separate follow-up (not fixed in Epic C).
 
-- тЪая╕П OPEN (2026-08-23): ╨а╨░╨╖╨╛╨▓╤Л╨╣ `SQLITE_MISUSE` (SQLSTATE[HY000]: General
-  error: 21 bad parameter or other API misuse) ╨▓ `AuthService::login()` тАФ
-  ╤Б╤Л╤А╨╛╨╣ ╤В╨╡╨║╤Б╤В PDO-╨╕╤Б╨║╨╗╤О╤З╨╡╨╜╨╕╤П ╤Г╤В╤С╨║ ╨▓ ╨║╨╗╨╕╨╡╨╜╤В╤Б╨║╨╛╨╡ ╨┐╨╛╨╗╨╡ `message` ╨┐╨░╨║╨╡╤В╨░
-  `error` (╨║╨╛╨┤ ╨┐╤А╨╕ ╤Н╤В╨╛╨╝ ╨╛╤Б╤В╨░╨╗╤Б╤П `error.auth_invalid_credentials`,
-  ╨╖╨░╨╝╨░╤Б╨║╨╕╤А╨╛╨▓╨░╨▓ ╤А╨╡╨░╨╗╤М╨╜╤Г╤О ╨┐╤А╨╕╤З╨╕╨╜╤Г ╨┐╨╛╨┤ "╨╜╨╡╨▓╨╡╤А╨╜╤Л╨╣ ╨╗╨╛╨│╨╕╨╜ ╨╕╨╗╨╕ ╨┐╨░╤А╨╛╨╗╤М").
-  ╨Ю╨▒╨╜╨░╤А╤Г╨╢╨╡╨╜╨╛ ╨┐╤А╨╕ ╨╢╨╕╨▓╨╛╨╝ ╨╗╨╛╨│╨╕╨╜╨╡ ╤З╨╡╤А╨╡╨╖ `wss://rusbingo.ju-87.club/ws`
-  (╨┐╨╛╨╗╤М╨╖╨╛╨▓╨░╤В╨╡╨╗╤М `test4`, ╨┐╨░╤А╨╛╨╗╤М ╨┐╨╛╨┤╤В╨▓╨╡╤А╨╢╨┤╤С╨╜ ╨║╨╛╤А╤А╨╡╨║╤В╨╜╤Л╨╝ ╨╜╨╡╨╖╨░╨▓╨╕╤Б╨╕╨╝╨╛╨╣
-  ╨┐╤А╨╛╨▓╨╡╤А╨║╨╛╨╣ `password_verify()` ╤З╨╡╤А╨╡╨╖ ╨╛╤В╨┤╨╡╨╗╤М╨╜╤Л╨╣ CLI-╤Б╨║╤А╨╕╨┐╤В тАФ ╤В╨╛ ╨╡╤Б╤В╤М
-  ╤Г╤З╤С╤В╨╜╤Л╨╡ ╨┤╨░╨╜╨╜╤Л╨╡ ╨▒╤Л╨╗╨╕ ╨╖╨░╨▓╨╡╨┤╨╛╨╝╨╛ ╨▓╨╡╤А╨╜╤Л).
-  ╨г╤Б╤В╤А╨░╨╜╨╡╨╜╨╛ ╨┐╨╡╤А╨╡╨╖╨░╨┐╤Г╤Б╨║╨╛╨╝ `lotto-server.service` тАФ ╨░╨▓╤В╨╛╤А╨╕╨╖╨░╤Ж╨╕╤П
-  ╨▓╨╛╤Б╤Б╤В╨░╨╜╨╛╨▓╨╕╨╗╨░╤Б╤М ╨┤╨╗╤П ╨▓╤Б╨╡╤Е ╨┐╨╛╨╗╤М╨╖╨╛╨▓╨░╤В╨╡╨╗╨╡╨╣. ╨в╨╛╤З╨╜╨░╤П ╨┐╤А╨╕╤З╨╕╨╜╨░ ╨Э╨Х ╨┐╨╛╨┤╤В╨▓╨╡╤А╨╢╨┤╨╡╨╜╨░:
-  ╨╕╨╜╤Ж╨╕╨┤╨╡╨╜╤В ╤Б╨╛╨▓╨┐╨░╨╗ ╨┐╨╛ ╨▓╤А╨╡╨╝╨╡╨╜╨╕ ╤Б ╨┐╨░╤А╨░╨╗╨╗╨╡╨╗╤М╨╜╤Л╨╝ ╨╖╨░╨┐╤Г╤Б╨║╨╛╨╝ ╤Б╤В╨╛╤А╨╛╨╜╨╜╨╡╨│╨╛
-  CLI-╤Б╨║╤А╨╕╨┐╤В╨░ (`change_admin_password.php`) ╨╕ ╨╛╤В╨┤╨╡╨╗╤М╨╜╨╛╨│╨╛ ╨┤╨╕╨░╨│╨╜╨╛╤Б╤В╨╕╤З╨╡╤Б╨║╨╛╨│╨╛
-  `php -r` (╨╜╨╡╨╖╨░╨▓╨╕╤Б╨╕╨╝╨╛╨╡ PDO-╨┐╨╛╨┤╨║╨╗╤О╤З╨╡╨╜╨╕╨╡ ╨║ ╤В╨╛╨╝╤Г ╨╢╨╡ `game.db`), ╤З╤В╨╛
-  ╤П╨▓╨╗╤П╨╡╤В╤Б╤П ╨╜╨░╨╕╨▒╨╛╨╗╨╡╨╡ ╨▓╨╡╤А╨╛╤П╤В╨╜╨╛╨╣ ╨┐╤А╨╕╤З╨╕╨╜╨╛╨╣ (╨║╨╛╨╗╨╗╨╕╨╖╨╕╤П ╨▒╨╗╨╛╨║╨╕╤А╨╛╨▓╨╛╨║/╤Б╨╛╤Б╤В╨╛╤П╨╜╨╕╤П
-  ╨║╤Н╤И╨░ `PDOStatement` ╨▓ `PreparedStatements::get()`), ╨╜╨╛ ╨╜╨╡ ╨▒╤Л╨╗╨░
-  ╨╖╨░╤Д╨╕╨║╤Б╨╕╤А╨╛╨▓╨░╨╜╨░ ╨╗╨╛╨│╨░╨╝╨╕/╨▓╨╡╤А╤Б╨╕╤П╨╝╨╕ ╨Ф╨Ю ╤А╨╡╤Б╤В╨░╤А╤В╨░ тАФ ╤Н╤В╨░ ╤Г╨╗╨╕╨║╨░ ╨┐╨╛╤В╨╡╤А╤П╨╜╨░.
-  ╨Р╤А╤Е╨╕╤В╨╡╨║╤В╤Г╤А╨╜╨╛ ╤А╨╡╤Б╤В╨░╤А╤В ╤Б╨╡╤А╨▓╨╕╤Б╨░ ╨Э╨Х ╨┤╨╛╨╗╨╢╨╡╨╜ ╤В╤А╨╡╨▒╨╛╨▓╨░╤В╤М╤Б╤П ╨┐╨╛╤Б╨╗╨╡
-  `change_admin_password.php` (╤Б╨║╤А╨╕╨┐╤В ╨┤╨╡╨╗╨░╨╡╤В `BEGIN IMMEDIATE
-  TRANSACTION` тЖТ `UPDATE` тЖТ `COMMIT` ╤Б╤В╤А╨╛╨│╨╛ in-place, ╨▒╨╡╨╖ ╨┐╨╡╤А╨╡╤Б╨╛╨╖╨┤╨░╨╜╨╕╤П
-  ╤Д╨░╨╣╨╗╨░ тАФ ╤И╤В╨░╤В╨╜╤Л╨╣ ╤Б╤Ж╨╡╨╜╨░╤А╨╕╨╣ ╨┤╨╗╤П `PRAGMA journal_mode=WAL`, ╤З╨╕╤В╨░╤В╨╡╨╗╤М ╨╕
-  ╨┐╨╕╤Б╨░╤В╨╡╨╗╤М ╨┤╨╛╨╗╨╢╨╜╤Л ╤Б╨╛╤Б╤Г╤Й╨╡╤Б╤В╨▓╨╛╨▓╨░╤В╤М ╨▒╨╡╨╖ ╤А╨╡╤Б╤В╨░╤А╤В╨░).
-  ╨в╤А╨╡╨▒╤Г╨╡╤В╤Б╤П ╨┐╤А╨╕ ╨┐╨╛╨▓╤В╨╛╤А╨╡╨╜╨╕╨╕: ╨Э╨Х ╨┐╨╡╤А╨╡╨╖╨░╨┐╤Г╤Б╨║╨░╤В╤М ╤Б╨╡╤А╨▓╨╕╤Б ╤Б╤А╨░╨╖╤Г тАФ ╤Б╨╜╨░╤З╨░╨╗╨░
-  ╤Б╨╜╤П╤В╤М `grep -B2 -A2 "SQLSTATE\|bad parameter" logs/server.log`,
-  ╨▓╨╡╤А╤Б╨╕╨╕ `php --ri pdo_sqlite`/`php --ri sqlite3`, ╨╕ ╨┐╤А╨╛╨▓╨╡╤А╨╕╤В╤М, ╨╜╨╡ ╨▒╤Л╨╗╨╛
-  ╨╗╨╕ ╨▓ ╤Н╤В╨╛╤В ╨╝╨╛╨╝╨╡╨╜╤В ╨┐╨░╤А╨░╨╗╨╗╨╡╨╗╤М╨╜╨╛╨│╨╛ ╤Б╤В╨╛╤А╨╛╨╜╨╜╨╡╨│╨╛ ╨┐╤А╨╛╤Ж╨╡╤Б╤Б╨░ ╤Б ╨╛╤В╨║╤А╤Л╤В╤Л╨╝
-  ╤Б╨╛╨╡╨┤╨╕╨╜╨╡╨╜╨╕╨╡╨╝ ╨║ `game.db`. ╨Ю╤В╨┤╨╡╨╗╤М╨╜╨╛: `AuthHandler::handleLogin()`
-  (╤Б╤В╤А╨╛╨║╨░ `$clientMsg = $msg === 'Auth rate limited' ? ... : $msg;`)
-  ╨┐╤А╨╛╨▒╤А╨░╤Б╤Л╨▓╨░╨╡╤В `$e->getMessage()` ╨╗╤О╨▒╨╛╨│╨╛ ╨╜╨╡-`Auth rate limited`
-  ╨╕╤Б╨║╨╗╤О╤З╨╡╨╜╨╕╤П ╨║╨╗╨╕╨╡╨╜╤В╤Г ╨┤╨╛╤Б╨╗╨╛╨▓╨╜╨╛ тАФ ╨▓╨║╨╗╤О╤З╨░╤П ╤Б╤Л╤А╤Л╨╡ PDO-╨╛╤И╨╕╨▒╨║╨╕ ╨┐╤А╨╕ ╨╕╤Е
-  ╨▓╨╛╨╖╨╜╨╕╨║╨╜╨╛╨▓╨╡╨╜╨╕╨╕; ╤Б╤В╨╛╨╕╤В ╤А╨░╤Б╤Б╨╝╨╛╤В╤А╨╡╤В╤М ╨╛╤В╨┤╨╡╨╗╤М╨╜╤Л╨╣ ADR ╨╜╨░ ╨╝╨░╤Б╨║╨╕╤А╨╛╨▓╨║╤Г ╨Ы╨о╨С╨Ю╨У╨Ю
-  ╨╜╨╡╨┐╤А╨╡╨┤╨▓╨╕╨┤╨╡╨╜╨╜╨╛╨│╨╛ ╨╕╤Б╨║╨╗╤О╤З╨╡╨╜╨╕╤П ╨▓ `login()` ╨┐╨╛╨┤ `error.auth_invalid_credentials`
-  ╤Б ╨╛╨▒╤Й╨╕╨╝ ╤В╨╡╨║╤Б╤В╨╛╨╝, ╨░ ╨╜╨╡ ╤В╨╛╨╗╤М╨║╨╛ `Auth rate limited` (ADR-028).
+- ⚠️ OPEN (2026-08-23): Разовый `SQLITE_MISUSE` (SQLSTATE[HY000]: General
+  error: 21 bad parameter or other API misuse) в `AuthService::login()` —
+  сырой текст PDO-исключения утёк в клиентское поле `message` пакета
+  `error` (код при этом остался `error.auth_invalid_credentials`,
+  замаскировав реальную причину под "неверный логин или пароль").
+  Обнаружено при живом логине через `wss://rusbingo.ju-87.club/ws`
+  (пользователь `test4`, пароль подтверждён корректным независимой
+  проверкой `password_verify()` через отдельный CLI-скрипт — то есть
+  учётные данные были заведомо верны).
+  Устранено перезапуском `lotto-server.service` — авторизация
+  восстановилась для всех пользователей. Точная причина НЕ подтверждена:
+  инцидент совпал по времени с параллельным запуском стороннего
+  CLI-скрипта (`change_admin_password.php`) и отдельного диагностического
+  `php -r` (независимое PDO-подключение к тому же `game.db`), что
+  является наиболее вероятной причиной (коллизия блокировок/состояния
+  кэша `PDOStatement` в `PreparedStatements::get()`), но не была
+  зафиксирована логами/версиями ДО рестарта — эта улика потеряна.
+  Архитектурно рестарт сервиса НЕ должен требоваться после
+  `change_admin_password.php` (скрипт делает `BEGIN IMMEDIATE
+  TRANSACTION` → `UPDATE` → `COMMIT` строго in-place, без пересоздания
+  файла — штатный сценарий для `PRAGMA journal_mode=WAL`, читатель и
+  писатель должны сосуществовать без рестарта).
+  Требуется при повторении: НЕ перезапускать сервис сразу — сначала
+  снять `grep -B2 -A2 "SQLSTATE\|bad parameter" logs/server.log`,
+  версии `php --ri pdo_sqlite`/`php --ri sqlite3`, и проверить, не было
+  ли в этот момент параллельного стороннего процесса с открытым
+  соединением к `game.db`. Отдельно: `AuthHandler::handleLogin()`
+  (строка `$clientMsg = $msg === 'Auth rate limited' ? ... : $msg;`)
+  пробрасывает `$e->getMessage()` любого не-`Auth rate limited`
+  исключения клиенту дословно — включая сырые PDO-ошибки при их
+  возникновении; стоит рассмотреть отдельный ADR на маскировку ЛЮБОГО
+  непредвиденного исключения в `login()` под `error.auth_invalid_credentials`
+  с общим текстом, а не только `Auth rate limited` (ADR-028).
 
-- тЪая╕П OPEN (EPIC-13.6, 2026-07-28): Reconnect mid-turn тАФ reconnecting active
+- ⚠️ OPEN (EPIC-13.6, 2026-07-28): Reconnect mid-turn — reconnecting active
   drawer does not receive `your_turn`; frontend `onReconnectState` explicitly
   disables draw button (`setDrawButton(false, false)`) and `reconnect_state`
   carries no active-drawer field. Requires follow-up Epic (protocol change or
-  `your_turn` resend) before implementation тАФ not reproduced live yet.
+  `your_turn` resend) before implementation — not reproduced live yet.
 
-- тЪая╕П OPEN (╨╜╨╕╨╖╨║╨╕╨╣ ╨┐╤А╨╕╨╛╤А╨╕╤В╨╡╤В, ╨╜╨░╨╣╨┤╨╡╨╜╨╛ ╨┐╤А╨╕ FIX-12): real-WS-client
-  subprocess-╤В╨╡╤Б╤В╤Л (test_auth_packet_routing.php, test_lobby_packet_routing.php,
+- ⚠️ OPEN (низкий приоритет, найдено при FIX-12): real-WS-client
+  subprocess-тесты (test_auth_packet_routing.php, test_lobby_packet_routing.php,
   test_game_packet_routing.php, test_admin_packet_routing.php,
   test_session_lifecycle.php, test_packet_validation.php,
-  test_server_bootstrap.php) ╨╖╨░╨┐╤Г╤Б╨║╨░╤О╤В ╨╜╨░╤Б╤В╨╛╤П╤Й╨╕╨╣ `php server.php start` тАФ
-  ╨╡╨│╨╛ Logger ╨║╨╛╤А╤А╨╡╨║╤В╨╜╨╛ ╨┐╨╕╤И╨╡╤В ╨▓ ╤А╨╡╨░╨╗╤М╨╜╤Л╨╣ logs/server.log, ╤В.╨║. ╤Н╤В╨╛ ╨╕ ╨╡╤Б╤В╤М
-  ╨╜╨░╤Б╤В╨╛╤П╤Й╨╕╨╣ ╤Б╨╡╤А╨▓╨╡╤А. ╨н╤В╨╛ ╨╛╤Б╤В╨░╨▓╨╗╤П╨╡╤В ╨▓ ╨┐╤А╨╛╨┤╨░╨║╤И╨╜-╨╗╨╛╨│╨╡ ╤В╨╡╤Б╤В╨╛╨▓╤Л╨╡ INFO/WARNING
-  ╤Б╤В╤А╨╛╨║╨╕ ╤Б ╤В╨╡╤Б╤В╨╛╨▓╤Л╨╝╨╕ ╨╕╨╝╨╡╨╜╨░╨╝╨╕ ╨┐╨╛╨╗╤М╨╖╨╛╨▓╨░╤В╨╡╨╗╨╡╨╣ (fix10_user1, e106_admin ╨╕
-  ╤В.╨┐.) тАФ ╨▒╨╡╨╖╨▓╤А╨╡╨┤╨╜╤Л╨╣ ╤И╤Г╨╝, ╨╛╤В╨╗╨╕╤З╨╕╨╝╤Л╨╣ ╨╜╨░ ╨│╨╗╨░╨╖ ╨╛╤В ╤А╨╡╨░╨╗╤М╨╜╤Л╤Е ╤Б╨╛╨▒╤Л╤В╨╕╨╣, ╨╜╨╡ ╤В╨░
-  ╨║╨░╤В╨╡╨│╨╛╤А╨╕╤П ╨┐╤А╨╛╨▒╨╗╨╡╨╝╤Л, ╤З╤В╨╛ ╨▓╤Л╨╖╨▓╨░╨╗╨░ ╨╕╨╜╤Ж╨╕╨┤╨╡╨╜╤В FIX-12 (╨╗╨╛╨╢╨╜╤Л╨╣ ERROR). ╨Я╨╛╨╗╨╜╨░╤П
-  ╨╕╨╖╨╛╨╗╤П╤Ж╨╕╤П ╨┐╨╛╤В╤А╨╡╨▒╨╛╨▓╨░╨╗╨░ ╨▒╤Л ╤Б╨┤╨╡╨╗╨░╤В╤М ╨┐╤Г╤В╤М ╨╗╨╛╨│╨╕╤А╨╛╨▓╨░╨╜╨╕╤П server.php
-  ╨║╨╛╨╜╤Д╨╕╨│╤Г╤А╨╕╤А╤Г╨╡╨╝╤Л╨╝ (╨┐╨╡╤А╨╡╨╝╨╡╨╜╨╜╨░╤П ╨╛╨║╤А╤Г╨╢╨╡╨╜╨╕╤П, ╨┐╨╛ ╤Г╨╝╨╛╨╗╤З╨░╨╜╨╕╤О тАФ ╤В╨╡╨║╤Г╤Й╨╕╨╣ ╨┐╤Г╤В╤М) ╨╕
-  ╨╛╨▒╨╜╨╛╨▓╨╕╤В╤М ╨▓╤Б╨╡ ╤Б╨╡╨╝╤М ╤В╨╡╤Б╤В╨╛╨▓-╤А╨░╨╜╨╜╨╡╤А╨╛╨▓ тАФ ╨▒╨╛╨╗╨╡╨╡ ╨║╤А╤Г╨┐╨╜╨╛╨╡ ╨╕╨╖╨╝╨╡╨╜╨╡╨╜╨╕╨╡,
-  ╨╖╨░╤В╤А╨░╨│╨╕╨▓╨░╤О╤Й╨╡╨╡ ╨┐╤А╨╛╨┤╨░╨║╤И╨╜-╨║╨╛╨┤ ╤Б╨╡╤А╨▓╨╡╤А╨░, ╨╛╤Б╤В╨░╨▓╨╗╨╡╨╜╨╛ ╨╜╨░ ╤П╨▓╨╜╨╛╨╡ ╤А╨╡╤И╨╡╨╜╨╕╨╡
-  ╨┐╨╛╨╗╤М╨╖╨╛╨▓╨░╤В╨╡╨╗╤П.
+  test_server_bootstrap.php) запускают настоящий `php server.php start` —
+  его Logger корректно пишет в реальный logs/server.log, т.к. это и есть
+  настоящий сервер. Это оставляет в продакшн-логе тестовые INFO/WARNING
+  строки с тестовыми именами пользователей (fix10_user1, e106_admin и
+  т.п.) — безвредный шум, отличимый на глаз от реальных событий, не та
+  категория проблемы, что вызвала инцидент FIX-12 (ложный ERROR). Полная
+  изоляция потребовала бы сделать путь логирования server.php
+  конфигурируемым (переменная окружения, по умолчанию — текущий путь) и
+  обновить все семь тестов-раннеров — более крупное изменение,
+  затрагивающее продакшн-код сервера, оставлено на явное решение
+  пользователя.
 
-- тЬЕ RESOLVED (2026-07-03): docs/ANCHOR_PROJECT_STATUS.md ╤Г╨┤╨░╨╗╤С╨╜ тАФ ╤Д╨░╨╣╨╗ ╨╜╨╡
-  ╨╛╨▒╨╜╨╛╨▓╨╗╤П╨╗╤Б╤П ╤Б ╤Б╨░╨╝╨╛╨│╨╛ ╨╜╨░╤З╨░╨╗╨░ ╨┐╤А╨╛╨╡╨║╤В╨░ (╨╖╨░╨╝╨╛╤А╨╛╨╢╨╡╨╜ ╨╜╨░ ╤Б╨╛╤Б╤В╨╛╤П╨╜╨╕╨╕ "EPIC-1.1,
-  Lobby/WebSocket/Economy: Not implemented"), ╨┐╤А╨╕ ╤Н╤В╨╛╨╝ ╤Б╨░╨╝ ╤Д╨░╨╣╨╗ ╨┐╤А╨╡╨┤╨┐╨╕╤Б╤Л╨▓╨░╨╗
-  ╨▒╤Г╨┤╤Г╤Й╨╕╨╝ ╨╝╨╛╨┤╨╡╨╗╤П╨╝ ╤З╨╕╤В╨░╤В╤М ╨╡╨│╨╛ ╨║╨░╨║ ╨╛╨▒╤П╨╖╨░╤В╨╡╨╗╤М╨╜╤Л╨╣ ╨║╨╛╨╜╤В╨╡╨║╤Б╤В. ╨а╨╕╤Б╨║ ╨║╨░╤В╨░╤Б╤В╤А╨╛╤Д╨╕╤З╨╡╤Б╨║╨╛╨╣
-  ╨┐╤Г╤В╨░╨╜╨╕╤Ж╤Л ╨┤╨╗╤П ╨╜╨╛╨▓╨╛╨╣ ╤Б╨╡╤Б╤Б╨╕╨╕. ANCHOR_RULES.md Part 19 (Context Recovery Rule)
-  ╤Г╨╢╨╡ ╨║╨╛╤А╤А╨╡╨║╤В╨╜╨╛ ╨╛╨┐╤А╨╡╨┤╨╡╨╗╤П╨╡╤В 5 ╨░╨▓╤В╨╛╤А╨╕╤В╨╡╤В╨╜╤Л╤Е ╨┤╨╛╨║╤Г╨╝╨╡╨╜╤В╨╛╨▓ ╨▒╨╡╨╖ ╨╜╨╡╨│╨╛.
-- тЬЕ RESOLVED (ADR-003, EPIC-10.1, 2026-07-21): docs/prompt.md ╤Б╨╛╨┤╨╡╤А╨╢╨░╨╗ ╨┤╨▓╨░
-  ╤В╤А╨╡╨▒╨╛╨▓╨░╨╜╨╕╤П, ╨╛╤В╤Б╤Г╤В╤Б╤В╨▓╤Г╤О╤Й╨╕╨╡ ╨▓╨╛ ╨▓╤Б╨╡╤Е ANCHOR-╨┤╨╛╨║╤Г╨╝╨╡╨╜╤В╨░╤Е тАФ (a) rate limiting
-  ">15 ╨┐╨░╨║╨╡╤В╨╛╨▓/╤Б╨╡╨║ тАФ ╤А╨░╨╖╤А╤Л╨▓" ╨╕ (b) ╨┐╤А╨╛╤В╨╕╨▓╨╛╤А╨╡╤З╨╕╨╡ ╨┐╨╛ ╨╛╨▒╤А╨░╨▒╨╛╤В╨║╨╡ ╨╜╨╡╨▓╨░╨╗╨╕╨┤╨╜╨╛╨│╨╛
-  JSON (prompt.md "╨╖╨░╨║╤А╤Л╤В╤М ╤Б╨╛╨╡╨┤╨╕╨╜╨╡╨╜╨╕╨╡" vs ANCHOR_PROTOCOL.md error.invalid_json).
-  ╨д╨╛╤А╨╝╨░╨╗╨╕╨╖╨╛╨▓╨░╨╜╨╛ ╨▓ docs/ADR/003-rate-limiting-and-invalid-json-policy.md:
-  rate limiting ╤А╨╡╨░╨╗╨╕╨╖╨╛╨▓╨░╨╜ ╨║╨░╨║ ╨╡╤Б╤В╤М (server.php, Constants::
+- ✅ RESOLVED (2026-07-03): docs/ANCHOR_PROJECT_STATUS.md удалён — файл не
+  обновлялся с самого начала проекта (заморожен на состоянии "EPIC-1.1,
+  Lobby/WebSocket/Economy: Not implemented"), при этом сам файл предписывал
+  будущим моделям читать его как обязательный контекст. Риск катастрофической
+  путаницы для новой сессии. ANCHOR_RULES.md Part 19 (Context Recovery Rule)
+  уже корректно определяет 5 авторитетных документов без него.
+- ✅ RESOLVED (ADR-003, EPIC-10.1, 2026-07-21): docs/prompt.md содержал два
+  требования, отсутствующие во всех ANCHOR-документах — (a) rate limiting
+  ">15 пакетов/сек — разрыв" и (b) противоречие по обработке невалидного
+  JSON (prompt.md "закрыть соединение" vs ANCHOR_PROTOCOL.md error.invalid_json).
+  Формализовано в docs/ADR/003-rate-limiting-and-invalid-json-policy.md:
+  rate limiting реализован как есть (server.php, Constants::
   RATE_LIMIT_PACKETS_PER_WINDOW/RATE_LIMIT_WINDOW_SECONDS); invalid-JSON
-  policy ╤А╨╡╤И╨╡╨╜╨░ ╨▓ ╨┐╨╛╨╗╤М╨╖╤Г ANCHOR_PROTOCOL.md (error-╨┐╨░╨║╨╡╤В, ╨▒╨╡╨╖ ╤А╨░╨╖╤А╤Л╨▓╨░) тАФ
-  ╨┐╨╛╨┤╨║╤А╨╡╨┐╨╗╨╡╨╜╨╛ ╤Г╨╢╨╡ ╤А╨╡╨░╨╗╨╕╨╖╨╛╨▓╨░╨╜╨╜╤Л╨╝ ╨┐╤А╨╡╤Ж╨╡╨┤╨╡╨╜╤В╨╛╨╝ error.server_full. ╨Ф╨╡╤В╨░╨╗╨╕ тАФ
-  ╤Б╨╝. ╨╖╨░╨┐╨╕╤Б╤М [DONE] EPIC-10.1 ╨▓ ╨╜╨░╤З╨░╨╗╨╡ ╤Д╨░╨╣╨╗╨░.
-- тЬЕ RESOLVED (ADR-007, EPIC-11.5, 2026-07-27): ╨┐╨░╨║╨╡╤В afk_warning ╨┤╨╛╨▒╨░╨▓╨╗╨╡╨╜
-  ╨▓ ANCHOR_CORE.md ┬з Protocol Packet Types ╨╕ ANCHOR_PROTOCOL.md ┬з Turn System.
-  ╨Я╨╛╨▓╨╡╨┤╨╡╨╜╨╕╨╡ ╨▒╤Л╨╗╨╛ ╨║╨╛╤А╤А╨╡╨║╤В╨╜╤Л╨╝ ╤Б EPIC-8.3; ╨╖╨░╨║╤А╤Л╤В ╨┤╨╛╨║╤Г╨╝╨╡╨╜╤В╨░╤Ж╨╕╨╛╨╜╨╜╤Л╨╣ ╨┤╨╛╨╗╨│ W1.
-- тЪая╕П OPEN (╨╜╨╕╨╖╨║╨╕╨╣ ╨┐╤А╨╕╨╛╤А╨╕╤В╨╡╤В, roadmap-╨┤╨╛╨╗╨│): ╨┐╨░╨║╨╡╤В admin_stats_data ╨╛╨▒╤К╤П╨▓╨╗╨╡╨╜
-  ╨▓ ANCHOR_PROTOCOL.md ╨╕ ╨▓ ╤А╨╡╨╡╤Б╤В╤А╨╡ ANCHOR_CORE.md, ╨╜╨╛ ╨╜╨╕ ╤А╨░╨╖╤Г ╨╜╨╡ ╤А╨╡╨░╨╗╨╕╨╖╨╛╨▓╨░╨╜
-  ╨╕ ╨╜╨╡ ╨╜╨░╨╖╨╜╨░╤З╨╡╨╜ ╨╜╨╕ ╨╛╨┤╨╜╨╛╨╝╤Г Epic ╨▓ ROADMAP.md (EPIC-9.x ╨┐╨╛╨║╤А╤Л╨╗ ╤В╨╛╨╗╤М╨║╨╛
-  admin_logs_data). ╨Э╤Г╨╢╨╜╨╛ ╨╗╨╕╨▒╨╛ ╨╖╨░╨▓╨╡╤Б╤В╨╕ Epic, ╨╗╨╕╨▒╨╛ ╤Д╨╛╤А╨╝╨░╨╗╤М╨╜╨╛ ╨╕╤Б╨║╨╗╤О╤З╨╕╤В╤М ╨╕╨╖
-  ╨┐╤А╨╛╤В╨╛╨║╨╛╨╗╨░.
-- тЪая╕П OPEN (╨╜╨╕╨╖╨║╨╕╨╣ ╨┐╤А╨╕╨╛╤А╨╕╤В╨╡╤В, ╨┤╨╛╨║╤Г╨╝╨╡╨╜╤В╨░╤Ж╨╕╨╛╨╜╨╜╤Л╨╣ ╨┤╨╛╨╗╨│, ╨╜╨░╨╣╨┤╨╡╨╜╨╛ EPIC-10.7):
-  ╨║╨╛╨┤ ╨╛╤И╨╕╨▒╨║╨╕ `error.banned` ╨╛╨▒╤К╤П╨▓╨╗╨╡╨╜ ╨▓ ╤А╨╡╨╡╤Б╤В╤А╨╡ Error Packet Codes
-  (ANCHOR_PROTOCOL.md) ╨╜╨╛ ╨╜╨╕╨│╨┤╨╡ ╨╜╨╡ ╨╕╤Б╨┐╨╛╨╗╤М╨╖╤Г╨╡╤В╤Б╤П тАФ ╨╜╨╛╨╗╤М usage sites ╨┐╨╛
-  ╨▓╤Б╨╡╨╝╤Г src/ ╨╕ server.php. ╨Э╨╡ ╤Д╤Г╨╜╨║╤Ж╨╕╨╛╨╜╨░╨╗╤М╨╜╤Л╨╣ ╨┐╤А╨╛╨▒╨╡╨╗: ╨▓╤Л╨┤╨╡╨╗╨╡╨╜╨╜╤Л╨╣ ╨┐╨░╨║╨╡╤В
-  `banned` (`{"type":"banned","until":...}`) ╤Г╨╢╨╡ ╨┐╨╛╨║╤А╤Л╨▓╨░╨╡╤В ╨║╨░╨╢╨┤╤Л╨╣ ╨┐╤Г╤В╤М
-  ╨╛╤В╨║╨░╨╖╨░ ╨┐╨╛ ╨▒╨░╨╜╤Г (login, reconnect тАФ ╤Б FIX-11, admin-╤Г╨▓╨╡╨┤╨╛╨╝╨╗╨╡╨╜╨╕╨╡).
-  ╨Ф╨╛╨║╤Г╨╝╨╡╨╜╤В╨╕╤А╨╛╨▓╨░╨╜ ╨║╨░╨║ reserved/unused ╨▓ ADR-007 (EPIC-11.5). ╨в╤А╨╡╨▒╤Г╨╡╤В
-  ╨╗╨╕╨▒╨╛ ╤П╨▓╨╜╨╛╨│╨╛ ╨╜╨░╨╖╨╜╨░╤З╨╡╨╜╨╕╤П ╨╕╤Б╨┐╨╛╨╗╤М╨╖╨╛╨▓╨░╨╜╨╕╤П, ╨╗╨╕╨▒╨╛ ╤Д╨╛╤А╨╝╨░╨╗╤М╨╜╨╛╨│╨╛ ╨╕╤Б╨║╨╗╤О╤З╨╡╨╜╨╕╤П ╨╕╨╖
-  ╤А╨╡╨╡╤Б╤В╤А╨░ (╤В╨╛╤В ╨╢╨╡ ╨▓╤Л╨▒╨╛╤А, ╤З╤В╨╛ ╤Г╨╢╨╡ ╤Б╤В╨╛╨╕╤В ╨┐╨╡╤А╨╡╨┤ admin_stats_data).
+  policy решена в пользу ANCHOR_PROTOCOL.md (error-пакет, без разрыва) —
+  подкреплено уже реализованным прецедентом error.server_full. Детали —
+  см. запись [DONE] EPIC-10.1 в начале файла.
+- ✅ RESOLVED (ADR-007, EPIC-11.5, 2026-07-27): пакет afk_warning добавлен
+  в ANCHOR_CORE.md § Protocol Packet Types и ANCHOR_PROTOCOL.md § Turn System.
+  Поведение было корректным с EPIC-8.3; закрыт документационный долг W1.
+- ⚠️ OPEN (низкий приоритет, roadmap-долг): пакет admin_stats_data объявлен
+  в ANCHOR_PROTOCOL.md и в реестре ANCHOR_CORE.md, но ни разу не реализован
+  и не назначен ни одному Epic в ROADMAP.md (EPIC-9.x покрыл только
+  admin_logs_data). Нужно либо завести Epic, либо формально исключить из
+  протокола.
+- ⚠️ OPEN (низкий приоритет, документационный долг, найдено EPIC-10.7):
+  код ошибки `error.banned` объявлен в реестре Error Packet Codes
+  (ANCHOR_PROTOCOL.md) но нигде не используется — ноль usage sites по
+  всему src/ и server.php. Не функциональный пробел: выделенный пакет
+  `banned` (`{"type":"banned","until":...}`) уже покрывает каждый путь
+  отказа по бану (login, reconnect — с FIX-11, admin-уведомление).
+  Документирован как reserved/unused в ADR-007 (EPIC-11.5). Требует
+  либо явного назначения использования, либо формального исключения из
+  реестра (тот же выбор, что уже стоит перед admin_stats_data).
 
-- тЬЕ RESOLVED (FIX-4, 2026-07-03): test_game_start.php/test_victory.php ╨┐╨░╨┤╨░╨╗╨╕ ╨╕╨╖-╨╖╨░
-  ╤Г╤Б╤В╨░╤А╨╡╨▓╤И╨╕╤Е ╤Д╨╕╨║╤Б╤В╤Г╤А ╨┐╨╛╤Б╨╗╨╡ ADR-002. ╨г╤Б╤В╤А╨░╨╜╨╡╨╜╨╛ тАФ ╤Б╨╝. ╤Б╨╡╨║╤Ж╨╕╤О PATCHES ┬з FIX-4.
-- тЬЕ RESOLVED (FIX-5, 2026-07-03): test_helpers_runner.php Scenario 2 ╨░╤Б╤Б╨╡╤А╤В╨╕╨╗ ╨║╨╛╨╜╤В╤А╨░╨║╤В
-  ╨┤╨╛ FIX-1. ╨г╤Б╤В╤А╨░╨╜╨╡╨╜╨╛ тАФ ╤Б╨╝. ╤Б╨╡╨║╤Ж╨╕╤О PATCHES ┬з FIX-5.
+- ✅ RESOLVED (FIX-4, 2026-07-03): test_game_start.php/test_victory.php падали из-за
+  устаревших фикстур после ADR-002. Устранено — см. секцию PATCHES § FIX-4.
+- ✅ RESOLVED (FIX-5, 2026-07-03): test_helpers_runner.php Scenario 2 ассертил контракт
+  до FIX-1. Устранено — см. секцию PATCHES § FIX-5.
 
-- composer.json ╨╜╨╡ ╨┐╨╡╤А╨╡╨┐╤А╨╛╨▓╨╡╤А╤П╨╗╤Б╤П ╨▓ ╤В╨╡╨║╤Г╤Й╨╡╨╣ ╤Б╨╡╤Б╤Б╨╕╨╕.
-- ReconnectTokenService ╤Б╤Г╤Й╨╡╤Б╤В╨▓╤Г╨╡╤В, ╨╜╨╛ ╨┐╨╛╨║╨░ ╨╜╨╡ ╨╕╤Б╨┐╨╛╨╗╤М╨╖╤Г╨╡╤В╤Б╤П.
-- SessionService ╤В╤А╨╡╨▒╤Г╨╡╤В ╨║╨╛╤Б╨╝╨╡╤В╨╕╤З╨╡╤Б╨║╨╛╨╣ ╨╛╤З╨╕╤Б╤В╨║╨╕ ╤Д╨╛╤А╨╝╨░╤В╨╕╤А╨╛╨▓╨░╨╜╨╕╤П (╨▒╨╡╨╖ ╨╕╨╖╨╝╨╡╨╜╨╡╨╜╨╕╤П ╨╗╨╛╨│╨╕╨║╨╕).
-- lobby_afk_timer_id ╨┐╤А╨╕ count<2 ╨╜╨╡ ╨╛╤В╨╝╨╡╨╜╤П╨╡╤В╤Б╤П ╨▓ removePlayerFromLobby тАФ ╤Г╤Б╤В╤А╨░╨╜╤П╨╡╤В╤Б╤П ╨▓ EPIC-2.6.
+- composer.json не перепроверялся в текущей сессии.
+- ReconnectTokenService существует, но пока не используется.
+- SessionService требует косметической очистки форматирования (без изменения логики).
+- lobby_afk_timer_id при count<2 не отменяется в removePlayerFromLobby — устраняется в EPIC-2.6.
 
 ---
 
 ## CURRENT PROJECT STATUS
 
-PHASE 0 тАФ FOUNDATION: COMPLETE
-PHASE 1 тАФ AUTHENTICATION: COMPLETE
-PHASE 2 тАФ ROOM LOBBY: COMPLETE
-PHASE 3 тАФ LOTTO ENGINE: COMPLETE
-PHASE 4 тАФ GAME START: COMPLETE
-PHASE 5 тАФ TURN SYSTEM: COMPLETE
-PHASE 6 тАФ VICTORY SYSTEM: COMPLETE
-PHASE 7 тАФ APARTMENT: COMPLETE
-PHASE 8 тАФ RECONNECT & AFK: COMPLETE
-PHASE 9 тАФ ADMIN: COMPLETE
-PHASE 10 тАФ WEBSOCKET PROTOCOL: COMPLETE (10.0-10.7 all done)
+PHASE 0 — FOUNDATION: COMPLETE
+PHASE 1 — AUTHENTICATION: COMPLETE
+PHASE 2 — ROOM LOBBY: COMPLETE
+PHASE 3 — LOTTO ENGINE: COMPLETE
+PHASE 4 — GAME START: COMPLETE
+PHASE 5 — TURN SYSTEM: COMPLETE
+PHASE 6 — VICTORY SYSTEM: COMPLETE
+PHASE 7 — APARTMENT: COMPLETE
+PHASE 8 — RECONNECT & AFK: COMPLETE
+PHASE 9 — ADMIN: COMPLETE
+PHASE 10 — WEBSOCKET PROTOCOL: COMPLETE (10.0-10.7 all done)
 
 Integration tests:
 
 `text
-55 / 55 PASSED (auth)                    [+7 vs ╨╖╨░╤П╨▓╨╗╨╡╨╜╨╜╤Л╤Е 48 тАФ FIX-8 regression-╤В╨╡╤Б╤В╤Л]
-91 / 91 PASSED (lobby)                   [+1 vs ╨╖╨░╤П╨▓╨╗╨╡╨╜╨╜╤Л╤Е 90 тАФ FIX-7 regression-╤В╨╡╤Б╤В]
+55 / 55 PASSED (auth)                    [+7 vs заявленных 48 — FIX-8 regression-тесты]
+91 / 91 PASSED (lobby)                   [+1 vs заявленных 90 — FIX-7 regression-тест]
 164 / 164 PASSED (lotto engine)
 44 / 44 PASSED (game start)
 37 / 37 PASSED (turn system)
-40 / 40 PASSED (victory system)          [+2 vs ╨╖╨░╤П╨▓╨╗╨╡╨╜╨╜╤Л╤Е 38 тАФ ╤Г╤Б╨╕╨╗╨╡╨╜╤Л ╨┐╤А╨╛╨▓╨╡╤А╨║╨╕ FIX-4]
+40 / 40 PASSED (victory system)          [+2 vs заявленных 38 — усилены проверки FIX-4]
 32 / 32 PASSED (apartment)
 8 / 8 PASSED (admin auth)
-9 / 9 PASSED (admin ban)                 [close() ╨┤╨╛╨▒╨░╨▓╨╗╨╡╨╜ ╨▓ MockConnection, FIX-11]
+9 / 9 PASSED (admin ban)                 [close() добавлен в MockConnection, FIX-11]
 8 / 8 PASSED (admin unban)
 37 / 37 PASSED (admin kick)
 28 / 28 PASSED (admin close room)
 16 / 16 PASSED (admin logs)               [isolated log path, FIX-12]
-20 / 20 PASSED (admin integration)       [close() ╨┤╨╛╨▒╨░╨▓╨╗╨╡╨╜ ╨▓ SpyConnection, FIX-11; isolated log path, FIX-12]
+20 / 20 PASSED (admin integration)       [close() добавлен в SpyConnection, FIX-11; isolated log path, FIX-12]
 5 / 5 PASSED (timer integrity)
-18 / 18 PASSED (server bootstrap тАФ real WS client, EPIC-10.0/10.2) [+10 vs ╨╖╨░╤П╨▓╨╗╨╡╨╜╨╜╤Л╤Е 8 тАФ TEST 7 (connection gate), TEST 8 (auth_required exemptions), TEST 4 ╤Г╨╢╨╡╤Б╤В╨╛╤З╤С╨╜]
-11 / 11 PASSED (packet validation тАФ real WS client, EPIC-10.1)
-18 / 18 PASSED (auth packet routing тАФ real WS client, EPIC-10.3, TEST 2 ╨╛╨▒╨╜╨╛╨▓╨╗╤С╨╜ ╨▓ EPIC-10.5)
-23 / 23 PASSED (lobby packet routing тАФ real WS client, EPIC-10.4, ╨┐╨╡╤А╨╡╨╜╨╡╤Б╤С╨╜ ╨╕╨╖ ╨┐╨░╤А╨░╨╖╨╕╤В╨╜╨╛╨│╨╛ tests/manual/ ╨▓ EPIC-10.5)
-20 / 20 PASSED (reconnect тАФ ╨▒╤Л╨╗╨╛ 15, +5 assertions FIX-9, EPIC-10.5)
-21 / 21 PASSED (game packet routing тАФ real WS client, EPIC-10.5, ╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗)
-6 / 6 PASSED (session lifecycle тАФ real WS client, FIX-10, ╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗)
-15 / 15 PASSED (admin packet routing тАФ real WS client, EPIC-10.6 + FIX-11, ╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗)
-50 / 50 PASSED, 3 warnings (protocol completeness тАФ static doc-cross-reference, EPIC-10.7, ╨╜╨╛╨▓╤Л╨╣ ╤Д╨░╨╣╨╗)
+18 / 18 PASSED (server bootstrap — real WS client, EPIC-10.0/10.2) [+10 vs заявленных 8 — TEST 7 (connection gate), TEST 8 (auth_required exemptions), TEST 4 ужесточён]
+11 / 11 PASSED (packet validation — real WS client, EPIC-10.1)
+18 / 18 PASSED (auth packet routing — real WS client, EPIC-10.3, TEST 2 обновлён в EPIC-10.5)
+23 / 23 PASSED (lobby packet routing — real WS client, EPIC-10.4, перенесён из паразитного tests/manual/ в EPIC-10.5)
+20 / 20 PASSED (reconnect — было 15, +5 assertions FIX-9, EPIC-10.5)
+21 / 21 PASSED (game packet routing — real WS client, EPIC-10.5, новый файл)
+6 / 6 PASSED (session lifecycle — real WS client, FIX-10, новый файл)
+15 / 15 PASSED (admin packet routing — real WS client, EPIC-10.6 + FIX-11, новый файл)
+50 / 50 PASSED, 3 warnings (protocol completeness — static doc-cross-reference, EPIC-10.7, новый файл)
 `
 
 FIX-12 also touched (counts unchanged, only log destination isolated):
@@ -3679,7 +3679,7 @@ victory system (40/40, above), lobby integration (91/91, above), auth
 integration (55/55, above), plus admin logs/admin integration (both
 annotated above).
 
-tests/Manual/test_logger.php REMOVED (FIX-12) тАФ stale duplicate of an
+tests/Manual/test_logger.php REMOVED (FIX-12) — stale duplicate of an
 already-superseded print_r() smoke script (root-level copy already
 deleted 2026-07-03), zero assertions, was writing raw noise into
 production logs/server.log on every full-suite run. File count: 29
@@ -3691,7 +3691,7 @@ Current branch:
 main
 `
 
-Current stable commit (pending push тАФ see Git Checkpoint below):
+Current stable commit (pending push — see Git Checkpoint below):
 
 `text
 FIX-12-logger-isolation (Logger DI-seam + 6 test files redirected +
@@ -3702,18 +3702,18 @@ root-caused and resolved; full regression 0 failed)
 Next planned Epic:
 
 `text
-EPIC-11.4 State machine audit (Phase 11 тАФ see docs/PHASE_11_REPORT.md;
+EPIC-11.4 State machine audit (Phase 11 — see docs/PHASE_11_REPORT.md;
 EPIC-11.1/11.2/11.3 instrumentation complete, VPS runs pending)
 `
-PHASE 10 тАФ WEBSOCKET PROTOCOL: COMPLETE (10.0-10.7 all done). Server-side
+PHASE 10 — WEBSOCKET PROTOCOL: COMPLETE (10.0-10.7 all done). Server-side
 protocol surface confirmed complete against ANCHOR_CORE.md/
 ANCHOR_PROTOCOL.md's own declared registries (EPIC-10.7). Four low-
 priority documentation-debt items remain open (admin_stats_data,
-afk_warning, error.banned, real-WS-subprocess test log noise тАФ see
+afk_warning, error.banned, real-WS-subprocess test log noise — see
 KNOWN GAPS) but none block the next phase.
 Known open items: none blocking. The EPIC-10.5 KNOWN GAP
 (AuthHandler::handleReconnect() not binding $connection->userId when no
-matching disconnected room player is found) is RESOLVED as of FIX-10 тАФ
+matching disconnected room player is found) is RESOLVED as of FIX-10 —
 handleReconnect() now unconditionally binds the connection via
 bindConnection() once the token/user is validated, regardless of room
 membership.
