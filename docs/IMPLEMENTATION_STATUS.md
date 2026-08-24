@@ -1,8 +1,34 @@
 # Implementation Status — Lotto Game Project
 
+## Pre-deploy regression pass (feature/room-chat-files) (2026-08-24)
+
+Status: In progress
+
+Clusters A–E fixes on this branch before any `lotto-server.service` restart.
+
+KNOWN GAPS / bisection notes (Cluster D):
+- `test_admin_kick.php` TEST 9: assertion expected early apartment finish
+  (EPIC-13.5). Production behavior since `ca8533d` matches ANCHOR_CORE Part 5
+  ("apartment timer not destroyed early when all answered") —
+  `maybeFinishApartmentEarly` only triggers `handleNoSurvivors` when zero
+  active remain. Test updated to expect `status === 'apartment'` after kick.
+- `test_timer_integrity.php` TEST 5: anonymous `extends PDO` without
+  `parent::__construct()` broke after ADR-016 coins lookup in
+  `GameFinishService` — fixture updated to real `sqlite::memory:` + users row
+  (not an implementation regression).
+- `test_protocol_completeness.php`: FAIL was `play_vs_bot` in the fenced
+  Protocol Actions list while not wired in `server.php` (ADR-034 reserved).
+  Removed from fenced list; prose reservation retained.
+- `test_auth_integration.php` (2 fails on VPS): not reproducible here (no
+  local SQLite driver). Re-run on VPS after this pass; if still failing,
+  capture FAIL lines and open a follow-up. Not assumed related to
+  bot/speed-mode/admin-delete without evidence.
+
+---
+
 ## EPIC-035 — Room game-speed mode (ADR-035) (2026-08-24)
 
-Status: Completed
+Status: In progress — regression fixes pending (pre-deploy audit / full test suite)
 
 - [DONE] ADR-035 accepted; `speed_mode` on Room Structure + registries
 - [DONE] Server: `create_room` optional `speed_mode` (default `slow`); wire into
@@ -11,44 +37,15 @@ Status: Completed
 - [DONE] Fast animation profile (~3s total, L→R stops); slow unchanged
 - [DONE] Gold pulse omitted in fast mode; audio unchanged
 - [DONE] i18n keys in en/ru/es/fr/zh/tr
+- [IN PROGRESS] Pre-deploy: restore clean `php run_ALL_tests.php` (57/57)
 
-CHANGED:
-- docs/ADR/035-room-game-speed-mode.md (new)
-- docs/ANCHOR_CORE.md (Room Structure + Part 6 `speed_mode`)
-- docs/ANCHOR_PROTOCOL.md (`create_room`, `room_list`, `room_joined`, `reconnect_state`)
-- src/Core/RoomManager.php
-- src/Lobby/LobbyService.php
-- src/Game/ReconnectService.php
-- public/js/app.js
-- public/js/ui.js
-- public/index.html
-- public/locales/{en,ru,es,fr,zh,tr}.json
-- docs/IMPLEMENTATION_STATUS.md
-
-NOT CHANGED:
-- GameTurnService / LottoEngine draw logic
-- Game AFK / ReconnectService AFK timers
-- animationQueue max-3 semantics
-- spin.mp3 / reveal.mp3 behavior
-- PROTOCOL_VERSION
-- `player_joined` payload (mode via `room_joined` only)
-
-Commit: 341e420
-Notes: Single Epic (client animation + one room field). No PHP automated timing
-test — client animation only.
+Commit: 341e420 (+ follow-up regression fixes on this branch)
+Notes: Marked Completed prematurely before full VPS suite; Part 15 requires
+clean automated verification before deploy-ready.
 
 VERIFICATION:
-MANUAL VERIFICATION REQUIRED
-1. Create a **fast** room (`speed_mode=fast`). Start a 2-player game. On
-   "Draw barrel", stopwatch the full draw→all-three-revealed sequence.
-   Expected: ≈3s total; reels stop left-to-right; cards mark without gold pulse.
-2. Create a **slow** room (default). Confirm existing ~3s-per-number reveal
-   spacing and gold pulse still present.
-3. Mid-game in a fast room: reload / reconnect. Confirm UI still uses fast
-   animation (from `reconnect_state.speed_mode`) without recreating the room.
-4. Lobby `room_list`: confirm Speed column shows Slow/Fast for each room.
-5. Omit `speed_mode` in a raw `create_room` packet → room behaves as slow.
-
+MANUAL VERIFICATION REQUIRED (client timing) + VPS `php run_ALL_tests.php`
+after Cluster A–E regression fixes.
 ---
 
 ## EPIC-034 — Bot opponent (ADR-034) (planned)
@@ -74,7 +71,7 @@ matching EPIC-034.* code lands (RoomManager does not create `bot` yet).
 
 ## EPIC-033C — Admin players delete + dropdown (ADR-033) (2026-08-23)
 
-Status: Completed
+Status: In progress — regression fixes pending (pre-deploy audit / full test suite)
 
 - [DONE] `admin_delete_user` / `admin_bulk_delete_users` with busy guards (online / players / history / roster)
 - [DONE] All-or-nothing bulk PDO transaction; no auto-kick
@@ -109,7 +106,7 @@ NOT CHANGED:
 
 ## EPIC-033B — Admin rooms dropdown (ADR-033) (2026-08-23)
 
-Status: Completed
+Status: In progress — regression fixes pending (pre-deploy audit / full test suite)
 
 - [DONE] Replace admin rooms flat table with `<select>` + detail + Close
 - [DONE] Reuse existing `admin_stats_data.rooms` / `room_list` fields only (no protocol)
@@ -139,7 +136,7 @@ NOT CHANGED:
 
 ## EPIC-033A — Admin password rotation (ADR-033) (2026-08-23)
 
-Status: Completed
+Status: In progress — regression fixes pending (pre-deploy audit / full test suite)
 
 - [DONE] ADR-033 accepted (password rotation + account deletion design; Epic B UI-only confirmed)
 - [DONE] `PasswordPolicy::validateAdminPassword()` shared helper (registration rules untouched)
