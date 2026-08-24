@@ -760,16 +760,16 @@ see `IMPLEMENTATION_STATUS.md` EPIC-034 (Planned).
 ## Protocol Actions (allowed)
 ```
 register, login, reconnect, ping, room_list, create_room, join_room, leave_room,
-start_game, play_vs_bot, draw_barrel, turn_ready, nudge_turn, apartment_choice, admin_ban_user, admin_unban_user,
+start_game, draw_barrel, turn_ready, nudge_turn, apartment_choice, admin_ban_user, admin_unban_user,
 admin_kick_user, admin_close_room, admin_get_logs, admin_get_stats, admin_get_users,
 admin_get_settings, admin_set_settings, admin_restart_server,
 admin_change_password, admin_delete_user, admin_bulk_delete_users,
 room_message, file_offer, file_accept, file_reject, file_data
 ```
 
-`play_vs_bot` (ADR-034): **registry-reserved**, not dispatched until
-EPIC-034.1 — see `IMPLEMENTATION_STATUS.md` EPIC-034 (Planned).
-## Logging
+`play_vs_bot` (ADR-034): **registry-reserved name**, not listed above and not
+dispatched until EPIC-034.1 — see `IMPLEMENTATION_STATUS.md` EPIC-034 (Planned).
+Do not add it to the fenced action list until `server.php` wires it.## Logging
 Only `serverLog()`. Levels: `INFO, WARNING, ERROR`.
 
 ## Forbidden Naming Examples

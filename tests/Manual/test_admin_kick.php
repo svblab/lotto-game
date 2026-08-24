@@ -534,10 +534,13 @@ assertTrue(isset($worker->rooms[8]['players'][800]), 'target player remains in r
 assertTrue($pdo->inTransaction() === false, 'PDO transaction cleanly rolled back (no dangling transaction)');
 
 // =============================================================================
-// TEST 9 — Kick last pending required voter → apartment finishes early (EPIC-13.5)
+// TEST 9 — Kick last pending required voter does NOT finish apartment early
+// (ANCHOR_CORE Part 5: apartment timer not destroyed early when all answered;
+// ca8533d aligned maybeFinishApartmentEarly with that rule — only no_survivors
+// when zero active remain. EPIC-13.5 early-finish assertion was stale.)
 // =============================================================================
 
-echo "\nTEST 9: Kick last pending required voter -> apartment finishes early\n";
+echo "\nTEST 9: Kick last pending required voter — apartment stays until timer\n";
 
 $voterPendingId = insertUser($pdo, 'voter_pending', 500, false);
 $voterAgreedId  = insertUser($pdo, 'voter_agreed2', 500, false);
@@ -570,9 +573,12 @@ $connection9->id      = 991;
 
 $admin9->handleKickUser(['user_id' => $voterPendingId], $connection9, $worker);
 
-assertEquals('playing', $worker->rooms[9]['status'] ?? null, 'apartment -> playing after kick of last pending voter');
-assertTrue(!isset($worker->rooms[9]['apartment_timer_id']) || $worker->rooms[9]['apartment_timer_id'] === null,
-    'apartment timer not required — early finish');
+assertEquals('apartment', $worker->rooms[9]['status'] ?? null,
+    'apartment remains apartment after kick (no early finish; ANCHOR Part 5)');
+assertTrue(!isset($worker->rooms[9]['players'][901]),
+    'pending voter removed from room players');
+assertTrue(isset($worker->rooms[9]['players'][902]),
+    'agreed voter still seated');
 
 // =============================================================================
 // Summary
