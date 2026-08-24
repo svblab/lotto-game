@@ -33,7 +33,7 @@ NOT CHANGED:
 - PROTOCOL_VERSION
 - `player_joined` payload (mode via `room_joined` only)
 
-Commit: pending
+Commit: 341e420
 Notes: Single Epic (client animation + one room field). No PHP automated timing
 test — client animation only.
 
