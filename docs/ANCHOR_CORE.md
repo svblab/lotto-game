@@ -61,7 +61,8 @@ $worker->rooms[$roomId] = [
   'bag' => [],
   'drawn_numbers' => [],
   'players' => [],
-  'all_players_history' => []
+  'all_players_history' => [],
+  'speed_mode' => 'slow'    // ADR-035: 'slow'|'fast' — client animation profile
 ];
 ```
 
@@ -73,6 +74,10 @@ pattern as `error.banned` in ADR-007):
   calculation uses the constant directly, not this field.
 - `pause_for_apartment` — always `false`. Apartment pause is represented by
   `status === 'apartment'`; this flag is never toggled in production.
+
+**Speed mode (ADR-035):** `$room['speed_mode']` is `'slow'` (default) or
+`'fast'`. Chosen only at `create_room`, frozen for the room lifetime. Affects
+**client slot-animation timing only** — server draw/AFK semantics unchanged.
 
 ## Player Structure
 ```php
@@ -550,10 +555,15 @@ room_id, host_conn_id, bet_per_card, max_players, password_hash, status, bank,
 apartment_fired, pause_for_apartment, apartment_responses, win_chance_history,
 active_drawer_conn_id,
 drawer_order, bag, drawn_numbers, players, all_players_history,
-lobby_afk_timer_id, game_afk_timer_id, apartment_timer_id
+lobby_afk_timer_id, game_afk_timer_id, apartment_timer_id,
+speed_mode
 ```
 Reserved (ADR-022): `bet_per_card`, `pause_for_apartment` — see § Room Structure
 reserved keys above; remain in the registry but are not consumed at runtime.
+
+`speed_mode` (ADR-035): `'slow'` \| `'fast'` (default `'slow'`). Set at
+`create_room` only; frozen for the room lifetime. Client animation profile
+only — not read by draw/AFK engine paths.
 
 Test-only hook (ADR-022): `_apartment_participants` — leading underscore by
 convention; never created by production code paths, only read defensively by

@@ -64,6 +64,17 @@
       && room.players < room.max_players;
   }
 
+  function normalizeSpeedMode(mode) {
+    return mode === 'fast' ? 'fast' : 'slow';
+  }
+
+  function speedModeLabel(mode) {
+    const t = global.LottoI18n.t;
+    return normalizeSpeedMode(mode) === 'fast'
+      ? (t('lobby.speedFast') || 'Fast')
+      : (t('lobby.speedSlow') || 'Slow');
+  }
+
   /**
    * Pick one eligible quick-start room. Single match → that room; multiple → pseudo-random.
    */
@@ -96,6 +107,7 @@
         <td>#${room.room_id}</td>
         <td>${room.players}/${room.max_players}</td>
         <td>${t(`status.${room.status}`) || room.status}</td>
+        <td>${speedModeLabel(room.speed_mode)}</td>
         <td>${room.has_password ? '🔒' : '—'}</td>
         <td></td>`;
       const actionCell = tr.lastElementChild;
@@ -202,6 +214,8 @@
     $('#room-id-label').textContent = room.room_id;
     $('#room-host-label').textContent = room.host;
     $('#room-bank-label').textContent = roomBankDisplay(room);
+    const speedLabel = $('#room-speed-label');
+    if (speedLabel) speedLabel.textContent = speedModeLabel(room.speed_mode);
     const isHost = room.host === username;
     const canStart = isHost && room.status === 'waiting' && (room.players?.length || 0) >= 2;
     $('#start-game-btn')?.classList.toggle('hidden', !canStart);
@@ -598,25 +612,40 @@
     });
   }
 
-  function revealSlot(index, number) {
+  function revealSlot(index, number, opts) {
+    const mode = opts && opts.mode === 'fast' ? 'fast' : 'slow';
     return new Promise((resolve) => {
       const win = _slotWindows()[index];
       if (!win) {
         resolve();
         return;
       }
-      // Останавливаем только этот барабан; соседние продолжают крутиться.
       _clearSlotTimer(win);
       win.classList.remove('reveal');
-      if (!win.classList.contains('spinning')) {
-        win.classList.add('spinning');
-      }
-      win.classList.add('decel');
       const span = win.querySelector('.slot-num');
       if (!span) {
         resolve();
         return;
       }
+
+      if (mode === 'fast') {
+        win.classList.remove('spinning', 'decel');
+        win.classList.add('reveal');
+        span.textContent = String(number);
+        global.LottoSound?.play('reveal');
+        if (!isSlotsSpinning()) stopSpinSound();
+        setTimeout(() => {
+          win.classList.remove('reveal');
+          resolve();
+        }, 120);
+        return;
+      }
+
+      // Slow: stop only this reel; neighbors keep spinning.
+      if (!win.classList.contains('spinning')) {
+        win.classList.add('spinning');
+      }
+      win.classList.add('decel');
 
       let delay = 50;
       let ticks = 0;
