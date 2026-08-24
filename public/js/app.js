@@ -323,7 +323,7 @@
           // Fast mode: mark instantly, omit gold pulse (no flashNums).
           UI().renderCards(state.myCards, state.myMasks, state.cardIndex, null);
           const remaining = 500 - (Date.now() - stopStarted);
-          if (i < 2 && remaining > 0) await sleep(remaining);
+          if (remaining > 0) await sleep(remaining);
         } else {
           UI().idleSlot(i);
         }
