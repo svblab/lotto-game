@@ -48,7 +48,18 @@ class MockConnection {
     }
 }
 
-class MockWorker { public array $rooms = []; }
+class MockWorker
+{
+    public array $rooms = [];
+    public object $lobbyService;
+
+    public function __construct()
+    {
+        $this->lobbyService = new class {
+            public function broadcastRoomList(object $worker): void {}
+        };
+    }
+}
 
 class MockPDO {
     public bool $committed = false; public bool $rolledBack = false;

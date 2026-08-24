@@ -38,7 +38,9 @@ final class GameHandler
     public function handleStartGame(object $connection, object $worker): void
     {
         $this->gameService->handleStartGame($connection, $worker);
-        $worker->lobbyService->broadcastRoomList($worker);
+        if (isset($worker->lobbyService)) {
+            $worker->lobbyService->broadcastRoomList($worker);
+        }
     }
 
     /**

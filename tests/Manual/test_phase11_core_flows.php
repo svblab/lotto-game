@@ -124,6 +124,14 @@ class FlowWorker
     public array $rooms = [];
     public array $userConnections = [];
     public array $sessionTokens = [];
+    public object $lobbyService;
+
+    public function __construct()
+    {
+        $this->lobbyService = new class {
+            public function broadcastRoomList(object $worker): void {}
+        };
+    }
 }
 
 class TestDatabase extends \Lotto\Infrastructure\Database

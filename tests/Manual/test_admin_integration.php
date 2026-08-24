@@ -157,6 +157,11 @@ final class ContractAwareRemovalService
         }
     }
 
+    /** Admin close / finish paths may refresh lobby room_list (FIX Cluster A). */
+    public function broadcastRoomList(object $worker): void
+    {
+    }
+
     private function remove(object $worker, int $roomId, int $connId, string $reason): void
     {
         $this->removeCalls[] = ['roomId' => $roomId, 'connId' => $connId, 'reason' => $reason];

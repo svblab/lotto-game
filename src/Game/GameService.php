@@ -470,7 +470,9 @@ final class GameService
             function () use ($worker, $roomId) {
                 lottoEconomyCheckInvariants($worker, 'game_finish:' . $roomId);
                 unset($worker->rooms[$roomId]);
-                $worker->lobbyService->broadcastRoomList($worker);
+                if (isset($worker->lobbyService)) {
+                    $worker->lobbyService->broadcastRoomList($worker);
+                }
             }
         );
     }
@@ -490,7 +492,9 @@ final class GameService
             function () use ($worker, $roomId) {
                 lottoEconomyCheckInvariants($worker, 'no_survivors:' . $roomId);
                 unset($worker->rooms[$roomId]);
-                $worker->lobbyService->broadcastRoomList($worker);
+                if (isset($worker->lobbyService)) {
+                    $worker->lobbyService->broadcastRoomList($worker);
+                }
             },
             $notifyConnection
         );

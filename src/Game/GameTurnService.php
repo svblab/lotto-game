@@ -338,7 +338,9 @@ final class GameTurnService
                     'victory',
                     function () use ($worker, $roomId) {
                         unset($worker->rooms[$roomId]);
-                        $worker->lobbyService->broadcastRoomList($worker);
+                        if (isset($worker->lobbyService)) {
+                            $worker->lobbyService->broadcastRoomList($worker);
+                        }
                     }
                 );
                 return;
