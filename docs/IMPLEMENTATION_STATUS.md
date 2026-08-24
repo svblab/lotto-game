@@ -1,5 +1,24 @@
 # Implementation Status — Lotto Game Project
 
+## EPIC-034 — Bot opponent (ADR-034) (planned)
+
+Status: Planned (ADR accepted; coding not started)
+
+ADR: `docs/ADR/034-bot-opponent.md` (next free number after 033).
+
+Planned Epic split (Rule 11 — separate diffs/commits):
+
+- [ ] EPIC-034.1 — Bot entity + `play_vs_bot` + turn engine integration
+- [ ] EPIC-034.2 — Apartment-with-bot resolution
+- [ ] EPIC-034.3 — Victory / `bot_win` bank-burn path
+- [ ] EPIC-034.4 — Win-streak + double-bank mint
+- [ ] EPIC-034.5 — Client UI (“Play vs Bot” + roster)
+
+Anchor amendments already applied with the ADR: `ANCHOR_CORE.md` Parts 1/2/4/6,
+`ANCHOR_PROTOCOL.md` (`play_vs_bot`, `bot_win`, reserved username `Bot`).
+
+---
+
 ## EPIC-033C — Admin players delete + dropdown (ADR-033) (2026-08-23)
 
 Status: Completed

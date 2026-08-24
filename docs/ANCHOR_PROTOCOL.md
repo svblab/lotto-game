@@ -123,6 +123,9 @@ Client → Server
 ```json
 {"action": "register", "username": "player", "password": "secret"}
 ```
+Username `Bot` is reserved (ADR-034, case-insensitive match on the literal
+`bot`) and must be rejected with `error.auth_invalid_username` so it cannot
+collide with the bot opponent wire display name.
 
 ### login
 Client → Server
@@ -266,10 +269,22 @@ connection to notify.
 ## Game Start
 
 ### start_game
-Client → Server. Host only.
+Client → Server. Host only. Requires ≥2 seated humans. Does not create a bot.
 ```json
 {"action": "start_game"}
 ```
+
+### play_vs_bot
+Client → Server. Host only (ADR-034). Allowed only in `waiting` with exactly
+one seated human. Creates `$room['bot']`, starts the game (human stake only;
+bot `cards_count = 2`, `total_paid = 0`), and transitions `waiting → playing`.
+While the bot is present, `join_room` is rejected with `error.room_full`.
+```json
+{"action": "play_vs_bot"}
+```
+Rejects: not in a room → `error.room_not_found`; not host / not `waiting` /
+not exactly one seated human → `error.not_your_turn` (same host/phase bucket
+as `start_game`).
 
 ### game_started
 Server → Room (per-player payload).
@@ -291,6 +306,11 @@ Player entry, others:
 {"username": "player2", "is_self": false, "cards_count": 1, "cards": null, "masks": []}
 ```
 `masks` length equals `cards_count` for every entry; foreign `masks` start all-`false` and do not reveal card numbers.
+
+In bot matches (ADR-034), the roster includes an entry with `username: "Bot"`,
+`cards_count: 2`, and the same card-visibility rules (human never receives bot
+card numbers). There is no `is_bot` field — the reserved username identifies
+the bot.
 
 ---
 
@@ -415,6 +435,15 @@ Server → Room. Zero active players remain — stakes refunded, no winner, `pri
 {"type": "game_over", "winner": "", "reason": "no_survivors", "prize": 0, "final_bank": 0, "statistics": [{"username": "p1", "paid": 10, "received": 10}], "win_chance_history": []}
 ```
 `received` equals `paid` (stake return, not a prize).
+
+### bot_win
+Server → Room (ADR-034). The bot closed all 15 numbers on one of its cards.
+The room bank is **burned** (not paid to the bot, not refunded to the human).
+`prize` and `final_bank` are 0. Winner display name is the reserved
+username `"Bot"`. No `is_bot` field.
+```json
+{"type": "game_over", "winner": "Bot", "reason": "bot_win", "prize": 0, "final_bank": 0, "statistics": [{"username": "player", "paid": 20, "received": 0, "coins": 480}], "win_chance_history": []}
+```
 
 ---
 
