@@ -70,7 +70,9 @@ $worker->rooms[$roomId] = [
   'players' => [],
   'all_players_history' => [],
   'file_transfer' => null,  // ADR-030: null | offer/relay struct (RAM-only)
-  'bot' => null,            // ADR-034: null | bot object (RAM-only; not in players)
+  // ADR-034: reserved, not yet created by RoomManager — see
+  // IMPLEMENTATION_STATUS.md EPIC-034 (Planned). Do not treat as live.
+  'bot' => null,            // shape when EPIC-034.1 lands: bot object (not in players)
   'speed_mode' => 'slow'    // ADR-035: 'slow'|'fast' — client animation profile
 ];
 ```
@@ -84,7 +86,13 @@ pattern as `error.banned` in ADR-007):
 - `pause_for_apartment` — always `false`. Apartment pause is represented by
   `status === 'apartment'`; this flag is never toggled in production.
 
-**Bot object (ADR-034):** `$room['bot']` is `null` unless the host started
+**Bot object (ADR-034) — reserved / not yet implemented:** documented target
+shape for EPIC-034.1+. **`RoomManager::createRoom()` does not initialize
+`$room['bot']` today.** Until EPIC-034.1 ships, treat this key as registry-
+reserved only (same spirit as `error.banned` in ADR-007). See
+`IMPLEMENTATION_STATUS.md` § EPIC-034 (Planned).
+
+When implemented, `$room['bot']` is `null` unless the host started
 human-vs-computer via `play_vs_bot`. The bot is **not** an entry in
 `$room['players']`, has no `user_id` / `session_token` / SQLite row / coins,
 and never appears in `drawer_order`. Shape when present:
@@ -162,9 +170,10 @@ Allowed: `leave, disconnect, afk, refuse, banned, kicked, admin_close`. Transien
 
 ## Ownership Rules
 Host = `host_conn_id`. Current drawer = `active_drawer_conn_id` when a human
-is drawing; when the bot is drawing (ADR-034), `active_drawer_conn_id` is
-`null` and `$room['bot']['drawing'] === true`. Never merge host and drawer
-concepts. The bot is never host.
+is drawing; when the bot is drawing (ADR-034, **after EPIC-034.1**),
+`active_drawer_conn_id` is `null` and `$room['bot']['drawing'] === true`.
+Never merge host and drawer concepts. The bot is never host.
+(ADR-034 bot drawer path is reserved — not live until EPIC-034.1.)
 
 ## Drawer Order Rules
 Stored in `drawer_order` (human `conn_id`s only — the bot is never stored here):
@@ -173,10 +182,10 @@ Stored in `drawer_order` (human `conn_id`s only — the bot is never stored here
 3. Removed players skipped.
 4. Disconnected players skipped.
 5. Queue is cyclic.
-6. ADR-034 (bot present): conceptual rotation is Host → Bot → Host → …;
-   after the human draw the next drawer is the bot (immediate server draw);
-   after the bot draw the next drawer is the sole active human in
-   `drawer_order`.
+6. ADR-034 (bot present, **EPIC-034.1+**): conceptual rotation is Host → Bot →
+   Host → …; after the human draw the next drawer is the bot (immediate
+   server draw); after the bot draw the next drawer is the sole active human
+   in `drawer_order`.
 
 ## Room Destruction Rules
 Destroy room if: no players remain | game finished | admin closed room |
@@ -289,9 +298,11 @@ Priority: Victory > Apartment. If same barrel causes both, victory wins, apartme
 ## Last Survivor
 Exactly one active **human** remains and no opposing bot remains → that human
 takes entire bank: `winner.coins += bank; bank = 0`.
-When a bot is present (ADR-034), the bot counts as an opposing participant for
-this check; removing the bot with one human left yields `last_survivor` for
-the human (including immediate apartment `refuse` of the bot).
+When a bot is present (ADR-034, **EPIC-034.1+**), the bot counts as an opposing
+participant for this check; removing the bot with one human left yields
+`last_survivor` for the human (including immediate apartment `refuse` of the
+bot). Reserved until EPIC-034 ships — see `IMPLEMENTATION_STATUS.md` EPIC-034
+(Planned).
 **Qualifying condition (ADR-013):** when the triggering removal reason is `afk`, the
 survivor must have `auto_draws === 0` (no AFK auto-draws this game). If the survivor
 has `auto_draws > 0`, treat as § No Survivors (refund via `handleNoSurvivors()`). Removal
@@ -304,7 +315,8 @@ Zero active players remain → refund all participants (from `all_players_histor
 ## Economic Integrity Rule
 At any time, `bank + sum(user balances) + burned remainder` must be explainable.
 Coin creation/duplication/deletion forbidden, except daily bonus, burned
-division remainder, and the following ADR-034 intentional mechanics:
+division remainder, and the following ADR-034 intentional mechanics
+(**accepted design; not live until EPIC-034.3 / EPIC-034.4**):
 
 - **Bot-win bank burn** — when the bot wins (`game_over` reason `bot_win`),
   the room bank is destroyed (neither paid to the bot nor refunded to the
@@ -315,6 +327,8 @@ division remainder, and the following ADR-034 intentional mechanics:
   is RAM-only (`$worker->botWinStreaks`).
 
 ## Bot opponent economy (ADR-034)
+Reserved / not yet implemented — see `IMPLEMENTATION_STATUS.md` EPIC-034
+(Planned). Target rules when EPIC-034 ships:
 - Bot `total_paid` is always 0; bank at start = human stake only.
 - Human `victory` / `last_survivor` vs bot: normal bank payout; increments
   `$worker->botWinStreaks[$userId]`.
@@ -323,13 +337,13 @@ division remainder, and the following ADR-034 intentional mechanics:
   game; disconnect/reconnect without logout does **not** reset the streak.
 
 ## Mandatory Transactions
-SQLite transaction required for: `startGame()`, `play_vs_bot` human stake
-deduction (ADR-034), apartment payment, kick refund, `admin_close_room`,
-victory payout, last_survivor payout, zero-survivor refund, and the ADR-034
-streak double-bank mint (same transaction as the accompanying payout when
-possible). Bot-win bank burn does not credit any `users.coins` (bank cleared
-in RAM only). No operation may update `bank` and `users.coins` independently
-when both are involved — both succeed or both fail.
+SQLite transaction required for: `startGame()`, apartment payment, kick refund,
+`admin_close_room`, victory payout, last_survivor payout, zero-survivor refund.
+ADR-034 additions (**when EPIC-034 ships**): `play_vs_bot` human stake
+deduction, streak double-bank mint (same transaction as the accompanying
+payout when possible). Bot-win bank burn does not credit any `users.coins`
+(bank cleared in RAM only). No operation may update `bank` and `users.coins`
+independently when both are involved — both succeed or both fail.
 
 ---
 
@@ -447,30 +461,36 @@ If code contradicts this section, the spec here is correct — fix the code. No 
 Allowed states: `waiting | playing | apartment | finished`. No others.
 
 **waiting**: Room exists, game not started, no cards, bank=0.
-Allowed: `room_list, join_room, leave_room, start_game, play_vs_bot, reconnect, ping`,
+Allowed: `room_list, join_room, leave_room, start_game, reconnect, ping`,
 and when `password_hash !== null`: `room_message, file_offer, file_accept, file_reject, file_data` (ADR-030).
+ADR-034 `play_vs_bot` is **registry-reserved** (allowed once EPIC-034.1
+ships) — not dispatched today.
 Forbidden: `draw_barrel, apartment_choice`.
-Transitions: `start_game → playing`; `play_vs_bot → playing` (ADR-034: creates
-`$room['bot']`, one human + bot); `no players remain → destroyed`;
+Transitions: `start_game → playing`; `no players remain → destroyed`;
 `admin_close_room → destroyed`.
-While `$room['bot'] !== null`, `join_room` is rejected (`error.room_full`).
+ADR-034 target (EPIC-034.1+): `play_vs_bot → playing` (creates `$room['bot']`);
+while `$room['bot'] !== null`, `join_room` is rejected (`error.room_full`).
 
 **playing**: Main loop active, cards/bag/bank/drawer exist.
 Allowed: `draw_barrel, leave_room, ping, reconnect, nudge_turn`,
 and when `password_hash !== null`: `room_message, file_offer, file_accept, file_reject, file_data` (ADR-030).
-Forbidden: `join_room, start_game, play_vs_bot, apartment_choice`.
+Forbidden: `join_room, start_game, apartment_choice`
+(and `play_vs_bot` once that action exists).
 Transitions: `apartment detected → apartment`; `winner found → finished`;
-`bot win → finished` (ADR-034, reason `bot_win`); `last survivor → finished`;
-`admin_close_room → destroyed`; `no active players → destroyed`.
+`last survivor → finished`; `admin_close_room → destroyed`;
+`no active players → destroyed`.
+ADR-034 target (EPIC-034.3+): `bot win → finished` (reason `bot_win`).
 No new room states for bot mode — bot is a room field, not a state.
 
 **apartment**: Apartment event active, loop paused, no barrel drawing, waiting on required responses.
 Allowed: `apartment_choice, ping`,
 and when `password_hash !== null`: `room_message, file_offer, file_accept, file_reject, file_data` (ADR-030).
-Forbidden: `draw_barrel, start_game, play_vs_bot, join_room`. Reconnect forbidden.
+Forbidden: `draw_barrel, start_game, join_room`
+(and `play_vs_bot` once that action exists). Reconnect forbidden.
 Transitions: `apartment timer expired → playing`; `winner found → finished`;
-`last survivor → finished` (including after immediate bot `refuse` removal,
-ADR-034); `admin_close_room → destroyed`.
+`last survivor → finished`; `admin_close_room → destroyed`.
+ADR-034 target (EPIC-034.2+): last survivor after immediate bot `refuse`
+removal.
 
 **finished**: Result finalized, prizes distributed, no gameplay. Allowed: none. Immediately destroyed.
 Transition: `finished → destroyed`.
@@ -497,10 +517,11 @@ Host ownership = `host_conn_id`. Changes only if host leaves/disconnects permane
 
 ## Drawer Rules
 Drawer ownership = `active_drawer_conn_id` when a human is drawing; when the
-bot is drawing (ADR-034), `active_drawer_conn_id` is `null` and
-`$room['bot']['drawing'] === true`. Changes on: successful draw, afk auto
+bot is drawing (ADR-034, **EPIC-034.1+**), `active_drawer_conn_id` is `null`
+and `$room['bot']['drawing'] === true`. Changes on: successful draw, afk auto
 draw, drawer removal, or bot↔human handoff after a draw. Host and drawer are
 independent. The bot is never host and never receives `your_turn` / Game AFK.
+(Bot drawer path reserved — not live until EPIC-034.1.)
 
 ## Apartment Priority
 Victory > apartment. Same barrel causing both → victory; apartment must not start.
@@ -651,9 +672,10 @@ FILE_RATE_LIMIT_MAX, FILE_RATE_LIMIT_WINDOW_SECONDS, WS_MAX_PACKAGE_SIZE
 `$connection->userId, ->username, ->isAdmin, ->sessionToken, ->lastPing, ->packetCount, ->packetWindowStart` (последние два — ADR-003, rate limiting), `->clientRemoteIp` (ADR-031, IP-account cap bucketing), `->fileActionCount, ->fileActionWindowStart` (ADR-030, file-action rate limit). No additional business fields.
 
 ## Worker Storage
-`$worker->rooms`, `$worker->userConnections` (key=`userId`, value=`$connection`),
-`$worker->botWinStreaks` (ADR-034: key=`userId`, value=`int` consecutive wins
-vs bot; RAM-only, never SQLite; missing key means 0).
+`$worker->rooms`, `$worker->userConnections` (key=`userId`, value=`$connection`).
+`$worker->botWinStreaks` (ADR-034): **reserved, not yet created** — see
+`IMPLEMENTATION_STATUS.md` EPIC-034 (Planned). Target: key=`userId`,
+value=`int` consecutive wins vs bot; RAM-only; missing key means 0.
 
 ## Room Structure Keys (allowed, no others without ADR)
 ```
@@ -672,9 +694,11 @@ struct (`state`, `offer_id`, `sender_conn_id`, `recipient_conn_id`,
 `sender_username`, `recipient_username`, `filename`, `size_bytes`, `timer_id`).
 Never persisted.
 
-`bot` (ADR-034): `null` when idle / human-vs-human; otherwise RAM-only bot
-object (`username`, `cards`, `cards_count`, `total_paid`, `immune`, `drawing`,
-`status`). Never an entry in `players`. Never persisted.
+`bot` (ADR-034): **reserved, not yet created by `RoomManager::createRoom()`** —
+see `IMPLEMENTATION_STATUS.md` EPIC-034 (Planned). Target shape when EPIC-034.1
+lands: `null` | RAM-only bot object (`username`, `cards`, `cards_count`,
+`total_paid`, `immune`, `drawing`, `status`). Never an entry in `players`.
+Never persisted.
 
 `speed_mode` (ADR-035): `'slow'` \| `'fast'` (default `'slow'`). Set at
 `create_room` only; frozen for the room lifetime. Client animation profile
@@ -729,8 +753,9 @@ admin_change_password_result,
 room_message, file_offer, file_accepted, file_rejected, file_data, file_offer_expired
 ```
 
-`game_over.reason` values (ADR-034): `victory`, `last_survivor`, `no_survivors`,
-`bot_win`.
+`game_over.reason` values: `victory`, `last_survivor`, `no_survivors`.
+ADR-034 `bot_win` is **registry-reserved** (not emitted until EPIC-034.3) —
+see `IMPLEMENTATION_STATUS.md` EPIC-034 (Planned).
 
 ## Protocol Actions (allowed)
 ```
@@ -742,6 +767,8 @@ admin_change_password, admin_delete_user, admin_bulk_delete_users,
 room_message, file_offer, file_accept, file_reject, file_data
 ```
 
+`play_vs_bot` (ADR-034): **registry-reserved**, not dispatched until
+EPIC-034.1 — see `IMPLEMENTATION_STATUS.md` EPIC-034 (Planned).
 ## Logging
 Only `serverLog()`. Levels: `INFO, WARNING, ERROR`.
 

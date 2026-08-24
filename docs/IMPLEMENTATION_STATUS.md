@@ -67,6 +67,8 @@ Planned Epic split (Rule 11 — separate diffs/commits):
 
 Anchor amendments already applied with the ADR: `ANCHOR_CORE.md` Parts 1/2/4/6,
 `ANCHOR_PROTOCOL.md` (`play_vs_bot`, `bot_win`, reserved username `Bot`).
+Those surfaces are annotated **reserved / not yet implemented** until the
+matching EPIC-034.* code lands (RoomManager does not create `bot` yet).
 
 ---
 
