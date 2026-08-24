@@ -35,6 +35,8 @@
     nextDrawer: null,
     isMyTurn: false,
     nudgedThisTurn: false,
+    speedMode: 'slow',
+    slotsSpinStartedAt: 0,
     adminReturnScreen: 'lobby',
     immune: false,
     inApartment: false,
@@ -291,6 +293,7 @@
 
   async function animateBarrelsDrawn(pkt) {
     const nums = pkt.numbers || [];
+    const fast = state.speedMode === 'fast';
 
     UI().hideTurnControls();
     state.drawLocked = true;
@@ -298,24 +301,52 @@
     // Кнопка уже запустила все 3 барабана; иначе (ход соперника / автоход) — крутим с нуля.
     if (!UI().isSlotsSpinning()) {
       UI().startSlotsWaiting();
-      await sleep(300);
+      state.slotsSpinStartedAt = Date.now();
+      if (!fast) await sleep(300);
     }
 
-    // Останавливаем слева направо: каждый барабан замедляется, остальные продолжают вращение.
-    for (let i = 0; i < 3; i++) {
-      if (i < nums.length) {
-        await UI().revealSlot(i, nums[i]);
-        const n = nums[i];
-        state.myMasks = UI().markNumberOnCards(state.myCards, state.myMasks, n);
-        if (isNumberOnMyCards(state.myCards, n)) Sound()?.play('match');
-        if (!state.drawnAll.includes(n)) state.drawnAll.push(n);
-        UI().renderDrawnHistory(state.drawnAll, state.myCards, state.myMasks);
-        UI().renderCards(state.myCards, state.myMasks, state.cardIndex, [n]);
-        await sleep(100);
-      } else {
-        UI().idleSlot(i);
+    if (fast) {
+      // ADR-035: 1.0s spin-up + 0.5s full spin, then L→R stops every 0.5s (~3s total).
+      const started = state.slotsSpinStartedAt || Date.now();
+      const waitBeforeFirstStop = Math.max(0, 1500 - (Date.now() - started));
+      await sleep(waitBeforeFirstStop);
+
+      for (let i = 0; i < 3; i++) {
+        if (i < nums.length) {
+          const stopStarted = Date.now();
+          await UI().revealSlot(i, nums[i], { mode: 'fast' });
+          const n = nums[i];
+          state.myMasks = UI().markNumberOnCards(state.myCards, state.myMasks, n);
+          if (isNumberOnMyCards(state.myCards, n)) Sound()?.play('match');
+          if (!state.drawnAll.includes(n)) state.drawnAll.push(n);
+          UI().renderDrawnHistory(state.drawnAll, state.myCards, state.myMasks);
+          // Fast mode: mark instantly, omit gold pulse (no flashNums).
+          UI().renderCards(state.myCards, state.myMasks, state.cardIndex, null);
+          const remaining = 500 - (Date.now() - stopStarted);
+          if (i < 2 && remaining > 0) await sleep(remaining);
+        } else {
+          UI().idleSlot(i);
+        }
+      }
+    } else {
+      // Slow: stop left-to-right with ~3s spacing (existing decelerating reveal).
+      for (let i = 0; i < 3; i++) {
+        if (i < nums.length) {
+          await UI().revealSlot(i, nums[i]);
+          const n = nums[i];
+          state.myMasks = UI().markNumberOnCards(state.myCards, state.myMasks, n);
+          if (isNumberOnMyCards(state.myCards, n)) Sound()?.play('match');
+          if (!state.drawnAll.includes(n)) state.drawnAll.push(n);
+          UI().renderDrawnHistory(state.drawnAll, state.myCards, state.myMasks);
+          UI().renderCards(state.myCards, state.myMasks, state.cardIndex, [n]);
+          await sleep(100);
+        } else {
+          UI().idleSlot(i);
+        }
       }
     }
+
+    state.slotsSpinStartedAt = 0;
 
     if (pkt.win_chances) {
       applyMyWinChance(pkt.win_chances);
@@ -452,6 +483,7 @@
   }
 
   function onRoomJoined(pkt) {
+    state.speedMode = pkt.speed_mode === 'fast' ? 'fast' : 'slow';
     state.room = {
       room_id: pkt.room_id,
       host: pkt.host,
@@ -459,6 +491,7 @@
       bank: pkt.bank,
       bet_per_card: pkt.bet_per_card,
       has_password: !!pkt.has_password,
+      speed_mode: state.speedMode,
       players: pkt.players || [],
       host_timeout_start: pkt.host_timeout_start ?? null,
       host_timeout_seconds: pkt.host_timeout_seconds ?? null,
@@ -714,6 +747,7 @@
     }
     if (pkt.status === 'waiting') {
       state.inGame = false;
+      state.speedMode = pkt.speed_mode === 'fast' ? 'fast' : 'slow';
       state.room = {
         room_id: pkt.room_id,
         host: pkt.host ?? '',
@@ -721,6 +755,7 @@
         bank: pkt.bank || 0,
         bet_per_card: pkt.bet_per_card ?? state.room?.bet_per_card,
         has_password: !!(pkt.has_password ?? state.room?.has_password),
+        speed_mode: state.speedMode,
         players: pkt.players || [],
         host_timeout_start: pkt.host_timeout_start ?? null,
         host_timeout_seconds: pkt.host_timeout_seconds ?? null,
@@ -733,12 +768,14 @@
       UI().showRoomPanel(state.room, state.user?.username);
     } else if (pkt.status === 'playing') {
       state.inGame = true;
+      state.speedMode = pkt.speed_mode === 'fast' ? 'fast' : 'slow';
       state.room = {
         room_id: pkt.room_id,
         host: pkt.host ?? state.room?.host ?? '',
         status: 'playing',
         bank: pkt.bank || 0,
         has_password: !!(pkt.has_password ?? state.room?.has_password),
+        speed_mode: state.speedMode,
         players: pkt.players || [],
       };
       state.bank = pkt.bank || 0;
@@ -897,6 +934,8 @@
     state.inGame = false;
     state.inApartment = false;
     state.room = null;
+    state.speedMode = 'slow';
+    state.slotsSpinStartedAt = 0;
     state.myCards = [];
     state.myMasks = [];
     state.players = [];
@@ -1062,6 +1101,7 @@
         max_players: parseInt(UI().$('#create-max-players').value, 10) || 10,
         password: UI().$('#create-password').value || '',
         cards_count: parseInt(UI().$('#create-cards-count').value, 10) || 1,
+        speed_mode: UI().$('#create-speed-mode')?.value === 'fast' ? 'fast' : 'slow',
       });
       UI().$('#create-room-panel')?.classList.add('hidden');
     });
@@ -1109,6 +1149,7 @@
       state.drawLocked = true;
       UI().hideTurnControls();
       UI().startSlotsWaiting();
+      state.slotsSpinStartedAt = Date.now();
       socket.sendAction('draw_barrel');
     });
 

@@ -70,7 +70,8 @@ $worker->rooms[$roomId] = [
   'players' => [],
   'all_players_history' => [],
   'file_transfer' => null,  // ADR-030: null | offer/relay struct (RAM-only)
-  'bot' => null             // ADR-034: null | bot object (RAM-only; not in players)
+  'bot' => null,            // ADR-034: null | bot object (RAM-only; not in players)
+  'speed_mode' => 'slow'    // ADR-035: 'slow'|'fast' — client animation profile
 ];
 ```
 
@@ -103,6 +104,10 @@ $room['bot'] = [
 While the bot is the current drawer: `active_drawer_conn_id = null` and
 `bot['drawing'] = true`. Engine subsystems that iterate participants must use
 an explicit parallel bot branch (see ADR-034 §4–§6).
+
+**Speed mode (ADR-035):** `$room['speed_mode']` is `'slow'` (default) or
+`'fast'`. Chosen only at `create_room`, frozen for the room lifetime. Affects
+**client slot-animation timing only** — server draw/AFK semantics unchanged.
 
 ## Player Structure
 ```php
@@ -657,7 +662,7 @@ apartment_fired, pause_for_apartment, apartment_responses, win_chance_history,
 active_drawer_conn_id,
 drawer_order, bag, drawn_numbers, players, all_players_history,
 lobby_afk_timer_id, game_afk_timer_id, apartment_timer_id,
-file_transfer, bot
+file_transfer, bot, speed_mode
 ```
 Reserved (ADR-022): `bet_per_card`, `pause_for_apartment` — see § Room Structure
 reserved keys above; remain in the registry but are not consumed at runtime.
@@ -670,6 +675,10 @@ Never persisted.
 `bot` (ADR-034): `null` when idle / human-vs-human; otherwise RAM-only bot
 object (`username`, `cards`, `cards_count`, `total_paid`, `immune`, `drawing`,
 `status`). Never an entry in `players`. Never persisted.
+
+`speed_mode` (ADR-035): `'slow'` \| `'fast'` (default `'slow'`). Set at
+`create_room` only; frozen for the room lifetime. Client animation profile
+only — not read by draw/AFK engine paths.
 
 Test-only hook (ADR-022): `_apartment_participants` — leading underscore by
 convention; never created by production code paths, only read defensively by

@@ -183,6 +183,13 @@ final class LobbyService
             return;
         }
 
+        // --- 5b. Валидация speed_mode (ADR-035; omitted ⇒ slow) ---
+        $speedMode = $data['speed_mode'] ?? 'slow';
+        if (!is_string($speedMode) || ($speedMode !== 'slow' && $speedMode !== 'fast')) {
+            sendError($connection, 'error.invalid_json', 'speed_mode must be slow or fast');
+            return;
+        }
+
         // --- 6. Хеш пароля (опционально) ---
         $passwordRaw = $data['password'] ?? '';
         $passwordHash = (is_string($passwordRaw) && $passwordRaw !== '')
@@ -192,6 +199,7 @@ final class LobbyService
         // --- 7. Создание комнаты ---
         $connId = $connection->id;
         $roomId = $this->roomManager->createRoom($worker, $connId, $maxPlayers, $passwordHash);
+        $worker->rooms[$roomId]['speed_mode'] = $speedMode;
 
         // --- 8. Добавление хоста как первого игрока ---
         $worker->rooms[$roomId]['players'][$connId] = $this->buildPlayerEntry(
@@ -204,7 +212,8 @@ final class LobbyService
 
         $this->logger->info(
             "Room {$roomId} created by user_id={$connection->userId}" .
-            " username={$connection->username} cards_count={$cardsCount} max_players={$maxPlayers}"
+            " username={$connection->username} cards_count={$cardsCount}" .
+            " max_players={$maxPlayers} speed_mode={$speedMode}"
         );
 
         // --- 9. Ответный пакет room_joined ---
@@ -730,6 +739,7 @@ final class LobbyService
             'bank'         => $room['bank'],
             'bet_per_card' => (int) ($room['bet_per_card'] ?? Constants::BET_PER_CARD),
             'has_password' => $room['password_hash'] !== null,
+            'speed_mode'   => (($room['speed_mode'] ?? 'slow') === 'fast') ? 'fast' : 'slow',
             'players'      => $players,
         ], $this->lobbyHostTimeoutFields($room));
     }

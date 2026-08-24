@@ -335,6 +335,7 @@ final class ReconnectService
             'room_id'      => $room['room_id'],
             'bank'         => $room['bank'] ?? 0,
             'has_password' => ($room['password_hash'] ?? null) !== null,
+            'speed_mode'   => (($room['speed_mode'] ?? 'slow') === 'fast') ? 'fast' : 'slow',
         ];
 
         if ($this->stmts !== null && $player !== null && (int) ($player['user_id'] ?? 0) > 0) {

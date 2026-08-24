@@ -1,5 +1,56 @@
 # Implementation Status — Lotto Game Project
 
+## EPIC-035 — Room game-speed mode (ADR-035) (2026-08-24)
+
+Status: Completed
+
+- [DONE] ADR-035 accepted; `speed_mode` on Room Structure + registries
+- [DONE] Server: `create_room` optional `speed_mode` (default `slow`); wire into
+  `room_list`, `room_joined`, `reconnect_state` (waiting + playing)
+- [DONE] Client: create-room select, room list column, room panel label
+- [DONE] Fast animation profile (~3s total, L→R stops); slow unchanged
+- [DONE] Gold pulse omitted in fast mode; audio unchanged
+- [DONE] i18n keys in en/ru/es/fr/zh/tr
+
+CHANGED:
+- docs/ADR/035-room-game-speed-mode.md (new)
+- docs/ANCHOR_CORE.md (Room Structure + Part 6 `speed_mode`)
+- docs/ANCHOR_PROTOCOL.md (`create_room`, `room_list`, `room_joined`, `reconnect_state`)
+- src/Core/RoomManager.php
+- src/Lobby/LobbyService.php
+- src/Game/ReconnectService.php
+- public/js/app.js
+- public/js/ui.js
+- public/index.html
+- public/locales/{en,ru,es,fr,zh,tr}.json
+- docs/IMPLEMENTATION_STATUS.md
+
+NOT CHANGED:
+- GameTurnService / LottoEngine draw logic
+- Game AFK / ReconnectService AFK timers
+- animationQueue max-3 semantics
+- spin.mp3 / reveal.mp3 behavior
+- PROTOCOL_VERSION
+- `player_joined` payload (mode via `room_joined` only)
+
+Commit: pending
+Notes: Single Epic (client animation + one room field). No PHP automated timing
+test — client animation only.
+
+VERIFICATION:
+MANUAL VERIFICATION REQUIRED
+1. Create a **fast** room (`speed_mode=fast`). Start a 2-player game. On
+   "Draw barrel", stopwatch the full draw→all-three-revealed sequence.
+   Expected: ≈3s total; reels stop left-to-right; cards mark without gold pulse.
+2. Create a **slow** room (default). Confirm existing ~3s-per-number reveal
+   spacing and gold pulse still present.
+3. Mid-game in a fast room: reload / reconnect. Confirm UI still uses fast
+   animation (from `reconnect_state.speed_mode`) without recreating the room.
+4. Lobby `room_list`: confirm Speed column shows Slow/Fast for each room.
+5. Omit `speed_mode` in a raw `create_room` packet → room behaves as slow.
+
+---
+
 ## EPIC-034 — Bot opponent (ADR-034) (planned)
 
 Status: Planned (ADR accepted; coding not started)

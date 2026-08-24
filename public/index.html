@@ -90,6 +90,13 @@
               <option value="2">2</option>
             </select>
           </label>
+          <label>
+            <span data-i18n="lobby.speedMode">Game speed</span>
+            <select id="create-speed-mode">
+              <option value="slow" data-i18n="lobby.speedSlow">Slow</option>
+              <option value="fast" data-i18n="lobby.speedFast">Fast</option>
+            </select>
+          </label>
           <button type="button" id="create-room-submit" class="btn primary" data-i18n="lobby.createRoom">Create Room</button>
           <button type="button" id="create-room-cancel" class="btn" data-i18n="common.cancel">Cancel</button>
         </div>
@@ -122,6 +129,7 @@
               <th data-i18n="lobby.roomId">Room</th>
               <th data-i18n="lobby.players">Players</th>
               <th data-i18n="lobby.status">Status</th>
+              <th data-i18n="lobby.speedModeShort">Speed</th>
               <th data-i18n="lobby.password">Lock</th>
               <th></th>
             </tr>
@@ -140,6 +148,10 @@
               <div class="room-meta-item">
                 <dt data-i18n="lobby.bank">Bank</dt>
                 <dd><span id="room-bank-label">0</span></dd>
+              </div>
+              <div class="room-meta-item">
+                <dt data-i18n="lobby.speedMode">Game speed</dt>
+                <dd id="room-speed-label">—</dd>
               </div>
             </dl>
           </div>

@@ -176,15 +176,18 @@ Server → Client
 ```
 Room entry:
 ```json
-{"room_id": 7, "players": 3, "max_players": 10, "has_password": false, "status": "waiting"}
+{"room_id": 7, "players": 3, "max_players": 10, "has_password": false, "status": "waiting", "speed_mode": "slow"}
 ```
-
+`speed_mode` (ADR-035): `"slow"` \| `"fast"` so lobby clients can filter/pick
+by animation profile.
 ### create_room
 Client → Server
 ```json
-{"action": "create_room", "max_players": 10, "password": "", "cards_count": 1}
+{"action": "create_room", "max_players": 10, "password": "", "cards_count": 1, "speed_mode": "slow"}
 ```
 `cards_count`: `1 or 2`
+`speed_mode` (ADR-035, optional): `"slow"` \| `"fast"`. Omitted ⇒ `"slow"`.
+Frozen for the room lifetime. Invalid value → `error.invalid_json`.
 
 ### join_room
 Client → Server
@@ -201,9 +204,10 @@ Client → Server
 ### room_joined
 Server → Client. `players[]` includes each seated player's `cards_count` (public); card numbers do not exist until `start_game`.
 ```json
-{"type": "room_joined", "room_id": 7, "host": "player1", "status": "waiting", "bank": 0, "bet_per_card": 10, "has_password": true, "players": [], "host_timeout_start": 1704067150, "host_timeout_seconds": 120}
+{"type": "room_joined", "room_id": 7, "host": "player1", "status": "waiting", "bank": 0, "bet_per_card": 10, "has_password": true, "speed_mode": "slow", "players": [], "host_timeout_start": 1704067150, "host_timeout_seconds": 120}
 ```
 `has_password` (ADR-030): `true` when `password_hash !== null`; drives client chat panel visibility.
+`speed_mode` (ADR-035): `"slow"` \| `"fast"` — client slot-animation profile.
 `host_timeout_start` / `host_timeout_seconds`: present when a lobby host is assigned (≥2 players); countdown until host AFK transfer.
 Player entry:
 ```json
@@ -216,6 +220,8 @@ Server → Room
 {"type": "player_joined", "username": "player", "cards_count": 1, "host": "player1", "host_timeout_start": 1704067150, "host_timeout_seconds": 120}
 ```
 When ≥2 players are seated, includes current lobby host AFK deadline (`host.last_action` + `LOBBY_HOST_TIMEOUT`) so all clients stay in sync.
+Does **not** include `speed_mode` (ADR-035) — room-wide mode is delivered via
+`room_joined` / `room_list` / `reconnect_state`.
 
 ### player_left
 Server → Room
@@ -454,12 +460,14 @@ Server → Client. Reconnect is forbidden during apartment state.
 
 Waiting room:
 ```json
-{"type": "reconnect_state", "status": "waiting", "room_id": 5, "bank": 0, "bet_per_card": 10, "coins": 490, "drawn_all": [], "my_cards": null}
+{"type": "reconnect_state", "status": "waiting", "room_id": 5, "bank": 0, "bet_per_card": 10, "speed_mode": "slow", "coins": 490, "drawn_all": [], "my_cards": null}
 ```
 Playing (`my_cards` / `my_masks` — own cards only; `players[].cards_count` visible for all):
 ```json
-{"type": "reconnect_state", "status": "playing", "room_id": 5, "bank": 80, "coins": 490, "drawn_all": [], "my_cards": [], "players": [{"username": "player1", "cards_count": 1, "status": "active"}, {"username": "player2", "cards_count": 2, "status": "removed", "reason": "disconnect"}], "win_chances": {"player1": 50, "player2": 50}, "is_my_turn": true, "afk_start": 1704067200, "turn_seconds": 30, "auto_draws": 0}
+{"type": "reconnect_state", "status": "playing", "room_id": 5, "bank": 80, "speed_mode": "fast", "coins": 490, "drawn_all": [], "my_cards": [], "players": [{"username": "player1", "cards_count": 1, "status": "active"}, {"username": "player2", "cards_count": 2, "status": "removed", "reason": "disconnect"}], "win_chances": {"player1": 50, "player2": 50}, "is_my_turn": true, "afk_start": 1704067200, "turn_seconds": 30, "auto_draws": 0}
 ```
+`speed_mode` (ADR-035): present on waiting and playing reconnect payloads so
+the client restores the correct slot-animation profile after reload.
 `coins` (ADR-016 §2): the reconnecting player's current `users.coins` balance,
 read fresh from the database — resyncs any change that happened while disconnected
 (daily bonus, admin adjustment, etc.) that the client would otherwise not see until

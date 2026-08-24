@@ -86,6 +86,7 @@ final class RoomManager
             'all_players_history'   => [],
             'game_roster'           => [],
             'file_transfer'         => null, // ADR-030
+            'speed_mode'            => 'slow', // ADR-035
         ];
 
         $this->logger->info("Room created: room_id={$roomId} host_conn_id={$hostConnId} max_players={$maxPlayers}");
@@ -265,6 +266,7 @@ final class RoomManager
             'max_players' => $room['max_players'],
             'has_password' => $room['password_hash'] !== null,
             'status'      => $room['status'],
+            'speed_mode'  => (($room['speed_mode'] ?? 'slow') === 'fast') ? 'fast' : 'slow',
         ];
     }
 
