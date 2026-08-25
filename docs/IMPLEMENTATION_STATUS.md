@@ -2,58 +2,36 @@
 
 ## Pre-deploy regression pass (feature/room-chat-files) (2026-08-24)
 
-Status: In progress — **pull through latest (Cluster G+B) on VPS before re-running**
+Status: **Completed** — VPS `php run_ALL_tests.php` **57/57** twice in a row
+(2026-08-25, no code changes between runs). Branch is Part-15 deploy-ready;
+`systemctl restart lotto-server.service` still requires an explicit deploy step.
 
-### Cluster G (register crash: `removeExistingSeatForUser`)
-- Call site in `SessionGuardService::claimUserSession` dates to **`95ad73d`**
-  (EPIC-027.0, 2026-08-07) — **not** introduced by Cluster A/C/D fixes.
-- Real method exists: `LobbyService::removeExistingSeatForUser()`; `server.php`
-  wires a real `LobbyService`. **Live register/login is safe** — crash was
-  fixture-only: Cluster A (`9b42e62`) set FlowWorker `$lobbyService` stub with
-  only `broadcastRoomList`, so `isset($lobbyService)` became true and
-  `freshLogin` register called a missing method.
-- Fix: `is_callable(...removeExistingSeatForUser)` guard + stub method on
-  FlowWorker/MockWorker fixtures.
+### Fix commits (feature/room-chat-files)
+| Cluster | Commit | Summary |
+|---------|--------|---------|
+| A | `9b42e62` | Guard `lobbyService.broadcastRoomList` + FlowWorker stubs |
+| C | `e77dd10` | `FakeLoggerWithLines::getLinesSinceSeconds` |
+| D | `8ba0813` | Kick/timer/protocol registry alignment |
+| E | `59a83f2` | i18n parity es/fr/zh/tr (4 keys) |
+| docs | `712938f` | Mark EPIC-033/035 in progress pending suite |
+| G/B/D+F | `6042a57` | Seat-removal `is_callable` guard; WS drain helpers; auth FIX-30 asserts; packet TEST 3 burst harden |
+| H/I/J | `3f5f8d2` | Game routing `;`; room_list drain; solo `host` + apartment-timer contracts; `RcMockGame::calculateWinChances` |
 
-### Cluster B (live WS routing — packet queue desync)
-- Not a production fatal on join/start (same signature as “missing packet”).
-- Live server correctly fan-outs `host_changed` + `room_list` after create/join/
-  start/leave; MiniWS clients assumed one frame per action → cascade FAILs.
-- Fix: `wsRecvOfType` / `wsRecvIgnoringSync` / `wsDrainBrief` in
-  `ws_test_harness.php`; applied to lobby/game/admin packet routing tests.
-
-Clusters A–E code fixes remain on this branch (`9b42e62` … `712938f`). A second
-VPS suite at **43/57** with **identical** Cluster A/B/C line numbers matched the
-**pre-fix** tree when those runs were taken.
-
-Cluster F (`test_packet_validation.php` TEST 3): timing flake vs
-`RATE_LIMIT_WINDOW_SECONDS = 1` — harness hardened (burst + elapsed &lt; 0.5s).
-
-KNOWN GAPS / bisection notes (Cluster D):
-- `test_admin_kick.php` TEST 9: assertion expected early apartment finish
-  (EPIC-13.5). Production behavior since `ca8533d` matches ANCHOR_CORE Part 5
-  ("apartment timer not destroyed early when all answered") —
-  `maybeFinishApartmentEarly` only triggers `handleNoSurvivors` when zero
-  active remain. Test updated to expect `status === 'apartment'` after kick.
-- `test_timer_integrity.php` TEST 5: anonymous `extends PDO` without
-  `parent::__construct()` broke after ADR-016 coins lookup in
-  `GameFinishService` — fixture updated to real `sqlite::memory:` + users row
-  (not an implementation regression).
-- `test_protocol_completeness.php`: FAIL was `play_vs_bot` in the fenced
-  Protocol Actions list while not wired in `server.php` (ADR-034 reserved).
-  Removed from fenced list; prose reservation retained.
-- `test_auth_integration.php` (2 fails on VPS): stale AuthService expectations
-  from pre–FIX-30 API — (1) asserted `worker->userConnections` after
-  `AuthService::login` (binding moved to SessionGuardService/AuthHandler);
-  (2) expected `User already logged in` on a second `AuthService::login`
-  (single-session is claimUserSession, not AuthService). Assertions updated
-  to the current ADR-001 / FIX-30 contract.
+### Cluster notes (resolved)
+- **A:** Production already wired `lobbyService`; fatals were incomplete test stubs.
+- **B:** Live WS routing — MiniWS packet-queue desync vs `host_changed`/`room_list` fan-outs (harness), not production fatals.
+- **C:** Admin logs time-window path; fake logger stub.
+- **D:** Stale kick/apartment early-finish assert; PDO fixture; `play_vs_bot` fenced-list; AuthService login contract.
+- **E:** Locale key parity.
+- **F:** `test_packet_validation` TEST 3 timing flake — burst harden (not product).
+- **G:** Fixture-only register crash after partial Cluster A stub; live `LobbyService` safe.
+- **H/I/J:** Syntax `;`; admin `room_list` drain; solo-create empty `host`; apartment full-timer + mock win chances.
 
 ---
 
 ## EPIC-035 — Room game-speed mode (ADR-035) (2026-08-24)
 
-Status: In progress — regression fixes pending (pre-deploy audit / full test suite)
+Status: Completed
 
 - [DONE] ADR-035 accepted; `speed_mode` on Room Structure + registries
 - [DONE] Server: `create_room` optional `speed_mode` (default `slow`); wire into
@@ -62,15 +40,13 @@ Status: In progress — regression fixes pending (pre-deploy audit / full test s
 - [DONE] Fast animation profile (~3s total, L→R stops); slow unchanged
 - [DONE] Gold pulse omitted in fast mode; audio unchanged
 - [DONE] i18n keys in en/ru/es/fr/zh/tr
-- [IN PROGRESS] Pre-deploy: restore clean `php run_ALL_tests.php` (57/57)
+- [DONE] Pre-deploy: VPS `php run_ALL_tests.php` 57/57 ×2 (2026-08-25)
 
-Commit: 341e420 (+ follow-up regression fixes on this branch)
-Notes: Marked Completed prematurely before full VPS suite; Part 15 requires
-clean automated verification before deploy-ready.
+Commit: 341e420 (+ regression fixes through `3f5f8d2`)
+Notes: Part 15 automated verification satisfied; deploy still needs explicit service restart.
 
 VERIFICATION:
-MANUAL VERIFICATION REQUIRED (client timing) + VPS `php run_ALL_tests.php`
-after Cluster A–E regression fixes.
+MANUAL VERIFICATION REQUIRED (client timing) + VPS `php run_ALL_tests.php` **57/57 ×2** PASS.
 ---
 
 ## EPIC-034 — Bot opponent (ADR-034) (planned)
@@ -96,7 +72,7 @@ matching EPIC-034.* code lands (RoomManager does not create `bot` yet).
 
 ## EPIC-033C — Admin players delete + dropdown (ADR-033) (2026-08-23)
 
-Status: In progress — regression fixes pending (pre-deploy audit / full test suite)
+Status: Completed
 
 - [DONE] `admin_delete_user` / `admin_bulk_delete_users` with busy guards (online / players / history / roster)
 - [DONE] All-or-nothing bulk PDO transaction; no auto-kick
@@ -131,7 +107,7 @@ NOT CHANGED:
 
 ## EPIC-033B — Admin rooms dropdown (ADR-033) (2026-08-23)
 
-Status: In progress — regression fixes pending (pre-deploy audit / full test suite)
+Status: Completed
 
 - [DONE] Replace admin rooms flat table with `<select>` + detail + Close
 - [DONE] Reuse existing `admin_stats_data.rooms` / `room_list` fields only (no protocol)
@@ -161,7 +137,7 @@ NOT CHANGED:
 
 ## EPIC-033A — Admin password rotation (ADR-033) (2026-08-23)
 
-Status: In progress — regression fixes pending (pre-deploy audit / full test suite)
+Status: Completed
 
 - [DONE] ADR-033 accepted (password rotation + account deletion design; Epic B UI-only confirmed)
 - [DONE] `PasswordPolicy::validateAdminPassword()` shared helper (registration rules untouched)
