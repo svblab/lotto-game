@@ -357,6 +357,9 @@ try {
         'p1 receives player_left(reason=admin_close)'
     );
 
+    // Drop any pre-close room_list fan-outs (and the post-destroy broadcast)
+    // so the explicit room_list below is the packet we assert on.
+    wsDrainBrief($admin, 0.4);
     $admin->send(json_encode(['action' => 'room_list']));
     $finalRoomList = wsRecvOfType($admin, 'room_list');
     $closedStillListed = false;

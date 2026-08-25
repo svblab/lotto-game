@@ -439,7 +439,30 @@ assertTrue($aptWorker->rooms[99]['status'] === 'apartment', 'apartment triggered
 
 $aptStack['apartmentService']->handleApartmentChoice($h, $aptWorker, 'agree', $aptStack['gameService']);
 $aptStack['apartmentService']->handleApartmentChoice($g, $aptWorker, 'agree', $aptStack['gameService']);
-assertTrue($aptWorker->rooms[99]['status'] === 'playing', 'apartment complete resumes playing');
+// ANCHOR_CORE Part 5 / EPIC-13.5: apartment runs the full timer window.
+// Unanimous agree only records votes for required (non-immune) players —
+// finishApartment runs on timeout (same contract as test_admin_kick TEST 9).
+// Host has a closed row → immune; guest is required.
+assertTrue(
+    $aptWorker->rooms[99]['status'] === 'apartment',
+    'apartment stays apartment after votes (waits for timer)'
+);
+assertTrue(
+    ($aptWorker->rooms[99]['players'][$h->id]['immune'] ?? false) === true,
+    'closed-row host is immune (not required to vote)'
+);
+assertTrue(
+    ($aptWorker->rooms[99]['apartment_responses'][$g->id] ?? null) === 'agree',
+    'required guest agree vote recorded while still in apartment'
+);
+
+$aptStack['apartmentService']->onApartmentTimeout(
+    $aptWorker->rooms[99],
+    99,
+    $aptWorker,
+    $aptStack['gameService']
+);
+assertTrue($aptWorker->rooms[99]['status'] === 'playing', 'apartment timeout resumes playing');
 
 $logFailures = StateMachineAudit::validateLog(StateMachineAudit::parseLog($auditLogPath));
 assertTrue(count($logFailures) === 0, 'GROUP 3 audit log validates');
@@ -583,6 +606,12 @@ class RcMockGame
     public function finishGame(array &$room, int $roomId, array $winners, array $prizes, object $worker, string $reason = 'victory'): void {}
     public function nextDrawer(array &$room): void {}
     public function sendYourTurn(array &$room): void {}
+
+    /** ReconnectService::buildReconnectState() — real GameService has this (ADR-014). */
+    public function calculateWinChances(array $players, ?string $roomStatus = null): array
+    {
+        return [];
+    }
 }
 
 $rcSvc = new ReconnectService(new RcMockLobby(), new RcMockGame(), new FakeLogger());

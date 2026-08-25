@@ -215,7 +215,7 @@ try {
     check(($joined['type'] ?? null) === 'room_joined', 'setup: p2 room_joined');
     wsRecvOfType($host, 'player_joined'); // + skip host_changed/room_list fan-outs
     wsDrainBrief($host);
-    wsDrainBrief($p2)
+    wsDrainBrief($p2);
 
     // =========================================================================
     // TEST 1: non-host start_game -> error.not_your_turn

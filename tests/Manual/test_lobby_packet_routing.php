@@ -198,7 +198,9 @@ try {
     check(isset($data1['room_id']), 'room_id присутствует');
     check(($data1['status'] ?? null) === 'waiting', 'status=waiting');
     check(($data1['bank'] ?? null) === 0, 'bank=0');
-    check(($data1['host'] ?? null) === 'e104_host', 'host=username создателя');
+    // Lobby host username is client-visible only when ≥2 players are seated
+    // (LobbyHostService::resolveLobbyHostUsername / ADR lobby-AFK host).
+    check(($data1['host'] ?? null) === '', 'host empty with 1 player (assigned at ≥2)');
     check(count($data1['players'] ?? []) === 1, 'players count=1');
     $roomId = (int)($data1['room_id'] ?? 0);
     wsDrainBrief($host);
