@@ -57,6 +57,7 @@ class MockWorker
     {
         $this->lobbyService = new class {
             public function broadcastRoomList(object $worker): void {}
+            public function removeExistingSeatForUser(object $worker, int $userId, string $reason): void {}
         };
     }
 }

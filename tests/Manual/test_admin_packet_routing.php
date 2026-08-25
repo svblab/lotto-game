@@ -196,7 +196,7 @@ try {
     // =========================================================================
     echo "\nTEST 1: non-admin admin_get_logs -> error.not_your_turn\n";
     $p1->send(json_encode(['action' => 'admin_get_logs']));
-    $data1 = json_decode($p1->recvOrNull() ?? '', true);
+    $data1 = wsRecvIgnoringSync($p1);
     check(($data1['code'] ?? null) === 'error.not_your_turn', 'code=error.not_your_turn');
 
     // =========================================================================
@@ -207,7 +207,7 @@ try {
     $anon = new AdminRoutingClient('127.0.0.1', $wsPort);
     $anon->recvOrNull();
     $anon->send(json_encode(['action' => 'admin_kick_user', 'user_id' => $p1Id]));
-    $data2 = json_decode($anon->recvOrNull() ?? '', true);
+    $data2 = wsRecvIgnoringSync($anon);
     check(($data2['code'] ?? null) === 'error.auth_required', 'code=error.auth_required');
     $anon->close();
 
@@ -217,7 +217,7 @@ try {
     // =========================================================================
     echo "\nTEST 3: admin admin_get_logs -> admin_logs_data\n";
     $admin->send(json_encode(['action' => 'admin_get_logs']));
-    $data3 = json_decode($admin->recvOrNull() ?? '', true);
+    $data3 = wsRecvOfType($admin, 'admin_logs_data');
     check(($data3['type'] ?? null) === 'admin_logs_data', 'type=admin_logs_data');
     check(is_array($data3['lines'] ?? null), 'lines field present as array');
 
@@ -229,7 +229,7 @@ try {
     $stmt->execute();
     $adminSelfId = (int)$stmt->fetchColumn();
     $admin->send(json_encode(['action' => 'admin_ban_user', 'user_id' => $adminSelfId, 'duration' => '1d']));
-    $data4 = json_decode($admin->recvOrNull() ?? '', true);
+    $data4 = wsRecvIgnoringSync($admin);
     check(($data4['code'] ?? null) === 'error.cannot_moderate_admin', 'code=error.cannot_moderate_admin');
 
     // =========================================================================
@@ -241,19 +241,23 @@ try {
     // =========================================================================
     echo "\nTEST 5: admin_kick_user (waiting room) -> player_left broadcast to remaining player\n";
     $p1->send(json_encode(['action' => 'create_room', 'max_players' => 4, 'password' => '', 'cards_count' => 1]));
-    $roomCreated = json_decode($p1->recvOrNull() ?? '', true);
+    $roomCreated = wsRecvOfType($p1, 'room_joined');
     $roomId = $roomCreated['room_id'] ?? null;
+    wsDrainBrief($p1);
 
     $p2->send(json_encode(['action' => 'join_room', 'room_id' => $roomId, 'password' => '', 'cards_count' => 1]));
-    $p2->recvOrNull(); // room_joined
-    $p1->recvOrNull(); // player_joined broadcast to p1
+    wsRecvOfType($p2, 'room_joined');
+    wsRecvOfType($p1, 'player_joined');
+    wsDrainBrief($p1);
+    wsDrainBrief($p2);
 
     $admin->send(json_encode(['action' => 'admin_kick_user', 'user_id' => $p2Id]));
-    $kickBroadcast = json_decode($p1->recvOrNull() ?? '', true);
+    $kickBroadcast = wsRecvOfType($p1, 'player_left');
     check(
         ($kickBroadcast['type'] ?? null) === 'player_left' && ($kickBroadcast['reason'] ?? null) === 'kicked',
         'p1 receives player_left(reason=kicked) for p2'
     );
+    wsDrainBrief($p1);
 
     // =========================================================================
     // TEST 6 (FIX-11): admin bans an ONLINE player -> target receives
@@ -262,7 +266,7 @@ try {
     // =========================================================================
     echo "\nTEST 6 (FIX-11): admin_ban_user on an online target -> banned packet + connection closed\n";
     $admin->send(json_encode(['action' => 'admin_ban_user', 'user_id' => $p2Id, 'duration' => '1d']));
-    $p2BannedPacket = json_decode($p2->recvOrNull() ?? '', true);
+    $p2BannedPacket = wsRecvOfType($p2, 'banned');
     check(($p2BannedPacket['type'] ?? null) === 'banned', 'p2 receives banned packet');
     $p2AfterClose = $p2->recvOrNull(1.5);
     check($p2AfterClose === null, 'p2 connection closed by server (read after ban returns null)');
@@ -284,7 +288,7 @@ try {
     $p3Token = $p3Auth['session_token'] ?? null;
 
     $p3->send(json_encode(['action' => 'create_room', 'max_players' => 4, 'password' => '', 'cards_count' => 1]));
-    $p3RoomCreated = json_decode($p3->recvOrNull() ?? '', true);
+    $p3RoomCreated = wsRecvOfType($p3, 'room_joined');
     $p3RoomId = $p3RoomCreated['room_id'] ?? null;
 
     $p3->close(); // real TCP close -> onClose -> ReconnectService::handleDisconnect() -> 'disconnected' + 15s timer
@@ -296,14 +300,14 @@ try {
     $p3Back = new AdminRoutingClient('127.0.0.1', $wsPort);
     $p3Back->recvOrNull();
     $p3Back->send(json_encode(['action' => 'reconnect', 'token' => $p3Token]));
-    $p3ReconnectResp = json_decode($p3Back->recvOrNull() ?? '', true);
+    $p3ReconnectResp = wsRecvIgnoringSync($p3Back);
     check(
         ($p3ReconnectResp['type'] ?? null) === 'banned',
         'reconnect after mid-disconnect ban returns banned (not reconnect_state)'
     );
 
     $p3Back->send(json_encode(['action' => 'room_list']));
-    $p3RoomListResp = json_decode($p3Back->recvOrNull() ?? '', true);
+    $p3RoomListResp = wsRecvIgnoringSync($p3Back);
     check(
         ($p3RoomListResp['code'] ?? null) === 'error.auth_required',
         'connection still unauthenticated after banned-reconnect (no bypass)'
@@ -315,7 +319,7 @@ try {
     // (now-removed) player, so a fresh room_list from admin should not
     // show it.
     $admin->send(json_encode(['action' => 'room_list']));
-    $adminRoomList = json_decode($admin->recvOrNull() ?? '', true);
+    $adminRoomList = wsRecvOfType($admin, 'room_list');
     $stillListed = false;
     foreach (($adminRoomList['rooms'] ?? []) as $r) {
         if (($r['room_id'] ?? null) === $p3RoomId) {
@@ -347,15 +351,14 @@ try {
     $closeRoomId = $roomId;
 
     $admin->send(json_encode(['action' => 'admin_close_room', 'room_id' => $closeRoomId]));
-    $p1CloseNoticeRaw = $p1->recvOrNull();
-    $p1CloseNotice = json_decode($p1CloseNoticeRaw ?? '', true);
+    $p1CloseNotice = wsRecvOfType($p1, 'player_left');
     check(
         ($p1CloseNotice['type'] ?? null) === 'player_left' && ($p1CloseNotice['reason'] ?? null) === 'admin_close',
         'p1 receives player_left(reason=admin_close)'
     );
 
     $admin->send(json_encode(['action' => 'room_list']));
-    $finalRoomList = json_decode($admin->recvOrNull() ?? '', true);
+    $finalRoomList = wsRecvOfType($admin, 'room_list');
     $closedStillListed = false;
     foreach (($finalRoomList['rooms'] ?? []) as $r) {
         if (($r['room_id'] ?? null) === $closeRoomId) {

@@ -39,7 +39,14 @@ final class SessionGuardService
             $this->evictConnection($worker, $oldConnection, $userId, 'primary', $newConnection);
         }
 
-        if ($freshLogin && isset($worker->lobbyService)) {
+        // Vacate any leftover seat from a prior connection (login/register).
+        // Guard with is_callable: isset alone is insufficient when a test stub
+        // sets lobbyService but omits this method (Cluster G / 9b42e62).
+        if (
+            $freshLogin
+            && isset($worker->lobbyService)
+            && is_callable([$worker->lobbyService, 'removeExistingSeatForUser'])
+        ) {
             $worker->lobbyService->removeExistingSeatForUser($worker, $userId, 'disconnect');
         }
 

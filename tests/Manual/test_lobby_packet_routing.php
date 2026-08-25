@@ -193,7 +193,7 @@ try {
     $host = new MiniWSClient('127.0.0.1', $wsPort);
     registerAndAuth($host, 'e104_host', 'e104pass123');
     $host->send(json_encode(['action' => 'create_room', 'max_players' => 4, 'password' => '', 'cards_count' => 1]));
-    $data1 = json_decode($host->recvOrNull() ?? '', true);
+    $data1 = wsRecvOfType($host, 'room_joined');
     check(($data1['type'] ?? null) === 'room_joined', 'type=room_joined');
     check(isset($data1['room_id']), 'room_id присутствует');
     check(($data1['status'] ?? null) === 'waiting', 'status=waiting');
@@ -201,13 +201,14 @@ try {
     check(($data1['host'] ?? null) === 'e104_host', 'host=username создателя');
     check(count($data1['players'] ?? []) === 1, 'players count=1');
     $roomId = (int)($data1['room_id'] ?? 0);
+    wsDrainBrief($host);
 
     // =========================================================================
     // TEST 2: room_list содержит созданную комнату
     // =========================================================================
     echo "\nTEST 2: room_list -> комната в списке\n";
     $host->send(json_encode(['action' => 'room_list']));
-    $data2 = json_decode($host->recvOrNull() ?? '', true);
+    $data2 = wsRecvOfType($host, 'room_list');
     check(($data2['type'] ?? null) === 'room_list', 'type=room_list');
     $found = false;
     foreach ($data2['rooms'] ?? [] as $entry) {
@@ -227,21 +228,23 @@ try {
     $joiner = new MiniWSClient('127.0.0.1', $wsPort);
     registerAndAuth($joiner, 'e104_joiner', 'e104pass123');
     $joiner->send(json_encode(['action' => 'join_room', 'room_id' => $roomId, 'password' => '', 'cards_count' => 2]));
-    $data3 = json_decode($joiner->recvOrNull() ?? '', true);
+    $data3 = wsRecvOfType($joiner, 'room_joined');
     check(($data3['type'] ?? null) === 'room_joined', 'joiner type=room_joined');
     check(count($data3['players'] ?? []) === 2, 'joiner видит 2 игроков');
 
-    $hostMsg = json_decode($host->recvOrNull() ?? '', true);
+    $hostMsg = wsRecvOfType($host, 'player_joined');
     check(($hostMsg['type'] ?? null) === 'player_joined', 'host получил player_joined');
     check(($hostMsg['username'] ?? null) === 'e104_joiner', 'player_joined username верный');
     check(($hostMsg['cards_count'] ?? null) === 2, 'player_joined cards_count=2');
+    wsDrainBrief($host);
+    wsDrainBrief($joiner);
 
     // =========================================================================
     // TEST 4: guard «Already in a room» — повторный create_room
     // =========================================================================
     echo "\nTEST 4: create_room при уже сидящем в комнате -> error.invalid_json\n";
     $host->send(json_encode(['action' => 'create_room', 'max_players' => 4, 'password' => '', 'cards_count' => 1]));
-    $data4 = json_decode($host->recvOrNull() ?? '', true);
+    $data4 = wsRecvIgnoringSync($host);
     check(($data4['code'] ?? null) === 'error.invalid_json', 'code=error.invalid_json');
     check(str_contains($data4['message'] ?? '', 'Already in a room'), 'message содержит Already in a room');
 
@@ -250,7 +253,7 @@ try {
     // =========================================================================
     echo "\nTEST 5: join_room при уже сидящем в комнате -> error.invalid_json\n";
     $joiner->send(json_encode(['action' => 'join_room', 'room_id' => $roomId + 999, 'password' => '', 'cards_count' => 1]));
-    $data5 = json_decode($joiner->recvOrNull() ?? '', true);
+    $data5 = wsRecvIgnoringSync($joiner);
     check(($data5['code'] ?? null) === 'error.invalid_json', 'code=error.invalid_json (already in room)');
 
     // =========================================================================
@@ -260,7 +263,7 @@ try {
     $outsider = new MiniWSClient('127.0.0.1', $wsPort);
     registerAndAuth($outsider, 'e104_outsider', 'e104pass123');
     $outsider->send(json_encode(['action' => 'join_room', 'room_id' => 99999, 'password' => '', 'cards_count' => 1]));
-    $data6 = json_decode($outsider->recvOrNull() ?? '', true);
+    $data6 = wsRecvIgnoringSync($outsider);
     check(($data6['code'] ?? null) === 'error.room_not_found', 'code=error.room_not_found');
     $outsider->close();
 
@@ -269,7 +272,7 @@ try {
     // =========================================================================
     echo "\nTEST 7: leave_room -> player_left для оставшихся\n";
     $joiner->send(json_encode(['action' => 'leave_room']));
-    $hostLeft = json_decode($host->recvOrNull() ?? '', true);
+    $hostLeft = wsRecvOfType($host, 'player_left');
     check(($hostLeft['type'] ?? null) === 'player_left', 'host получил player_left');
     check(($hostLeft['username'] ?? null) === 'e104_joiner', 'player_left username верный');
     check(($hostLeft['reason'] ?? null) === 'leave', 'player_left reason=leave');
@@ -282,7 +285,7 @@ try {
     $anon = new MiniWSClient('127.0.0.1', $wsPort);
     $anon->recvOrNull(); // hello
     $anon->send(json_encode(['action' => 'room_list']));
-    $data8 = json_decode($anon->recvOrNull() ?? '', true);
+    $data8 = wsRecvIgnoringSync($anon);
     check(($data8['code'] ?? null) === 'error.auth_required', 'code=error.auth_required');
     $anon->close();
 

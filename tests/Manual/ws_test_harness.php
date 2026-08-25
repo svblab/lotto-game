@@ -449,3 +449,97 @@ function wsTestShutdownServer(array $ctx): void
     $GLOBALS['__wsTestPort'] = null;
     $GLOBALS['__wsTestEnv']  = null;
 }
+
+/**
+ * Incidental lobby sync fan-outs that MiniWS clients must not treat as the
+ * response to a specific action (Cluster B: host_changed + room_list desync).
+ *
+ * @var list<string>
+ */
+const WS_TEST_SYNC_PACKET_TYPES = ['room_list', 'host_changed'];
+
+/**
+ * Decode the next WS text frame as JSON, skipping lobby sync fan-outs.
+ * Client must implement recvOrNull(?float $timeout): ?string.
+ *
+ * @return array<string, mixed>|null
+ */
+function wsRecvIgnoringSync(object $client, float $timeout = 2.0): ?array
+{
+    $deadline = microtime(true) + $timeout;
+    $skip = array_fill_keys(WS_TEST_SYNC_PACKET_TYPES, true);
+
+    while (microtime(true) < $deadline) {
+        $remaining = $deadline - microtime(true);
+        if ($remaining <= 0) {
+            break;
+        }
+        $raw = $client->recvOrNull(min(0.5, max(0.05, $remaining)));
+        if ($raw === null || $raw === '') {
+            continue;
+        }
+        $data = json_decode($raw, true);
+        if (!is_array($data)) {
+            continue;
+        }
+        $type = $data['type'] ?? '';
+        if (isset($skip[$type])) {
+            continue;
+        }
+
+        return $data;
+    }
+
+    return null;
+}
+
+/**
+ * Keep reading (skipping sync fan-outs) until a packet with the given type arrives.
+ *
+ * @return array<string, mixed>|null
+ */
+function wsRecvOfType(object $client, string $expectedType, float $timeout = 3.0): ?array
+{
+    $deadline = microtime(true) + $timeout;
+    $skip = array_fill_keys(WS_TEST_SYNC_PACKET_TYPES, true);
+
+    while (microtime(true) < $deadline) {
+        $remaining = $deadline - microtime(true);
+        if ($remaining <= 0) {
+            break;
+        }
+        $raw = $client->recvOrNull(min(0.5, max(0.05, $remaining)));
+        if ($raw === null || $raw === '') {
+            continue;
+        }
+        $data = json_decode($raw, true);
+        if (!is_array($data)) {
+            continue;
+        }
+        $type = $data['type'] ?? '';
+        if ($type === $expectedType) {
+            return $data;
+        }
+        if (isset($skip[$type])) {
+            continue;
+        }
+        // Non-sync mismatch: keep scanning so a leftover earlier packet does not
+        // poison the wait for the intended type (same Cluster B desync class).
+    }
+
+    return null;
+}
+
+/**
+ * Discard any immediately available sync (and other) frames without blocking long.
+ */
+function wsDrainBrief(object $client, float $timeout = 0.25): void
+{
+    $deadline = microtime(true) + $timeout;
+    while (microtime(true) < $deadline) {
+        $raw = $client->recvOrNull(0.05);
+        if ($raw === null || $raw === '') {
+            break;
+        }
+    }
+}

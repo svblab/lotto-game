@@ -2,9 +2,32 @@
 
 ## Pre-deploy regression pass (feature/room-chat-files) (2026-08-24)
 
-Status: In progress
+Status: In progress — **pull through latest (Cluster G+B) on VPS before re-running**
 
-Clusters A–E fixes on this branch before any `lotto-server.service` restart.
+### Cluster G (register crash: `removeExistingSeatForUser`)
+- Call site in `SessionGuardService::claimUserSession` dates to **`95ad73d`**
+  (EPIC-027.0, 2026-08-07) — **not** introduced by Cluster A/C/D fixes.
+- Real method exists: `LobbyService::removeExistingSeatForUser()`; `server.php`
+  wires a real `LobbyService`. **Live register/login is safe** — crash was
+  fixture-only: Cluster A (`9b42e62`) set FlowWorker `$lobbyService` stub with
+  only `broadcastRoomList`, so `isset($lobbyService)` became true and
+  `freshLogin` register called a missing method.
+- Fix: `is_callable(...removeExistingSeatForUser)` guard + stub method on
+  FlowWorker/MockWorker fixtures.
+
+### Cluster B (live WS routing — packet queue desync)
+- Not a production fatal on join/start (same signature as “missing packet”).
+- Live server correctly fan-outs `host_changed` + `room_list` after create/join/
+  start/leave; MiniWS clients assumed one frame per action → cascade FAILs.
+- Fix: `wsRecvOfType` / `wsRecvIgnoringSync` / `wsDrainBrief` in
+  `ws_test_harness.php`; applied to lobby/game/admin packet routing tests.
+
+Clusters A–E code fixes remain on this branch (`9b42e62` … `712938f`). A second
+VPS suite at **43/57** with **identical** Cluster A/B/C line numbers matched the
+**pre-fix** tree when those runs were taken.
+
+Cluster F (`test_packet_validation.php` TEST 3): timing flake vs
+`RATE_LIMIT_WINDOW_SECONDS = 1` — harness hardened (burst + elapsed &lt; 0.5s).
 
 KNOWN GAPS / bisection notes (Cluster D):
 - `test_admin_kick.php` TEST 9: assertion expected early apartment finish
@@ -19,10 +42,12 @@ KNOWN GAPS / bisection notes (Cluster D):
 - `test_protocol_completeness.php`: FAIL was `play_vs_bot` in the fenced
   Protocol Actions list while not wired in `server.php` (ADR-034 reserved).
   Removed from fenced list; prose reservation retained.
-- `test_auth_integration.php` (2 fails on VPS): not reproducible here (no
-  local SQLite driver). Re-run on VPS after this pass; if still failing,
-  capture FAIL lines and open a follow-up. Not assumed related to
-  bot/speed-mode/admin-delete without evidence.
+- `test_auth_integration.php` (2 fails on VPS): stale AuthService expectations
+  from pre–FIX-30 API — (1) asserted `worker->userConnections` after
+  `AuthService::login` (binding moved to SessionGuardService/AuthHandler);
+  (2) expected `User already logged in` on a second `AuthService::login`
+  (single-session is claimUserSession, not AuthService). Assertions updated
+  to the current ADR-001 / FIX-30 contract.
 
 ---
 

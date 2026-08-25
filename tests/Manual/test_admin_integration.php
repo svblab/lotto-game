@@ -162,6 +162,11 @@ final class ContractAwareRemovalService
     {
     }
 
+    /** SessionGuardService::claimUserSession(freshLogin) may vacate prior seats. */
+    public function removeExistingSeatForUser(object $worker, int $userId, string $reason): void
+    {
+    }
+
     private function remove(object $worker, int $roomId, int $connId, string $reason): void
     {
         $this->removeCalls[] = ['roomId' => $roomId, 'connId' => $connId, 'reason' => $reason];
