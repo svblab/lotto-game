@@ -66,6 +66,8 @@
     "botWinLine": "Бот победил — банк сгорел. Вы получаете 0 монет.",
     "winnerLine": "{winner} получает {prize} монет ({reason})",
     "winnersLine": "{winners} делят {prize} монет ({reason})",
+    "winnerLineStreakBonus": "{winner} получает {prize} монет + {bonus} бонус за серию побед над ботом ({reason})",
+    "receivedWithStreakBonus": "{bank} + {bonus} бонус",
     "player": "Игрок",
     "paid": "Ставка",
     "received": "Выигрыш",

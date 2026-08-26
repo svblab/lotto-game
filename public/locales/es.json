@@ -66,6 +66,8 @@
     "botWinLine": "El bot gana — el banco se quema. Recibes 0 monedas.",
     "winnerLine": "{winner} gana {prize} monedas ({reason})",
     "winnersLine": "{winners} reparten {prize} monedas ({reason})",
+    "winnerLineStreakBonus": "{winner} gana {prize} monedas + {bonus} de bonificación por racha vs bot ({reason})",
+    "receivedWithStreakBonus": "{bank} + {bonus} bonificación",
     "player": "Jugador",
     "paid": "Pagado",
     "received": "Recibido",

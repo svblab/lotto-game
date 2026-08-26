@@ -168,7 +168,7 @@ final class GameFinishService
         foreach ($mintByConn as $connId => $mint) {
             $statPrizes[$connId] = ($statPrizes[$connId] ?? 0) + $mint;
         }
-        $statistics = $this->buildVictoryStatistics($room, $statPrizes);
+        $statistics = $this->buildVictoryStatistics($room, $statPrizes, $mintByConn);
 
         // ADR-016 §1: attach authoritative post-transaction balance per player.
         // Read-only — does not affect payout amounts or transaction boundaries.
@@ -209,6 +209,9 @@ final class GameFinishService
             'statistics' => $statistics,
             'win_chance_history' => $room['win_chance_history'] ?? [],
         ];
+        if ($countsTowardBotStreak) {
+            $packet['vs_bot'] = true;
+        }
         $packetJson = json_encode($packet);
 
         if (isset($room['players']) && is_array($room['players'])) {
@@ -446,9 +449,10 @@ final class GameFinishService
     /**
      * @param array<string, mixed> $room
      * @param array<int, int>      $prizes
-     * @return list<array{username: string, paid: int, received: int, _user_id: int}>
+     * @param array<int, int>      $streakMintByConn
+     * @return list<array{username: string, paid: int, received: int, _user_id: int, streak_mint?: int}>
      */
-    private function buildVictoryStatistics(array $room, array $prizes): array
+    private function buildVictoryStatistics(array $room, array $prizes, array $streakMintByConn = []): array
     {
         $roster = $room['game_roster'] ?? [];
         if (!empty($roster)) {
@@ -457,7 +461,13 @@ final class GameFinishService
                 if (!is_array($entry)) {
                     continue;
                 }
-                $statistics[] = $this->buildStatEntry($room, (int) $connId, $entry, $prizes);
+                $statistics[] = $this->buildStatEntry(
+                    $room,
+                    (int) $connId,
+                    $entry,
+                    $prizes,
+                    (int) ($streakMintByConn[(int) $connId] ?? 0)
+                );
             }
 
             return $statistics;
@@ -472,24 +482,26 @@ final class GameFinishService
             }
             $username = (string) ($hist['username'] ?? 'unknown');
             $seen[$username] = true;
-            $statistics[] = [
-                'username' => $username,
-                'paid'     => (int) ($hist['total_paid'] ?? 0),
-                'received' => $prizes[$connId] ?? 0,
-                '_user_id' => (int) ($hist['user_id'] ?? 0),
-            ];
+            $statistics[] = $this->buildStatRow(
+                $username,
+                (int) ($hist['total_paid'] ?? 0),
+                $prizes[$connId] ?? 0,
+                (int) ($hist['user_id'] ?? 0),
+                (int) ($streakMintByConn[(int) $connId] ?? 0)
+            );
         }
         foreach ($room['players'] ?? [] as $connId => $player) {
             $username = (string) ($player['username'] ?? 'unknown');
             if (isset($seen[$username])) {
                 continue;
             }
-            $statistics[] = [
-                'username' => $username,
-                'paid'     => (int) ($player['total_paid'] ?? 0),
-                'received' => $prizes[$connId] ?? 0,
-                '_user_id' => (int) ($player['user_id'] ?? 0),
-            ];
+            $statistics[] = $this->buildStatRow(
+                $username,
+                (int) ($player['total_paid'] ?? 0),
+                $prizes[$connId] ?? 0,
+                (int) ($player['user_id'] ?? 0),
+                (int) ($streakMintByConn[(int) $connId] ?? 0)
+            );
         }
 
         return $statistics;
@@ -499,10 +511,15 @@ final class GameFinishService
      * @param array<string, mixed> $room
      * @param array<string, mixed> $rosterEntry
      * @param array<int, int>      $prizes
-     * @return array{username: string, paid: int, received: int, _user_id: int}
+     * @return array{username: string, paid: int, received: int, _user_id: int, streak_mint?: int}
      */
-    private function buildStatEntry(array $room, int $connId, array $rosterEntry, array $prizes): array
-    {
+    private function buildStatEntry(
+        array $room,
+        int $connId,
+        array $rosterEntry,
+        array $prizes,
+        int $streakMint = 0
+    ): array {
         $username = (string) ($rosterEntry['username'] ?? 'unknown');
         $userId   = (int) ($rosterEntry['user_id'] ?? 0);
         $paid     = 0;
@@ -519,12 +536,30 @@ final class GameFinishService
             $paid     = (int) ($hist['total_paid'] ?? 0);
         }
 
-        return [
+        return $this->buildStatRow($username, $paid, $prizes[$connId] ?? 0, $userId, $streakMint);
+    }
+
+    /**
+     * @return array{username: string, paid: int, received: int, _user_id: int, streak_mint?: int}
+     */
+    private function buildStatRow(
+        string $username,
+        int $paid,
+        int $received,
+        int $userId,
+        int $streakMint = 0
+    ): array {
+        $row = [
             'username' => $username,
             'paid'     => $paid,
-            'received' => $prizes[$connId] ?? 0,
+            'received' => $received,
             '_user_id' => $userId,
         ];
+        if ($streakMint > 0) {
+            $row['streak_mint'] = $streakMint;
+        }
+
+        return $row;
     }
 
     /**

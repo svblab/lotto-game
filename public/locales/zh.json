@@ -66,6 +66,8 @@
     "botWinLine": "机器人获胜 — 奖池已销毁。你获得 0 金币。",
     "winnerLine": "{winner} 赢得 {prize} 金币 ({reason})",
     "winnersLine": "{winners} 分得 {prize} 金币 ({reason})",
+    "winnerLineStreakBonus": "{winner} 赢得 {prize} 金币 + {bonus} 对 Bot 连胜奖励 ({reason})",
+    "receivedWithStreakBonus": "{bank} + {bonus} 奖励",
     "player": "玩家",
     "paid": "投入",
     "received": "获得",

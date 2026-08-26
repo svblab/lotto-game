@@ -1003,6 +1003,9 @@ echo "\n=== EPIC-034.3 bot_win / human victory vs bot ===\n";
     assert_true(($overs[0]['reason'] ?? '') === 'victory', 'human vs bot: reason=victory (not bot_win)');
     assert_true(($overs[0]['winner'] ?? '') === 'host', 'human vs bot: winner=host');
     assert_true(($overs[0]['prize'] ?? null) === 20, 'human vs bot: full bank paid');
+    assert_true(($overs[0]['statistics'][0]['received'] ?? null) === 20, 'human vs bot: received=bank only');
+    assert_true(!isset($overs[0]['statistics'][0]['streak_mint']), 'human vs bot: no streak_mint');
+    assert_true(($overs[0]['vs_bot'] ?? false) === true, 'human vs bot: vs_bot flag');
     $paid = false;
     foreach ($stmts->updates as $u) {
         if (($u['add'] ?? null) === 20 && ($u['user_id'] ?? null) === 10) {
@@ -1128,6 +1131,8 @@ echo "\n=== EPIC-034.4 streak + mint ===\n";
     assert_true(($overs[0]['reason'] ?? '') === 'victory', 'streak mint: reason=victory');
     assert_true(($overs[0]['prize'] ?? null) === 20, 'streak mint: prize=bank (mint not in prize field)');
     assert_true(($overs[0]['statistics'][0]['received'] ?? null) === 40, 'streak mint: received=bank+mint');
+    assert_true(($overs[0]['statistics'][0]['streak_mint'] ?? null) === 20, 'streak mint: streak_mint=bank');
+    assert_true(($overs[0]['vs_bot'] ?? false) === true, 'streak mint: vs_bot flag');
     assert_true(($overs[0]['statistics'][0]['coins'] ?? null) === 520, 'streak mint: coins=480+20+20');
     $adds = [];
     foreach ($stmts->updates as $u) {

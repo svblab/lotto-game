@@ -1048,6 +1048,22 @@
   }
 
   // --- Game over ---
+  function isBotMatchGameOver(pkt) {
+    if (pkt.vs_bot) return true;
+    return (pkt.win_chance_history || []).some(
+      (snap) => snap.chances && Object.prototype.hasOwnProperty.call(snap.chances, 'Bot')
+    );
+  }
+
+  function formatGameOverReceived(stat, t) {
+    const mint = stat.streak_mint ?? 0;
+    const total = stat.received ?? 0;
+    if (mint > 0 && total >= mint) {
+      return t('game.receivedWithStreakBonus', { bank: total - mint, bonus: mint });
+    }
+    return String(total);
+  }
+
   function showGameOver(pkt, options = {}) {
     const t = global.LottoI18n.t;
     toggleOverlay('#game-over-modal', true);
@@ -1066,27 +1082,35 @@
     } else if (pkt.reason === 'bot_win') {
       $('#game-over-text').textContent = t('game.botWinLine');
     } else {
-      const winners = (pkt.statistics || [])
-        .filter((s) => (s.received ?? 0) > 0)
+      const humanWinners = (pkt.statistics || [])
+        .filter((s) => (s.received ?? 0) > 0 && s.username !== 'Bot')
         .map((s) => s.username);
-      const winnerLabel = winners.length > 0 ? winners.join(', ') : (pkt.winner || '');
-      const prizeAmount = winners.length > 1
+      const winnerLabel = humanWinners.length > 0 ? humanWinners.join(', ') : (pkt.winner || '');
+      const prizeAmount = humanWinners.length > 1
         ? (pkt.final_bank ?? pkt.prize ?? 0)
         : (pkt.prize ?? 0);
-      const lineKey = winners.length > 1 ? 'game.winnersLine' : 'game.winnerLine';
-      $('#game-over-text').textContent = t(lineKey, {
+      const streakBonus = humanWinners.length === 1
+        ? ((pkt.statistics || []).find((s) => s.username === humanWinners[0])?.streak_mint ?? 0)
+        : 0;
+      let lineKey = humanWinners.length > 1 ? 'game.winnersLine' : 'game.winnerLine';
+      const lineArgs = {
         winner: winnerLabel,
         winners: winnerLabel,
         prize: prizeAmount,
         reason: reasonText,
-      });
+      };
+      if (streakBonus > 0 && isBotMatchGameOver(pkt)) {
+        lineKey = 'game.winnerLineStreakBonus';
+        lineArgs.bonus = streakBonus;
+      }
+      $('#game-over-text').textContent = t(lineKey, lineArgs);
     }
     const receivedLabel = pkt.reason === 'no_survivors' ? t('game.returned') : t('game.received');
     const table = $('#game-over-stats');
     table.innerHTML = `<tr><th>${t('game.player')}</th><th>${t('game.paid')}</th><th>${receivedLabel}</th></tr>`;
     (pkt.statistics || []).forEach((s) => {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${s.username}</td><td>${s.paid}</td><td>${s.received}</td>`;
+      tr.innerHTML = `<td>${s.username}</td><td>${s.paid}</td><td>${formatGameOverReceived(s, t)}</td>`;
       table.appendChild(tr);
     });
     renderWinChanceChart(options.winChanceHistory || []);

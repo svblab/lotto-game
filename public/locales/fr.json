@@ -66,6 +66,8 @@
     "botWinLine": "Le bot gagne — la banque est brûlée. Vous recevez 0 pièces.",
     "winnerLine": "{winner} gagne {prize} pièces ({reason})",
     "winnersLine": "{winners} se partagent {prize} pièces ({reason})",
+    "winnerLineStreakBonus": "{winner} gagne {prize} pièces + {bonus} bonus de série vs bot ({reason})",
+    "receivedWithStreakBonus": "{bank} + {bonus} bonus",
     "player": "Joueur",
     "paid": "Payé",
     "received": "Reçu",
