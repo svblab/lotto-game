@@ -9,11 +9,12 @@ use function Lotto\Core\sendError;
 /**
  * GameHandler — EPIC-10.5
  *
- * Обрабатывает WebSocket-пакеты игрового цикла: start_game, draw_barrel,
- * apartment_choice, turn_ready, nudge_turn. Транслирует входящие пакеты ANCHOR_PROTOCOL.md в вызовы
- * GameService (Phase 4-7 — бизнес-логика уже реализована). Никакой новой
- * бизнес-логики здесь нет — только маршрутизация и разбор полей payload,
- * что соответствует прецеденту EPIC-10.3/10.4 (AuthHandler/LobbyHandler).
+ * Обрабатывает WebSocket-пакеты игрового цикла: start_game, play_vs_bot,
+ * draw_barrel, apartment_choice, turn_ready, nudge_turn. Транслирует входящие
+ * пакеты ANCHOR_PROTOCOL.md в вызовы GameService (Phase 4-7 — бизнес-логика
+ * уже реализована). Никакой новой бизнес-логики здесь нет — только маршрутизация
+ * и разбор полей payload, что соответствует прецеденту EPIC-10.3/10.4
+ * (AuthHandler/LobbyHandler).
  *
  * Контракты worker-памяти (уже инициализируются в server.php с EPIC-10.4):
  *   $worker->rooms — array<roomId, room>
@@ -38,6 +39,18 @@ final class GameHandler
     public function handleStartGame(object $connection, object $worker): void
     {
         $this->gameService->handleStartGame($connection, $worker);
+        if (isset($worker->lobbyService)) {
+            $worker->lobbyService->broadcastRoomList($worker);
+        }
+    }
+
+    /**
+     * {"action": "play_vs_bot"} — только хост, waiting, ровно один человек.
+     * Живёт здесь же, где start_game: оба — game-lifecycle waiting→playing.
+     */
+    public function handlePlayVsBot(object $connection, object $worker): void
+    {
+        $this->gameService->handlePlayVsBot($connection, $worker);
         if (isset($worker->lobbyService)) {
             $worker->lobbyService->broadcastRoomList($worker);
         }

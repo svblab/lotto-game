@@ -56,6 +56,11 @@ class AuthService
                 throw new Exception('Invalid username format');
             }
 
+            // ADR-034: reserved wire name for the bot opponent (case-insensitive).
+            if (strcasecmp($username, 'Bot') === 0) {
+                throw new Exception('Invalid username format');
+            }
+
             // 2. Валидация длины пароля
             $passwordLength = strlen($password);
             if ($passwordLength < 6 || $passwordLength > 64) {

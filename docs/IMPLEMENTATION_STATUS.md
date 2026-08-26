@@ -49,24 +49,53 @@ VERIFICATION:
 MANUAL VERIFICATION REQUIRED (client timing) + VPS `php run_ALL_tests.php` **57/57 ×2** PASS.
 ---
 
-## EPIC-034 — Bot opponent (ADR-034) (planned)
+## EPIC-034 — Bot opponent (ADR-034)
 
-Status: Planned (ADR accepted; coding not started)
+Status: In progress (EPIC-034.1 landed; 034.2–034.5 remaining)
 
-ADR: `docs/ADR/034-bot-opponent.md` (next free number after 033).
+ADR: `docs/ADR/034-bot-opponent.md`.
 
-Planned Epic split (Rule 11 — separate diffs/commits):
-
-- [ ] EPIC-034.1 — Bot entity + `play_vs_bot` + turn engine integration
+- [DONE] EPIC-034.1 — Bot entity + `play_vs_bot` + turn engine integration
 - [ ] EPIC-034.2 — Apartment-with-bot resolution
 - [ ] EPIC-034.3 — Victory / `bot_win` bank-burn path
 - [ ] EPIC-034.4 — Win-streak + double-bank mint
 - [ ] EPIC-034.5 — Client UI (“Play vs Bot” + roster)
 
-Anchor amendments already applied with the ADR: `ANCHOR_CORE.md` Parts 1/2/4/6,
-`ANCHOR_PROTOCOL.md` (`play_vs_bot`, `bot_win`, reserved username `Bot`).
-Those surfaces are annotated **reserved / not yet implemented** until the
-matching EPIC-034.* code lands (RoomManager does not create `bot` yet).
+### EPIC-034.1
+
+Status: Completed
+
+Files:
+- src/Core/RoomManager.php (diff — `$room['bot'] = null` on create)
+- src/Auth/AuthService.php (diff — reserve username `Bot`)
+- src/Lobby/LobbyService.php (diff — `join_room` → `error.room_full` while bot present)
+- src/Game/GameService.php (diff — `handlePlayVsBot()` atomic start path)
+- src/Game/GameHandler.php (diff — `handlePlayVsBot`, same handler as `start_game`)
+- src/Game/GameTurnService.php (diff — nextDrawer/peek, mark bot, immediate bot draw, AFK guards)
+- src/Game/ReconnectService.php (diff — AFK tick guard; roster/win_chances/`current_drawer` display only)
+- src/Core/StateMachineAudit.php (diff — `play_vs_bot` waiting action + waiting→playing trigger)
+- server.php (diff — dispatcher arm)
+- docs/ANCHOR_CORE.md (diff — live `$room['bot']`, waiting action, protocol registry)
+- docs/ANCHOR_PROTOCOL.md (diff — live `play_vs_bot` + reserved username + Bot roster)
+- tests/Manual/test_bot_opponent.php (new)
+- tests/Manual/test_register.php, test_auth_integration.php, test_lobby_integration.php, test_state_machine_audit.php (diff)
+
+Notes: `play_vs_bot` lives on GameHandler/GameService because `start_game` already lives there (both are waiting→playing game-lifecycle actions; LobbyHandler stays join/leave/create). `start_game` guard logic is unchanged. ReconnectService disconnect/reconnect **seat** paths are unchanged (bot has no connection). Apartment (§5), `bot_win` bank-burn (§6), and win-streak mint (§7) are not in this Epic. Bot RAM object stores `masks` like a human player (needed for mark/win-chance; not a protocol field). Game AFK uses an explicit `bot['drawing']` guard rather than inferring safety from `active_drawer_conn_id === null`.
+
+VERIFICATION:
+- `php tests/Manual/test_bot_opponent.php` — **59/59 PASS**
+- `php tests/Manual/test_game_start.php` — 51/51 PASS (`start_game` unchanged)
+- `php tests/Manual/test_turn_system.php` — 59/59 PASS (human-vs-human rotation)
+- `php tests/Manual/test_lobby_integration.php` — 142/142 PASS (`bot=null`, join `room_full`)
+- `php tests/Manual/test_state_machine_audit.php` — 35/35 PASS
+- `php tests/Manual/test_protocol_completeness.php` — `play_vs_bot` wired
+- `php tests/Manual/test_register.php` — Bot/bot/BOT reserved
+- `php tests/Manual/test_reconnect.php` — 176/176 PASS (seat paths unchanged)
+- `php tests/Manual/test_victory.php` — 77/77 PASS
+- `php tests/Manual/test_turn_nudge.php` — 32/32 PASS
+- `php tests/Manual/test_game_start_turn_integration.php` — 11/11 PASS
+- `php tests/Manual/test_auth_integration.php` — Bot register → `error.auth_invalid_username`
+---
 
 ---
 

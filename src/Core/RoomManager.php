@@ -86,6 +86,7 @@ final class RoomManager
             'all_players_history'   => [],
             'game_roster'           => [],
             'file_transfer'         => null, // ADR-030
+            'bot'                   => null, // ADR-034: null | RAM-only bot object
             'speed_mode'            => 'slow', // ADR-035
         ];
 

@@ -627,6 +627,7 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
         'join_room'        => $worker->lobbyHandler->handleJoinRoom($data, $connection, $worker),
         'leave_room'       => $worker->lobbyHandler->handleLeaveRoom($connection, $worker),
         'start_game'       => $worker->gameHandler->handleStartGame($connection, $worker),
+        'play_vs_bot'      => $worker->gameHandler->handlePlayVsBot($connection, $worker),
         'draw_barrel'      => $worker->gameHandler->handleDrawBarrel($connection, $worker),
         'turn_ready'       => $worker->gameHandler->handleTurnReady($connection, $worker),
         'nudge_turn'       => $worker->gameHandler->handleNudgeTurn($connection, $worker),

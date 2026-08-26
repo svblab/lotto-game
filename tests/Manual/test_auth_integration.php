@@ -345,6 +345,13 @@ ok('handleRegister: sends error on invalid username', ($pktErr['type'] ?? '') ==
 ok('handleRegister: error.code = error.auth_invalid_username',
     ($pktErr['code'] ?? '') === 'error.auth_invalid_username');
 
+// 4b2. handleRegister — reserved Bot username (ADR-034)
+$connRegBot = new MockConnection();
+$handler5->handleRegister(['username' => 'Bot', 'password' => 'hpass123'], $connRegBot, $worker5);
+$pktBot = $connRegBot->lastPacket();
+ok('handleRegister: Bot reserved → error.auth_invalid_username',
+    ($pktBot['code'] ?? '') === 'error.auth_invalid_username');
+
 // 4c. handleRegister — дубль: error.auth_username_taken
 $connRegDup = new MockConnection();
 $handler5->handleRegister(['username' => 'huser1', 'password' => 'hpass123'], $connRegDup, $worker5);

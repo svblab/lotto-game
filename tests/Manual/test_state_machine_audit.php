@@ -271,6 +271,18 @@ assertTrue(
     'spec: start_game allowed in waiting'
 );
 assertTrue(
+    StateMachineAudit::isActionAllowed('waiting', 'play_vs_bot'),
+    'spec: play_vs_bot allowed in waiting'
+);
+assertTrue(
+    !StateMachineAudit::isActionAllowed('playing', 'play_vs_bot'),
+    'spec: play_vs_bot forbidden in playing'
+);
+assertTrue(
+    StateMachineAudit::isRoomTransitionAllowed('waiting', 'playing', 'play_vs_bot'),
+    'spec: waiting→playing via play_vs_bot'
+);
+assertTrue(
     !StateMachineAudit::isActionAllowed('waiting', 'draw_barrel'),
     'spec: draw_barrel forbidden in waiting'
 );

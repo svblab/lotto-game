@@ -192,6 +192,7 @@ ok('RoomManager: room max_players correct',           $worker->rooms[$roomId]['m
 ok('RoomManager: room password_hash null',            $worker->rooms[$roomId]['password_hash'] === null);
 ok('RoomManager: all_players_history initialized',    $worker->rooms[$roomId]['all_players_history'] === []);
 ok('RoomManager: drawer_order initialized empty',     $worker->rooms[$roomId]['drawer_order'] === []);
+ok('RoomManager: bot is null on create (ADR-034)',    array_key_exists('bot', $worker->rooms[$roomId]) && $worker->rooms[$roomId]['bot'] === null);
 
 $rm->destroyRoom($worker, $roomId);
 ok('RoomManager: destroyRoom removes room',           !isset($worker->rooms[$roomId]));
@@ -410,6 +411,20 @@ $joiner3    = new MockConnection(12, 'j3');
 $ls2->handleJoinRoom(['room_id' => $fullRoomId, 'password' => '', 'cards_count' => 1], $joiner3, $w2);
 ok('joinRoom: error.room_full when room is full (FIX-7/ADR-004)',
     ($joiner3->lastPacket()['code'] ?? '') === 'error.room_full');
+
+[$lsBot] = makeServices();
+$wBot = new MockWorker();
+$hostBot = new MockConnection(15, 'hbot');
+$lsBot->handleCreateRoom(['max_players' => 10, 'password' => '', 'cards_count' => 1], $hostBot, $wBot);
+$botRoomId = $hostBot->lastPacket()['room_id'];
+$wBot->rooms[$botRoomId]['bot'] = [
+    'username' => 'Bot', 'cards' => [], 'cards_count' => 2, 'total_paid' => 0,
+    'immune' => false, 'drawing' => false, 'status' => 'active',
+];
+$joinerBot = new MockConnection(16, 'jbot');
+$lsBot->handleJoinRoom(['room_id' => $botRoomId, 'password' => '', 'cards_count' => 1], $joinerBot, $wBot);
+ok('joinRoom: error.room_full when bot present (ADR-034)',
+    ($joinerBot->lastPacket()['code'] ?? '') === 'error.room_full');
 
 // FIX-7/ADR-004 regression: when BOTH the room and the server are full,
 // error.server_full must win (server-wide check runs first).

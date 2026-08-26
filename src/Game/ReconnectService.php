@@ -376,6 +376,9 @@ final class ReconnectService
         $currentDrawer = ($drawerConnId !== null && isset($room['players'][$drawerConnId]))
             ? (string) $room['players'][$drawerConnId]['username']
             : '';
+        if ($currentDrawer === '' && !empty($room['bot']['drawing'])) {
+            $currentDrawer = 'Bot';
+        }
 
         $isMyTurn = ($drawerConnId !== null && $drawerConnId === $connId);
         $turnFields = ['is_my_turn' => $isMyTurn];
@@ -397,7 +400,7 @@ final class ReconnectService
             'drawer_order'   => $drawerUsernames,
             'current_drawer' => $currentDrawer,
             'win_chances'    => $this->gameService->calculateWinChances(
-                $room['players'],
+                $this->participantsForWinChances($room),
                 $room['status'] ?? 'playing'
             ),
         ], $turnFields);
@@ -437,6 +440,26 @@ final class ReconnectService
             ];
         }
 
+        if (isset($room['bot']) && is_array($room['bot'])) {
+            $players[] = [
+                'username'    => 'Bot',
+                'cards_count' => 2,
+                'status'      => 'active',
+            ];
+        }
+
+        return $players;
+    }
+
+    /**
+     * @return array<int, array>
+     */
+    private function participantsForWinChances(array $room): array
+    {
+        $players = $room['players'] ?? [];
+        if (isset($room['bot']) && is_array($room['bot'])) {
+            $players[PHP_INT_MIN] = $room['bot'];
+        }
         return $players;
     }
 
@@ -501,6 +524,12 @@ final class ReconnectService
         $room = &$worker->rooms[$roomId];
         if (($room['status'] ?? null) !== 'playing') {
             $this->stopGameAfkTimer($worker, $roomId);
+            return;
+        }
+
+        // ADR-034: explicit — do not tick AFK against a drawing bot,
+        // even if active_drawer_conn_id is stale/non-null.
+        if (!empty($room['bot']['drawing'])) {
             return;
         }
 

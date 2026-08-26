@@ -52,8 +52,12 @@ final class GameTurnService
      */
     public function sendYourTurn(array &$room, bool $deferAfkStart = false): void
     {
-        $drawerConnId = $room['active_drawer_conn_id'];
-        if (!isset($room['players'][$drawerConnId])) {
+        // ADR-034: never send your_turn while the bot is drawing.
+        if ($this->isBotDrawing($room)) {
+            return;
+        }
+        $drawerConnId = $room['active_drawer_conn_id'] ?? null;
+        if ($drawerConnId === null || !isset($room['players'][$drawerConnId])) {
             return;
         }
         $player = $room['players'][$drawerConnId];
@@ -179,6 +183,10 @@ final class GameTurnService
      */
     public function startTurn(array &$room, object $worker, int $roomId, bool $deferAfkStart = false): void
     {
+        // ADR-034: never arm Game AFK / your_turn for a drawing bot.
+        if ($this->isBotDrawing($room)) {
+            return;
+        }
         foreach (array_keys($room['players']) as $cid) {
             $room['players'][$cid]['nudged_this_turn'] = false;
         }
@@ -202,6 +210,17 @@ final class GameTurnService
      */
     public function nextDrawer(array &$room): void
     {
+        // ADR-034: Host → Bot → Host. drawer_order stays human conn_ids only.
+        if ($this->isBotPresent($room) && $this->isHumanDrawer($room)) {
+            $room['active_drawer_conn_id'] = null;
+            $room['bot']['drawing'] = true;
+            return;
+        }
+
+        if ($this->isBotPresent($room)) {
+            $room['bot']['drawing'] = false;
+        }
+
         $order = $room['drawer_order'];
         $count = count($order);
         if ($count === 0) {
@@ -304,83 +323,12 @@ final class GameTurnService
             $room['players'][$connId]['auto_draws'] = 0;
         }
 
-        $drawnThisTurn = [];
-
-        // --- 4–5. EPIC-5.2: до 3 бочонков, обработка каждого по отдельности ---
-        for ($i = 0; $i < Constants::BARRELS_PER_TURN; $i++) {
-            if (empty($room['bag'])) {
-                break;
-            }
-
-            $number = array_shift($room['bag']);
-            $room['drawn_numbers'][] = $number;
-            $drawnThisTurn[] = $number;
-
-            foreach ($room['players'] as $pConnId => $player) {
-                if ($player['status'] === 'active') {
-                    $this->markNumber($room, $pConnId, $number);
-                }
-            }
-
-            $winners = $this->victory->checkAllVictories($room);
-            if (!empty($winners)) {
-                $result = $this->victory->calculatePrize($room['bank'], $winners);
-                $remaining = count($room['bag']);
-                $this->broadcastBarrelsDrawn($room, $drawnThisTurn, null, true, $remaining, false);
-                $this->logger->info(
-                    "Room {$roomId}: barrels [" . implode(', ', $drawnThisTurn) . "] drawn, victory"
-                );
-                $this->finishService->finishGame(
-                    $room,
-                    $roomId,
-                    $winners,
-                    $result['prizes'],
-                    'victory',
-                    function () use ($worker, $roomId) {
-                        unset($worker->rooms[$roomId]);
-                        if (isset($worker->lobbyService)) {
-                            $worker->lobbyService->broadcastRoomList($worker);
-                        }
-                    }
-                );
-                return;
-            }
-
-            if ($this->apartment->shouldTrigger($room)) {
-                $remaining = count($room['bag']);
-                $currentDrawerUsername = $room['players'][$connId]['username'] ?? null;
-                $this->broadcastBarrelsDrawn($room, $drawnThisTurn, $currentDrawerUsername, false, $remaining);
-                $this->logger->info(
-                    "Room {$roomId}: barrels [" . implode(', ', $drawnThisTurn) . "] drawn, apartment"
-                );
-                $this->apartment->triggerApartment($room, $roomId, $worker, $this);
-                return;
-            }
+        if ($this->drawBarrelsThisTurn($room, $worker, $roomId)) {
+            return;
         }
 
-        // --- 6. EPIC-5.3 barrels_drawn broadcast ---
-        $remaining = count($room['bag']);
-        $nextDrawer = $this->peekNextDrawer($room);
-        $nextDrawerUsername = null;
-        if ($nextDrawer !== null && isset($room['players'][$nextDrawer])) {
-            $nextDrawerUsername = $room['players'][$nextDrawer]['username'];
-        }
-
-        $this->broadcastBarrelsDrawn(
-            $room,
-            $drawnThisTurn,
-            $nextDrawerUsername,
-            $remaining === 0,
-            $remaining
-        );
-
-        $this->logger->info(
-            "Room {$roomId}: barrels [" . implode(', ', $drawnThisTurn) . "] drawn. Remaining: {$remaining}"
-        );
-
-        // --- 7. Передать ход следующему ---
-        $this->nextDrawer($room);
-        $this->startTurn($room, $worker, $roomId, true);
+        // --- 7. Передать ход следующему (человек → бот сразу рисует) ---
+        $this->advanceTurnAfterDraw($room, $worker, $roomId);
     }
 
     /**
@@ -407,7 +355,7 @@ final class GameTurnService
 
         if ($includeWinChances) {
             $winChances = $this->victory->calculateWinChances(
-                $room['players'],
+                $this->participantsForWinChances($room),
                 $this->logger,
                 $room['status'] ?? 'playing'
             );
@@ -463,6 +411,30 @@ final class GameTurnService
     }
 
     /**
+     * ADR-034: отметить число на картах бота (параллельная ветка к markNumber).
+     */
+    private function markBotNumber(array &$room, int $number): void
+    {
+        if (!$this->isBotPresent($room)) {
+            return;
+        }
+
+        $cards = $room['bot']['cards'] ?? [];
+        $masks = $room['bot']['masks'] ?? [];
+        $col = $this->numberToColumn($number);
+
+        foreach ($cards as $cardIdx => $card) {
+            for ($row = 0; $row < 3; $row++) {
+                if (($card[$row][$col] ?? null) === $number) {
+                    $masks[$cardIdx][$row][$col] = true;
+                }
+            }
+        }
+
+        $room['bot']['masks'] = $masks;
+    }
+
+    /**
      * Определить индекс колонки (0-8) для числа 1-90.
      * Зеркалирует LottoEngine::columnRange().
      */
@@ -498,5 +470,171 @@ final class GameTurnService
             return $nextConnId;
         }
         return null;
+    }
+
+    private function peekNextDrawerUsername(array $room): ?string
+    {
+        if ($this->isBotPresent($room) && $this->isHumanDrawer($room)) {
+            return 'Bot';
+        }
+        $next = $this->peekNextDrawer($room);
+        if ($next !== null && isset($room['players'][$next])) {
+            return $room['players'][$next]['username'];
+        }
+        return null;
+    }
+
+    private function currentDrawerUsername(array $room): ?string
+    {
+        if ($this->isBotDrawing($room)) {
+            return 'Bot';
+        }
+        $cid = $room['active_drawer_conn_id'] ?? null;
+        if ($cid === null || !isset($room['players'][$cid])) {
+            return null;
+        }
+        return $room['players'][$cid]['username'] ?? null;
+    }
+
+    private function isBotPresent(array $room): bool
+    {
+        return isset($room['bot']) && is_array($room['bot']);
+    }
+
+    private function isBotDrawing(array $room): bool
+    {
+        return $this->isBotPresent($room) && !empty($room['bot']['drawing']);
+    }
+
+    private function isHumanDrawer(array $room): bool
+    {
+        $cid = $room['active_drawer_conn_id'] ?? null;
+        return $cid !== null && isset($room['players'][$cid]);
+    }
+
+    /**
+     * Слить бота в копию players только для формулы win_chances (без is_bot).
+     *
+     * @return array<int, array>
+     */
+    private function participantsForWinChances(array $room): array
+    {
+        $players = $room['players'];
+        if ($this->isBotPresent($room)) {
+            $players[PHP_INT_MIN] = $room['bot'];
+        }
+        return $players;
+    }
+
+    /**
+     * После успешного хода: человек → бот рисует сразу; бот → startTurn человека.
+     */
+    private function advanceTurnAfterDraw(array &$room, object $worker, int $roomId): void
+    {
+        $this->nextDrawer($room);
+        if ($this->isBotDrawing($room)) {
+            $this->executeBotDraw($room, $worker, $roomId);
+            return;
+        }
+        $this->startTurn($room, $worker, $roomId, true);
+    }
+
+    /**
+     * Серверный ход бота: тот же barrel/mark/broadcast pipeline, без your_turn/AFK.
+     */
+    private function executeBotDraw(array &$room, object $worker, int $roomId): void
+    {
+        if (empty($room['bag'])) {
+            $this->logger->warning("Room {$roomId}: bag is empty on bot draw");
+            return;
+        }
+
+        if ($this->drawBarrelsThisTurn($room, $worker, $roomId)) {
+            return;
+        }
+
+        $this->advanceTurnAfterDraw($room, $worker, $roomId);
+    }
+
+    /**
+     * Общий pipeline вытягивания бочонков (человек и бот).
+     *
+     * @return bool true если игра закончилась или пауза apartment — ход не передавать
+     */
+    private function drawBarrelsThisTurn(array &$room, object $worker, int $roomId): bool
+    {
+        $drawnThisTurn = [];
+
+        for ($i = 0; $i < Constants::BARRELS_PER_TURN; $i++) {
+            if (empty($room['bag'])) {
+                break;
+            }
+
+            $number = array_shift($room['bag']);
+            $room['drawn_numbers'][] = $number;
+            $drawnThisTurn[] = $number;
+
+            foreach ($room['players'] as $pConnId => $player) {
+                if ($player['status'] === 'active') {
+                    $this->markNumber($room, $pConnId, $number);
+                }
+            }
+            $this->markBotNumber($room, $number);
+
+            $winners = $this->victory->checkAllVictories($room);
+            if (!empty($winners)) {
+                $result = $this->victory->calculatePrize($room['bank'], $winners);
+                $remaining = count($room['bag']);
+                $this->broadcastBarrelsDrawn($room, $drawnThisTurn, null, true, $remaining, false);
+                $this->logger->info(
+                    "Room {$roomId}: barrels [" . implode(', ', $drawnThisTurn) . "] drawn, victory"
+                );
+                $this->finishService->finishGame(
+                    $room,
+                    $roomId,
+                    $winners,
+                    $result['prizes'],
+                    'victory',
+                    function () use ($worker, $roomId) {
+                        unset($worker->rooms[$roomId]);
+                        if (isset($worker->lobbyService)) {
+                            $worker->lobbyService->broadcastRoomList($worker);
+                        }
+                    }
+                );
+                return true;
+            }
+
+            if ($this->apartment->shouldTrigger($room)) {
+                $remaining = count($room['bag']);
+                $this->broadcastBarrelsDrawn(
+                    $room,
+                    $drawnThisTurn,
+                    $this->currentDrawerUsername($room),
+                    false,
+                    $remaining
+                );
+                $this->logger->info(
+                    "Room {$roomId}: barrels [" . implode(', ', $drawnThisTurn) . "] drawn, apartment"
+                );
+                $this->apartment->triggerApartment($room, $roomId, $worker, $this);
+                return true;
+            }
+        }
+
+        $remaining = count($room['bag']);
+        $this->broadcastBarrelsDrawn(
+            $room,
+            $drawnThisTurn,
+            $this->peekNextDrawerUsername($room),
+            $remaining === 0,
+            $remaining
+        );
+
+        $this->logger->info(
+            "Room {$roomId}: barrels [" . implode(', ', $drawnThisTurn) . "] drawn. Remaining: {$remaining}"
+        );
+
+        return false;
     }
 }

@@ -126,8 +126,6 @@ Client → Server
 Username `Bot` is reserved (ADR-034, case-insensitive match on the literal
 `bot`) and must be rejected with `error.auth_invalid_username` so it cannot
 collide with the bot opponent wire display name.
-**Not enforced yet** — registration guard lands with EPIC-034.1 (or earlier
-prelude); see `IMPLEMENTATION_STATUS.md` EPIC-034 (Planned).
 
 ### login
 Client → Server
@@ -283,15 +281,11 @@ Client → Server. Host only. Requires ≥2 seated humans. Does not create a bot
 ```
 
 ### play_vs_bot
-Client → Server. Host only (ADR-034).
-**Registry-reserved / not yet implemented** — see
-`IMPLEMENTATION_STATUS.md` EPIC-034 (Planned). Not dispatched by `server.php`
-today.
-
-Target contract (EPIC-034.1+): allowed only in `waiting` with exactly one
-seated human. Creates `$room['bot']`, starts the game (human stake only;
+Client → Server. Host only (ADR-034). Allowed only in `waiting` with exactly
+one seated human. Creates `$room['bot']`, starts the game (human stake only;
 bot `cards_count = 2`, `total_paid = 0`), and transitions `waiting → playing`.
 While the bot is present, `join_room` is rejected with `error.room_full`.
+Host draws first (`your_turn` + Game AFK); the bot never receives `your_turn`.
 ```json
 {"action": "play_vs_bot"}
 ```
@@ -320,11 +314,11 @@ Player entry, others:
 ```
 `masks` length equals `cards_count` for every entry; foreign `masks` start all-`false` and do not reveal card numbers.
 
-In bot matches (ADR-034, **EPIC-034.1+**), the roster includes an entry with
+In bot matches (ADR-034), the roster includes an entry with
 `username: "Bot"`, `cards_count: 2`, and the same card-visibility rules
 (human never receives bot card numbers). There is no `is_bot` field — the
-reserved username identifies the bot. **Not live until EPIC-034** — see
-`IMPLEMENTATION_STATUS.md` EPIC-034 (Planned).
+reserved username identifies the bot. `drawer_order` lists human usernames
+only.
 
 ---
 
@@ -378,6 +372,7 @@ Server → Room
 stays accurate without waiting for reconnect.
 `win_chances` (optional, ADR-014): comparative exponential win-chance percent per
 `username` (float, one decimal; sum 100%; informational only; omitted on victory-ending draw).
+In a bot match the map includes `"Bot"` keyed by the reserved username.
 
 ### afk_warning
 Server → Client. Sent to the current drawer when the per-turn timeout is reached.
@@ -493,6 +488,8 @@ the room is destroyed, so a reconnecting client always sees who played, not just
 who remains.
 `win_chances` (optional, ADR-014): same semantics as `barrels_drawn`; included
 for `status === "playing"` so reconnecting clients restore opponent indicators.
+In a bot match the roster includes `username: "Bot"` and `win_chances` includes
+`"Bot"`; `current_drawer` is `"Bot"` while the bot is drawing.
 `is_my_turn` / `afk_start` / `turn_seconds` / `auto_draws` (ADR-017): included
 when the reconnecting player is the current `active_drawer_conn_id` — same
 semantics as the `your_turn` packet's non-deferred variant (`afk_start` always

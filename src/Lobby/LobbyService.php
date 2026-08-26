@@ -286,7 +286,8 @@ final class LobbyService
         }
 
         // --- 5. Комната не заполнена (отдельный код от error.server_full, FIX-7 / ADR-004) ---
-        if (count($room['players']) >= $room['max_players']) {
+        // ADR-034: bot present is its own "full" flag (do not rely on status alone).
+        if (($room['bot'] ?? null) !== null || count($room['players']) >= $room['max_players']) {
             sendError($connection, 'error.room_full', 'Room is full');
             return;
         }
