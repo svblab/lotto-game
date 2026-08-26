@@ -463,6 +463,8 @@ html.has-chip-icon .coins::before {
 
 .status-online { color: var(--success); }
 .status-disconnected { color: var(--danger); }
+.status-bot { color: var(--text-muted); }
+.players-list li.player-bot span:first-child { font-style: italic; }
 .status-removed { color: var(--text-muted); font-style: italic; }
 
 /* Game */

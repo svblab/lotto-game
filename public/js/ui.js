@@ -218,10 +218,18 @@
     const speedLabel = $('#room-speed-label');
     if (speedLabel) speedLabel.textContent = speedModeLabel(room.speed_mode);
     const isHost = room.host === username;
-    const canStart = isHost && room.status === 'waiting' && (room.players?.length || 0) >= 2;
+    const playerCount = room.players?.length || 0;
+    const canStart = isHost && room.status === 'waiting' && playerCount >= 2;
     $('#start-game-btn')?.classList.toggle('hidden', !canStart);
+    // ADR-034 §2: host-only, always rendered while waiting; disabled when >1 seated.
+    const playBotBtn = $('#play-vs-bot-btn');
+    if (playBotBtn) {
+      const showPlayBot = isHost && room.status === 'waiting';
+      playBotBtn.classList.toggle('hidden', !showPlayBot);
+      playBotBtn.disabled = !showPlayBot || playerCount !== 1;
+    }
     const showLobbyTimer = room.status === 'waiting'
-      && (room.players?.length || 0) >= 2
+      && playerCount >= 2
       && room.host_timeout_start
       && room.host_timeout_seconds;
     if (showLobbyTimer) {
@@ -275,7 +283,9 @@
 
   function refreshChatRecipients(players, selfUsername) {
     const names = (players || [])
-      .filter((p) => p && p.username && p.username !== selfUsername && p.status !== 'removed')
+      .filter((p) => p && p.username && p.username !== selfUsername
+        && p.username !== 'Bot'
+        && p.status !== 'removed')
       .map((p) => p.username);
     ['#lobby-chat-file-to', '#game-chat-file-to'].forEach((sel) => {
       const select = $(sel);
@@ -363,9 +373,14 @@
     ul.innerHTML = '';
     players.forEach((p) => {
       const li = document.createElement('li');
+      const isBot = p.username === 'Bot';
+      if (isBot) li.classList.add('player-bot');
       let statusCls = 'status-online';
       let statusText = t('game.online');
-      if (p.status === 'disconnected') {
+      if (isBot) {
+        statusCls = 'status-bot';
+        statusText = t('game.bot');
+      } else if (p.status === 'disconnected') {
         statusCls = 'status-disconnected';
         statusText = t('game.disconnected');
       } else if (p.status === 'removed') {
@@ -374,7 +389,13 @@
       }
       let extra = p.cards_count != null ? ` (${p.cards_count} ${t('lobby.cards')})` : '';
       if (showChance && p.winChance != null) extra += ` — ${p.winChance}%`;
-      li.innerHTML = `<span>${p.username}${extra}</span><span class="${statusCls}">${statusText}</span>`;
+      const nameEl = document.createElement('span');
+      nameEl.textContent = `${p.username}${extra}`;
+      const statusEl = document.createElement('span');
+      statusEl.className = statusCls;
+      statusEl.textContent = statusText;
+      li.appendChild(nameEl);
+      li.appendChild(statusEl);
       ul.appendChild(li);
     });
   }
@@ -1026,11 +1047,15 @@
       reasonText = t('game.noSurvivors');
     } else if (pkt.reason === 'last_survivor') {
       reasonText = t('game.lastSurvivor');
+    } else if (pkt.reason === 'bot_win') {
+      reasonText = t('game.botWin');
     } else {
       reasonText = t('game.victory');
     }
     if (pkt.reason === 'no_survivors') {
       $('#game-over-text').textContent = t('game.noSurvivorsLine');
+    } else if (pkt.reason === 'bot_win') {
+      $('#game-over-text').textContent = t('game.botWinLine');
     } else {
       const winners = (pkt.statistics || [])
         .filter((s) => (s.received ?? 0) > 0)

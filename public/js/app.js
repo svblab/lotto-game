@@ -383,7 +383,7 @@
     if (!me) return;
     if (me.received > 0) {
       await Sound().playAndWait('victory');
-    } else if (pkt.reason === 'victory') {
+    } else if (pkt.reason === 'victory' || pkt.reason === 'bot_win') {
       await Sound().playAndWait('defeat');
     }
   }
@@ -1109,6 +1109,7 @@
     UI().$('#leave-room-btn')?.addEventListener('click', leaveRoom);
     UI().$('#leave-game-btn')?.addEventListener('click', leaveRoom);
     UI().$('#start-game-btn')?.addEventListener('click', () => socket.sendAction('start_game'));
+    UI().$('#play-vs-bot-btn')?.addEventListener('click', () => socket.sendAction('play_vs_bot'));
 
     UI().$('#lobby-chat-form')?.addEventListener('submit', (e) => {
       e.preventDefault();

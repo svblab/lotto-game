@@ -51,7 +51,7 @@ MANUAL VERIFICATION REQUIRED (client timing) + VPS `php run_ALL_tests.php` **57/
 
 ## EPIC-034 — Bot opponent (ADR-034)
 
-Status: In progress (EPIC-034.1–034.4 landed; 034.5 remaining)
+Status: Completed (EPIC-034.1–034.5)
 
 ADR: `docs/ADR/034-bot-opponent.md`.
 
@@ -59,7 +59,32 @@ ADR: `docs/ADR/034-bot-opponent.md`.
 - [DONE] EPIC-034.2 — Apartment-with-bot resolution
 - [DONE] EPIC-034.3 — Victory / `bot_win` bank-burn path
 - [DONE] EPIC-034.4 — Win-streak + double-bank mint
-- [ ] EPIC-034.5 — Client UI (“Play vs Bot” + roster)
+- [DONE] EPIC-034.5 — Client UI (“Play vs Bot” + roster)
+
+### EPIC-034.5 — Client UI Play vs Bot + roster (ADR-034)
+
+Status: Completed
+
+Files:
+- public/index.html (diff — `#play-vs-bot-btn`)
+- public/js/ui.js (diff — enable/disable on roster; Bot roster status; `bot_win` game-over; exclude Bot from chat recipients)
+- public/js/app.js (diff — `play_vs_bot` click; defeat sound on `bot_win`)
+- public/css/style.css (diff — `.player-bot` / `.status-bot`)
+- public/locales/{en,ru,es,fr,tr,zh}.json (diff — playVsBot / bot / botWin strings)
+- docs/IMPLEMENTATION_STATUS.md (diff)
+
+Notes: Host-only control, always visible while `waiting`, enabled only when exactly one seated human; re-evaluated on every `showRoomPanel` (roster join/leave/room_joined). Bot distinguished by reserved username `"Bot"` (no `is_bot` field). Server paths unchanged.
+
+VERIFICATION:
+- MANUAL — alone in waiting room as host → Play vs Bot enabled; second player joins → disabled; leave → enabled again
+- MANUAL — Play vs Bot → game_started roster shows Bot; barrels/win chances include Bot
+- MANUAL — bot_win → bank-burn copy + defeat sound; human victory vs bot unchanged
+- `php tests/Manual/test_bot_opponent.php` — **151/151 PASS** (server suite unchanged)
+
+CHANGED:
+- Client lobby Play vs Bot control + Bot roster/game-over presentation + i18n
+NOT CHANGED:
+- Server protocol/economy (034.1–034.4); human Start Game rules (≥2 players)
 
 ### EPIC-034.4 — Win-streak + double-bank mint (ADR-034)
 
