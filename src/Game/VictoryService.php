@@ -76,6 +76,21 @@ final class VictoryService
         return $winners;
     }
 
+    /**
+     * ADR-034 §6 / EPIC-034.3: bot card complete?
+     *
+     * Explicitly separate from checkAllVictories() — bot has no conn_id and must
+     * never enter the [connId => wins] map fed into calculatePrize()/finishGame().
+     * Reuses checkCardVictory() → isCardComplete() against $room['bot'].
+     */
+    public function checkBotVictory(array $room): bool
+    {
+        if (!isset($room['bot']) || !is_array($room['bot'])) {
+            return false;
+        }
+        return $this->checkCardVictory($room['bot']) > 0;
+    }
+
     // -------------------------------------------------------------------------
     // EPIC-6.1  Double victory detection (включена в checkCardVictory)
     // -------------------------------------------------------------------------

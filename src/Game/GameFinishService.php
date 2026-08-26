@@ -175,6 +175,96 @@ final class GameFinishService
     }
 
     /**
+     * ADR-034 §6 / EPIC-034.3: bot completed a card — bank burn, no payout.
+     *
+     * Deliberately separate from finishGame()/calculatePrize(): the bot is never
+     * a prize recipient. Coins leave the economy with no users.coins credit.
+     * Streak storage: unset($worker->botWinStreaks[$userId]) — missing key ⇒ 0
+     * (same convention EPIC-034.4 will read).
+     */
+    public function finishBotWin(
+        array &$room,
+        int $roomId,
+        object $worker,
+        callable $roomDestroyer
+    ): void {
+        $bankBefore = (int) ($room['bank'] ?? 0);
+
+        // RAM-only burn — no PDO touch to users.coins.
+        $room['bank'] = 0;
+        if ($bankBefore > 0) {
+            lottoEconomyRecord('burn', 0, $bankBefore, [
+                'room_id' => $roomId,
+                'reason'  => 'bot_win',
+            ]);
+        }
+
+        // Reset human streak(s) for when EPIC-034.4 builds increment/mint on top.
+        if (!isset($worker->botWinStreaks) || !is_array($worker->botWinStreaks)) {
+            $worker->botWinStreaks = [];
+        }
+        foreach ($room['players'] ?? [] as $player) {
+            $uid = (int) ($player['user_id'] ?? 0);
+            if ($uid > 0) {
+                unset($worker->botWinStreaks[$uid]);
+            }
+        }
+
+        $fromStatus = $room['status'] ?? 'playing';
+        lottoStateTransition($roomId, $fromStatus, 'finished', 'bot_win');
+        $room['status'] = 'finished';
+
+        // Empty prizes ⇒ received=0 for every human; bot is not in game_roster/players.
+        $statistics = $this->buildVictoryStatistics($room, []);
+        foreach ($statistics as &$stat) {
+            $uid = $stat['_user_id'];
+            unset($stat['_user_id']);
+            if ($uid > 0) {
+                $userStmt = $this->stmts->get('user_by_id');
+                $userStmt->execute([$uid]);
+                $row = $userStmt->fetch();
+                if ($row !== false) {
+                    $stat['coins'] = (int) $row['coins'];
+                }
+            }
+        }
+        unset($stat);
+
+        $packet = [
+            'type'               => 'game_over',
+            'winner'             => 'Bot',
+            'reason'             => 'bot_win',
+            'prize'              => 0,
+            'final_bank'         => 0,
+            'statistics'         => $statistics,
+            'win_chance_history' => $room['win_chance_history'] ?? [],
+        ];
+        $packetJson = json_encode($packet);
+
+        if (isset($room['players']) && is_array($room['players'])) {
+            foreach ($room['players'] as $connId => $player) {
+                if (isset($player['status']) && $player['status'] === 'active' && isset($player['connection'])) {
+                    try {
+                        $player['connection']->send($packetJson);
+                    } catch (Throwable $sendError) {
+                        $this->logger->warning(
+                            "Room {$roomId}: Failed sending game_over (bot_win) to connection {$connId}: "
+                            . $sendError->getMessage()
+                        );
+                    }
+                }
+            }
+        }
+
+        $this->logger->info(
+            "Room {$roomId}: bot_win bank burn processed. burned={$bankBefore}"
+        );
+
+        $this->cancelRoomTimers($room, $roomId);
+        $roomDestroyer();
+    }
+
+    /**
      * Zero active players — refund all participants and tear down the room
      * (ANCHOR_CORE Part 2 § No Survivors / § Economic Integrity Rule).
      */

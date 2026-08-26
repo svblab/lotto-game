@@ -41,7 +41,7 @@ final class StateMachineAudit
         ],
         'playing' => [
             'apartment' => ['apartment_detected'],
-            'finished'  => ['victory', 'last_survivor'],
+            'finished'  => ['victory', 'last_survivor', 'bot_win'],
             'destroyed' => ['admin_close', 'no_active_players', 'room_destroyed'],
         ],
         'apartment' => [

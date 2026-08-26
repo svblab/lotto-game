@@ -299,6 +299,9 @@ $worker->onWorkerStart = function (Worker $worker): void {
     $worker->rooms           = [];
     $worker->userConnections = [];
     $worker->sessionTokens   = [];
+    // ADR-034: consecutive human wins vs bot (missing key ⇒ 0). Reset-on-bot-win
+    // wired in EPIC-034.3; increment/mint in EPIC-034.4.
+    $worker->botWinStreaks   = [];
     ServerRuntimeSettings::initOnWorker($worker);
 
     $worker->memoryAudit = new MemoryAudit($worker->logger);

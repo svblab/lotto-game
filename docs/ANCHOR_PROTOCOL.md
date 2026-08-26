@@ -446,14 +446,12 @@ Server → Room. Zero active players remain — stakes refunded, no winner, `pri
 `received` equals `paid` (stake return, not a prize).
 
 ### bot_win
-Server → Room (ADR-034).
-**Registry-reserved / not yet emitted** — see
-`IMPLEMENTATION_STATUS.md` EPIC-034 (Planned).
-
-Target contract (EPIC-034.3+): the bot closed all 15 numbers on one of its
-cards. The room bank is **burned** (not paid to the bot, not refunded to the
-human). `prize` and `final_bank` are 0. Winner display name is the reserved
-username `"Bot"`. No `is_bot` field.
+Server → Room (ADR-034, **Live EPIC-034.3**).
+The bot closed all 15 numbers on one of its cards. The room bank is **burned**
+(not paid to the bot, not refunded to the human). `prize` and `final_bank` are 0.
+Winner display name is the reserved username `"Bot"`. No `is_bot` field.
+Human `statistics[].received` is 0; `coins` is the unchanged post-event
+`users.coins` (read fresh per ADR-016).
 ```json
 {"type": "game_over", "winner": "Bot", "reason": "bot_win", "prize": 0, "final_bank": 0, "statistics": [{"username": "player", "paid": 20, "received": 0, "coins": 480}], "win_chance_history": []}
 ```

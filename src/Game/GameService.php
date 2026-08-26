@@ -678,4 +678,23 @@ final class GameService
             $notifyConnection
         );
     }
+
+    /**
+     * ADR-034 §6 / EPIC-034.3: bot win — bank burn, no payout.
+     */
+    public function finishBotWin(array &$room, int $roomId, object $worker): void
+    {
+        $this->finishService->finishBotWin(
+            $room,
+            $roomId,
+            $worker,
+            function () use ($worker, $roomId) {
+                lottoEconomyCheckInvariants($worker, 'bot_win:' . $roomId);
+                unset($worker->rooms[$roomId]);
+                if (isset($worker->lobbyService)) {
+                    $worker->lobbyService->broadcastRoomList($worker);
+                }
+            }
+        );
+    }
 }

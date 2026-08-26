@@ -316,16 +316,15 @@ Zero active players remain → refund all participants (from `all_players_histor
 ## Economic Integrity Rule
 At any time, `bank + sum(user balances) + burned remainder` must be explainable.
 Coin creation/duplication/deletion forbidden, except daily bonus, burned
-division remainder, and the following ADR-034 intentional mechanics
-(**accepted design; not live until EPIC-034.3 / EPIC-034.4**):
+division remainder, and the following ADR-034 intentional mechanics:
 
-- **Bot-win bank burn** — when the bot wins (`game_over` reason `bot_win`),
-  the room bank is destroyed (neither paid to the bot nor refunded to the
-  human); `bank = 0` with no `users.coins` credit.
+- **Bot-win bank burn** (ADR-034 §6, **Live EPIC-034.3**) — room bank cleared
+  with no recipient and no refund when the bot completes a card
+  (`game_over` reason `bot_win`); `bank = 0` with no `users.coins` credit.
 - **Bot win-streak double-bank mint** — on a human’s 3rd consecutive win
   against the bot, after the normal bank payout the server credits an
   additional amount equal to that bank (genuine emission); streak counter
-  is RAM-only (`$worker->botWinStreaks`).
+  is RAM-only (`$worker->botWinStreaks`). **Not live until EPIC-034.4.**
 
 ## Bot opponent economy (ADR-034)
 Live (EPIC-034.1): bot `total_paid` is always 0; bank at start = human stake
@@ -335,14 +334,18 @@ is `immune`; bot without a line is immediately refused (`$room['bot']=null` +
 `player_left` reason `refuse`); active-participant counts include the bot;
 human `last_survivor` after bot refuse uses the **existing** last-survivor
 payout (not a new economy rule).
+Live (EPIC-034.3): bot card complete → `finishBotWin` bank burn
+(`reason: bot_win`, `prize`/`final_bank` = 0, human `received` = 0); human
+streak for that `user_id` is reset via `unset($worker->botWinStreaks[$userId])`
+(missing key ⇒ 0). Human `victory` against the bot still uses the unmodified
+existing payout path (bot never in `checkAllVictories` / `calculatePrize`).
 Still reserved until later epics:
-- Human `victory` / `last_survivor` vs bot: streak increment on
-  `$worker->botWinStreaks[$userId]` (EPIC-034.3 / 034.4) — payout itself is
-  already live via existing paths.
-- Bot win: bank burn + `reason: bot_win`; that human’s streak resets to 0
-  (EPIC-034.3 / 034.4).
+- Human `victory` / `last_survivor` vs bot: streak **increment** + mint-on-3
+  on `$worker->botWinStreaks[$userId]` (EPIC-034.4) — payout itself is
+  already live via existing paths; bot-win **reset** is live (034.3).
 - Streak also resets on explicit logout and on finishing any human-vs-human
-  game; disconnect/reconnect without logout does **not** reset the streak.
+  game (EPIC-034.4); disconnect/reconnect without logout does **not** reset
+  the streak.
 
 ## Mandatory Transactions
 SQLite transaction required for: `startGame()`, apartment payment, kick refund,
@@ -484,7 +487,7 @@ Forbidden: `join_room, start_game, play_vs_bot, apartment_choice`.
 Transitions: `apartment detected → apartment`; `winner found → finished`;
 `last survivor → finished`; `admin_close_room → destroyed`;
 `no active players → destroyed`.
-ADR-034 target (EPIC-034.3+): `bot win → finished` (reason `bot_win`).
+ADR-034 Live (EPIC-034.3): `bot win → finished` (reason `bot_win`, bank burn).
 No new room states for bot mode — bot is a room field, not a state.
 
 **apartment**: Apartment event active, loop paused, no barrel drawing, waiting on required responses.
@@ -676,9 +679,10 @@ FILE_RATE_LIMIT_MAX, FILE_RATE_LIMIT_WINDOW_SECONDS, WS_MAX_PACKAGE_SIZE
 
 ## Worker Storage
 `$worker->rooms`, `$worker->userConnections` (key=`userId`, value=`$connection`).
-`$worker->botWinStreaks` (ADR-034): **reserved, not yet created** — see
-`IMPLEMENTATION_STATUS.md` EPIC-034 (Planned). Target: key=`userId`,
-value=`int` consecutive wins vs bot; RAM-only; missing key means 0.
+`$worker->botWinStreaks` (ADR-034, **Live EPIC-034.3** storage + bot-win reset;
+increment/mint still EPIC-034.4): key=`userId`, value=`int` consecutive wins
+vs bot; RAM-only; initialized `[]` in `onWorkerStart`; missing key means 0.
+Bot win clears via `unset($worker->botWinStreaks[$userId])`.
 
 ## Room Structure Keys (allowed, no others without ADR)
 ```
@@ -743,7 +747,7 @@ Removal reasons: `leave, disconnect, afk, refuse, kicked, banned, admin_close`.
 - Removal: `removePlayerFromLobby(), removePlayerFromGame(), removePlayerFromApartment()` (no generic `removePlayer()`)
 - Reconnect: `handleDisconnect(), handleReconnect(), buildReconnectState()`
 - Apartment: `startApartment(), finishApartment(), processApartmentChoice()`
-- Victory: `checkCardVictory(), calculatePrize(), finishGame()`
+- Victory: `checkCardVictory(), checkAllVictories(), checkBotVictory(), calculatePrize(), finishGame(), finishBotWin()`
 
 ## Protocol Packet Types (allowed)
 ```
@@ -755,9 +759,8 @@ admin_change_password_result,
 room_message, file_offer, file_accepted, file_rejected, file_data, file_offer_expired
 ```
 
-`game_over.reason` values: `victory`, `last_survivor`, `no_survivors`.
-ADR-034 `bot_win` is **registry-reserved** (not emitted until EPIC-034.3) —
-see `IMPLEMENTATION_STATUS.md` EPIC-034 (Planned).
+`game_over.reason` values: `victory`, `last_survivor`, `no_survivors`, `bot_win`.
+ADR-034 `bot_win` is **Live (EPIC-034.3)** — bank burn, no recipient.
 
 ## Protocol Actions (allowed)
 ```

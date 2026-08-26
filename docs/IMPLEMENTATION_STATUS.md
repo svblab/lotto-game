@@ -51,15 +51,44 @@ MANUAL VERIFICATION REQUIRED (client timing) + VPS `php run_ALL_tests.php` **57/
 
 ## EPIC-034 — Bot opponent (ADR-034)
 
-Status: In progress (EPIC-034.1 + 034.2 landed; 034.3–034.5 remaining)
+Status: In progress (EPIC-034.1–034.3 landed; 034.4–034.5 remaining)
 
 ADR: `docs/ADR/034-bot-opponent.md`.
 
 - [DONE] EPIC-034.1 — Bot entity + `play_vs_bot` + turn engine integration
 - [DONE] EPIC-034.2 — Apartment-with-bot resolution
-- [ ] EPIC-034.3 — Victory / `bot_win` bank-burn path
+- [DONE] EPIC-034.3 — Victory / `bot_win` bank-burn path
 - [ ] EPIC-034.4 — Win-streak + double-bank mint
 - [ ] EPIC-034.5 — Client UI (“Play vs Bot” + roster)
+
+### EPIC-034.3 — Bot-win bank burn + streak-reset wiring (ADR-034)
+
+Status: Completed
+
+Files:
+- src/Game/VictoryService.php (diff — `checkBotVictory()` separate from `checkAllVictories`)
+- src/Game/GameTurnService.php (diff — human victory > bot victory > apartment in draw pipeline)
+- src/Game/GameFinishService.php (diff — `finishBotWin()` bank burn, packet, streak unset)
+- src/Game/GameService.php (diff — `finishBotWin()` orchestration wrapper)
+- src/Core/StateMachineAudit.php (diff — `playing→finished` trigger `bot_win`)
+- server.php (diff — `$worker->botWinStreaks = []` on worker start)
+- tests/Manual/test_bot_opponent.php (diff — §8 bot_win / human victory / same-barrel priority)
+- docs/ANCHOR_CORE.md (diff — named bank-burn exception Live; Worker Storage; economy note)
+- docs/ANCHOR_PROTOCOL.md (diff — `bot_win` Live)
+- docs/IMPLEMENTATION_STATUS.md (diff)
+
+Notes: Bot is **never** folded into `checkAllVictories()` / `calculatePrize()` / `finishGame()` payout map. Streak convention: `unset($worker->botWinStreaks[$userId])` on bot win (missing key ⇒ 0). Increment-on-human-win and mint-on-3 remain EPIC-034.4.
+
+VERIFICATION:
+- `php tests/Manual/test_bot_opponent.php` — **136/136 PASS** (was 99; +bot_win / human victory / priority)
+- `php tests/Manual/test_victory.php` — **77/77 PASS**
+
+CHANGED:
+- Separate bot victory detection + bank-burn finish path + streak reset wiring + storage init
+NOT CHANGED:
+- Human-vs-human victory / double-victory share math
+- Streak increment / double-bank mint / logout & human-vs-human streak reset (EPIC-034.4)
+- Client UI (EPIC-034.5)
 
 ### EPIC-034.2 — Apartment-with-bot resolution (ADR-034)
 

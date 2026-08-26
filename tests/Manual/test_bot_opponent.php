@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * EPIC-034.1 / 034.2 — Bot opponent (start path, turn engine, apartment fold-in).
+ * EPIC-034.1 / 034.2 / 034.3 — Bot opponent (start, turns, apartment, bot_win).
  * Run: php tests/Manual/test_bot_opponent.php
  */
 
@@ -72,6 +72,7 @@ class MockConnection {
 
 class MockWorker {
     public array $rooms = [];
+    public array $botWinStreaks = [];
     public object $lobbyService;
 
     public function __construct()
@@ -815,8 +816,224 @@ echo "\n=== EPIC-034.2 Apartment fold-in ===\n";
     MockTimer::reset();
 }
 
+// -------------------------------------------------------------------------
+// 8. EPIC-034.3 — bot_win bank burn + human victory vs bot + streak reset
+// -------------------------------------------------------------------------
+
+echo "\n=== EPIC-034.3 bot_win / human victory vs bot ===\n";
+
+{
+    // Bot completes a card → bank burn, reason bot_win, streak unset.
+    MockTimer::reset();
+    $host = new MockConnection(1, 10, 'host');
+    $worker = new MockWorker();
+    $worker->botWinStreaks[10] = 2; // seed non-zero to prove reset fires
+    $users = [10 => ['id' => 10, 'coins' => 480]];
+    $pdo = new MockPDO();
+    [$svc, , $stmts, , , $apt] = makeService($users, $pdo);
+    $vic = new VictoryService();
+
+    [$botCard, $botMask] = makeCompleteCardAndMask();
+    $lastNum = null;
+    for ($row = 2; $row >= 0 && $lastNum === null; $row--) {
+        for ($col = 8; $col >= 0; $col--) {
+            if ($botCard[$row][$col] !== null) {
+                $lastNum = $botCard[$row][$col];
+                $botMask[$row][$col] = false;
+                break;
+            }
+        }
+    }
+    assert_true($lastNum !== null, 'bot_win: found last bot number');
+
+    $humanCard = makeCardWithClosedRow();
+    $emptyMask = [];
+    for ($row = 0; $row < 3; $row++) {
+        $emptyMask[$row] = array_fill(0, 9, false);
+    }
+    // Second bot card empty — only one card completes.
+    $botCard2 = makeCardWithClosedRow();
+    $botMask2 = $emptyMask;
+
+    $room = makeWaitingRoom(1);
+    $room['status'] = 'playing';
+    $room['bank'] = 20;
+    $room['apartment_fired'] = false;
+    $room['game_roster'] = [1 => ['user_id' => 10, 'username' => 'host']];
+    $room['win_chance_history'] = [
+        ['turn_number' => 1, 'chances' => ['host' => 40.0, 'Bot' => 60.0]],
+    ];
+    $room['active_drawer_conn_id'] = 1;
+    $room['bag'] = [$lastNum];
+    $room['players'][1] = makePlayer($host, 1, [$humanCard], [$emptyMask]);
+    $room['players'][1]['total_paid'] = 20;
+    $room['bot'] = makeBot([$botCard, $botCard2], [$botMask, $botMask2]);
+    $worker->rooms[1] = $room;
+
+    assert_true($vic->checkBotVictory($worker->rooms[1]) === false, 'bot_win: not won before draw');
+    assert_true($vic->checkAllVictories($worker->rooms[1]) === [], 'bot_win: no human winners before');
+
+    $svc->handleDrawBarrel($host, $worker);
+
+    assert_true(!isset($worker->rooms[1]), 'bot_win: room destroyed');
+    assert_true(!array_key_exists(10, $worker->botWinStreaks), 'bot_win: streak unset (missing key ⇒ 0)');
+    $overs = $host->sentOfType('game_over');
+    assert_true(count($overs) === 1, 'bot_win: game_over sent');
+    assert_true(($overs[0]['reason'] ?? '') === 'bot_win', 'bot_win: reason=bot_win');
+    assert_true(($overs[0]['winner'] ?? '') === 'Bot', 'bot_win: winner=Bot');
+    assert_true(($overs[0]['prize'] ?? null) === 0, 'bot_win: prize=0');
+    assert_true(($overs[0]['final_bank'] ?? null) === 0, 'bot_win: final_bank=0');
+    assert_true(is_array($overs[0]['win_chance_history'] ?? null)
+        && count($overs[0]['win_chance_history']) >= 1, 'bot_win: win_chance_history present');
+    assert_true(
+        isset($overs[0]['win_chance_history'][0]['chances']['Bot']),
+        'bot_win: win_chance_history includes Bot'
+    );
+    $stats = $overs[0]['statistics'] ?? [];
+    assert_true(count($stats) === 1, 'bot_win: one human in statistics');
+    assert_true(($stats[0]['username'] ?? '') === 'host', 'bot_win: stats username');
+    assert_true(($stats[0]['paid'] ?? null) === 20, 'bot_win: stats paid=stake');
+    assert_true(($stats[0]['received'] ?? null) === 0, 'bot_win: stats received=0');
+    assert_true(($stats[0]['coins'] ?? null) === 480, 'bot_win: coins unchanged (ADR-016)');
+    $credited = false;
+    foreach ($stmts->updates as $u) {
+        if (($u['add'] ?? 0) > 0 && ($u['user_id'] ?? null) === 10) {
+            $credited = true;
+        }
+    }
+    assert_true(!$credited, 'bot_win: no users.coins credit');
+    assert_true($host->sentOfType('apartment_alert') === [], 'bot_win: apartment skipped');
+    MockTimer::reset();
+}
+
+{
+    // Human victory against bot — existing unmodified victory path (full bank).
+    MockTimer::reset();
+    $host = new MockConnection(1, 10, 'host');
+    $worker = new MockWorker();
+    $worker->botWinStreaks[10] = 1; // must NOT be cleared by human victory in 034.3
+    $users = [10 => ['id' => 10, 'coins' => 480]];
+    $pdo = new MockPDO();
+    [$svc, , $stmts, , , ] = makeService($users, $pdo);
+    $vic = new VictoryService();
+
+    [$completeCard, $completeMask] = makeCompleteCardAndMask();
+    $lastNum = null;
+    for ($row = 2; $row >= 0 && $lastNum === null; $row--) {
+        for ($col = 8; $col >= 0; $col--) {
+            if ($completeCard[$row][$col] !== null) {
+                $lastNum = $completeCard[$row][$col];
+                $completeMask[$row][$col] = false;
+                break;
+            }
+        }
+    }
+    assert_true($lastNum !== null, 'human vs bot victory: found last number');
+
+    $botCard = makeCardWithClosedRow();
+    $emptyMask = [];
+    for ($row = 0; $row < 3; $row++) {
+        $emptyMask[$row] = array_fill(0, 9, false);
+    }
+
+    $room = makeWaitingRoom(1);
+    $room['status'] = 'playing';
+    $room['bank'] = 20;
+    $room['apartment_fired'] = false;
+    $room['game_roster'] = [1 => ['user_id' => 10, 'username' => 'host']];
+    $room['win_chance_history'] = [];
+    $room['active_drawer_conn_id'] = 1;
+    $room['bag'] = [$lastNum];
+    $room['players'][1] = makePlayer($host, 1, [$completeCard], [$completeMask]);
+    $room['players'][1]['total_paid'] = 20;
+    $room['bot'] = makeBot([$botCard, $botCard], [$emptyMask, $emptyMask]);
+    $worker->rooms[1] = $room;
+
+    assert_true($vic->checkCardVictory($room['players'][1]) === 0, 'human vs bot: not won before');
+    assert_true($vic->checkBotVictory($room) === false, 'human vs bot: bot not winning');
+
+    $svc->handleDrawBarrel($host, $worker);
+
+    assert_true(!isset($worker->rooms[1]), 'human vs bot: room destroyed');
+    $overs = $host->sentOfType('game_over');
+    assert_true(count($overs) === 1, 'human vs bot: game_over sent');
+    assert_true(($overs[0]['reason'] ?? '') === 'victory', 'human vs bot: reason=victory (not bot_win)');
+    assert_true(($overs[0]['winner'] ?? '') === 'host', 'human vs bot: winner=host');
+    assert_true(($overs[0]['prize'] ?? null) === 20, 'human vs bot: full bank paid');
+    $paid = false;
+    foreach ($stmts->updates as $u) {
+        if (($u['add'] ?? null) === 20 && ($u['user_id'] ?? null) === 10) {
+            $paid = true;
+        }
+    }
+    assert_true($paid, 'human vs bot: existing victory payout credited');
+    // EPIC-034.3 does not increment streak — only ensures bot_win reset doesn't
+    // interfere with a path that does not yet exist (034.4).
+    assert_true(($worker->botWinStreaks[10] ?? null) === 1, 'human vs bot: streak untouched by 034.3 victory path');
+    MockTimer::reset();
+}
+
+{
+    // Same barrel: human + bot both complete → human victory wins (priority).
+    MockTimer::reset();
+    $host = new MockConnection(1, 10, 'host');
+    $worker = new MockWorker();
+    [$svc, , , , , ] = makeService([10 => ['id' => 10, 'coins' => 500]], new MockPDO());
+    $vic = new VictoryService();
+
+    [$humanCard, $humanMask] = makeCompleteCardAndMask();
+    [$botCard, $botMask] = makeCompleteCardAndMask();
+    // Share the same last number on both cards so one barrel completes both.
+    $shared = 90;
+    $humanCard[2][8] = $shared;
+    $botCard[2][8] = $shared;
+    $humanMask[2][8] = false;
+    $botMask[2][8] = false;
+
+    $emptyMask = [];
+    for ($row = 0; $row < 3; $row++) {
+        $emptyMask[$row] = array_fill(0, 9, false);
+    }
+
+    $room = makeWaitingRoom(1);
+    $room['status'] = 'playing';
+    $room['bank'] = 10;
+    $room['apartment_fired'] = true; // avoid apartment distraction
+    $room['game_roster'] = [1 => ['user_id' => 10, 'username' => 'host']];
+    $room['active_drawer_conn_id'] = 1;
+    $room['bag'] = [$shared];
+    $room['players'][1] = makePlayer($host, 1, [$humanCard], [$humanMask]);
+    $room['players'][1]['total_paid'] = 10;
+    $room['bot'] = makeBot([$botCard, makeCardWithClosedRow()], [$botMask, $emptyMask]);
+    $worker->rooms[1] = $room;
+
+    assert_true($vic->checkAllVictories($room) === [], 'same-barrel: neither won before');
+    assert_true($vic->checkBotVictory($room) === false, 'same-barrel: bot not won before');
+
+    $svc->handleDrawBarrel($host, $worker);
+
+    $overs = $host->sentOfType('game_over');
+    assert_true(count($overs) === 1, 'same-barrel: game_over sent');
+    assert_true(($overs[0]['reason'] ?? '') === 'victory', 'same-barrel: human victory overrides bot_win');
+    assert_true(($overs[0]['winner'] ?? '') === 'host', 'same-barrel: winner=host');
+    MockTimer::reset();
+}
+
+{
+    // Unit: checkBotVictory / checkAllVictories stay separate.
+    $vic = new VictoryService();
+    [$card, $mask] = makeCompleteCardAndMask();
+    $room = makeWaitingRoom(1);
+    $room['bot'] = makeBot([$card], [$mask]);
+    $room['players'] = [];
+    assert_true($vic->checkBotVictory($room) === true, 'unit: checkBotVictory true when bot complete');
+    assert_true($vic->checkAllVictories($room) === [], 'unit: checkAllVictories ignores bot');
+    $room['bot'] = null;
+    assert_true($vic->checkBotVictory($room) === false, 'unit: checkBotVictory false when bot null');
+}
+
 $total = $passed + $failed;
-echo "\n--- EPIC-034.1/034.2 Bot opponent ---\n";
+echo "\n--- EPIC-034.1/034.2/034.3 Bot opponent ---\n";
 echo "$passed / $total PASSED\n";
 if ($failed > 0) {
     exit(1);

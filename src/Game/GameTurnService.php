@@ -581,6 +581,7 @@ final class GameTurnService
             }
             $this->markBotNumber($room, $number);
 
+            // Priority: human victory > bot victory > apartment (same barrel).
             $winners = $this->victory->checkAllVictories($room);
             if (!empty($winners)) {
                 $result = $this->victory->calculatePrize($room['bank'], $winners);
@@ -595,6 +596,27 @@ final class GameTurnService
                     $winners,
                     $result['prizes'],
                     'victory',
+                    function () use ($worker, $roomId) {
+                        unset($worker->rooms[$roomId]);
+                        if (isset($worker->lobbyService)) {
+                            $worker->lobbyService->broadcastRoomList($worker);
+                        }
+                    }
+                );
+                return true;
+            }
+
+            // ADR-034 §6: bot win is a separate bank-burn path — never merge into $winners.
+            if ($this->victory->checkBotVictory($room)) {
+                $remaining = count($room['bag']);
+                $this->broadcastBarrelsDrawn($room, $drawnThisTurn, null, true, $remaining, false);
+                $this->logger->info(
+                    "Room {$roomId}: barrels [" . implode(', ', $drawnThisTurn) . "] drawn, bot_win"
+                );
+                $this->finishService->finishBotWin(
+                    $room,
+                    $roomId,
+                    $worker,
                     function () use ($worker, $roomId) {
                         unset($worker->rooms[$roomId]);
                         if (isset($worker->lobbyService)) {
