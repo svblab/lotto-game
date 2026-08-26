@@ -56,14 +56,14 @@ body {
 
 .logo-img {
   display: block;
-  height: 120px;
-  max-width: 80%;
-  width: auto;
+  width: min(100%, 400px);
+  height: auto;
+  max-height: 140px;
   margin: 0 auto 1rem;
   object-fit: contain;
   border: none;
   background: transparent;
-  opacity: 0.85;
+  opacity: 1;
 }
 .logo-img.small { height: 48px; max-width: 120px; margin: 0; }
 

@@ -8,14 +8,15 @@
   <meta name="lotto-ws-port" content="">
   <meta name="lotto-ws-path" content="/ws">
   <title>Russian Lotto Bingo</title>
-  <link rel="stylesheet" href="css/style.css?v=24">
+  <link rel="stylesheet" href="css/style.css?v=25">
+  <link rel="preload" as="image" href="img/logo.png?v=2">
 </head>
 <body>
   <div id="app">
     <!-- Auth -->
     <section id="auth-screen" class="screen active">
       <div class="panel auth-panel">
-        <img class="logo-img" src="img/logo.png" alt="" onerror="this.onerror=null;var t=document.getElementById('auth-logo-fallback');if(t){this.replaceWith(t.content.cloneNode(true));window.LottoI18n&amp;&amp;window.LottoI18n.applyDom();}">
+        <img class="logo-img" id="auth-logo-img" src="img/logo.png?v=2" alt="">
         <template id="auth-logo-fallback">
           <div class="logo-brand" role="img" aria-labelledby="auth-logo-text">
             <span class="logo-brand-deco" aria-hidden="true">90</span>
@@ -23,6 +24,18 @@
             <span class="logo-brand-deco" aria-hidden="true">1</span>
           </div>
         </template>
+        <script>
+          (function () {
+            var img = document.getElementById('auth-logo-img');
+            if (!img) return;
+            img.addEventListener('error', function () {
+              var t = document.getElementById('auth-logo-fallback');
+              if (!t) return;
+              img.replaceWith(t.content.cloneNode(true));
+              if (window.LottoI18n) window.LottoI18n.applyDom();
+            }, { once: true });
+          })();
+        </script>
         <div class="lang-row">
           <button type="button" id="auth-lang-btn" class="icon-btn" title="Language">🌐</button>
           <button type="button" id="rules-btn-auth" class="icon-btn" title="Rules">?</button>
