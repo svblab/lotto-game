@@ -668,7 +668,12 @@ final class ReconnectService
             return;
         }
 
-        if (count($active) === 1 && in_array($room['status'] ?? '', ['playing', 'apartment'], true)) {
+        // ADR-034 §5: bot counts as opposing participant — last_survivor only when
+        // exactly one human remains AND no bot.
+        if (
+            $this->countActiveParticipants($room) === 1
+            && in_array($room['status'] ?? '', ['playing', 'apartment'], true)
+        ) {
             $winnerConnId = (int) array_key_first($active);
 
             // ADR-013: AFK-cascade last survivor with own auto_draws → no_survivors refund
@@ -719,6 +724,18 @@ final class ReconnectService
             $room['players'],
             fn($p) => ($p['status'] ?? null) === 'active'
         );
+    }
+
+    /**
+     * ADR-034 §5: active humans + bot (if present) for last-survivor checks.
+     */
+    private function countActiveParticipants(array $room): int
+    {
+        $n = count($this->collectActivePlayers($room));
+        if (isset($room['bot']) && is_array($room['bot'])) {
+            $n++;
+        }
+        return $n;
     }
 
     private function findRoomIdByConnId(object $worker, int $connId): ?int

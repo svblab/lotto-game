@@ -255,6 +255,7 @@ Triggers at most once per game. Required (non-immune) player who chooses `agree`
 
 ## Apartment Refusal
 Final choice `refuse` causes removal (reason `refuse`) when the apartment phase ends. Already-paid coins remain in bank — no refund.
+ADR-034 (Live EPIC-034.2): if the bot is required (human closed a row first, bot has no line), the bot is **immediately** force-removed with reason `refuse` (clears `$room['bot'] = null`, broadcasts `player_left` username `"Bot"`, omits `user_id`) — it never waits for the 10s apartment timer and never appears in `apartment_responses`.
 
 ## Apartment Timeout
 Equivalent to `refuse` for players who never sent a choice. Players who sent `agree` or `refuse` may change their choice until the timer expires; only the last choice counts.
@@ -298,11 +299,11 @@ Priority: Victory > Apartment. If same barrel causes both, victory wins, apartme
 ## Last Survivor
 Exactly one active **human** remains and no opposing bot remains → that human
 takes entire bank: `winner.coins += bank; bank = 0`.
-When a bot is present (ADR-034, **EPIC-034.1+**), the bot counts as an opposing
-participant for this check; removing the bot with one human left yields
-`last_survivor` for the human (including immediate apartment `refuse` of the
-bot). Reserved until EPIC-034 ships — see `IMPLEMENTATION_STATUS.md` EPIC-034
-(Planned).
+When a bot is present (ADR-034, **EPIC-034.1+** / **Live EPIC-034.2** for apartment),
+the bot counts as an opposing participant for this check; removing the bot with
+one human left yields `last_survivor` for the human (including immediate
+apartment `refuse` of the bot). Human `last_survivor` payout is existing
+economy (unchanged by bot presence) — not a new rule.
 **Qualifying condition (ADR-013):** when the triggering removal reason is `afk`, the
 survivor must have `auto_draws === 0` (no AFK auto-draws this game). If the survivor
 has `auto_draws > 0`, treat as § No Survivors (refund via `handleNoSurvivors()`). Removal
@@ -329,9 +330,15 @@ division remainder, and the following ADR-034 intentional mechanics
 ## Bot opponent economy (ADR-034)
 Live (EPIC-034.1): bot `total_paid` is always 0; bank at start = human stake
 only; `play_vs_bot` PDO transaction touches only the human `users.coins` row.
+Live (EPIC-034.2): apartment fold-in — bot scanned for lines; bot with a line
+is `immune`; bot without a line is immediately refused (`$room['bot']=null` +
+`player_left` reason `refuse`); active-participant counts include the bot;
+human `last_survivor` after bot refuse uses the **existing** last-survivor
+payout (not a new economy rule).
 Still reserved until later epics:
-- Human `victory` / `last_survivor` vs bot: normal bank payout; increments
-  `$worker->botWinStreaks[$userId]` (EPIC-034.3 / 034.4).
+- Human `victory` / `last_survivor` vs bot: streak increment on
+  `$worker->botWinStreaks[$userId]` (EPIC-034.3 / 034.4) — payout itself is
+  already live via existing paths.
 - Bot win: bank burn + `reason: bot_win`; that human’s streak resets to 0
   (EPIC-034.3 / 034.4).
 - Streak also resets on explicit logout and on finishing any human-vs-human
@@ -486,8 +493,8 @@ and when `password_hash !== null`: `room_message, file_offer, file_accept, file_
 Forbidden: `draw_barrel, start_game, play_vs_bot, join_room`. Reconnect forbidden.
 Transitions: `apartment timer expired → playing`; `winner found → finished`;
 `last survivor → finished`; `admin_close_room → destroyed`.
-ADR-034 target (EPIC-034.2+): last survivor after immediate bot `refuse`
-removal.
+ADR-034 Live (EPIC-034.2): last survivor after immediate bot `refuse`
+removal (bot never waits for the 10s timer; human timer unchanged).
 
 **finished**: Result finalized, prizes distributed, no gameplay. Allowed: none. Immediately destroyed.
 Transition: `finished → destroyed`.

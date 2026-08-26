@@ -3,10 +3,11 @@
 declare(strict_types=1);
 
 /**
- * EPIC-034.1 — Bot entity + play_vs_bot start path + turn engine fold-in.
+ * EPIC-034.1 / 034.2 — Bot opponent (start path, turn engine, apartment fold-in).
  * Run: php tests/Manual/test_bot_opponent.php
  */
 
+require_once __DIR__ . '/mock_timer.php';
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/../../src/Core/Helpers.php';
 
@@ -71,6 +72,14 @@ class MockConnection {
 
 class MockWorker {
     public array $rooms = [];
+    public object $lobbyService;
+
+    public function __construct()
+    {
+        $this->lobbyService = new class {
+            public function broadcastRoomList(object $worker): void {}
+        };
+    }
 }
 
 class MockPDO {
@@ -88,7 +97,8 @@ class MockDatabase {
 }
 
 class MockPreparedStatements {
-    private array $users;
+    /** @var array<int, array> */
+    public array $users;
     public array $updates = [];
 
     public function __construct(array $users) {
@@ -115,6 +125,22 @@ class MockPreparedStatements {
                 public function __construct(object $p) { $this->parent = $p; }
                 public function execute(array $p): void {
                     $this->parent->updates[] = ['coins' => $p[0], 'user_id' => $p[1]];
+                }
+                public function fetch(): false { return false; }
+            };
+        }
+        if ($key === 'add_user_coins') {
+            $parent = $this;
+            return new class($parent) {
+                private object $parent;
+                public function __construct(object $p) { $this->parent = $p; }
+                public function execute(array $p): void {
+                    $this->parent->updates[] = ['add' => $p[0], 'user_id' => $p[1]];
+                    $uid = $p[1];
+                    if (isset($this->parent->users[$uid])) {
+                        $this->parent->users[$uid]['coins'] =
+                            (int) $this->parent->users[$uid]['coins'] + (int) $p[0];
+                    }
                 }
                 public function fetch(): false { return false; }
             };
@@ -159,13 +185,25 @@ function makeWaitingRoom(int $hostConnId): array {
     ];
 }
 
-function makePlayer(MockConnection $conn, int $cardsCount = 1): array {
+function makePlayer(MockConnection $conn, int $cardsCount = 1, array $cards = [], array $masks = [], bool $immune = false): array {
+    $eng = new LottoEngine();
+    if ($cards === []) {
+        for ($i = 0; $i < $cardsCount; $i++) {
+            $cards[] = $eng->generateCard();
+        }
+    }
+    if ($masks === []) {
+        foreach ($cards as $card) {
+            $masks[] = array_map(fn($row) => array_fill(0, 9, false), $card);
+        }
+    }
     return [
         'user_id'         => $conn->userId,
         'username'        => $conn->username,
-        'cards'           => [],
+        'cards'           => $cards,
+        'masks'           => $masks,
         'cards_count'     => $cardsCount,
-        'total_paid'      => 0,
+        'total_paid'      => $cardsCount * 10,
         'last_action'     => time(),
         'afk_start'       => null,
         'strikes'         => 0,
@@ -174,7 +212,7 @@ function makePlayer(MockConnection $conn, int $cardsCount = 1): array {
         'session_token'   => 'tok_' . $conn->id,
         'reconnect_timer' => null,
         'connection'      => $conn,
-        'immune'          => false,
+        'immune'          => $immune,
     ];
 }
 
@@ -207,10 +245,52 @@ function makeService(array $users, MockPDO $pdo): array {
     $eng  = new LottoEngine();
     $vic  = new VictoryService();
     $apt  = new ApartmentService($db, $stmts, $log);
-    $fin  = (new \ReflectionClass(GameFinishService::class))->newInstanceWithoutConstructor();
+    $fin  = new GameFinishService($db, $stmts, $log);
     $turn = new GameTurnService($log, $vic, $apt, $fin);
     $svc  = new GameService($db, $stmts, $eng, $log, $vic, $apt, $fin, $turn);
-    return [$svc, $log, $stmts, $pdo, $turn];
+    $apt->bindGameService($svc);
+    return [$svc, $log, $stmts, $pdo, $turn, $apt];
+}
+
+/** Card with one fully-closed row (row 0) — same shape as test_apartment.php */
+function makeCardWithClosedRow(): array {
+    $card = [];
+    for ($row = 0; $row < 3; $row++) {
+        $card[$row] = array_fill(0, 9, null);
+    }
+    $card[0][0]=1; $card[0][2]=20; $card[0][4]=40; $card[0][6]=60; $card[0][8]=80;
+    $card[1][1]=10; $card[1][3]=30; $card[1][5]=50; $card[1][7]=70; $card[1][8]=85;
+    $card[2][0]=5;  $card[2][2]=25; $card[2][4]=45; $card[2][6]=65; $card[2][8]=90;
+    return $card;
+}
+
+function makeMaskWithClosedRow(array $card): array {
+    $mask = [];
+    for ($row = 0; $row < 3; $row++) {
+        $mask[$row] = [];
+        for ($col = 0; $col < 9; $col++) {
+            $mask[$row][$col] = false;
+        }
+    }
+    for ($col = 0; $col < 9; $col++) {
+        if ($card[0][$col] !== null) {
+            $mask[0][$col] = true;
+        }
+    }
+    return $mask;
+}
+
+/** Fully complete card/mask for victory (all 15 numbers marked). */
+function makeCompleteCardAndMask(): array {
+    $card = makeCardWithClosedRow();
+    $mask = [];
+    for ($row = 0; $row < 3; $row++) {
+        $mask[$row] = [];
+        for ($col = 0; $col < 9; $col++) {
+            $mask[$row][$col] = ($card[$row][$col] !== null);
+        }
+    }
+    return [$card, $mask];
 }
 
 echo "=== EPIC-034.1 Bot opponent ===\n\n";
@@ -519,8 +599,224 @@ echo "=== EPIC-034.1 Bot opponent ===\n\n";
     assert_true($host->sentOfType('your_turn') === [], 'AFK: startTurn/sendYourTurn no-op while bot drawing');
 }
 
+// -------------------------------------------------------------------------
+// 7. EPIC-034.2 — Apartment with bot
+// -------------------------------------------------------------------------
+
+echo "\n=== EPIC-034.2 Apartment fold-in ===\n";
+
+{
+    // Bot's row closed first → bot immune; human required; 10s timer arms; game resumes.
+    MockTimer::reset();
+    $host = new MockConnection(1, 10, 'host');
+    $worker = new MockWorker();
+    $users = [10 => ['id' => 10, 'coins' => 500]];
+    [$svc, , $stmts, , , $apt] = makeService($users, new MockPDO());
+
+    $botCard = makeCardWithClosedRow();
+    $botMask = makeMaskWithClosedRow($botCard);
+    $humanCard = makeCardWithClosedRow();
+    $humanMask = [];
+    for ($row = 0; $row < 3; $row++) {
+        $humanMask[$row] = array_fill(0, 9, false);
+    }
+
+    $room = makeWaitingRoom(1);
+    $room['status'] = 'playing';
+    $room['bank'] = 10;
+    $room['apartment_fired'] = false;
+    $room['active_drawer_conn_id'] = 1;
+    $room['players'][1] = makePlayer($host, 1, [$humanCard], [$humanMask]);
+    $room['players'][1]['total_paid'] = 10;
+    $room['bot'] = makeBot([$botCard, $botCard], [$botMask, $botMask]);
+    $worker->rooms[1] = $room;
+
+    assert_true($apt->hasLine($worker->rooms[1]['bot']) === true, 'Apt immune: bot hasLine');
+    assert_true($apt->shouldTrigger($worker->rooms[1]) === true, 'Apt immune: shouldTrigger when bot has line');
+    $apt->triggerApartment($worker->rooms[1], 1, $worker, $svc);
+    $r = &$worker->rooms[1];
+
+    assert_true(($r['status'] ?? '') === 'apartment', 'Apt immune: status=apartment');
+    assert_true(is_array($r['bot'] ?? null), 'Apt immune: bot still present');
+    assert_true(($r['bot']['immune'] ?? false) === true, 'Apt immune: bot immune=true');
+    assert_true(($r['players'][1]['immune'] ?? true) === false, 'Apt immune: human not immune');
+    assert_true(!empty($r['apartment_timer_id']), 'Apt immune: 10s apartment_timer_id armed');
+    $alerts = $host->sentOfType('apartment_alert');
+    assert_true(count($alerts) === 1, 'Apt immune: human got apartment_alert');
+    assert_true(($alerts[0]['required'] ?? null) === true, 'Apt immune: human required=true');
+    assert_true(!isset($r['apartment_responses']['Bot']), 'Apt immune: bot not in apartment_responses');
+
+    $svc->handleApartmentChoice($host, $worker, 'agree');
+    assert_true(($r['apartment_responses'][1] ?? '') === 'agree', 'Apt immune: human agree recorded');
+
+    $apt->onApartmentTimeout($worker->rooms[1], 1, $worker, $svc);
+    assert_true(isset($worker->rooms[1]), 'Apt immune: room still exists after resume');
+    assert_true(($worker->rooms[1]['status'] ?? '') === 'playing', 'Apt immune: resumed playing');
+    assert_true(is_array($worker->rooms[1]['bot'] ?? null), 'Apt immune: bot still present after resume');
+    assert_true(($worker->rooms[1]['bank'] ?? 0) === 15, 'Apt immune: bank += apartment payment');
+    MockTimer::reset();
+}
+
+{
+    // Human row closed first → bot force-removed (refuse); last_survivor payout (existing economy).
+    MockTimer::reset();
+    $host = new MockConnection(1, 10, 'host');
+    $worker = new MockWorker();
+    $users = [10 => ['id' => 10, 'coins' => 500]];
+    $pdo = new MockPDO();
+    [$svc, , $stmts, , , $apt] = makeService($users, $pdo);
+
+    $humanCard = makeCardWithClosedRow();
+    $humanMask = makeMaskWithClosedRow($humanCard);
+    $botCard = makeCardWithClosedRow();
+    $botMask = [];
+    for ($row = 0; $row < 3; $row++) {
+        $botMask[$row] = array_fill(0, 9, false);
+    }
+
+    $room = makeWaitingRoom(1);
+    $room['status'] = 'playing';
+    $room['bank'] = 20;
+    $room['apartment_fired'] = false;
+    $room['game_roster'] = [1 => ['user_id' => 10, 'username' => 'host']];
+    $room['win_chance_history'] = [];
+    $room['active_drawer_conn_id'] = 1;
+    $room['players'][1] = makePlayer($host, 1, [$humanCard], [$humanMask]);
+    $room['players'][1]['total_paid'] = 20;
+    $room['bot'] = makeBot([$botCard, $botCard], [$botMask, $botMask]);
+    $worker = new MockWorker();
+    $worker->rooms[1] = $room;
+
+    assert_true($apt->hasLine($worker->rooms[1]['players'][1]) === true, 'Apt refuse: human hasLine');
+    assert_true(($worker->rooms[1]['apartment_fired'] ?? null) === false, 'Apt refuse: apartment_fired false before');
+    assert_true($apt->shouldTrigger($worker->rooms[1]) === true, 'Apt refuse: shouldTrigger on human line');
+    $apt->triggerApartment($worker->rooms[1], 1, $worker, $svc);
+
+    assert_true(!isset($worker->rooms[1]), 'Apt refuse: room destroyed after last_survivor');
+    $left = $host->sentOfType('player_left');
+    assert_true(count($left) >= 1, 'Apt refuse: player_left broadcast');
+    $botLeft = null;
+    foreach ($left as $pkt) {
+        if (($pkt['username'] ?? '') === 'Bot') {
+            $botLeft = $pkt;
+        }
+    }
+    assert_true($botLeft !== null, 'Apt refuse: player_left username=Bot');
+    assert_true(($botLeft['reason'] ?? '') === 'refuse', 'Apt refuse: reason=refuse');
+    assert_true(!array_key_exists('user_id', $botLeft), 'Apt refuse: user_id omitted');
+    assert_true($host->sentOfType('apartment_alert') === [], 'Apt refuse: no apartment_alert (instant end)');
+    $overs = $host->sentOfType('game_over');
+    assert_true(count($overs) === 1, 'Apt refuse: game_over sent');
+    assert_true(($overs[0]['reason'] ?? '') === 'last_survivor', 'Apt refuse: reason=last_survivor');
+    assert_true(($overs[0]['winner'] ?? '') === 'host', 'Apt refuse: winner=host');
+    $paid = false;
+    foreach ($stmts->updates as $u) {
+        if (($u['add'] ?? null) === 20 && ($u['user_id'] ?? null) === 10) {
+            $paid = true;
+        }
+    }
+    assert_true($paid, 'Apt refuse: existing last_survivor payout credited human');
+    MockTimer::reset();
+}
+
+{
+    // Victory on same barrel overrides apartment (bot present) — priority unchanged.
+    MockTimer::reset();
+    $host = new MockConnection(1, 10, 'host');
+    $worker = new MockWorker();
+    $users = [10 => ['id' => 10, 'coins' => 500]];
+    [$svc, , , , , $apt] = makeService($users, new MockPDO());
+    $vic = new VictoryService();
+
+    [$completeCard, $completeMask] = makeCompleteCardAndMask();
+    $lastNum = null;
+    $lastRow = $lastCol = null;
+    for ($row = 2; $row >= 0 && $lastNum === null; $row--) {
+        for ($col = 8; $col >= 0; $col--) {
+            if ($completeCard[$row][$col] !== null) {
+                $lastNum = $completeCard[$row][$col];
+                $lastRow = $row;
+                $lastCol = $col;
+                $completeMask[$row][$col] = false;
+                break;
+            }
+        }
+    }
+    assert_true($lastNum !== null, 'Apt victory: found last number to draw');
+
+    $botCard = makeCardWithClosedRow();
+    $botMask = [];
+    for ($row = 0; $row < 3; $row++) {
+        $botMask[$row] = array_fill(0, 9, false);
+    }
+
+    $playerBefore = makePlayer($host, 1, [$completeCard], [$completeMask]);
+    assert_true($vic->checkCardVictory($playerBefore) === 0, 'Apt victory: not won before draw');
+    // Row 0 is still fully marked, so a line already exists; completing the card
+    // on this barrel would also keep shouldTrigger true — victory must win.
+    assert_true($apt->hasLine($playerBefore) === true, 'Apt victory: line already present (row 0)');
+
+    $room = makeWaitingRoom(1);
+    $room['status'] = 'playing';
+    $room['bank'] = 10;
+    $room['apartment_fired'] = false;
+    $room['game_roster'] = [1 => ['user_id' => 10, 'username' => 'host']];
+    $room['win_chance_history'] = [];
+    $room['active_drawer_conn_id'] = 1;
+    $room['bag'] = [$lastNum];
+    $room['players'][1] = $playerBefore;
+    $room['players'][1]['total_paid'] = 10;
+    $room['bot'] = makeBot([$botCard, $botCard], [$botMask, $botMask]);
+    $worker->rooms[1] = $room;
+
+    $svc->handleDrawBarrel($host, $worker);
+    assert_true(!isset($worker->rooms[1]), 'Apt victory: room destroyed (victory path)');
+    assert_true($host->sentOfType('apartment_alert') === [], 'Apt victory: apartment skipped');
+    $overs = $host->sentOfType('game_over');
+    assert_true(count($overs) === 1, 'Apt victory: game_over sent');
+    assert_true(($overs[0]['reason'] ?? '') === 'victory', 'Apt victory: reason=victory (not apartment)');
+    MockTimer::reset();
+}
+
+{
+    // prepareApartment alone: bot required → cleared; bot with line → immune.
+    MockTimer::reset();
+    $host = new MockConnection(1, 10, 'host');
+    [, , , , , $apt] = makeService([10 => ['id' => 10, 'coins' => 500]], new MockPDO());
+
+    $humanCard = makeCardWithClosedRow();
+    $humanMask = makeMaskWithClosedRow($humanCard);
+    $botCard = makeCardWithClosedRow();
+    $botMaskEmpty = [];
+    for ($row = 0; $row < 3; $row++) {
+        $botMaskEmpty[$row] = array_fill(0, 9, false);
+    }
+
+    $room = makeWaitingRoom(1);
+    $room['apartment_fired'] = false;
+    $room['players'][1] = makePlayer($host, 1, [$humanCard], [$humanMask]);
+    assert_true($apt->hasLine($room['players'][1]) === true, 'prepareApartment: human hasLine precondition');
+    $room['bot'] = makeBot([$botCard], [$botMaskEmpty]);
+    $parts = $apt->prepareApartment($room);
+    assert_true(($parts[1] ?? null) === false, 'prepareApartment: human with line immune');
+    assert_true(($room['bot'] ?? null) === null, 'prepareApartment: bot without line cleared');
+
+    $room2 = makeWaitingRoom(1);
+    $room2['apartment_fired'] = false;
+    $emptyHumanMask = [];
+    for ($row = 0; $row < 3; $row++) {
+        $emptyHumanMask[$row] = array_fill(0, 9, false);
+    }
+    $room2['players'][1] = makePlayer($host, 1, [$humanCard], [$emptyHumanMask]);
+    $room2['bot'] = makeBot([$botCard], [makeMaskWithClosedRow($botCard)]);
+    $apt->prepareApartment($room2);
+    assert_true(is_array($room2['bot'] ?? null), 'prepareApartment: bot with line kept');
+    assert_true(($room2['bot']['immune'] ?? false) === true, 'prepareApartment: bot immune set');
+    MockTimer::reset();
+}
+
 $total = $passed + $failed;
-echo "\n--- EPIC-034.1 ---\n";
+echo "\n--- EPIC-034.1/034.2 Bot opponent ---\n";
 echo "$passed / $total PASSED\n";
 if ($failed > 0) {
     exit(1);

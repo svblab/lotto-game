@@ -92,6 +92,10 @@ final class ApartmentService
             if ($player['status'] !== 'active') continue;
             if ($this->hasLine($player)) return true;
         }
+        // ADR-034 §5: explicit parallel bot branch (do not fold into the player loop).
+        if ($this->botHasLine($room)) {
+            return true;
+        }
         return false;
     }
 
@@ -124,6 +128,17 @@ final class ApartmentService
             $room['players'][$connId]['immune'] = $playerHasLine;
             $participants[$connId] = !$playerHasLine;
         }
+
+        // ADR-034 §5: bot parallel branch — immune if it has a line; otherwise
+        // clear immediately (cannot pay / cannot send apartment_choice).
+        if ($this->isBotPresent($room)) {
+            if ($this->botHasLine($room)) {
+                $room['bot']['immune'] = true;
+            } else {
+                $room['bot'] = null;
+            }
+        }
+
         return $participants;
     }
 
@@ -169,8 +184,12 @@ final class ApartmentService
         if ($this->gameService === null || ($room['status'] ?? null) !== 'apartment') {
             return;
         }
-        $active = array_filter($room['players'] ?? [], fn($p) => ($p['status'] ?? null) === 'active');
-        if (count($active) === 0) {
+        $activeHumans = array_filter(
+            $room['players'] ?? [],
+            fn($p) => ($p['status'] ?? null) === 'active'
+        );
+        // Bot alone cannot continue a match — treat as no survivors.
+        if (count($activeHumans) === 0) {
             $this->gameService->handleNoSurvivors($room, $roomId, $worker);
         }
     }
@@ -257,16 +276,47 @@ final class ApartmentService
         object $worker,
         object $gameService
     ): void {
+        $hadBot = $this->isBotPresent($room);
         $participants = $this->prepareApartment($room);
+
+        // Bot required (no line) was cleared in prepareApartment — broadcast refuse.
+        if ($hadBot && !$this->isBotPresent($room)) {
+            $this->broadcastBotLeft($room, 'refuse');
+            $this->logger->info("Room {$roomId}: bot force-removed (apartment refuse)");
+        }
 
         if (!empty($room['game_afk_timer_id'])) {
             lottoTimerDel((int) $room['game_afk_timer_id'], 'game_afk', ['room_id' => $roomId]);
             $room['game_afk_timer_id'] = null;
         }
 
+        // After immediate bot refuse: one human + no bot → last_survivor (no apartment fee).
+        $orch = $this->gameService ?? $gameService;
+        $activeHumans = array_filter(
+            $room['players'],
+            fn($p) => ($p['status'] ?? null) === 'active'
+        );
+        if (count($activeHumans) === 0) {
+            $orch->handleNoSurvivors($room, $roomId, $worker);
+            return;
+        }
+        if ($this->countActiveParticipants($room) === 1) {
+            $survivorConnId = (int) array_key_first($activeHumans);
+            $this->logger->info("Room {$roomId}: apartment ends last_survivor after bot refuse");
+            $orch->finishGame(
+                $room,
+                $roomId,
+                [$survivorConnId => 1],
+                [$survivorConnId => (int) ($room['bank'] ?? 0)],
+                $worker,
+                'last_survivor'
+            );
+            return;
+        }
+
         $this->logger->info("Room {$roomId}: apartment triggered");
 
-        // Broadcast apartment_alert
+        // Broadcast apartment_alert (humans only — bot never receives packets)
         foreach ($room['players'] as $connId => $player) {
             if ($player['status'] !== 'active') continue;
             $required = $participants[$connId] ?? false;
@@ -352,7 +402,11 @@ final class ApartmentService
         object $worker,
         object $gameService
     ): void {
-        $room['apartment_timer_id'] = null;
+        if (!empty($room['apartment_timer_id'])) {
+            lottoTimerDel((int) $room['apartment_timer_id'], 'apartment', ['room_id' => $roomId]);
+            $room['apartment_timer_id'] = null;
+        }
+
         $participants = $this->getParticipants($room);
 
         foreach ($this->getPendingRequired($room, $participants) as $connId) {
@@ -483,16 +537,18 @@ final class ApartmentService
             }
         }
 
-        $active = array_filter($room['players'], fn($p) => $p['status'] === 'active');
+        $activeHumans = array_filter($room['players'], fn($p) => $p['status'] === 'active');
+        $orch = $this->gameService ?? $gameService;
 
-        if (count($active) === 0) {
-            $this->gameService->handleNoSurvivors($room, $roomId, $worker);
+        if (count($activeHumans) === 0) {
+            $orch->handleNoSurvivors($room, $roomId, $worker);
             return;
         }
 
-        if (count($active) === 1) {
-            $survivorConnId = array_key_first($active);
-            $gameService->finishGame(
+        // Active participants = humans + bot (if still present). One human alone → last_survivor.
+        if ($this->countActiveParticipants($room) === 1) {
+            $survivorConnId = array_key_first($activeHumans);
+            $orch->finishGame(
                 $room, $roomId,
                 [$survivorConnId => 1],
                 [$survivorConnId => $room['bank']],
@@ -502,7 +558,7 @@ final class ApartmentService
             return;
         }
 
-        // Продолжаем игру
+        // Продолжаем игру (human(s) + optional immune bot still opposing)
         lottoStateTransition($roomId, 'apartment', 'playing', $resumeTrigger);
         $room['status'] = 'playing';
         $this->logger->info("Room {$roomId}: apartment finished, game resumes");
@@ -575,15 +631,18 @@ final class ApartmentService
             "Room {$roomId}: player {$player['username']} removed (reason: {$reason})"
         );
 
-        $active = array_filter(
+        $activeHumans = array_filter(
             $room['players'],
             fn($p) => ($p['status'] ?? null) === 'active'
         );
-        if (count($active) === 0) {
+        if (count($activeHumans) === 0) {
             $notifyConn = (($player['status'] ?? null) === 'active' && isset($player['connection']))
                 ? $player['connection']
                 : null;
-            $this->gameService->handleNoSurvivors($room, $roomId, $worker, $notifyConn);
+            $orch = $this->gameService;
+            if ($orch !== null) {
+                $orch->handleNoSurvivors($room, $roomId, $worker, $notifyConn);
+            }
             return;
         }
 
@@ -649,6 +708,53 @@ final class ApartmentService
         }
 
         return $packet;
+    }
+
+    /**
+     * ADR-034 §5: broadcast bot removal (omit user_id — same as userId=0 convention).
+     */
+    private function broadcastBotLeft(array $room, string $reason): void
+    {
+        $packet = $this->buildPlayerLeftPacket('Bot', 0, $reason);
+        foreach ($room['players'] as $player) {
+            if (($player['status'] ?? null) === 'active' && isset($player['connection'])) {
+                sendJson($player['connection'], $packet);
+            }
+        }
+    }
+
+    private function isBotPresent(array $room): bool
+    {
+        return isset($room['bot']) && is_array($room['bot']);
+    }
+
+    /**
+     * ADR-034 §5: parallel bot branch for line detection (reuses hasLine shape).
+     */
+    private function botHasLine(array $room): bool
+    {
+        if (!$this->isBotPresent($room)) {
+            return false;
+        }
+        return $this->hasLine($room['bot']);
+    }
+
+    /**
+     * Active participants for apartment last-survivor / empty checks:
+     * active humans in players + bot if still present.
+     */
+    private function countActiveParticipants(array $room): int
+    {
+        $n = 0;
+        foreach ($room['players'] as $player) {
+            if (($player['status'] ?? null) === 'active') {
+                $n++;
+            }
+        }
+        if ($this->isBotPresent($room)) {
+            $n++;
+        }
+        return $n;
     }
 
     private function broadcastHostChanged(array $room): void

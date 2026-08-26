@@ -51,15 +51,40 @@ MANUAL VERIFICATION REQUIRED (client timing) + VPS `php run_ALL_tests.php` **57/
 
 ## EPIC-034 — Bot opponent (ADR-034)
 
-Status: In progress (EPIC-034.1 landed; 034.2–034.5 remaining)
+Status: In progress (EPIC-034.1 + 034.2 landed; 034.3–034.5 remaining)
 
 ADR: `docs/ADR/034-bot-opponent.md`.
 
 - [DONE] EPIC-034.1 — Bot entity + `play_vs_bot` + turn engine integration
-- [ ] EPIC-034.2 — Apartment-with-bot resolution
+- [DONE] EPIC-034.2 — Apartment-with-bot resolution
 - [ ] EPIC-034.3 — Victory / `bot_win` bank-burn path
 - [ ] EPIC-034.4 — Win-streak + double-bank mint
 - [ ] EPIC-034.5 — Client UI (“Play vs Bot” + roster)
+
+### EPIC-034.2 — Apartment-with-bot resolution (ADR-034)
+
+Status: Completed
+
+Files:
+- src/Game/ApartmentService.php (diff — `shouldTrigger`/`prepareApartment` bot parallel branches; immediate bot refuse + `player_left`; `countActiveParticipants`; last_survivor after bot clear)
+- src/Game/ReconnectService.php (diff — `countActiveParticipants` includes bot for last_survivor during apartment/playing)
+- tests/Manual/test_bot_opponent.php (diff — §7 apartment immune / refuse / victory-priority / prepareApartment)
+- docs/ANCHOR_CORE.md (diff — apartment fold-in Live EPIC-034.2; bot_win/streak still 034.3/034.4)
+- docs/IMPLEMENTATION_STATUS.md (diff)
+
+Notes: Private-helper-on-existing-class pattern (no new class). Bot never in `apartment_responses` / never sends `apartment_choice`. Human `last_survivor` payout after bot refuse is **existing/unchanged economy** (not a new rule) — only participant-count wiring is new. `bot_win` bank-burn remains EPIC-034.3. Pre-epic loose end: `test_ip_account_limit.php` hung only inside `run_ALL_tests.php` (stray PHP/port); isolated ×2 → 22/22 PASS — noted as `run_ALL_tests.php` process-isolation gap (out of scope).
+
+VERIFICATION:
+- `php tests/Manual/test_bot_opponent.php` — **99/99 PASS** (was 59; +apartment fold-in)
+- `php tests/Manual/test_apartment.php` — **79/79 PASS** (zero human-vs-human regression)
+- `php tests/Manual/test_ip_account_limit.php` — **22/22 PASS** ×2 in isolation (before coding)
+
+CHANGED:
+- ApartmentService bot line scan / immune / immediate refuse / active-participant counts
+- ReconnectService last_survivor participant count includes bot
+- Bot apartment tests + ANCHOR annotation
+NOT CHANGED:
+- Human-vs-human apartment behavior; `bot_win` / bank burn; win-streak mint; client UI; `VictoryService` victory detection order (still before `shouldTrigger` in draw pipeline); `run_ALL_tests.php` process isolation
 
 ### EPIC-034.1
 
