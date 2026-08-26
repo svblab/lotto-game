@@ -217,8 +217,12 @@
     $('#room-bank-label').textContent = roomBankDisplay(room);
     const speedLabel = $('#room-speed-label');
     if (speedLabel) speedLabel.textContent = speedModeLabel(room.speed_mode);
-    const isHost = room.host === username;
     const playerCount = room.players?.length || 0;
+    // Server omits `host` until ≥2 seated (lobby AFK). Alone, the sole player is host.
+    const isHost = !!username && (
+      room.host === username
+      || (playerCount === 1 && room.players[0]?.username === username)
+    );
     const canStart = isHost && room.status === 'waiting' && playerCount >= 2;
     $('#start-game-btn')?.classList.toggle('hidden', !canStart);
     // ADR-034 §2: host-only, always rendered while waiting; disabled when >1 seated.
