@@ -8,7 +8,7 @@
   <meta name="lotto-ws-port" content="">
   <meta name="lotto-ws-path" content="/ws">
   <title>Russian Lotto Bingo</title>
-  <link rel="stylesheet" href="css/style.css?v=22">
+  <link rel="stylesheet" href="css/style.css?v=23">
 </head>
 <body>
   <div id="app">
@@ -177,21 +177,26 @@
             <button type="button" id="leave-room-btn" class="btn" data-i18n="lobby.leaveRoom">Leave Room</button>
           </div>
           <div id="lobby-chat-panel" class="chat-panel hidden" aria-label="Room chat">
-            <h4 class="chat-panel-title" data-i18n="chat.title">Chat</h4>
-            <div id="lobby-chat-log" class="chat-log" role="log" aria-live="polite"></div>
-            <form id="lobby-chat-form" class="chat-compose">
-              <input type="text" id="lobby-chat-input" maxlength="500" autocomplete="off" data-i18n-placeholder="chat.placeholder" placeholder="Message…">
-              <button type="submit" class="btn small" data-i18n="chat.send">Send</button>
-            </form>
-            <div class="chat-file-row">
-              <label class="chat-file-label">
-                <span data-i18n="chat.sendFile">Send file</span>
-                <select id="lobby-chat-file-to" aria-label="Recipient"></select>
-              </label>
-              <input type="file" id="lobby-chat-file-input" class="chat-file-input">
-              <button type="button" id="lobby-chat-file-btn" class="btn small" data-i18n="chat.offerFile">Offer</button>
+            <div class="chat-panel-head">
+              <h4 class="chat-panel-title" data-i18n="chat.title">Messages &amp; files</h4>
+              <button type="button" class="btn small chat-panel-toggle" aria-expanded="false" data-i18n="chat.expand">Show</button>
             </div>
-            <div id="lobby-chat-downloads" class="chat-downloads"></div>
+            <div class="chat-panel-body collapsed">
+              <div id="lobby-chat-log" class="chat-log" role="log" aria-live="polite"></div>
+              <form id="lobby-chat-form" class="chat-compose">
+                <input type="text" id="lobby-chat-input" maxlength="500" autocomplete="off" data-i18n-placeholder="chat.placeholder" placeholder="Message…">
+                <button type="submit" class="btn small" data-i18n="chat.send">Send</button>
+              </form>
+              <div class="chat-file-row">
+                <label class="chat-file-label">
+                  <span data-i18n="chat.sendFile">To</span>
+                  <select id="lobby-chat-file-to" aria-label="Recipient"></select>
+                </label>
+                <input type="file" id="lobby-chat-file-input" class="chat-file-input">
+                <button type="button" id="lobby-chat-file-btn" class="btn small" data-i18n="chat.offerFile">Offer file</button>
+              </div>
+              <div id="lobby-chat-downloads" class="chat-downloads"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -211,6 +216,7 @@
             <input type="range" id="sound-volume-slider" class="sound-volume-slider" min="0" max="100" step="1" value="70" aria-label="Volume" title="Volume">
             <button type="button" id="sound-mute-btn" class="icon-btn" aria-pressed="false" aria-label="Mute sound" title="Sound on">🔊</button>
           </div>
+          <button type="button" id="rules-btn-game" class="icon-btn" title="Rules">?</button>
           <button type="button" id="admin-open-game-btn" class="btn small hidden" data-i18n="admin.title">Admin</button>
           <button type="button" id="leave-game-btn" class="btn small" data-i18n="lobby.leaveRoom">Leave Room</button>
         </div>
@@ -273,21 +279,26 @@
         </main>
 
         <aside id="game-chat-panel" class="chat-panel game-chat-panel hidden" aria-label="Room chat">
-          <h4 class="chat-panel-title" data-i18n="chat.title">Chat</h4>
-          <div id="game-chat-log" class="chat-log" role="log" aria-live="polite"></div>
-          <form id="game-chat-form" class="chat-compose">
-            <input type="text" id="game-chat-input" maxlength="500" autocomplete="off" data-i18n-placeholder="chat.placeholder" placeholder="Message…">
-            <button type="submit" class="btn small" data-i18n="chat.send">Send</button>
-          </form>
-          <div class="chat-file-row">
-            <label class="chat-file-label">
-              <span data-i18n="chat.sendFile">Send file</span>
-              <select id="game-chat-file-to" aria-label="Recipient"></select>
-            </label>
-            <input type="file" id="game-chat-file-input" class="chat-file-input">
-            <button type="button" id="game-chat-file-btn" class="btn small" data-i18n="chat.offerFile">Offer</button>
+          <div class="chat-panel-head">
+            <h4 class="chat-panel-title" data-i18n="chat.title">Messages &amp; files</h4>
+            <button type="button" class="btn small chat-panel-toggle" aria-expanded="false" data-i18n="chat.expand">Show</button>
           </div>
-          <div id="game-chat-downloads" class="chat-downloads"></div>
+          <div class="chat-panel-body collapsed">
+            <div id="game-chat-log" class="chat-log" role="log" aria-live="polite"></div>
+            <form id="game-chat-form" class="chat-compose">
+              <input type="text" id="game-chat-input" maxlength="500" autocomplete="off" data-i18n-placeholder="chat.placeholder" placeholder="Message…">
+              <button type="submit" class="btn small" data-i18n="chat.send">Send</button>
+            </form>
+            <div class="chat-file-row">
+              <label class="chat-file-label">
+                <span data-i18n="chat.sendFile">To</span>
+                <select id="game-chat-file-to" aria-label="Recipient"></select>
+              </label>
+              <input type="file" id="game-chat-file-input" class="chat-file-input">
+              <button type="button" id="game-chat-file-btn" class="btn small" data-i18n="chat.offerFile">Offer file</button>
+            </div>
+            <div id="game-chat-downloads" class="chat-downloads"></div>
+          </div>
         </aside>
       </div>
     </section>

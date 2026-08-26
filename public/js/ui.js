@@ -250,12 +250,38 @@
   }
 
   /** ADR-030: show chat only in password-protected rooms. */
+  let chatPanelExpanded = false;
+
+  function syncChatToggleButtons() {
+    const t = global.LottoI18n.t;
+    const label = chatPanelExpanded ? t('chat.collapse') : t('chat.expand');
+    $$('.chat-panel-toggle').forEach((btn) => {
+      btn.setAttribute('aria-expanded', String(chatPanelExpanded));
+      btn.textContent = label;
+    });
+  }
+
+  function setChatPanelExpanded(expanded) {
+    chatPanelExpanded = expanded;
+    $$('.chat-panel-body').forEach((body) => {
+      body.classList.toggle('collapsed', !expanded);
+    });
+    syncChatToggleButtons();
+  }
+
+  function toggleChatPanel() {
+    setChatPanelExpanded(!chatPanelExpanded);
+  }
+
   function setChatVisible(visible) {
     $('#lobby-chat-panel')?.classList.toggle('hidden', !visible);
     $('#game-chat-panel')?.classList.toggle('hidden', !visible);
     if (!visible) {
       clearChatLogs();
       hideFileOfferModal();
+      chatPanelExpanded = false;
+    } else {
+      setChatPanelExpanded(false);
     }
   }
 
@@ -323,22 +349,62 @@
     toggleOverlay('#file-offer-modal', false);
   }
 
+  function decodeBase64File(base64Data) {
+    try {
+      const bin = atob(base64Data);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return new Blob([bytes], { type: 'application/octet-stream' });
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async function writeFileToHandle(handle, base64Data) {
+    const blob = decodeBase64File(base64Data);
+    if (!blob) return false;
+    try {
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /** Trigger the browser save dialog (fallback when File System Access API is unavailable). */
+  function promptSaveDownload(filename, base64Data) {
+    const safeName = sanitizeDownloadName(filename);
+    const blob = decodeBase64File(base64Data);
+    if (!blob) {
+      showToast(global.LottoI18n.t('chat.fileCorrupt'));
+      return false;
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = safeName;
+    a.rel = 'noopener';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return true;
+  }
+
   /**
    * ADR-030 safeguard: expose received file ONLY as a forced-download link.
    * Never inline-preview, never target=_blank on blob URLs (blocks scripted SVG/HTML).
    */
   function addForcedDownloadLink(filename, base64Data) {
     const safeName = sanitizeDownloadName(filename);
-    let bytes;
-    try {
-      const bin = atob(base64Data);
-      bytes = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    } catch (e) {
+    const blob = decodeBase64File(base64Data);
+    if (!blob) {
       showToast(global.LottoI18n.t('chat.fileCorrupt'));
       return;
     }
-    const blob = new Blob([bytes], { type: 'application/octet-stream' });
     const url = URL.createObjectURL(blob);
     ['#lobby-chat-downloads', '#game-chat-downloads'].forEach((sel) => {
       const box = $(sel);
@@ -1305,7 +1371,7 @@
     const box = $('#rules-content');
     if (!box) return;
     const t = global.LottoI18n.t;
-    const sections = ['intro', 'economy', 'cards', 'apartment', 'victory', 'reconnect'];
+    const sections = ['intro', 'economy', 'cards', 'apartment', 'victory', 'bot', 'chat', 'reconnect'];
     box.innerHTML = sections.map((s) => `<h4>${t(`rules.${s}Title`)}</h4><p>${t(`rules.${s}Body`)}</p>`).join('');
   }
 
@@ -1406,12 +1472,17 @@
     bindJoinRoomModal,
     showRoomPanel,
     setChatVisible,
+    toggleChatPanel,
+    syncChatToggleButtons,
     clearChatLogs,
     appendChatMessage,
     refreshChatRecipients,
     showFileOfferModal,
     hideFileOfferModal,
     addForcedDownloadLink,
+    writeFileToHandle,
+    promptSaveDownload,
+    sanitizeDownloadName,
     renderPlayerList,
     renderGameHeader,
     renderCards,

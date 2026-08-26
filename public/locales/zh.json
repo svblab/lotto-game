@@ -164,6 +164,10 @@
     "apartmentBody": "公寓事件每局最多发生一次。当任何玩家首次关闭完整一行时，比赛暂停，所有人看到公寓界面。该玩家获得免疫，只需等待——无需额外付款。其余玩家有10秒选择：额外支付5金币继续参赛（加入奖池），或拒绝并退出比赛。若拒绝或超时，你将被移除，已付赌注留在奖池中。若同一球同时使某人完成整张15个号码的卡片，该玩家立即获胜，跳过公寓阶段。",
     "victoryTitle": "胜利",
     "victoryBody": "在任意一张卡片上标记全部15个号码即获胜。一旦有一张或多张卡片完全关闭，游戏立即结束——若抽出的球同时完成多张卡片，多名玩家可在同一回合获胜。奖池均分为若干份：每张完全关闭的获胜卡片计为一份，获得相同奖金。若分配后有余数金币，余数销毁，不支付给任何人。",
+    "botTitle": "对战 Bot",
+    "botBody": "等待室中只有你一人且是主机时，可点击对战 Bot。Bot 使用 2 张卡片但不下注——奖池仅来自你的赌注。轮流：你抽球，Bot 自动抽。公寓阶段：Bot 先闭行则免疫；你先闭行则 Bot 立即退出。Bot 完成卡片则奖池销毁。连续赢 Bot 三场，第三场额外获得与奖池等额的奖励。",
+    "chatTitle": "封闭房间聊天与文件",
+    "chatBody": "有密码的房间显示“消息与文件”面板（默认折叠）。可发文字和不超过 1 MB 的文件；接收方须同意并选择保存位置。每房间同时只能传输一个文件。重连后不恢复聊天记录。",
     "reconnectTitle": "重连",
     "reconnectBody": "若在大厅或进行中的比赛时断线，你有15秒时间重连，返回同一房间并恢复卡片与余额。公寓阶段禁止重连——此时断线会立即将你移除，你的金币留在奖池中。"
   },
@@ -207,7 +211,9 @@
     "admin_user_busy": "User is online or still in a room — kick or leave first"
   },
   "chat": {
-    "title": "Chat",
+    "title": "消息与文件",
+    "expand": "展开",
+    "collapse": "收起",
     "placeholder": "Message…",
     "send": "Send",
     "sendFile": "To",
@@ -221,6 +227,7 @@
     "fileSending": "Sending file…",
     "fileDeclined": "Recipient declined the file",
     "fileReceived": "File received from {from}",
+    "fileSaved": "文件已保存：{filename}",
     "fileExpired": "File offer expired",
     "fileCorrupt": "Could not decode received file",
     "fileTooLarge": "File must be 1 MB or smaller",

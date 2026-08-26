@@ -164,6 +164,10 @@
     "apartmentBody": "Daire olayı maç başına en fazla bir kez gerçekleşir. Herhangi bir oyuncu ilk kez tam bir satır kapattığında maç durur ve herkes Daire ekranını görür. Bu oyuncu bağışıktır ve yalnızca bekler — ek ödeme yapmaz. Diğerlerinin 10 saniyesi vardır: oyunda kalmak için 5 jeton ekstra ödemek (bankaya eklenir) veya reddedip maçtan ayrılmak. Reddederseniz veya süre dolarsa elenirsiniz ve önceki bahsiniz bankada kalır. Aynı varil birinin 15 numaralı kartını da tamamlarsa o oyuncu anında kazanır ve Daire atlanır.",
     "victoryTitle": "Zafer",
     "victoryBody": "Kartlarınızdan herhangi birinde 15 numarayı tamamlayarak kazanırsınız. Bir veya daha fazla kart tamamen kapandığı anda oyun biter — çekilen variller birden fazla kartı bitirirse aynı turda birden fazla oyuncu kazanabilir. Banka eşit paylara bölünür: tamamen kapanan her kazanan kart bir pay sayılır ve aynı ödemeyi alır. Bölmeden artan jeton varsa bu kalan yok edilir ve kimseye ödenmez.",
+    "botTitle": "Bot'a karşı oyna",
+    "botBody": "Bekleme odasında yalnızsanız Bot'a karşı oyna düğmesini kullanın. Bot 2 kartla oynar ama ödeme yapmaz — banka yalnızca sizin bahsinizden oluşur. Sıra alternatif: siz çekersiniz, bot otomatik. Daire: bot satırı önce kapatırsa bağışık; siz kapatırsanız bot elenir. Bot kartı tamamlarsa banka yanar. Üst üste üç galibiyet = üçüncüde ekstra banka bonusu.",
+    "chatTitle": "Kapalı oda sohbeti ve dosyalar",
+    "chatBody": "Parolalı odalarda Mesajlar ve dosyalar paneli vardır (varsayılan kapalı). Metin ve 1 MB'a kadar dosya; alıcı kabul eder ve nereye kaydedeceğini seçer. Odada aynı anda tek transfer. Yeniden bağlanınca geçmiş yok.",
     "reconnectTitle": "Yeniden bağlan",
     "reconnectBody": "Lobide veya devam eden bir maçta bağlantınız kesilirse, aynı odaya kartlarınız ve bakiyenizle dönmek için 15 saniyeniz vardır. Daire aşamasında yeniden bağlanma yasaktır — o sırada bağlantı kesilirse anında elenirsiniz ve jetonlarınız bankada kalır."
   },
@@ -207,7 +211,9 @@
     "admin_user_busy": "User is online or still in a room — kick or leave first"
   },
   "chat": {
-    "title": "Chat",
+    "title": "Mesajlar ve dosyalar",
+    "expand": "Göster",
+    "collapse": "Gizle",
     "placeholder": "Message…",
     "send": "Send",
     "sendFile": "To",
@@ -221,6 +227,7 @@
     "fileSending": "Sending file…",
     "fileDeclined": "Recipient declined the file",
     "fileReceived": "File received from {from}",
+    "fileSaved": "Dosya kaydedildi: {filename}",
     "fileExpired": "File offer expired",
     "fileCorrupt": "Could not decode received file",
     "fileTooLarge": "File must be 1 MB or smaller",

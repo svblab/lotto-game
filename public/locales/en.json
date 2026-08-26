@@ -164,6 +164,10 @@
     "apartmentBody": "The Apartment event happens at most once per game. When any player closes a full row for the first time, the match pauses and everyone sees the Apartment screen. That player is immune and only waits — they pay nothing. Everyone else has 10 seconds to choose: pay 5 extra coins to stay in (added to the bank), or refuse and leave the match. If you refuse or run out of time, you are removed and your earlier stake stays in the bank. If the same barrel also completes someone's entire 15-number card, that player wins immediately and Apartment is skipped.",
     "victoryTitle": "Victory",
     "victoryBody": "You win by marking all 15 numbers on any one of your cards. The game ends as soon as one or more cards are fully closed — several players can win on the same turn if the drawn barrels finish multiple cards. The bank is split into equal shares: each fully closed winning card counts as one share and receives the same payout. If the division leaves any leftover coins, that remainder is burned and not paid to anyone.",
+    "botTitle": "Play vs Bot",
+    "botBody": "When you are alone in a waiting room as host, you can press Play vs Bot to start a match against the computer. The bot always plays with 2 cards but pays nothing — only your stake forms the bank. Turns alternate: you draw, then the bot draws automatically without a timer. Apartment works as usual: if the bot closes a row first, it is immune; if you close a row first, the bot is removed immediately. If the bot completes a card, the bank is burned and you receive 0 coins. Win three matches in a row against the bot to earn an extra bank-sized bonus on the third win (shown separately in the results).",
+    "chatTitle": "Closed-room chat & files",
+    "chatBody": "Rooms with a password show a Messages & files panel (collapsed by default — press Show to open it). You can send text messages to other seated players and offer files up to 1 MB. File transfer requires consent: the recipient must accept the offer and choose where to save the file before the sender transmits it. Only one file transfer can run at a time per room. Chat history is not restored after reconnect.",
     "reconnectTitle": "Reconnect",
     "reconnectBody": "If your connection drops while you are in a lobby or an active match, you have 15 seconds to reconnect and return to the same room with your cards and balance restored. Reconnect is not allowed during the Apartment phase — disconnecting then removes you immediately, and your coins stay in the bank."
   },
@@ -206,7 +210,9 @@
     "admin_user_busy": "User is online or still in a room — kick or leave first"
   },
   "chat": {
-    "title": "Chat",
+    "title": "Messages & files",
+    "expand": "Show",
+    "collapse": "Hide",
     "placeholder": "Message…",
     "send": "Send",
     "sendFile": "To",
@@ -220,6 +226,7 @@
     "fileSending": "Sending file…",
     "fileDeclined": "Recipient declined the file",
     "fileReceived": "File received from {from}",
+    "fileSaved": "File saved: {filename}",
     "fileExpired": "File offer expired",
     "fileCorrupt": "Could not decode received file",
     "fileTooLarge": "File must be 1 MB or smaller",

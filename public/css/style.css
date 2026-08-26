@@ -359,10 +359,20 @@ html.has-chip-icon .coins::before {
   background: rgba(0, 0, 0, 0.22);
 }
 .chat-panel.hidden { display: none !important; }
+.chat-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
 .chat-panel-title {
-  margin: 0 0 0.4rem;
+  margin: 0;
   font-size: 0.95rem;
 }
+.chat-panel-toggle { flex-shrink: 0; }
+.chat-panel-body.collapsed { display: none; }
+.chat-panel-body:not(.collapsed) { margin-top: 0.15rem; }
 .chat-log {
   max-height: 9rem;
   overflow-y: auto;

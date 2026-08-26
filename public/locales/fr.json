@@ -164,6 +164,10 @@
     "apartmentBody": "L'événement Appartement n'arrive qu'une fois par partie au maximum. Quand un joueur ferme une ligne complète pour la première fois, la partie est mise en pause et tout le monde voit l'écran Appartement. Ce joueur est immunisé et attend seulement : il ne paie rien. Les autres ont 10 secondes pour choisir : payer 5 pièces supplémentaires pour rester (ajoutées à la banque) ou refuser et quitter la partie. Si vous refusez ou si le temps expire, vous êtes éliminé et votre mise précédente reste dans la banque. Si le même numéro complète aussi les 15 numéros d'un carton, ce joueur gagne immédiatement et l'Appartement est ignoré.",
     "victoryTitle": "Victoire",
     "victoryBody": "Vous gagnez en marquant les 15 numéros de l'un de vos cartons. La partie se termine dès qu'un ou plusieurs cartons sont entièrement fermés ; plusieurs joueurs peuvent gagner au même tour si les numéros tirés complètent plusieurs cartons. La banque est partagée en parts égales : chaque carton gagnant complet compte pour une part et reçoit le même gain. S'il reste des pièces après la division, ce reliquat est brûlé et n'est versé à personne.",
+    "botTitle": "Jouer vs Bot",
+    "botBody": "Seul hôte en salle d'attente : bouton Jouer vs Bot. Le bot a 2 cartons sans mise — seule votre mise forme la banque. Tours alternés. Appartement : bot immunisé s'il ferme une ligne en premier ; sinon il est retiré. Victoire du bot = banque brûlée. Trois victoires consécutives = bonus égal à la banque à la 3e.",
+    "chatTitle": "Chat et fichiers (salle fermée)",
+    "chatBody": "Les salles avec mot de passe ont un panneau Messages et fichiers (replié par défaut). Messages texte et fichiers jusqu'à 1 Mo avec consentement ; le destinataire choisit où enregistrer. Une transfert à la fois. Pas d'historique après reconnexion.",
     "reconnectTitle": "Reconnexion",
     "reconnectBody": "Si votre connexion est coupée dans le lobby ou pendant une partie, vous avez 15 secondes pour vous reconnecter et revenir dans la même salle avec vos cartons et votre solde. La reconnexion est interdite pendant la phase Appartement : une déconnexion à ce moment vous élimine immédiatement et vos pièces restent dans la banque."
   },
@@ -207,7 +211,9 @@
     "admin_user_busy": "User is online or still in a room — kick or leave first"
   },
   "chat": {
-    "title": "Chat",
+    "title": "Messages et fichiers",
+    "expand": "Afficher",
+    "collapse": "Masquer",
     "placeholder": "Message…",
     "send": "Send",
     "sendFile": "To",
@@ -221,6 +227,7 @@
     "fileSending": "Sending file…",
     "fileDeclined": "Recipient declined the file",
     "fileReceived": "File received from {from}",
+    "fileSaved": "Fichier enregistré : {filename}",
     "fileExpired": "File offer expired",
     "fileCorrupt": "Could not decode received file",
     "fileTooLarge": "File must be 1 MB or smaller",

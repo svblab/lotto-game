@@ -45,6 +45,9 @@
     /** ADR-030: pending outbound file after offer (bytes held client-side until accept). */
     pendingFileOffer: null,
     incomingFileOfferId: null,
+    incomingFileOfferMeta: null,
+    pendingFileSaveHandle: null,
+    pendingFileSaveFallback: false,
   };
 
   let socket;
@@ -970,6 +973,11 @@
   function onFileOffer(pkt) {
     if (!state.room?.has_password) return;
     state.incomingFileOfferId = pkt.offer_id;
+    state.incomingFileOfferMeta = {
+      from: pkt.from || '?',
+      filename: pkt.filename || 'file',
+      size_bytes: pkt.size_bytes ?? 0,
+    };
     UI().showFileOfferModal(pkt.from || '?', pkt.filename || 'file', pkt.size_bytes ?? 0);
   }
 
@@ -989,15 +997,68 @@
     UI().showToast(I18n().t('chat.fileDeclined'));
   }
 
-  function onFileData(pkt) {
+  async function onFileData(pkt) {
     if (!state.room?.has_password) return;
-    UI().addForcedDownloadLink(pkt.filename || 'file', pkt.data || '');
+    const filename = pkt.filename || 'file';
+    const data = pkt.data || '';
+    const handle = state.pendingFileSaveHandle;
+    state.pendingFileSaveHandle = null;
+    const useFallback = state.pendingFileSaveFallback;
+    state.pendingFileSaveFallback = false;
+
+    if (handle) {
+      const saved = await UI().writeFileToHandle(handle, data);
+      if (saved) {
+        UI().showToast(I18n().t('chat.fileSaved', { filename: UI().sanitizeDownloadName(filename) }));
+        return;
+      }
+    }
+
+    if (useFallback || !handle) {
+      if (UI().promptSaveDownload(filename, data)) {
+        UI().showToast(I18n().t('chat.fileReceived', { from: pkt.from || '?' }));
+        return;
+      }
+    }
+
+    UI().addForcedDownloadLink(filename, data);
     UI().showToast(I18n().t('chat.fileReceived', { from: pkt.from || '?' }));
+  }
+
+  async function acceptIncomingFile() {
+    if (!state.incomingFileOfferId) return;
+    const offerId = state.incomingFileOfferId;
+    const meta = state.incomingFileOfferMeta;
+    const safeName = UI().sanitizeDownloadName(meta?.filename || 'file');
+
+    state.pendingFileSaveHandle = null;
+    state.pendingFileSaveFallback = false;
+
+    if (typeof window.showSaveFilePicker === 'function') {
+      try {
+        state.pendingFileSaveHandle = await window.showSaveFilePicker({
+          suggestedName: safeName,
+        });
+      } catch (e) {
+        if (e?.name === 'AbortError') return;
+        state.pendingFileSaveFallback = true;
+      }
+    } else {
+      state.pendingFileSaveFallback = true;
+    }
+
+    socket.sendAction('file_accept', { offer_id: offerId });
+    state.incomingFileOfferId = null;
+    state.incomingFileOfferMeta = null;
+    UI().hideFileOfferModal();
   }
 
   function onFileOfferExpired() {
     state.pendingFileOffer = null;
     state.incomingFileOfferId = null;
+    state.incomingFileOfferMeta = null;
+    state.pendingFileSaveHandle = null;
+    state.pendingFileSaveFallback = false;
     UI().hideFileOfferModal();
     UI().showToast(I18n().t('chat.fileExpired'));
   }
@@ -1131,16 +1192,20 @@
       offerSelectedFile('#game-chat-file-to', '#game-chat-file-input');
     });
     UI().$('#file-offer-accept')?.addEventListener('click', () => {
-      if (!state.incomingFileOfferId) return;
-      socket.sendAction('file_accept', { offer_id: state.incomingFileOfferId });
-      state.incomingFileOfferId = null;
-      UI().hideFileOfferModal();
+      acceptIncomingFile();
     });
     UI().$('#file-offer-reject')?.addEventListener('click', () => {
       if (!state.incomingFileOfferId) return;
       socket.sendAction('file_reject', { offer_id: state.incomingFileOfferId });
       state.incomingFileOfferId = null;
+      state.incomingFileOfferMeta = null;
+      state.pendingFileSaveHandle = null;
+      state.pendingFileSaveFallback = false;
       UI().hideFileOfferModal();
+    });
+
+    UI().$$('.chat-panel-toggle').forEach((btn) => {
+      btn.addEventListener('click', () => UI().toggleChatPanel());
     });
 
     UI().$('#nudge-turn-btn')?.addEventListener('click', () => {
@@ -1187,6 +1252,7 @@
     const openRules = () => { UI().renderRules(); UI().toggleOverlay('#rules-modal', true); };
     UI().$('#rules-btn-auth')?.addEventListener('click', openRules);
     UI().$('#rules-btn-lobby')?.addEventListener('click', openRules);
+    UI().$('#rules-btn-game')?.addEventListener('click', openRules);
     UI().$('#rules-close-btn')?.addEventListener('click', () => UI().toggleOverlay('#rules-modal', false));
 
     const openLang = () => {
@@ -1194,6 +1260,7 @@
         await I18n().load(code);
         Sound()?.preloadNudgeLangs?.();
         UI().renderRules();
+        UI().syncChatToggleButtons();
         UI().toggleOverlay('#lang-picker', false);
       });
       UI().toggleOverlay('#lang-picker', true);

@@ -164,6 +164,10 @@
     "apartmentBody": "El evento Apartamento ocurre como máximo una vez por partida. Cuando cualquier jugador cierra una fila completa por primera vez, la partida se pausa y todos ven la pantalla del Apartamento. Ese jugador está inmune y solo espera: no paga nada. El resto tiene 10 segundos para elegir: pagar 5 monedas extra para seguir (se suman al banco) o rechazar y abandonar la partida. Si rechazas o se acaba el tiempo, quedas eliminado y tu apuesta previa permanece en el banco. Si el mismo barril también completa los 15 números de un cartón, ese jugador gana al instante y se omite el Apartamento.",
     "victoryTitle": "Victoria",
     "victoryBody": "Ganas al marcar los 15 números de cualquiera de tus cartones. La partida termina en cuanto uno o más cartones quedan completos; varios jugadores pueden ganar en el mismo turno si los barriles sacados cierran varios cartones. El banco se divide en partes iguales: cada cartón ganador completo cuenta como una parte y recibe el mismo pago. Si la división deja monedas sobrantes, ese resto se quema y no se paga a nadie.",
+    "botTitle": "Jugar vs Bot",
+    "botBody": "Si estás solo en la sala como anfitrión, pulsa Jugar vs Bot. El bot usa 2 cartones pero no paga — solo tu apuesta forma el banco. Turnos alternos: tú robas, luego el bot automáticamente. Apartamento: si el bot cierra fila primero, está inmune; si tú, el bot sale. Si el bot completa un cartón, el banco se quema. Tres victorias seguidas dan un bono extra del tamaño del banco en la tercera.",
+    "chatTitle": "Chat y archivos (sala cerrada)",
+    "chatBody": "Las salas con contraseña tienen un panel Mensajes y archivos (colapsado por defecto). Mensajes de texto y archivos hasta 1 MB con consentimiento del destinatario, que elige dónde guardar. Una transferencia a la vez. El historial no se restaura al reconectar.",
     "reconnectTitle": "Reconexión",
     "reconnectBody": "Si se corta la conexión en el lobby o durante una partida activa, tienes 15 segundos para reconectar y volver a la misma sala con tus cartones y saldo. La reconexión no está permitida en la fase Apartamento: si te desconectas entonces, quedas eliminado de inmediato y tus monedas permanecen en el banco."
   },
@@ -207,7 +211,9 @@
     "admin_user_busy": "User is online or still in a room — kick or leave first"
   },
   "chat": {
-    "title": "Chat",
+    "title": "Mensajes y archivos",
+    "expand": "Mostrar",
+    "collapse": "Ocultar",
     "placeholder": "Message…",
     "send": "Send",
     "sendFile": "To",
@@ -221,6 +227,7 @@
     "fileSending": "Sending file…",
     "fileDeclined": "Recipient declined the file",
     "fileReceived": "File received from {from}",
+    "fileSaved": "Archivo guardado: {filename}",
     "fileExpired": "File offer expired",
     "fileCorrupt": "Could not decode received file",
     "fileTooLarge": "File must be 1 MB or smaller",
