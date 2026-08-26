@@ -567,7 +567,7 @@ final class ApartmentService
             'type' => 'bank_updated',
             'bank' => $room['bank'],
         ]);
-        $gameService->startTurn($room, $worker, $roomId, true);
+        $gameService->resumeAfterApartment($room, $worker, $roomId);
     }
 
     /**

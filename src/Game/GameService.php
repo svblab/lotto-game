@@ -564,6 +564,11 @@ final class GameService
         $this->turnService->startTurn($room, $worker, $roomId, $deferAfkStart);
     }
 
+    public function resumeAfterApartment(array &$room, object $worker, int $roomId): void
+    {
+        $this->turnService->resumeAfterApartment($room, $worker, $roomId);
+    }
+
     // -------------------------------------------------------------------------
     // EPIC-5.1  Drawer rotation (delegated to GameTurnService — ADR-015)
     // -------------------------------------------------------------------------

@@ -196,6 +196,20 @@ final class GameTurnService
         }
     }
 
+    /**
+     * Resume turn order after apartment. The drawer who triggered apartment never
+     * called advanceTurnAfterDraw — rotate once, then bot draw or human your_turn.
+     */
+    public function resumeAfterApartment(array &$room, object $worker, int $roomId): void
+    {
+        $this->nextDrawer($room);
+        if ($this->isBotDrawing($room)) {
+            $this->executeBotDraw($room, $worker, $roomId);
+            return;
+        }
+        $this->startTurn($room, $worker, $roomId, true);
+    }
+
     // -------------------------------------------------------------------------
     // EPIC-5.1  Drawer rotation
     // -------------------------------------------------------------------------

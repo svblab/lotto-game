@@ -659,6 +659,49 @@ echo "\n=== EPIC-034.2 Apartment fold-in ===\n";
 }
 
 {
+    // Bot closed row during its draw → apartment → resume must hand turn to human (your_turn).
+    MockTimer::reset();
+    $host = new MockConnection(1, 10, 'host');
+    $worker = new MockWorker();
+    $users = [10 => ['id' => 10, 'coins' => 500]];
+    [$svc, , , , , $apt] = makeService($users, new MockPDO());
+
+    $botCard = makeCardWithClosedRow();
+    $botMask = makeMaskWithClosedRow($botCard);
+    $humanCard = makeCardWithClosedRow();
+    $humanMask = [];
+    for ($row = 0; $row < 3; $row++) {
+        $humanMask[$row] = array_fill(0, 9, false);
+    }
+
+    $room = makeWaitingRoom(1);
+    $room['status'] = 'apartment';
+    $room['bank'] = 10;
+    $room['apartment_fired'] = true;
+    $room['bag'] = range(1, 90);
+    $room['active_drawer_conn_id'] = null;
+    $room['players'][1] = makePlayer($host, 1, [$humanCard], [$humanMask]);
+    $room['players'][1]['total_paid'] = 10;
+    $room['players'][1]['immune'] = false;
+    $room['bot'] = makeBot([$botCard, $botCard], [$botMask, $botMask]);
+    $room['bot']['immune'] = true;
+    $room['bot']['drawing'] = true;
+    $room['apartment_responses'] = [1 => 'agree'];
+    $worker->rooms[1] = $room;
+    $host->sent = [];
+
+    $apt->finishApartment($worker->rooms[1], 1, $worker, $svc, 'apartment_timeout');
+    $r = $worker->rooms[1];
+
+    assert_true(($r['status'] ?? '') === 'playing', 'Apt resume: status=playing');
+    assert_true(empty($r['bot']['drawing']), 'Apt resume: bot no longer drawing');
+    assert_true(($r['active_drawer_conn_id'] ?? null) === 1, 'Apt resume: human is drawer');
+    $turns = $host->sentOfType('your_turn');
+    assert_true(count($turns) >= 1, 'Apt resume: your_turn sent to human after bot-immune apartment');
+    MockTimer::reset();
+}
+
+{
     // Human row closed first → bot force-removed (refuse); last_survivor payout (existing economy).
     MockTimer::reset();
     $host = new MockConnection(1, 10, 'host');

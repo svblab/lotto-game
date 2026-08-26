@@ -856,6 +856,12 @@ html.has-chip-icon .coins::before {
   margin: 1rem 0;
 }
 .apartment-actions { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; }
+/* Agree starts as .primary (gold hint); only .selected stays gold — unselected reverts to wood. */
+.apartment-actions .btn.primary:not(.selected) {
+  background: var(--wood);
+  color: var(--cream);
+  font-weight: normal;
+}
 .apartment-actions .btn.selected {
   background: linear-gradient(180deg, var(--gold-glow), var(--gold));
   color: var(--felt-dark);

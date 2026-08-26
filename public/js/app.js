@@ -706,6 +706,11 @@
     UI().showApartment(pkt.required, pkt.time_left || 10, {
       onChoice: (choice) => socket.sendAction('apartment_choice', { choice }),
       onTimeout: () => socket.sendAction('apartment_choice', { choice: 'refuse' }),
+      onTimerEnd: () => {
+        state.inApartment = false;
+        UI().hideApartment();
+        syncTurnUi();
+      },
     });
   }
 

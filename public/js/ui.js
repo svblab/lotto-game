@@ -990,7 +990,7 @@
   }
 
   function showApartment(required, timeLeft, handlers = {}) {
-    const { onChoice, onTimeout } = handlers;
+    const { onChoice, onTimeout, onTimerEnd } = handlers;
     const t = global.LottoI18n.t;
     if (required) {
       global.LottoSound?.startLoop('apartment');
@@ -1011,6 +1011,10 @@
       selected = choice;
       agreeBtn?.classList.toggle('selected', choice === 'agree');
       refuseBtn?.classList.toggle('selected', choice === 'refuse');
+      // Stop pulsing once the player has picked (choice can still change until timer ends).
+      if (choice) {
+        actionsEl?.classList.remove('apartment-prompt');
+      }
       onChoice?.(choice);
     };
     agreeBtn?.classList.remove('selected');
@@ -1029,6 +1033,7 @@
         if (required && selected === null) {
           onTimeout?.();
         }
+        onTimerEnd?.();
       }
     }, 1000);
     agreeBtn.onclick = () => setSelected('agree');
