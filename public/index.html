@@ -8,14 +8,18 @@
   <meta name="lotto-ws-port" content="">
   <meta name="lotto-ws-path" content="/ws">
   <title>Russian Lotto Bingo</title>
-  <link rel="stylesheet" href="css/style.css?v=23">
+  <link rel="stylesheet" href="css/style.css?v=24">
 </head>
 <body>
   <div id="app">
     <!-- Auth -->
     <section id="auth-screen" class="screen active">
       <div class="panel auth-panel">
-        <img class="logo-img" src="img/logo.png" alt="" onerror="this.onerror=null;var p=document.createElement('div');p.className='logo-placeholder';p.setAttribute('aria-hidden','true');this.replaceWith(p);">
+        <div class="logo-brand" role="img" aria-labelledby="auth-logo-text">
+          <span class="logo-brand-deco" aria-hidden="true">90</span>
+          <span id="auth-logo-text" class="logo-brand-text" data-i18n="app.title">Russian Lotto</span>
+          <span class="logo-brand-deco" aria-hidden="true">1</span>
+        </div>
         <div class="lang-row">
           <button type="button" id="auth-lang-btn" class="icon-btn" title="Language">🌐</button>
           <button type="button" id="rules-btn-auth" class="icon-btn" title="Rules">?</button>
