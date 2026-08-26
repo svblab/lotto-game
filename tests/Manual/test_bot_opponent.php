@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * EPIC-034.1 / 034.2 / 034.3 — Bot opponent (start, turns, apartment, bot_win).
+ * EPIC-034.1–034.4 — Bot opponent (start, turns, apartment, bot_win, streak/mint).
  * Run: php tests/Manual/test_bot_opponent.php
  */
 
@@ -967,9 +967,8 @@ echo "\n=== EPIC-034.3 bot_win / human victory vs bot ===\n";
         }
     }
     assert_true($paid, 'human vs bot: existing victory payout credited');
-    // EPIC-034.3 does not increment streak — only ensures bot_win reset doesn't
-    // interfere with a path that does not yet exist (034.4).
-    assert_true(($worker->botWinStreaks[10] ?? null) === 1, 'human vs bot: streak untouched by 034.3 victory path');
+    // EPIC-034.4: human victory vs bot increments streak (1 → 2).
+    assert_true(($worker->botWinStreaks[10] ?? null) === 2, 'human vs bot: streak incremented 1→2');
     MockTimer::reset();
 }
 
@@ -1032,8 +1031,165 @@ echo "\n=== EPIC-034.3 bot_win / human victory vs bot ===\n";
     assert_true($vic->checkBotVictory($room) === false, 'unit: checkBotVictory false when bot null');
 }
 
+// -------------------------------------------------------------------------
+// 9. EPIC-034.4 — win streak + double-bank mint
+// -------------------------------------------------------------------------
+
+echo "\n=== EPIC-034.4 streak + mint ===\n";
+
+{
+    // 3rd consecutive win vs bot → bank payout + equal mint, streak unset.
+    MockTimer::reset();
+    $host = new MockConnection(1, 10, 'host');
+    $worker = new MockWorker();
+    $worker->botWinStreaks[10] = 2; // next win is the 3rd
+    $users = [10 => ['id' => 10, 'coins' => 480]];
+    $pdo = new MockPDO();
+    [$svc, , $stmts, , , ] = makeService($users, $pdo);
+
+    [$completeCard, $completeMask] = makeCompleteCardAndMask();
+    $lastNum = null;
+    for ($row = 2; $row >= 0 && $lastNum === null; $row--) {
+        for ($col = 8; $col >= 0; $col--) {
+            if ($completeCard[$row][$col] !== null) {
+                $lastNum = $completeCard[$row][$col];
+                $completeMask[$row][$col] = false;
+                break;
+            }
+        }
+    }
+    $emptyMask = [];
+    for ($row = 0; $row < 3; $row++) {
+        $emptyMask[$row] = array_fill(0, 9, false);
+    }
+    $botCard = makeCardWithClosedRow();
+
+    $room = makeWaitingRoom(1);
+    $room['status'] = 'playing';
+    $room['bank'] = 20;
+    $room['apartment_fired'] = true;
+    $room['game_roster'] = [1 => ['user_id' => 10, 'username' => 'host']];
+    $room['active_drawer_conn_id'] = 1;
+    $room['bag'] = [$lastNum];
+    $room['players'][1] = makePlayer($host, 1, [$completeCard], [$completeMask]);
+    $room['players'][1]['total_paid'] = 20;
+    $room['bot'] = makeBot([$botCard, $botCard], [$emptyMask, $emptyMask]);
+    $worker->rooms[1] = $room;
+
+    $svc->handleDrawBarrel($host, $worker);
+
+    assert_true(!isset($worker->rooms[1]), 'streak mint: room destroyed');
+    assert_true(!array_key_exists(10, $worker->botWinStreaks), 'streak mint: streak unset after bonus');
+    $overs = $host->sentOfType('game_over');
+    assert_true(count($overs) === 1, 'streak mint: game_over sent');
+    assert_true(($overs[0]['reason'] ?? '') === 'victory', 'streak mint: reason=victory');
+    assert_true(($overs[0]['prize'] ?? null) === 20, 'streak mint: prize=bank (mint not in prize field)');
+    assert_true(($overs[0]['statistics'][0]['received'] ?? null) === 40, 'streak mint: received=bank+mint');
+    assert_true(($overs[0]['statistics'][0]['coins'] ?? null) === 520, 'streak mint: coins=480+20+20');
+    $adds = [];
+    foreach ($stmts->updates as $u) {
+        if (($u['user_id'] ?? null) === 10 && isset($u['add'])) {
+            $adds[] = (int) $u['add'];
+        }
+    }
+    sort($adds);
+    assert_true($adds === [20, 20], 'streak mint: two credits of bank size');
+    MockTimer::reset();
+}
+
+{
+    // last_survivor after bot refuse also increments streak.
+    MockTimer::reset();
+    $host = new MockConnection(1, 10, 'host');
+    $worker = new MockWorker();
+    $worker->botWinStreaks[10] = 0;
+    unset($worker->botWinStreaks[10]); // missing key ⇒ 0
+    $users = [10 => ['id' => 10, 'coins' => 500]];
+    [$svc, , , , , $apt] = makeService($users, new MockPDO());
+
+    $humanCard = makeCardWithClosedRow();
+    $humanMask = makeMaskWithClosedRow($humanCard);
+    $botCard = makeCardWithClosedRow();
+    $botMask = [];
+    for ($row = 0; $row < 3; $row++) {
+        $botMask[$row] = array_fill(0, 9, false);
+    }
+
+    $room = makeWaitingRoom(1);
+    $room['status'] = 'playing';
+    $room['bank'] = 20;
+    $room['apartment_fired'] = false;
+    $room['game_roster'] = [1 => ['user_id' => 10, 'username' => 'host']];
+    $room['active_drawer_conn_id'] = 1;
+    $room['players'][1] = makePlayer($host, 1, [$humanCard], [$humanMask]);
+    $room['players'][1]['total_paid'] = 20;
+    $room['bot'] = makeBot([$botCard, $botCard], [$botMask, $botMask]);
+    $worker->rooms[1] = $room;
+
+    $apt->triggerApartment($worker->rooms[1], 1, $worker, $svc);
+    assert_true(!isset($worker->rooms[1]), 'streak last_survivor: room destroyed');
+    assert_true(($worker->botWinStreaks[10] ?? null) === 1, 'streak last_survivor: streak 0→1');
+    MockTimer::reset();
+}
+
+{
+    // Human-vs-human finish resets streak for participants.
+    MockTimer::reset();
+    $host = new MockConnection(1, 10, 'host');
+    $guest = new MockConnection(2, 20, 'guest');
+    $worker = new MockWorker();
+    $worker->botWinStreaks[10] = 2;
+    $worker->botWinStreaks[20] = 1;
+    $worker->botWinStreaks[99] = 3; // unrelated user — must survive
+    $users = [
+        10 => ['id' => 10, 'coins' => 500],
+        20 => ['id' => 20, 'coins' => 500],
+    ];
+    [$svc, , , , , ] = makeService($users, new MockPDO());
+
+    $room = makeWaitingRoom(1);
+    $room['status'] = 'playing';
+    $room['bank'] = 30;
+    $room['bot'] = null;
+    $room['game_roster'] = [
+        1 => ['user_id' => 10, 'username' => 'host'],
+        2 => ['user_id' => 20, 'username' => 'guest'],
+    ];
+    $room['players'][1] = makePlayer($host, 1);
+    $room['players'][1]['total_paid'] = 10;
+    $room['players'][2] = makePlayer($guest, 2);
+    $room['players'][2]['total_paid'] = 20;
+    $worker->rooms[1] = $room;
+
+    $svc->finishGame($worker->rooms[1], 1, [1 => 1], [1 => 30], $worker, 'victory');
+    assert_true(!array_key_exists(10, $worker->botWinStreaks), 'HvH finish: host streak cleared');
+    assert_true(!array_key_exists(20, $worker->botWinStreaks), 'HvH finish: guest streak cleared');
+    assert_true(($worker->botWinStreaks[99] ?? null) === 3, 'HvH finish: unrelated streak preserved');
+    MockTimer::reset();
+}
+
+{
+    // Fresh login clears streak; reconnect (freshLogin=false) does not.
+    $worker = new MockWorker();
+    $worker->botWinStreaks[10] = 2;
+    $worker->sessionTokens = [];
+    $worker->userConnections = [];
+    $worker->connections = [];
+    $logPath = sys_get_temp_dir() . '/lotto_streak_auth_' . getmypid() . '.log';
+    $guard = new \Lotto\Auth\SessionGuardService(new Logger($logPath));
+    $conn = new MockConnection(1, 10, 'host');
+    $user = ['id' => 10, 'username' => 'host', 'is_admin' => false];
+
+    $guard->claimUserSession($worker, 10, $conn, 'tok_reconnect', $user, false);
+    assert_true(($worker->botWinStreaks[10] ?? null) === 2, 'reconnect: streak preserved');
+
+    $guard->claimUserSession($worker, 10, $conn, 'tok_login', $user, true);
+    assert_true(!array_key_exists(10, $worker->botWinStreaks), 'fresh login: streak cleared');
+    @unlink($logPath);
+}
+
 $total = $passed + $failed;
-echo "\n--- EPIC-034.1/034.2/034.3 Bot opponent ---\n";
+echo "\n--- EPIC-034.1–034.4 Bot opponent ---\n";
 echo "$passed / $total PASSED\n";
 if ($failed > 0) {
     exit(1);

@@ -51,15 +51,41 @@ MANUAL VERIFICATION REQUIRED (client timing) + VPS `php run_ALL_tests.php` **57/
 
 ## EPIC-034 — Bot opponent (ADR-034)
 
-Status: In progress (EPIC-034.1–034.3 landed; 034.4–034.5 remaining)
+Status: In progress (EPIC-034.1–034.4 landed; 034.5 remaining)
 
 ADR: `docs/ADR/034-bot-opponent.md`.
 
 - [DONE] EPIC-034.1 — Bot entity + `play_vs_bot` + turn engine integration
 - [DONE] EPIC-034.2 — Apartment-with-bot resolution
 - [DONE] EPIC-034.3 — Victory / `bot_win` bank-burn path
-- [ ] EPIC-034.4 — Win-streak + double-bank mint
+- [DONE] EPIC-034.4 — Win-streak + double-bank mint
 - [ ] EPIC-034.5 — Client UI (“Play vs Bot” + roster)
+
+### EPIC-034.4 — Win-streak + double-bank mint (ADR-034)
+
+Status: Completed
+
+Files:
+- src/Game/GameFinishService.php (diff — streak increment/mint-on-3 in `finishGame`; HvH streak reset)
+- src/Game/GameService.php (diff — `countsTowardBotStreak` flag through `finishGame`)
+- src/Game/GameTurnService.php (diff — pass worker + bot-present flag on human victory)
+- src/Game/ApartmentService.php (diff — last_survivor after bot refuse forces `countsTowardBotStreak=true`)
+- src/Auth/SessionGuardService.php (diff — fresh login/register clears streak; reconnect does not)
+- tests/Manual/test_bot_opponent.php (diff — §9 mint / last_survivor / HvH / login)
+- docs/ANCHOR_CORE.md (diff — mint Live; economy + Worker Storage)
+- docs/IMPLEMENTATION_STATUS.md (diff)
+
+Notes: Mint equals pre-payout room bank; credited in the **same** SQLite transaction as the bank prize; `game_over.prize`/`final_bank` stay the bank payout; `statistics[].received` includes bank+mint. No dedicated logout action — fresh `login`/`register` (`claimUserSession(..., freshLogin=true)`) is the explicit session reclaim that clears streak. Client UI remains EPIC-034.5.
+
+VERIFICATION:
+- `php tests/Manual/test_bot_opponent.php` — **151/151 PASS** (was 136)
+- `php tests/Manual/test_victory.php` — **77/77 PASS**
+- `php tests/Manual/test_apartment.php` — **79/79 PASS**
+
+CHANGED:
+- Streak increment on human victory/last_survivor vs bot; mint-on-3; HvH + fresh-login resets
+NOT CHANGED:
+- Bot-win burn path (034.3); human-vs-human payout math; client UI (EPIC-034.5)
 
 ### EPIC-034.3 — Bot-win bank burn + streak-reset wiring (ADR-034)
 

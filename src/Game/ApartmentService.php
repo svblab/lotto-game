@@ -309,7 +309,8 @@ final class ApartmentService
                 [$survivorConnId => 1],
                 [$survivorConnId => (int) ($room['bank'] ?? 0)],
                 $worker,
-                'last_survivor'
+                'last_survivor',
+                true // bot was force-refused; $room['bot'] already null
             );
             return;
         }

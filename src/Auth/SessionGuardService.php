@@ -50,6 +50,16 @@ final class SessionGuardService
             $worker->lobbyService->removeExistingSeatForUser($worker, $userId, 'disconnect');
         }
 
+        // ADR-034 §7: fresh login/register clears bot win streak (explicit session
+        // reclaim — no dedicated logout action). Reconnect passes freshLogin=false
+        // and must NOT reset the streak.
+        if ($freshLogin) {
+            if (!isset($worker->botWinStreaks) || !is_array($worker->botWinStreaks)) {
+                $worker->botWinStreaks = [];
+            }
+            unset($worker->botWinStreaks[$userId]);
+        }
+
         if (isset($worker->userConnections[$userId])) {
             $registered = $worker->userConnections[$userId];
             if ($registered !== $newConnection && !$this->isConnectionLive($worker, $registered)) {

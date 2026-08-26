@@ -601,7 +601,9 @@ final class GameTurnService
                         if (isset($worker->lobbyService)) {
                             $worker->lobbyService->broadcastRoomList($worker);
                         }
-                    }
+                    },
+                    $worker,
+                    $this->isBotPresent($room)
                 );
                 return true;
             }

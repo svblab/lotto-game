@@ -321,10 +321,11 @@ division remainder, and the following ADR-034 intentional mechanics:
 - **Bot-win bank burn** (ADR-034 §6, **Live EPIC-034.3**) — room bank cleared
   with no recipient and no refund when the bot completes a card
   (`game_over` reason `bot_win`); `bank = 0` with no `users.coins` credit.
-- **Bot win-streak double-bank mint** — on a human’s 3rd consecutive win
-  against the bot, after the normal bank payout the server credits an
-  additional amount equal to that bank (genuine emission); streak counter
-  is RAM-only (`$worker->botWinStreaks`). **Not live until EPIC-034.4.**
+- **Bot win-streak double-bank mint** (ADR-034 §7, **Live EPIC-034.4**) — on a
+  human’s 3rd consecutive win against the bot, after the normal bank payout
+  the server credits an additional amount equal to that bank (genuine
+  emission) in the same SQLite transaction; streak counter is RAM-only
+  (`$worker->botWinStreaks`) and resets to 0 (missing key) after the mint.
 
 ## Bot opponent economy (ADR-034)
 Live (EPIC-034.1): bot `total_paid` is always 0; bank at start = human stake
@@ -339,23 +340,22 @@ Live (EPIC-034.3): bot card complete → `finishBotWin` bank burn
 streak for that `user_id` is reset via `unset($worker->botWinStreaks[$userId])`
 (missing key ⇒ 0). Human `victory` against the bot still uses the unmodified
 existing payout path (bot never in `checkAllVictories` / `calculatePrize`).
-Still reserved until later epics:
-- Human `victory` / `last_survivor` vs bot: streak **increment** + mint-on-3
-  on `$worker->botWinStreaks[$userId]` (EPIC-034.4) — payout itself is
-  already live via existing paths; bot-win **reset** is live (034.3).
-- Streak also resets on explicit logout and on finishing any human-vs-human
-  game (EPIC-034.4); disconnect/reconnect without logout does **not** reset
-  the streak.
+Live (EPIC-034.4): human `victory` / `last_survivor` vs bot increments
+`$worker->botWinStreaks[$userId]`; on reaching 3, same-transaction double-bank
+mint then unset streak. Streak also resets on fresh login/register
+(`SessionGuardService::claimUserSession(..., freshLogin=true)`) and on
+finishing any human-vs-human game; reconnect (`freshLogin=false`) does **not**
+reset the streak.
 
 ## Mandatory Transactions
 SQLite transaction required for: `startGame()`, apartment payment, kick refund,
 `admin_close_room`, victory payout, last_survivor payout, zero-survivor refund.
 ADR-034 additions: `play_vs_bot` human stake deduction (EPIC-034.1 — only
-the human `users.coins` row; bot contributes nothing). **When later epics
-ship:** streak double-bank mint (same transaction as the accompanying
-payout when possible). Bot-win bank burn does not credit any `users.coins`
-(bank cleared in RAM only). No operation may update `bank` and `users.coins`
-independently when both are involved — both succeed or both fail.
+the human `users.coins` row; bot contributes nothing); streak double-bank
+mint (EPIC-034.4 — same transaction as the accompanying victory /
+last_survivor payout when possible). Bot-win bank burn does not credit any
+`users.coins` (bank cleared in RAM only). No operation may update `bank` and
+`users.coins` independently when both are involved — both succeed or both fail.
 
 ---
 
@@ -679,10 +679,10 @@ FILE_RATE_LIMIT_MAX, FILE_RATE_LIMIT_WINDOW_SECONDS, WS_MAX_PACKAGE_SIZE
 
 ## Worker Storage
 `$worker->rooms`, `$worker->userConnections` (key=`userId`, value=`$connection`).
-`$worker->botWinStreaks` (ADR-034, **Live EPIC-034.3** storage + bot-win reset;
-increment/mint still EPIC-034.4): key=`userId`, value=`int` consecutive wins
-vs bot; RAM-only; initialized `[]` in `onWorkerStart`; missing key means 0.
-Bot win clears via `unset($worker->botWinStreaks[$userId])`.
+`$worker->botWinStreaks` (ADR-034, **Live EPIC-034.3–034.4**): key=`userId`,
+value=`int` consecutive wins vs bot; RAM-only; initialized `[]` in
+`onWorkerStart`; missing key means 0. Cleared via `unset` on bot win, fresh
+login/register, human-vs-human game finish, and after a successful mint-on-3.
 
 ## Room Structure Keys (allowed, no others without ADR)
 ```

@@ -638,8 +638,11 @@ final class GameService
         array $winners,
         array $prizes,
         object $worker,
-        string $reason = 'victory'
+        string $reason = 'victory',
+        ?bool $countsTowardBotStreak = null
     ): void {
+        // Prefer explicit flag (apartment may have already cleared $room['bot']).
+        $vsBot = $countsTowardBotStreak ?? (isset($room['bot']) && is_array($room['bot']));
         $this->finishService->finishGame(
             $room,
             $roomId,
@@ -652,7 +655,9 @@ final class GameService
                 if (isset($worker->lobbyService)) {
                     $worker->lobbyService->broadcastRoomList($worker);
                 }
-            }
+            },
+            $worker,
+            $vsBot
         );
     }
 
