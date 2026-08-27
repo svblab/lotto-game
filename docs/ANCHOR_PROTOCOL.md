@@ -282,16 +282,18 @@ Client → Server. Host only. Requires ≥2 seated humans. Does not create a bot
 
 ### play_vs_bot
 Client → Server. Host only (ADR-034). Allowed only in `waiting` with exactly
-one seated human. Creates `$room['bot']`, starts the game (human stake only;
-bot `cards_count = 2`, `total_paid = 0`), and transitions `waiting → playing`.
+one seated human in an **open** room (`password_hash === null`). Password-
+protected rooms cannot start vs bot (chat/files are human-vs-human). Creates
+`$room['bot']`, starts the game (human stake only; bot `cards_count = 2`,
+`total_paid = 0`), and transitions `waiting → playing`.
 While the bot is present, `join_room` is rejected with `error.room_full`.
 Host draws first (`your_turn` + Game AFK); the bot never receives `your_turn`.
 ```json
 {"action": "play_vs_bot"}
 ```
 Rejects: not in a room → `error.room_not_found`; not host / not `waiting` /
-not exactly one seated human → `error.not_your_turn` (same host/phase bucket
-as `start_game`).
+not exactly one seated human / password-protected room → `error.not_your_turn`
+(same host/phase bucket as `start_game`).
 
 ### game_started
 Server → Room (per-player payload).

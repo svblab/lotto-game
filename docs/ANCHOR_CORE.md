@@ -89,7 +89,9 @@ pattern as `error.banned` in ADR-007):
 
 **Bot object (ADR-034, EPIC-034.1):** `$room['bot']` is initialized to `null`
 by `RoomManager::createRoom()`. It is non-null only after the host starts
-human-vs-computer via `play_vs_bot`. The bot is **not** an entry in
+human-vs-computer via `play_vs_bot` in an **open** waiting room
+(`password_hash === null`). Password-protected rooms cannot start vs bot.
+The bot is **not** an entry in
 `$room['players']`, has no `user_id` / `session_token` / SQLite row / coins,
 and never appears in `drawer_order`. Shape when present:
 
@@ -478,6 +480,7 @@ Allowed states: `waiting | playing | apartment | finished`. No others.
 **waiting**: Room exists, game not started, no cards, bank=0.
 Allowed: `room_list, join_room, leave_room, start_game, play_vs_bot, reconnect, ping`,
 and when `password_hash !== null`: `room_message, file_offer, file_accept, file_reject, file_data` (ADR-030).
+`play_vs_bot` is further restricted to open rooms (`password_hash === null`).
 Forbidden: `draw_barrel, apartment_choice`.
 Transitions: `start_game → playing`; `play_vs_bot → playing` (creates
 `$room['bot']`); `no players remain → destroyed`; `admin_close_room → destroyed`.

@@ -225,10 +225,10 @@
     );
     const canStart = isHost && room.status === 'waiting' && playerCount >= 2;
     $('#start-game-btn')?.classList.toggle('hidden', !canStart);
-    // ADR-034 §2: host-only, always rendered while waiting; disabled when >1 seated.
+    // ADR-034 §2: host-only in open waiting rooms; hidden when password-protected.
     const playBotBtn = $('#play-vs-bot-btn');
     if (playBotBtn) {
-      const showPlayBot = isHost && room.status === 'waiting';
+      const showPlayBot = isHost && room.status === 'waiting' && !room.has_password;
       playBotBtn.classList.toggle('hidden', !showPlayBot);
       playBotBtn.disabled = !showPlayBot || playerCount !== 1;
     }

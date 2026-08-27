@@ -380,6 +380,7 @@ final class GameService
         if ($room['host_conn_id'] !== $connId
             || $room['status'] !== 'waiting'
             || count($room['players']) !== 1
+            || ($room['password_hash'] ?? null) !== null
         ) {
             if ($room['status'] !== 'waiting') {
                 lottoStateReject($roomId, $room['status'], 'play_vs_bot', 'error.not_your_turn');

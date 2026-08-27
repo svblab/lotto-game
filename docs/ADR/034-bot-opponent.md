@@ -87,12 +87,14 @@ independent; the bot is never host.
 
 ### 2. Availability and join policy
 
-- Client: “Play vs Bot” control is **host-only**, always rendered, **disabled**
-  whenever `count(players) > 1`. Re-evaluate enable/disable on every roster
-  change (`player_joined` / `player_left` / `room_joined`), not only at room
-  create.
+- Client: “Play vs Bot” control is **host-only** and only in **open** waiting
+  rooms (`has_password` false). Hidden when the room has a password (chat/files
+  rooms are human-vs-human). In open rooms, **disabled** whenever
+  `count(players) > 1`. Re-evaluate on every roster change
+  (`player_joined` / `player_left` / `room_joined`), not only at room create.
 - Server: `play_vs_bot` rejects if sender is not host, room is not `waiting`,
-  or `count($room['players']) !== 1` (reuse existing reject codes — see §8).
+  `count($room['players']) !== 1`, or `password_hash !== null`
+  (reuse existing reject codes — see §8).
 - While `$room['bot'] !== null`, the room is closed to other humans:
   `join_room` → `error.room_full` (same effective “full” outcome as a 2-player
   room at capacity). No observers, no third player. Prefer checking
@@ -214,7 +216,7 @@ No payload. Server uses sender `connId` + room membership.
 | Condition | Code |
 |-----------|------|
 | Not in a room | `error.room_not_found` |
-| Not host / not `waiting` / not exactly one seated human | `error.not_your_turn` (same host/phase bucket as `start_game`) |
+| Not host / not `waiting` / not exactly one seated human / password-protected room | `error.not_your_turn` (same host/phase bucket as `start_game`) |
 | Join while bot present | `error.room_full` |
 
 **`game_over` reason** (new wire value):

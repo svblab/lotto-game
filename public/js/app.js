@@ -1175,7 +1175,10 @@
     UI().$('#leave-room-btn')?.addEventListener('click', leaveRoom);
     UI().$('#leave-game-btn')?.addEventListener('click', leaveRoom);
     UI().$('#start-game-btn')?.addEventListener('click', () => socket.sendAction('start_game'));
-    UI().$('#play-vs-bot-btn')?.addEventListener('click', () => socket.sendAction('play_vs_bot'));
+    UI().$('#play-vs-bot-btn')?.addEventListener('click', () => {
+      if (UI().$('#play-vs-bot-btn')?.disabled) return;
+      socket.sendAction('play_vs_bot');
+    });
 
     UI().$('#lobby-chat-form')?.addEventListener('submit', (e) => {
       e.preventDefault();

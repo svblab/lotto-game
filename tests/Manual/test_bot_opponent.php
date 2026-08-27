@@ -377,6 +377,19 @@ echo "=== EPIC-034.1 Bot opponent ===\n\n";
 
 {
     $host = new MockConnection(1, 10, 'host');
+    $worker = new MockWorker();
+    $room = makeWaitingRoom(1);
+    $room['password_hash'] = '$2y$10$placeholderhashforbotguardtestxx';
+    $room['players'][1] = makePlayer($host);
+    $worker->rooms[1] = $room;
+    [$svc] = makeService([10 => ['id' => 10, 'coins' => 500]], new MockPDO());
+    $svc->handlePlayVsBot($host, $worker);
+    assert_true($host->lastError === 'error.not_your_turn', 'Guard: password room → not_your_turn');
+    assert_true(($worker->rooms[1]['bot'] ?? null) === null, 'Guard: password room does not create bot');
+}
+
+{
+    $host = new MockConnection(1, 10, 'host');
     $p2 = new MockConnection(2, 20, 'p2');
     $worker = new MockWorker();
     $room = makeWaitingRoom(1);

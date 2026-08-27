@@ -189,6 +189,12 @@ if ($app && str_contains($app, 'admin_restart_server') && str_contains($app, 'ad
     fail('app.js: admin restart wired');
 }
 
+if ($ui && str_contains($ui, 'play-vs-bot-btn') && str_contains($ui, 'has_password')) {
+    ok('ui.js: play vs bot hidden in password rooms');
+} else {
+    fail('ui.js: play vs bot hidden in password rooms');
+}
+
 if ($ui && str_contains($ui, 'restart_supported') && str_contains($ui, 'admin-restart-btn')) {
     ok('ui.js: restart button gated on restart_supported');
 } else {
