@@ -199,10 +199,11 @@ try {
     $host = new MiniWSClient('127.0.0.1', $wsPort);
     registerAndAuth($host, 'e105_host', 'e105pass123');
     $host->send(json_encode(['action' => 'create_room', 'max_players' => 2, 'password' => '', 'cards_count' => 1]));
-    $created = json_decode($host->recvOrNull() ?? '', true);
+    $created = wsRecvOfType($host, 'room_joined');
     check(($created['type'] ?? null) === 'room_joined', 'setup: room_joined');
     $roomId = $created['room_id'] ?? null;
     check($roomId !== null, 'setup: room_id present');
+    wsDrainBrief($host);
 
     $p2 = new MiniWSClient('127.0.0.1', $wsPort);
     $p2Auth = registerAndAuth($p2, 'e105_p2', 'e105pass123');
@@ -210,16 +211,18 @@ try {
     check(is_string($p2Token) && $p2Token !== '', 'setup: p2 session_token present');
 
     $p2->send(json_encode(['action' => 'join_room', 'room_id' => $roomId, 'password' => '', 'cards_count' => 1]));
-    $joined = json_decode($p2->recvOrNull() ?? '', true);
+    $joined = wsRecvOfType($p2, 'room_joined');
     check(($joined['type'] ?? null) === 'room_joined', 'setup: p2 room_joined');
-    $host->recvOrNull(); // consume player_joined broadcast to host
+    wsRecvOfType($host, 'player_joined'); // + skip host_changed/room_list fan-outs
+    wsDrainBrief($host);
+    wsDrainBrief($p2);
 
     // =========================================================================
     // TEST 1: non-host start_game -> error.not_your_turn
     // =========================================================================
     echo "\nTEST 1: non-host start_game -> error.not_your_turn (EPIC-10.5)\n";
     $p2->send(json_encode(['action' => 'start_game']));
-    $data1 = json_decode($p2->recvOrNull() ?? '', true);
+    $data1 = wsRecvIgnoringSync($p2);
     check(($data1['code'] ?? null) === 'error.not_your_turn', 'code=error.not_your_turn');
 
     // =========================================================================
@@ -227,21 +230,23 @@ try {
     // =========================================================================
     echo "\nTEST 2: host start_game -> game_started broadcast + your_turn to first drawer\n";
     $host->send(json_encode(['action' => 'start_game']));
-    $started1 = json_decode($host->recvOrNull() ?? '', true);
-    $started2 = json_decode($p2->recvOrNull() ?? '', true);
-    $hostYourTurn = json_decode($host->recvOrNull() ?? '', true);
+    $started1 = wsRecvOfType($host, 'game_started');
+    $started2 = wsRecvOfType($p2, 'game_started');
+    $hostYourTurn = wsRecvOfType($host, 'your_turn');
     check(($started1['type'] ?? null) === 'game_started', 'host receives game_started');
     check(($started2['type'] ?? null) === 'game_started', 'p2 receives game_started');
     check(($hostYourTurn['type'] ?? null) === 'your_turn', 'host receives your_turn as first drawer');
     check(($started1['bank'] ?? null) === 20, 'bank=20 (2 players x 1 card x 10 coins)');
     check(($started1['drawer_order'] ?? null) === ['e105_host', 'e105_p2'], 'drawer_order = [host, p2] (host first)');
+    wsDrainBrief($host);
+    wsDrainBrief($p2);
 
     // =========================================================================
     // TEST 3: non-drawer draw_barrel -> error.not_your_turn
     // =========================================================================
     echo "\nTEST 3: p2 draw_barrel out of turn -> error.not_your_turn\n";
     $p2->send(json_encode(['action' => 'draw_barrel']));
-    $data3 = json_decode($p2->recvOrNull() ?? '', true);
+    $data3 = wsRecvIgnoringSync($p2);
     check(($data3['code'] ?? null) === 'error.not_your_turn', 'code=error.not_your_turn');
 
     // =========================================================================
@@ -250,21 +255,23 @@ try {
     // =========================================================================
     echo "\nTEST 4: host draw_barrel -> barrels_drawn broadcast + your_turn to p2\n";
     $host->send(json_encode(['action' => 'draw_barrel']));
-    $drawn1 = json_decode($host->recvOrNull() ?? '', true);
-    $drawn2 = json_decode($p2->recvOrNull() ?? '', true);
+    $drawn1 = wsRecvOfType($host, 'barrels_drawn');
+    $drawn2 = wsRecvOfType($p2, 'barrels_drawn');
     check(($drawn1['type'] ?? null) === 'barrels_drawn', 'host receives barrels_drawn');
     check(($drawn2['type'] ?? null) === 'barrels_drawn', 'p2 receives barrels_drawn');
     check(count($drawn1['numbers'] ?? []) === 3, 'exactly 3 numbers drawn per turn');
     check(($drawn1['next_drawer'] ?? null) === 'e105_p2', 'next_drawer=e105_p2');
-    $yourTurn = json_decode($p2->recvOrNull() ?? '', true);
+    $yourTurn = wsRecvOfType($p2, 'your_turn');
     check(($yourTurn['type'] ?? null) === 'your_turn', 'p2 receives your_turn after rotation');
+    wsDrainBrief($host);
+    wsDrainBrief($p2);
 
     // =========================================================================
     // TEST 5: apartment_choice with no apartment in progress -> error
     // =========================================================================
     echo "\nTEST 5: apartment_choice без активной 'Квартиры' -> error\n";
     $p2->send(json_encode(['action' => 'apartment_choice', 'choice' => 'agree']));
-    $data5 = json_decode($p2->recvOrNull() ?? '', true);
+    $data5 = wsRecvIgnoringSync($p2);
     check(($data5['type'] ?? null) === 'error', 'type=error (apartment not active)');
 
     // =========================================================================
@@ -273,7 +280,7 @@ try {
     // =========================================================================
     echo "\nTEST 6: apartment_choice без поля choice -> error.invalid_json\n";
     $p2->send(json_encode(['action' => 'apartment_choice']));
-    $data6 = json_decode($p2->recvOrNull() ?? '', true);
+    $data6 = wsRecvIgnoringSync($p2);
     check(($data6['code'] ?? null) === 'error.invalid_json', 'code=error.invalid_json');
 
     // =========================================================================
@@ -285,10 +292,9 @@ try {
     $anon = new MiniWSClient('127.0.0.1', $wsPort);
     $anon->recvOrNull(); // hello
     $anon->send(json_encode(['action' => 'draw_barrel']));
-    $data7 = json_decode($anon->recvOrNull() ?? '', true);
+    $data7 = wsRecvIgnoringSync($anon);
     check(($data7['code'] ?? null) === 'error.auth_required', 'code=error.auth_required');
     $anon->close();
-
     // =========================================================================
     // TEST 8 (EPIC-10.5 wiring + FIX-9): real TCP disconnect during 'playing'
     // -> onClose delegates ReconnectService::handleDisconnect() -> player
@@ -303,22 +309,23 @@ try {
     echo "\nTEST 8: real disconnect + reconnect mid-game (onClose + FIX-9)\n";
     $p2->close();
     usleep(300_000); // дать серверу время обработать onClose
+    wsDrainBrief($host); // disconnected / room_list fan-outs on host
 
     $p2New = new MiniWSClient('127.0.0.1', $wsPort);
     $p2New->recvOrNull(); // hello
     $p2New->send(json_encode(['action' => 'reconnect', 'token' => $p2Token]));
-    $reconnectMsg = json_decode($p2New->recvOrNull() ?? '', true);
+    $reconnectMsg = wsRecvOfType($p2New, 'reconnect_state');
     check(($reconnectMsg['type'] ?? null) === 'reconnect_state', 'reconnect_state received');
     check(($reconnectMsg['status'] ?? null) === 'playing', 'reconnect_state: status=playing');
 
     // Всё ещё ход p2 (после TEST 4) — теперь с НОВОГО соединения.
     $p2New->send(json_encode(['action' => 'draw_barrel']));
-    $afterReconnectDraw = json_decode($p2New->recvOrNull() ?? '', true);
+    $afterReconnectDraw = wsRecvOfType($p2New, 'barrels_drawn');
     check(
         ($afterReconnectDraw['type'] ?? null) === 'barrels_drawn',
         'draw_barrel после reconnect успешен (FIX-9: новый conn_id корректно найден в комнате)'
     );
-    $host->recvOrNull(); // consume the same barrels_drawn broadcast on host's socket
+    wsRecvOfType($host, 'barrels_drawn'); // same barrels_drawn broadcast on host
     $p2New->close();
 
     $host->close();

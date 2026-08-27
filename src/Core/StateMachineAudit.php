@@ -36,12 +36,12 @@ final class StateMachineAudit
             'waiting' => ['room_created'],
         ],
         'waiting' => [
-            'playing'   => ['start_game'],
+            'playing'   => ['start_game', 'play_vs_bot'],
             'destroyed' => ['no_players', 'admin_close', 'room_destroyed'],
         ],
         'playing' => [
             'apartment' => ['apartment_detected'],
-            'finished'  => ['victory', 'last_survivor'],
+            'finished'  => ['victory', 'last_survivor', 'bot_win'],
             'destroyed' => ['admin_close', 'no_active_players', 'room_destroyed'],
         ],
         'apartment' => [
@@ -60,7 +60,7 @@ final class StateMachineAudit
      * @var array<string, list<string>>
      */
     public const ALLOWED_ACTIONS = [
-        'waiting' => ['room_list', 'join_room', 'leave_room', 'start_game', 'reconnect', 'ping'],
+        'waiting' => ['room_list', 'join_room', 'leave_room', 'start_game', 'play_vs_bot', 'reconnect', 'ping'],
         'playing' => ['draw_barrel', 'leave_room', 'ping', 'reconnect', 'turn_ready', 'nudge_turn'],
         'apartment' => ['apartment_choice', 'ping'],
         'finished' => [],

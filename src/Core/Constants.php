@@ -61,6 +61,15 @@ class Constants
     // ADR-031: max distinct live authenticated user_ids per client IP bucket
     public const MAX_ACCOUNTS_PER_IP = 3;
 
+    // ADR-030: room chat + file transfer
+    public const CHAT_MESSAGE_MAX_CHARS = 500;
+    public const FILE_MAX_BYTES = 1048576;
+    public const FILE_OFFER_TIMEOUT = 60;
+    public const FILE_RELAY_TIMEOUT = 30;
+    public const FILE_RATE_LIMIT_MAX = 3;
+    public const FILE_RATE_LIMIT_WINDOW_SECONDS = 60;
+    public const WS_MAX_PACKAGE_SIZE = 2097152;
+
     /**
      * Runtime cap for distinct live accounts per resolved client IP.
      * LOTTO_MAX_ACCOUNTS_PER_IP overrides when a positive integer; unset/invalid

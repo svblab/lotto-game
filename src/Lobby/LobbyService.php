@@ -286,7 +286,8 @@ final class LobbyService
         }
 
         // --- 5. Комната не заполнена (отдельный код от error.server_full, FIX-7 / ADR-004) ---
-        if (count($room['players']) >= $room['max_players']) {
+        // ADR-034: bot present is its own "full" flag (do not rely on status alone).
+        if (($room['bot'] ?? null) !== null || count($room['players']) >= $room['max_players']) {
             sendError($connection, 'error.room_full', 'Room is full');
             return;
         }
@@ -443,6 +444,11 @@ final class LobbyService
     {
         if (!isset($worker->rooms[$roomId]['players'][$connId])) {
             return;
+        }
+
+        // ADR-030: release room file-transfer lock if this seat was a party.
+        if (isset($worker->fileTransferService)) {
+            $worker->fileTransferService->releaseForConn($worker, $connId);
         }
 
         $room = &$worker->rooms[$roomId];
@@ -733,6 +739,7 @@ final class LobbyService
             'status'       => $room['status'],
             'bank'         => $room['bank'],
             'bet_per_card' => (int) ($room['bet_per_card'] ?? Constants::BET_PER_CARD),
+            'has_password' => $room['password_hash'] !== null,
             'speed_mode'   => (($room['speed_mode'] ?? 'slow') === 'fast') ? 'fast' : 'slow',
             'players'      => $players,
         ], $this->lobbyHostTimeoutFields($room));

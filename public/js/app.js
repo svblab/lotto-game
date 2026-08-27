@@ -42,6 +42,12 @@
     inApartment: false,
     pendingTurnPkt: null,
     turnReadySent: false,
+    /** ADR-030: pending outbound file after offer (bytes held client-side until accept). */
+    pendingFileOffer: null,
+    incomingFileOfferId: null,
+    incomingFileOfferMeta: null,
+    pendingFileSaveHandle: null,
+    pendingFileSaveFallback: false,
   };
 
   let socket;
@@ -320,13 +326,13 @@
           // Fast mode: mark instantly, omit gold pulse (no flashNums).
           UI().renderCards(state.myCards, state.myMasks, state.cardIndex, null);
           const remaining = 500 - (Date.now() - stopStarted);
-          if (i < 2 && remaining > 0) await sleep(remaining);
+          if (remaining > 0) await sleep(remaining);
         } else {
           UI().idleSlot(i);
         }
       }
     } else {
-      // Slow: stop left-to-right with existing decelerating reveal.
+      // Slow: stop left-to-right with ~3s spacing (existing decelerating reveal).
       for (let i = 0; i < 3; i++) {
         if (i < nums.length) {
           await UI().revealSlot(i, nums[i]);
@@ -380,7 +386,7 @@
     if (!me) return;
     if (me.received > 0) {
       await Sound().playAndWait('victory');
-    } else if (pkt.reason === 'victory') {
+    } else if (pkt.reason === 'victory' || pkt.reason === 'bot_win') {
       await Sound().playAndWait('defeat');
     }
   }
@@ -487,11 +493,13 @@
       status: pkt.status,
       bank: pkt.bank,
       bet_per_card: pkt.bet_per_card,
+      has_password: !!pkt.has_password,
       speed_mode: state.speedMode,
       players: pkt.players || [],
       host_timeout_start: pkt.host_timeout_start ?? null,
       host_timeout_seconds: pkt.host_timeout_seconds ?? null,
     };
+    UI().clearChatLogs();
     UI().updateLobbyMembershipUI(true);
     UI().renderRooms(state.rooms, promptJoinRoom, state.room.room_id);
     UI().showRoomPanel(state.room, state.user?.username);
@@ -603,6 +611,10 @@
     applyMyWinChance(initialChances);
 
     UI().showScreen('game');
+    if (state.room?.has_password) {
+      UI().setChatVisible(true);
+      UI().refreshChatRecipients(state.players, state.user?.username);
+    }
     enterGameAudio();
     UI().renderGameHeader(state.bank, state.drawerOrder[0], 90);
     UI().renderDrawnHistory([], state.myCards, state.myMasks);
@@ -697,6 +709,11 @@
     UI().showApartment(pkt.required, pkt.time_left || 10, {
       onChoice: (choice) => socket.sendAction('apartment_choice', { choice }),
       onTimeout: () => socket.sendAction('apartment_choice', { choice: 'refuse' }),
+      onTimerEnd: () => {
+        state.inApartment = false;
+        UI().hideApartment();
+        syncTurnUi();
+      },
     });
   }
 
@@ -745,6 +762,7 @@
         status: 'waiting',
         bank: pkt.bank || 0,
         bet_per_card: pkt.bet_per_card ?? state.room?.bet_per_card,
+        has_password: !!(pkt.has_password ?? state.room?.has_password),
         speed_mode: state.speedMode,
         players: pkt.players || [],
         host_timeout_start: pkt.host_timeout_start ?? null,
@@ -764,6 +782,7 @@
         host: pkt.host ?? state.room?.host ?? '',
         status: 'playing',
         bank: pkt.bank || 0,
+        has_password: !!(pkt.has_password ?? state.room?.has_password),
         speed_mode: state.speedMode,
         players: pkt.players || [],
       };
@@ -777,6 +796,10 @@
       state.currentDrawer = pkt.current_drawer || state.drawerOrder[0] || null;
       state.cardIndex = 0;
       UI().showScreen('game');
+      if (state.room.has_password) {
+        UI().setChatVisible(true);
+        UI().refreshChatRecipients(state.players.length ? state.players : state.room.players, state.user?.username);
+      }
       enterGameAudio();
       UI().renderGameHeader(state.bank, state.currentDrawer, null);
       UI().renderDrawnHistory(state.drawnAll, state.myCards, state.myMasks);
@@ -926,16 +949,174 @@
     state.players = [];
     state.animationQueue = [];
     state.animating = false;
+    state.pendingFileOffer = null;
+    state.incomingFileOfferId = null;
     UI().resetSlots();
     UI().hideTurnControls();
     UI().hideLobbyHostCountdown();
     UI().toggleOverlay('#game-over-modal', false);
     UI().hideApartment();
+    UI().hideFileOfferModal();
+    UI().setChatVisible(false);
     UI().updateLobbyMembershipUI(false);
     UI().showScreen('lobby');
     UI().showRoomPanel(null);
     UI().setMessage('#lobby-message', '');
     socket.sendAction('room_list');
+  }
+
+  function onRoomMessage(pkt) {
+    if (!state.room?.has_password) return;
+    UI().appendChatMessage(pkt.from || '?', pkt.text || '');
+  }
+
+  function onFileOffer(pkt) {
+    if (!state.room?.has_password) return;
+    state.incomingFileOfferId = pkt.offer_id;
+    state.incomingFileOfferMeta = {
+      from: pkt.from || '?',
+      filename: pkt.filename || 'file',
+      size_bytes: pkt.size_bytes ?? 0,
+    };
+    UI().showFileOfferModal(pkt.from || '?', pkt.filename || 'file', pkt.size_bytes ?? 0);
+  }
+
+  function onFileAccepted(pkt) {
+    const pending = state.pendingFileOffer;
+    if (!pending || !pkt.offer_id) return;
+    socket.sendAction('file_data', {
+      offer_id: pkt.offer_id,
+      data: pending.data,
+    });
+    state.pendingFileOffer = null;
+    UI().showToast(I18n().t('chat.fileSending'));
+  }
+
+  function onFileRejected(pkt) {
+    state.pendingFileOffer = null;
+    UI().showToast(I18n().t('chat.fileDeclined'));
+  }
+
+  async function onFileData(pkt) {
+    if (!state.room?.has_password) return;
+    const filename = pkt.filename || 'file';
+    const data = pkt.data || '';
+    const handle = state.pendingFileSaveHandle;
+    state.pendingFileSaveHandle = null;
+    const useFallback = state.pendingFileSaveFallback;
+    state.pendingFileSaveFallback = false;
+
+    if (handle) {
+      const saved = await UI().writeFileToHandle(handle, data);
+      if (saved) {
+        UI().showToast(I18n().t('chat.fileSaved', { filename: UI().sanitizeDownloadName(filename) }));
+        return;
+      }
+    }
+
+    if (useFallback || !handle) {
+      if (UI().promptSaveDownload(filename, data)) {
+        UI().showToast(I18n().t('chat.fileReceived', { from: pkt.from || '?' }));
+        return;
+      }
+    }
+
+    UI().addForcedDownloadLink(filename, data);
+    UI().showToast(I18n().t('chat.fileReceived', { from: pkt.from || '?' }));
+  }
+
+  async function acceptIncomingFile() {
+    if (!state.incomingFileOfferId) return;
+    const offerId = state.incomingFileOfferId;
+    const meta = state.incomingFileOfferMeta;
+    const safeName = UI().sanitizeDownloadName(meta?.filename || 'file');
+
+    state.pendingFileSaveHandle = null;
+    state.pendingFileSaveFallback = false;
+
+    if (typeof window.showSaveFilePicker === 'function') {
+      try {
+        state.pendingFileSaveHandle = await window.showSaveFilePicker({
+          suggestedName: safeName,
+        });
+      } catch (e) {
+        if (e?.name === 'AbortError') return;
+        state.pendingFileSaveFallback = true;
+      }
+    } else {
+      state.pendingFileSaveFallback = true;
+    }
+
+    socket.sendAction('file_accept', { offer_id: offerId });
+    state.incomingFileOfferId = null;
+    state.incomingFileOfferMeta = null;
+    UI().hideFileOfferModal();
+  }
+
+  function onFileOfferExpired() {
+    state.pendingFileOffer = null;
+    state.incomingFileOfferId = null;
+    state.incomingFileOfferMeta = null;
+    state.pendingFileSaveHandle = null;
+    state.pendingFileSaveFallback = false;
+    UI().hideFileOfferModal();
+    UI().showToast(I18n().t('chat.fileExpired'));
+  }
+
+  function arrayBufferToBase64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+    }
+    return btoa(binary);
+  }
+
+  function offerSelectedFile(selectId, inputId) {
+    if (!state.room?.has_password) return;
+    const to = UI().$(selectId)?.value;
+    const input = UI().$(inputId);
+    const file = input?.files?.[0];
+    if (!to) {
+      UI().showToast(I18n().t('chat.pickRecipient'));
+      return;
+    }
+    if (!file) {
+      UI().showToast(I18n().t('chat.pickFile'));
+      return;
+    }
+    if (file.size < 1 || file.size > 1048576) {
+      UI().showToast(I18n().t('chat.fileTooLarge'));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const data = arrayBufferToBase64(reader.result);
+      state.pendingFileOffer = {
+        to_username: to,
+        filename: file.name,
+        size_bytes: file.size,
+        data,
+      };
+      socket.sendAction('file_offer', {
+        to_username: to,
+        filename: file.name,
+        size_bytes: file.size,
+      });
+      UI().showToast(I18n().t('chat.fileOffered'));
+      if (input) input.value = '';
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function sendChatFrom(inputId) {
+    if (!state.room?.has_password) return;
+    const input = UI().$(inputId);
+    const text = (input?.value || '').trim();
+    if (!text) return;
+    socket.sendAction('room_message', { text });
+    if (input) input.value = '';
   }
 
   function leaveRoom() {
@@ -994,6 +1175,38 @@
     UI().$('#leave-room-btn')?.addEventListener('click', leaveRoom);
     UI().$('#leave-game-btn')?.addEventListener('click', leaveRoom);
     UI().$('#start-game-btn')?.addEventListener('click', () => socket.sendAction('start_game'));
+    UI().$('#play-vs-bot-btn')?.addEventListener('click', () => socket.sendAction('play_vs_bot'));
+
+    UI().$('#lobby-chat-form')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      sendChatFrom('#lobby-chat-input');
+    });
+    UI().$('#game-chat-form')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      sendChatFrom('#game-chat-input');
+    });
+    UI().$('#lobby-chat-file-btn')?.addEventListener('click', () => {
+      offerSelectedFile('#lobby-chat-file-to', '#lobby-chat-file-input');
+    });
+    UI().$('#game-chat-file-btn')?.addEventListener('click', () => {
+      offerSelectedFile('#game-chat-file-to', '#game-chat-file-input');
+    });
+    UI().$('#file-offer-accept')?.addEventListener('click', () => {
+      acceptIncomingFile();
+    });
+    UI().$('#file-offer-reject')?.addEventListener('click', () => {
+      if (!state.incomingFileOfferId) return;
+      socket.sendAction('file_reject', { offer_id: state.incomingFileOfferId });
+      state.incomingFileOfferId = null;
+      state.incomingFileOfferMeta = null;
+      state.pendingFileSaveHandle = null;
+      state.pendingFileSaveFallback = false;
+      UI().hideFileOfferModal();
+    });
+
+    UI().$$('.chat-panel-toggle').forEach((btn) => {
+      btn.addEventListener('click', () => UI().toggleChatPanel());
+    });
 
     UI().$('#nudge-turn-btn')?.addEventListener('click', () => {
       if (state.isMyTurn || state.nudgedThisTurn || state.inApartment) return;
@@ -1039,6 +1252,7 @@
     const openRules = () => { UI().renderRules(); UI().toggleOverlay('#rules-modal', true); };
     UI().$('#rules-btn-auth')?.addEventListener('click', openRules);
     UI().$('#rules-btn-lobby')?.addEventListener('click', openRules);
+    UI().$('#rules-btn-game')?.addEventListener('click', openRules);
     UI().$('#rules-close-btn')?.addEventListener('click', () => UI().toggleOverlay('#rules-modal', false));
 
     const openLang = () => {
@@ -1046,6 +1260,7 @@
         await I18n().load(code);
         Sound()?.preloadNudgeLangs?.();
         UI().renderRules();
+        UI().syncChatToggleButtons();
         UI().toggleOverlay('#lang-picker', false);
       });
       UI().toggleOverlay('#lang-picker', true);
@@ -1066,6 +1281,7 @@
     });
 
     UI().$('#admin-restart-btn')?.addEventListener('click', () => {
+      if (UI().$('#admin-restart-btn')?.disabled) return;
       UI().toggleOverlay('#admin-restart-modal', true);
     });
     UI().$('#admin-restart-cancel')?.addEventListener('click', () => {
@@ -1218,6 +1434,12 @@
       admin_restart_result: onAdminRestartResult,
       admin_change_password_result: onAdminChangePasswordResult,
       admin_users_data: onAdminUsers,
+      room_message: onRoomMessage,
+      file_offer: onFileOffer,
+      file_accepted: onFileAccepted,
+      file_rejected: onFileRejected,
+      file_data: onFileData,
+      file_offer_expired: onFileOfferExpired,
     };
     Object.entries(handlers).forEach(([type, fn]) => socket.on(type, fn));
 

@@ -47,7 +47,7 @@ class MockConnection {
     }
 }
 
-class MockWorker { public array $rooms = []; }
+class MockWorker { public array $rooms = []; public array $botWinStreaks = []; public ?array $serverSettings = null; }
 
 class MockPDO {
     public function beginTransaction(): void {}

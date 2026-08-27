@@ -42,6 +42,7 @@ final class AdminSettingsService
             'max_accounts_per_ip' => ServerRuntimeSettings::snapshot($worker)['max_accounts_per_ip'],
             'bet_per_card'        => ServerRuntimeSettings::snapshot($worker)['bet_per_card'],
             'apartment_payment'   => ServerRuntimeSettings::snapshot($worker)['apartment_payment'],
+            'restart_supported'   => self::isHostRestartSupported(),
         ]);
     }
 
@@ -74,11 +75,29 @@ final class AdminSettingsService
     }
 
     /**
+     * Emergency restart uses admin_emergency_control.sh (bash + systemd/pgrep).
+     * Windows has no supported host path — callers get an explicit error.
+     */
+    public static function isHostRestartSupported(): bool
+    {
+        return DIRECTORY_SEPARATOR !== '\\';
+    }
+
+    /**
      * {"action":"admin_restart_server"}
      */
     public function handleRestartServer(array $data, object $connection, object $worker): void
     {
         if (!$this->adminService->assertAdmin($connection)) {
+            return;
+        }
+
+        if (!self::isHostRestartSupported()) {
+            sendJson($connection, [
+                'type'    => 'admin_restart_result',
+                'success' => false,
+                'message' => 'Server restart from the admin panel is not supported on Windows. Use php scripts/start_server.php restart.',
+            ]);
             return;
         }
 
@@ -109,11 +128,6 @@ final class AdminSettingsService
         $logFile = $projectRoot . '/logs/admin_control.log';
         $cmd = 'nohup bash ' . escapeshellarg($script) . ' restart >> '
             . escapeshellarg($logFile) . ' 2>&1 &';
-
-        if (DIRECTORY_SEPARATOR === '\\') {
-            $cmd = 'start /B bash ' . escapeshellarg($script) . ' restart';
-        }
-
-        @exec($cmd);
+        exec($cmd);
     }
 }

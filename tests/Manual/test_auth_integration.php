@@ -116,6 +116,8 @@ class MockWorker
 {
     public array $sessionTokens   = [];
     public array $userConnections = [];
+    public array $botWinStreaks   = [];
+    public ?array $serverSettings = null;
 }
 
 function makeLogger(): Logger
@@ -220,16 +222,20 @@ $authService2->register('loginuser', 'pass1234');
 $worker = new MockWorker();
 $conn   = new MockConnection();
 
-// 3a. Успешный вход
+// 3a. Успешный вход (AuthService::login is credentials-only; session binding
+// is AuthHandler / SessionGuardService — EPIC-1.3 / FIX-30).
 try {
-    $result = $authService2->login('loginuser', 'pass1234', $worker, $conn);
+    $result = $authService2->login('loginuser', 'pass1234');
     ok('login: success returns success=true',                  $result['success'] === true);
     ok('login: result contains session_token',                 isset($result['session_token']) && strlen($result['session_token']) === 32);
     ok('login: result contains user.id',                       isset($result['user']['id']));
     ok('login: result contains user.username',                 $result['user']['username'] === 'loginuser');
     ok('login: result contains user.coins',                    isset($result['user']['coins']));
     ok('login: result contains user.is_admin',                 isset($result['user']['is_admin']));
-    ok('login: worker->userConnections populated',             isset($worker->userConnections[$result['user']['id']]));
+    ok(
+        'login: AuthService does not touch worker->userConnections (claimUserSession does)',
+        !isset($worker->userConnections[$result['user']['id']])
+    );
 } catch (Exception $e) {
     foreach (range(1, 7) as $i) {
         ok("login: success check {$i}", false, $e->getMessage());
@@ -289,20 +295,22 @@ try {
     ok('login: coins after bonus', false);
 }
 
-// 3f. Двойной вход (same user_id, $worker->userConnections уже занят)
+// 3f. Dual AuthService::login is allowed — single-session eviction lives in
+// SessionGuardService::claimUserSession (AuthHandler), not AuthService.
 $pdo4 = makeTestPdo();
 [$authService4] = makeServices($pdo4);
 $authService4->register('doubleuser', 'pass1234');
-$worker4 = new MockWorker();
-$conn4a  = new MockConnection();
-$conn4b  = new MockConnection();
-$authService4->login('doubleuser', 'pass1234', $worker4, $conn4a);
-try {
-    $authService4->login('doubleuser', 'pass1234', $worker4, $conn4b);
-    ok('login: double login throws exception', false, 'No exception thrown');
-} catch (Exception $e) {
-    ok('login: double login throws exception', $e->getMessage() === 'User already logged in');
-}
+$resultFirst  = $authService4->login('doubleuser', 'pass1234');
+$resultSecond = $authService4->login('doubleuser', 'pass1234');
+ok(
+    'login: AuthService allows a second login (session guard is AuthHandler)',
+    ($resultFirst['success'] ?? false) === true && ($resultSecond['success'] ?? false) === true
+);
+ok(
+    'login: each AuthService login issues a distinct session_token',
+    ($resultFirst['session_token'] ?? '') !== ''
+    && ($resultFirst['session_token'] ?? null) !== ($resultSecond['session_token'] ?? null)
+);
 
 // ─── SUITE 4: AuthHandler ─────────────────────────────────────────────────────
 
@@ -338,6 +346,13 @@ $pktErr = $connRegErr->lastPacket();
 ok('handleRegister: sends error on invalid username', ($pktErr['type'] ?? '') === 'error');
 ok('handleRegister: error.code = error.auth_invalid_username',
     ($pktErr['code'] ?? '') === 'error.auth_invalid_username');
+
+// 4b2. handleRegister — reserved Bot username (ADR-034)
+$connRegBot = new MockConnection();
+$handler5->handleRegister(['username' => 'Bot', 'password' => 'hpass123'], $connRegBot, $worker5);
+$pktBot = $connRegBot->lastPacket();
+ok('handleRegister: Bot reserved → error.auth_invalid_username',
+    ($pktBot['code'] ?? '') === 'error.auth_invalid_username');
 
 // 4c. handleRegister — дубль: error.auth_username_taken
 $connRegDup = new MockConnection();

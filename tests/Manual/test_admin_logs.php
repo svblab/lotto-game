@@ -6,7 +6,8 @@ declare(strict_types=1);
  * tests/Manual/test_admin_logs.php
  *
  * EPIC-9.6 (закрывает пробел верификации EPIC-9.5) — Logs access.
- * Юнит-тест AdminService::handleGetLogs() + Logger::getLastLines().
+ * Юнит-тест AdminService::handleGetLogs() + Logger::getLinesSinceSeconds()
+ * (24h window) и Logger::getLastLines() (прямой вызов).
  *
  * Границы теста (ANCHOR_RULES Part 22 § Test Philosophy):
  *   - tests/Manual/test_logger.php (EPIC-9.5) проверяет только Logger как
@@ -84,6 +85,15 @@ final class FakeLoggerWithLines
     public function getLastLines(int $limit = 100): array
     {
         return array_slice($this->lines, -$limit);
+    }
+
+    /** Mirrors Logger::getLinesSinceSeconds — fake lines are treated as recent. */
+    public function getLinesSinceSeconds(int $secondsAgo): array
+    {
+        if ($secondsAgo <= 0) {
+            return [];
+        }
+        return $this->lines;
     }
 
     public function info(string $msg): void
@@ -175,10 +185,10 @@ $admin4->handleGetLogs(['action' => 'admin_get_logs'], $conn4);
 assertEquals('error', $conn4->lastSent()['type'] ?? null, 'response type is error when logger missing');
 
 // =============================================================================
-// TEST 5 — limit=100 slicing: only last N lines returned (ANCHOR_CORE contract)
+// TEST 5 — AdminService uses getLinesSinceSeconds (24h window), not getLastLines
 // =============================================================================
 
-echo "\nTEST 5: Limit=100 slicing via Logger::getLastLines()\n";
+echo "\nTEST 5: Admin path uses getLinesSinceSeconds (all recent fake lines)\n";
 
 $manyLines = array_map(fn(int $i) => "line-{$i}", range(1, 150));
 $logger5 = new FakeLoggerWithLines($manyLines);
@@ -188,9 +198,9 @@ $conn5 = makeAdminConnection(1);
 $admin5->handleGetLogs(['action' => 'admin_get_logs'], $conn5);
 
 $resp5 = $conn5->lastSent();
-assertEquals(100, count($resp5['lines'] ?? []), 'exactly 100 lines returned out of 150');
-assertEquals('line-51', $resp5['lines'][0] ?? null, 'oldest returned line is the 51st (last 100)');
-assertEquals('line-150', $resp5['lines'][99] ?? null, 'newest returned line is the last one');
+assertEquals(150, count($resp5['lines'] ?? []), 'time-window path returns all recent lines (no 100-cap)');
+assertEquals('line-1', $resp5['lines'][0] ?? null, 'oldest recent line preserved');
+assertEquals('line-150', $resp5['lines'][149] ?? null, 'newest recent line preserved');
 
 // =============================================================================
 // TEST 6 — Logger::getLastLines() real implementation: missing file → []

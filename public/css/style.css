@@ -56,16 +56,58 @@ body {
 
 .logo-img {
   display: block;
-  height: 120px;
-  max-width: 80%;
-  width: auto;
+  width: min(100%, 400px);
+  height: auto;
+  max-height: 140px;
   margin: 0 auto 1rem;
   object-fit: contain;
   border: none;
   background: transparent;
-  opacity: 0.85;
+  opacity: 1;
 }
 .logo-img.small { height: 48px; max-width: 120px; margin: 0; }
+
+.logo-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  min-height: 120px;
+  max-width: 90%;
+  margin: 0 auto 1rem;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(145deg, var(--wood-light), var(--wood));
+  border: 3px solid var(--gold);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 16px var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.logo-brand-text {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.35rem, 5.5vw, 1.85rem);
+  font-weight: bold;
+  letter-spacing: 0.04em;
+  color: var(--gold-glow);
+  text-shadow: 0 2px 6px var(--shadow);
+  line-height: 1.15;
+}
+
+.logo-brand-deco {
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 3rem;
+  border-radius: 50% / 45%;
+  background: var(--chip);
+  border: 2px solid var(--gold);
+  font-family: Georgia, serif;
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: var(--cream);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 -4px 8px rgba(0, 0, 0, 0.25);
+}
 
 .logo-placeholder {
   height: 120px;
@@ -350,6 +392,93 @@ html.has-chip-icon .coins::before {
 .room-panel { padding: 0.85rem; }
 .room-panel-head { margin-bottom: 0.65rem; }
 .room-panel-title { margin-bottom: 0.5rem; font-size: 1.05rem; }
+
+.chat-panel {
+  margin-top: 0.75rem;
+  padding: 0.65rem;
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.22);
+}
+.chat-panel.hidden { display: none !important; }
+.chat-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+.chat-panel-title {
+  margin: 0;
+  font-size: 0.95rem;
+}
+.chat-panel-toggle { flex-shrink: 0; }
+.chat-panel-body.collapsed { display: none; }
+.chat-panel-body:not(.collapsed) { margin-top: 0.15rem; }
+.chat-log {
+  max-height: 9rem;
+  overflow-y: auto;
+  margin-bottom: 0.45rem;
+  padding: 0.35rem;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: calc(var(--radius) - 2px);
+  font-size: 0.85rem;
+}
+.chat-line {
+  margin: 0.2rem 0;
+  word-break: break-word;
+}
+.chat-line-from {
+  font-weight: 700;
+  color: var(--gold, #d4af37);
+  margin-right: 0.35rem;
+}
+.chat-compose {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 0.45rem;
+}
+.chat-compose input {
+  flex: 1;
+  min-width: 0;
+}
+.chat-file-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  margin-bottom: 0.35rem;
+}
+.chat-file-label {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  font-size: 0.8rem;
+}
+.chat-file-input { max-width: 11rem; font-size: 0.75rem; }
+.chat-downloads {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.chat-download-link {
+  color: var(--gold, #d4af37);
+  font-size: 0.82rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.game-chat-panel {
+  margin: 0.5rem;
+  max-width: 18rem;
+}
+.file-offer-panel { max-width: 22rem; }
+
+@media (max-width: 767px) {
+  .game-chat-panel {
+    max-width: none;
+    margin: 0.5rem 0 0;
+  }
+}
 .room-meta {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -386,6 +515,8 @@ html.has-chip-icon .coins::before {
 
 .status-online { color: var(--success); }
 .status-disconnected { color: var(--danger); }
+.status-bot { color: var(--text-muted); }
+.players-list li.player-bot span:first-child { font-style: italic; }
 .status-removed { color: var(--text-muted); font-style: italic; }
 
 /* Game */
@@ -777,6 +908,12 @@ html.has-chip-icon .coins::before {
   margin: 1rem 0;
 }
 .apartment-actions { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; }
+/* Agree starts as .primary (gold hint); only .selected stays gold — unselected reverts to wood. */
+.apartment-actions .btn.primary:not(.selected) {
+  background: var(--wood);
+  color: var(--cream);
+  font-weight: normal;
+}
 .apartment-actions .btn.selected {
   background: linear-gradient(180deg, var(--gold-glow), var(--gold));
   color: var(--felt-dark);

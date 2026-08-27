@@ -69,6 +69,8 @@ class TIntMockConnection
 class TIntMockWorker
 {
     public array $rooms = [];
+    public array $botWinStreaks = [];
+    public ?array $serverSettings = null;
 }
 
 class TIntMockPDO

@@ -90,15 +90,26 @@ function makeRoom(int $roomId, int $hostConnId, string $status): array
     ];
 }
 
-/** Minimal PDO stub for GameFinishService timer-cleanup tests (no SQLite driver needed). */
+/** Minimal finish-service stack for timer-cleanup tests (ADR-016 coins lookup). */
 function makeFinishService(FakeLogger $logger): GameFinishService
 {
-    $pdo = new class extends \PDO {
-        public function __construct() {}
-        public function beginTransaction(): bool { return true; }
-        public function commit(): bool { return true; }
-        public function rollBack(): bool { return true; }
-    };
+    $pdo = new PDO('sqlite::memory:', null, null, [
+        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES   => false,
+    ]);
+    $pdo->exec("
+        CREATE TABLE users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            coins INTEGER NOT NULL DEFAULT 500,
+            is_admin INTEGER NOT NULL DEFAULT 0,
+            banned_until INTEGER NOT NULL DEFAULT 0,
+            last_daily_bonus INTEGER NOT NULL DEFAULT 0
+        )
+    ");
+    $pdo->exec("INSERT INTO users (id, username, password_hash, coins) VALUES (50, 'winner', 'x', 500)");
     $db = new \Lotto\Infrastructure\Database($pdo);
     $stmts = new \Lotto\Infrastructure\PreparedStatements($pdo);
     return new GameFinishService($db, $stmts, $logger);

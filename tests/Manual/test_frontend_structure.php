@@ -189,6 +189,12 @@ if ($app && str_contains($app, 'admin_restart_server') && str_contains($app, 'ad
     fail('app.js: admin restart wired');
 }
 
+if ($ui && str_contains($ui, 'restart_supported') && str_contains($ui, 'admin-restart-btn')) {
+    ok('ui.js: restart button gated on restart_supported');
+} else {
+    fail('ui.js: restart button gated on restart_supported');
+}
+
 if ($app && str_contains($app, 'admin_get_users') && str_contains($app, 'admin_users_data')) {
     ok('app.js: admin_get_users wired');
 } else {
@@ -201,7 +207,7 @@ if ($html && !str_contains($html, 'admin.statsHint')) {
     fail('index.html: admin.statsHint removed');
 }
 
-$adminI18nKeys = ['liveStats', 'online', 'memory', 'searchUser', 'selectUser', 'onlineOnly', 'bannedOnly'];
+$adminI18nKeys = ['liveStats', 'online', 'memory', 'searchUser', 'selectUser', 'onlineOnly', 'bannedOnly', 'restartUnsupported'];
 foreach (['en', 'ru', 'es', 'fr', 'zh', 'tr'] as $lang) {
     $localePath = $public . "/locales/$lang.json";
     $localeData = json_decode((string)file_get_contents($localePath), true);

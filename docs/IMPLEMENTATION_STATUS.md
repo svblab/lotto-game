@@ -1,5 +1,34 @@
 # Implementation Status — Lotto Game Project
 
+## Pre-deploy regression pass (feature/room-chat-files) (2026-08-24)
+
+Status: **Completed** — VPS `php run_ALL_tests.php` **57/57** twice in a row
+(2026-08-25, no code changes between runs). Branch is Part-15 deploy-ready;
+`systemctl restart lotto-server.service` still requires an explicit deploy step.
+
+### Fix commits (feature/room-chat-files)
+| Cluster | Commit | Summary |
+|---------|--------|---------|
+| A | `9b42e62` | Guard `lobbyService.broadcastRoomList` + FlowWorker stubs |
+| C | `e77dd10` | `FakeLoggerWithLines::getLinesSinceSeconds` |
+| D | `8ba0813` | Kick/timer/protocol registry alignment |
+| E | `59a83f2` | i18n parity es/fr/zh/tr (4 keys) |
+| docs | `712938f` | Mark EPIC-033/035 in progress pending suite |
+| G/B/D+F | `6042a57` | Seat-removal `is_callable` guard; WS drain helpers; auth FIX-30 asserts; packet TEST 3 burst harden |
+| H/I/J | `3f5f8d2` | Game routing `;`; room_list drain; solo `host` + apartment-timer contracts; `RcMockGame::calculateWinChances` |
+
+### Cluster notes (resolved)
+- **A:** Production already wired `lobbyService`; fatals were incomplete test stubs.
+- **B:** Live WS routing — MiniWS packet-queue desync vs `host_changed`/`room_list` fan-outs (harness), not production fatals.
+- **C:** Admin logs time-window path; fake logger stub.
+- **D:** Stale kick/apartment early-finish assert; PDO fixture; `play_vs_bot` fenced-list; AuthService login contract.
+- **E:** Locale key parity.
+- **F:** `test_packet_validation` TEST 3 timing flake — burst harden (not product).
+- **G:** Fixture-only register crash after partial Cluster A stub; live `LobbyService` safe.
+- **H/I/J:** Syntax `;`; admin `room_list` drain; solo-create empty `host`; apartment full-timer + mock win chances.
+
+---
+
 ## EPIC-035 — Room game-speed mode (ADR-035) (2026-08-24)
 
 Status: Completed
@@ -11,43 +40,167 @@ Status: Completed
 - [DONE] Fast animation profile (~3s total, L→R stops); slow unchanged
 - [DONE] Gold pulse omitted in fast mode; audio unchanged
 - [DONE] i18n keys in en/ru/es/fr/zh/tr
+- [DONE] Pre-deploy: VPS `php run_ALL_tests.php` 57/57 ×2 (2026-08-25)
 
-CHANGED:
-- docs/ADR/035-room-game-speed-mode.md (new)
-- docs/ANCHOR_CORE.md (Room Structure + Part 6 `speed_mode`)
-- docs/ANCHOR_PROTOCOL.md (`create_room`, `room_list`, `room_joined`, `reconnect_state`)
-- src/Core/RoomManager.php
-- src/Lobby/LobbyService.php
-- src/Game/ReconnectService.php
-- public/js/app.js
-- public/js/ui.js
-- public/index.html
-- public/locales/{en,ru,es,fr,zh,tr}.json
-- docs/IMPLEMENTATION_STATUS.md
-
-NOT CHANGED:
-- GameTurnService / LottoEngine draw logic
-- Game AFK / ReconnectService AFK timers
-- animationQueue max-3 semantics
-- spin.mp3 / reveal.mp3 behavior
-- PROTOCOL_VERSION
-- `player_joined` payload (mode via `room_joined` only)
-
-Commit: 5974582
-Notes: Single Epic (client animation + one room field). Also landed on
-`feature/room-chat-files` (341e420 / 0049c6e).
+Commit: 341e420 (+ regression fixes through `3f5f8d2`)
+Notes: Part 15 automated verification satisfied; deploy still needs explicit service restart.
 
 VERIFICATION:
-MANUAL VERIFICATION REQUIRED
-1. Create a **fast** room (`speed_mode=fast`). Start a 2-player game. On
-   "Draw barrel", stopwatch the full draw→all-three-revealed sequence.
-   Expected: ≈3s total; reels stop left-to-right; cards mark without gold pulse.
-2. Create a **slow** room (default). Confirm existing ~3s-per-number reveal
-   spacing and gold pulse still present.
-3. Mid-game in a fast room: reload / reconnect. Confirm UI still uses fast
-   animation (from `reconnect_state.speed_mode`) without recreating the room.
-4. Lobby `room_list`: confirm Speed column shows Slow/Fast for each room.
-5. Omit `speed_mode` in a raw `create_room` packet → room behaves as slow.
+MANUAL VERIFICATION REQUIRED (client timing) + VPS `php run_ALL_tests.php` **57/57 ×2** PASS.
+---
+
+## EPIC-034 — Bot opponent (ADR-034)
+
+Status: Completed (EPIC-034.1–034.5)
+
+ADR: `docs/ADR/034-bot-opponent.md`.
+
+- [DONE] EPIC-034.1 — Bot entity + `play_vs_bot` + turn engine integration
+- [DONE] EPIC-034.2 — Apartment-with-bot resolution
+- [DONE] EPIC-034.3 — Victory / `bot_win` bank-burn path
+- [DONE] EPIC-034.4 — Win-streak + double-bank mint
+- [DONE] EPIC-034.5 — Client UI (“Play vs Bot” + roster)
+
+### EPIC-034.5 — Client UI Play vs Bot + roster (ADR-034)
+
+Status: Completed
+
+Files:
+- public/index.html (diff — `#play-vs-bot-btn`)
+- public/js/ui.js (diff — enable/disable on roster; Bot roster status; `bot_win` game-over; exclude Bot from chat recipients)
+- public/js/app.js (diff — `play_vs_bot` click; defeat sound on `bot_win`)
+- public/css/style.css (diff — `.player-bot` / `.status-bot`)
+- public/locales/{en,ru,es,fr,tr,zh}.json (diff — playVsBot / bot / botWin strings)
+- docs/IMPLEMENTATION_STATUS.md (diff)
+
+Notes: Host-only control, always visible while `waiting`, enabled only when exactly one seated human; re-evaluated on every `showRoomPanel` (roster join/leave/room_joined). Bot distinguished by reserved username `"Bot"` (no `is_bot` field). Server paths unchanged.
+
+VERIFICATION:
+- MANUAL — alone in waiting room as host → Play vs Bot enabled; second player joins → disabled; leave → enabled again
+- MANUAL — Play vs Bot → game_started roster shows Bot; barrels/win chances include Bot
+- MANUAL — bot_win → bank-burn copy + defeat sound; human victory vs bot unchanged
+- `php tests/Manual/test_bot_opponent.php` — **151/151 PASS** (server suite unchanged)
+
+CHANGED:
+- Client lobby Play vs Bot control + Bot roster/game-over presentation + i18n
+NOT CHANGED:
+- Server protocol/economy (034.1–034.4); human Start Game rules (≥2 players)
+
+### EPIC-034.4 — Win-streak + double-bank mint (ADR-034)
+
+Status: Completed
+
+Files:
+- src/Game/GameFinishService.php (diff — streak increment/mint-on-3 in `finishGame`; HvH streak reset)
+- src/Game/GameService.php (diff — `countsTowardBotStreak` flag through `finishGame`)
+- src/Game/GameTurnService.php (diff — pass worker + bot-present flag on human victory)
+- src/Game/ApartmentService.php (diff — last_survivor after bot refuse forces `countsTowardBotStreak=true`)
+- src/Auth/SessionGuardService.php (diff — fresh login/register clears streak; reconnect does not)
+- tests/Manual/test_bot_opponent.php (diff — §9 mint / last_survivor / HvH / login)
+- docs/ANCHOR_CORE.md (diff — mint Live; economy + Worker Storage)
+- docs/IMPLEMENTATION_STATUS.md (diff)
+
+Notes: Mint equals pre-payout room bank; credited in the **same** SQLite transaction as the bank prize; `game_over.prize`/`final_bank` stay the bank payout; `statistics[].received` includes bank+mint. No dedicated logout action — fresh `login`/`register` (`claimUserSession(..., freshLogin=true)`) is the explicit session reclaim that clears streak. Client UI remains EPIC-034.5.
+
+VERIFICATION:
+- `php tests/Manual/test_bot_opponent.php` — **151/151 PASS** (was 136)
+- `php tests/Manual/test_victory.php` — **77/77 PASS**
+- `php tests/Manual/test_apartment.php` — **79/79 PASS**
+
+CHANGED:
+- Streak increment on human victory/last_survivor vs bot; mint-on-3; HvH + fresh-login resets
+NOT CHANGED:
+- Bot-win burn path (034.3); human-vs-human payout math; client UI (EPIC-034.5)
+
+### EPIC-034.3 — Bot-win bank burn + streak-reset wiring (ADR-034)
+
+Status: Completed
+
+Files:
+- src/Game/VictoryService.php (diff — `checkBotVictory()` separate from `checkAllVictories`)
+- src/Game/GameTurnService.php (diff — human victory > bot victory > apartment in draw pipeline)
+- src/Game/GameFinishService.php (diff — `finishBotWin()` bank burn, packet, streak unset)
+- src/Game/GameService.php (diff — `finishBotWin()` orchestration wrapper)
+- src/Core/StateMachineAudit.php (diff — `playing→finished` trigger `bot_win`)
+- server.php (diff — `$worker->botWinStreaks = []` on worker start)
+- tests/Manual/test_bot_opponent.php (diff — §8 bot_win / human victory / same-barrel priority)
+- docs/ANCHOR_CORE.md (diff — named bank-burn exception Live; Worker Storage; economy note)
+- docs/ANCHOR_PROTOCOL.md (diff — `bot_win` Live)
+- docs/IMPLEMENTATION_STATUS.md (diff)
+
+Notes: Bot is **never** folded into `checkAllVictories()` / `calculatePrize()` / `finishGame()` payout map. Streak convention: `unset($worker->botWinStreaks[$userId])` on bot win (missing key ⇒ 0). Increment-on-human-win and mint-on-3 remain EPIC-034.4.
+
+VERIFICATION:
+- `php tests/Manual/test_bot_opponent.php` — **136/136 PASS** (was 99; +bot_win / human victory / priority)
+- `php tests/Manual/test_victory.php` — **77/77 PASS**
+
+CHANGED:
+- Separate bot victory detection + bank-burn finish path + streak reset wiring + storage init
+NOT CHANGED:
+- Human-vs-human victory / double-victory share math
+- Streak increment / double-bank mint / logout & human-vs-human streak reset (EPIC-034.4)
+- Client UI (EPIC-034.5)
+
+### EPIC-034.2 — Apartment-with-bot resolution (ADR-034)
+
+Status: Completed
+
+Files:
+- src/Game/ApartmentService.php (diff — `shouldTrigger`/`prepareApartment` bot parallel branches; immediate bot refuse + `player_left`; `countActiveParticipants`; last_survivor after bot clear)
+- src/Game/ReconnectService.php (diff — `countActiveParticipants` includes bot for last_survivor during apartment/playing)
+- tests/Manual/test_bot_opponent.php (diff — §7 apartment immune / refuse / victory-priority / prepareApartment)
+- docs/ANCHOR_CORE.md (diff — apartment fold-in Live EPIC-034.2; bot_win/streak still 034.3/034.4)
+- docs/IMPLEMENTATION_STATUS.md (diff)
+
+Notes: Private-helper-on-existing-class pattern (no new class). Bot never in `apartment_responses` / never sends `apartment_choice`. Human `last_survivor` payout after bot refuse is **existing/unchanged economy** (not a new rule) — only participant-count wiring is new. `bot_win` bank-burn remains EPIC-034.3. Pre-epic loose end: `test_ip_account_limit.php` hung only inside `run_ALL_tests.php` (stray PHP/port); isolated ×2 → 22/22 PASS — noted as `run_ALL_tests.php` process-isolation gap (out of scope).
+
+VERIFICATION:
+- `php tests/Manual/test_bot_opponent.php` — **99/99 PASS** (was 59; +apartment fold-in)
+- `php tests/Manual/test_apartment.php` — **79/79 PASS** (zero human-vs-human regression)
+- `php tests/Manual/test_ip_account_limit.php` — **22/22 PASS** ×2 in isolation (before coding)
+
+CHANGED:
+- ApartmentService bot line scan / immune / immediate refuse / active-participant counts
+- ReconnectService last_survivor participant count includes bot
+- Bot apartment tests + ANCHOR annotation
+NOT CHANGED:
+- Human-vs-human apartment behavior; `bot_win` / bank burn; win-streak mint; client UI; `VictoryService` victory detection order (still before `shouldTrigger` in draw pipeline); `run_ALL_tests.php` process isolation
+
+### EPIC-034.1
+
+Status: Completed
+
+Files:
+- src/Core/RoomManager.php (diff — `$room['bot'] = null` on create)
+- src/Auth/AuthService.php (diff — reserve username `Bot`)
+- src/Lobby/LobbyService.php (diff — `join_room` → `error.room_full` while bot present)
+- src/Game/GameService.php (diff — `handlePlayVsBot()` atomic start path)
+- src/Game/GameHandler.php (diff — `handlePlayVsBot`, same handler as `start_game`)
+- src/Game/GameTurnService.php (diff — nextDrawer/peek, mark bot, immediate bot draw, AFK guards)
+- src/Game/ReconnectService.php (diff — AFK tick guard; roster/win_chances/`current_drawer` display only)
+- src/Core/StateMachineAudit.php (diff — `play_vs_bot` waiting action + waiting→playing trigger)
+- server.php (diff — dispatcher arm)
+- docs/ANCHOR_CORE.md (diff — live `$room['bot']`, waiting action, protocol registry)
+- docs/ANCHOR_PROTOCOL.md (diff — live `play_vs_bot` + reserved username + Bot roster)
+- tests/Manual/test_bot_opponent.php (new)
+- tests/Manual/test_register.php, test_auth_integration.php, test_lobby_integration.php, test_state_machine_audit.php (diff)
+
+Notes: `play_vs_bot` lives on GameHandler/GameService because `start_game` already lives there (both are waiting→playing game-lifecycle actions; LobbyHandler stays join/leave/create). `start_game` guard logic is unchanged. ReconnectService disconnect/reconnect **seat** paths are unchanged (bot has no connection). Apartment (§5), `bot_win` bank-burn (§6), and win-streak mint (§7) are not in this Epic. Bot RAM object stores `masks` like a human player (needed for mark/win-chance; not a protocol field). Game AFK uses an explicit `bot['drawing']` guard rather than inferring safety from `active_drawer_conn_id === null`.
+
+VERIFICATION:
+- `php tests/Manual/test_bot_opponent.php` — **59/59 PASS**
+- `php tests/Manual/test_game_start.php` — 51/51 PASS (`start_game` unchanged)
+- `php tests/Manual/test_turn_system.php` — 59/59 PASS (human-vs-human rotation)
+- `php tests/Manual/test_lobby_integration.php` — 142/142 PASS (`bot=null`, join `room_full`)
+- `php tests/Manual/test_state_machine_audit.php` — 35/35 PASS
+- `php tests/Manual/test_protocol_completeness.php` — `play_vs_bot` wired
+- `php tests/Manual/test_register.php` — Bot/bot/BOT reserved
+- `php tests/Manual/test_reconnect.php` — 176/176 PASS (seat paths unchanged)
+- `php tests/Manual/test_victory.php` — 77/77 PASS
+- `php tests/Manual/test_turn_nudge.php` — 32/32 PASS
+- `php tests/Manual/test_game_start_turn_integration.php` — 11/11 PASS
+- `php tests/Manual/test_auth_integration.php` — Bot register → `error.auth_invalid_username`
+---
 
 ---
 
@@ -141,17 +294,55 @@ Files:
 - public/locales/*.json
 - tests/Manual/test_admin_change_password.php
 
-Commit: pending
-Notes: Acting admin only (by userId). Write-verify transaction before COMMIT.
+Commit: 43c6380
+Notes: Acting admin only (by userId). Write-verify transaction before COMMIT. Cherry-picked onto feature/room-chat-files.
 
 VERIFICATION:
-- `php tests/Manual/test_admin_change_password.php`
+- `php tests/Manual/test_admin_change_password.php` — 12/12 passed
 - MANUAL — admin panel → Change admin password; wrong current / weak new / success login with new password
 
 CHANGED:
 - Admin password rotation WS path + ADR-033 + registries + UI modal + tests
 NOT CHANGED:
 - Registration password rules; CLI change_admin_password.php; ban/kick/delete; rooms/players list UI
+
+## EPIC-030 — Room chat + file transfer (feature/room-chat-files) (2026-08-23)
+
+Status: Completed (experimental branch — not for `main` merge until demand-validated)
+
+- [DONE] ADR-030: Chat module boundary, offer/accept/reject/timeout state machine, protocol, rate limits, memory footprint
+- [DONE] Server: `src/Chat/{ChatHandler,ChatService,FileTransferService}`; password-room gate; room transfer lock; decoded-size validation; dedicated file rate limit; disconnect/timeout release
+- [DONE] Client: chat panel only when `has_password`; 1-to-1 file offer UI; accept/reject modal; forced-download links (`<a download>`, never inline preview)
+- [DONE] Manual tests: `tests/Manual/test_chat_file_transfer.php` (31/31)
+- [DONE] ANCHOR_CORE / ANCHOR_PROTOCOL registries updated in the same pass as the ADR
+
+Files:
+- docs/ADR/030-room-chat-and-file-transfer.md
+- docs/ANCHOR_CORE.md
+- docs/ANCHOR_PROTOCOL.md
+- docs/IMPLEMENTATION_STATUS.md
+- src/Chat/ChatHandler.php
+- src/Chat/ChatService.php
+- src/Chat/FileTransferService.php
+- src/Core/Constants.php
+- src/Core/RoomManager.php
+- src/Lobby/LobbyService.php
+- src/Game/ReconnectService.php
+- server.php
+- public/index.html
+- public/css/style.css
+- public/js/ui.js
+- public/js/app.js
+- public/locales/*.json
+- tests/Manual/test_chat_file_transfer.php
+
+Commit: 5e786ec
+Notes: Isolated on `feature/room-chat-files`. Chat/file never touch SQLite. Workerman `WS_MAX_PACKAGE_SIZE=2MiB` explicit. Unilateral decisions listed in ADR-030 Consequences.
+
+VERIFICATION:
+- `php tests/Manual/test_chat_file_transfer.php` — 31/31 passed
+- `php run_ALL_tests.php` — see final summary
+- MANUAL — password room: chat broadcast; open room: chat hidden/rejected; file offer accept → download link only; reject → `file_rejected`; second offer while busy → `error.file_transfer_busy`
 
 ## EPIC-032a — Nudge voice i18n (client) (2026-08-23)
 
@@ -1521,11 +1712,6 @@ LOTTO_WORKERMAN_PID_FILE env vars for test subprocess isolation.
 Next in Phase 11: EPIC-11.5 Protocol audit, then 11.6 per
 docs/prompt phase 11 detail.md and docs/PHASE_11_REPORT.md.
 
-<<<<<<< HEAD
-- [DONE] EPIC-11.0 Full integration testing (Phase 11 audit, 2026-07-27)
-=======
-- [DONE] EPIC-11.0 Full integration testing (Phase 11 audit — 2026-07-27)
->>>>>>> cursor/epic-11-1-vps-ws-test-isolation
 Files:
 - tests/Manual/test_admin_ban.php (diff — FIX-11 MockConnection::close())
 - tests/Manual/test_admin_integration.php (diff — FIX-11 SpyConnection::close())

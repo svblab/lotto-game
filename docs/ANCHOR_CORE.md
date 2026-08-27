@@ -26,12 +26,22 @@ LOGIN_THROTTLE_MAX_ATTEMPTS = 5;     // ADR-028
 LOGIN_THROTTLE_WINDOW_SECONDS = 300; // ADR-028
 LOGIN_THROTTLE_LOCKOUT_SECONDS = 900; // ADR-028
 MAX_ACCOUNTS_PER_IP = 3;             // ADR-031
+CHAT_MESSAGE_MAX_CHARS = 500;        // ADR-030
+FILE_MAX_BYTES = 1048576;            // ADR-030 (1 MiB decoded)
+FILE_OFFER_TIMEOUT = 60;             // ADR-030
+FILE_RELAY_TIMEOUT = 30;             // ADR-030
+FILE_RATE_LIMIT_MAX = 3;             // ADR-030
+FILE_RATE_LIMIT_WINDOW_SECONDS = 60; // ADR-030
+WS_MAX_PACKAGE_SIZE = 2097152;       // ADR-030 (2 MiB Workerman cap)
 ```
 
 ## Runtime Memory Layout
 ```
-Worker → rooms, userConnections, db, logger
+Lotto\Core\LottoWorker (extends Workerman\Worker) → rooms, userConnections,
+sessionTokens, botWinStreaks, serverSettings, db, logger, services
 ```
+Runtime fields are declared typed properties on `LottoWorker` (PHP 8.2+ / PHP 9:
+no dynamic properties on the production worker).
 
 ## userConnections
 ```php
@@ -62,6 +72,8 @@ $worker->rooms[$roomId] = [
   'drawn_numbers' => [],
   'players' => [],
   'all_players_history' => [],
+  'file_transfer' => null,  // ADR-030: null | offer/relay struct (RAM-only)
+  'bot' => null,            // ADR-034: null | RAM-only bot object (not in players)
   'speed_mode' => 'slow'    // ADR-035: 'slow'|'fast' — client animation profile
 ];
 ```
@@ -74,6 +86,36 @@ pattern as `error.banned` in ADR-007):
   calculation uses the constant directly, not this field.
 - `pause_for_apartment` — always `false`. Apartment pause is represented by
   `status === 'apartment'`; this flag is never toggled in production.
+
+**Bot object (ADR-034, EPIC-034.1):** `$room['bot']` is initialized to `null`
+by `RoomManager::createRoom()`. It is non-null only after the host starts
+human-vs-computer via `play_vs_bot`. The bot is **not** an entry in
+`$room['players']`, has no `user_id` / `session_token` / SQLite row / coins,
+and never appears in `drawer_order`. Shape when present:
+
+```php
+$room['bot'] = [
+  'username'    => 'Bot',
+  'cards'       => [],
+  'cards_count' => 2,
+  'total_paid'  => 0,
+  'immune'      => false,
+  'drawing'     => false,
+  'status'      => 'active'
+];
+```
+
+Live RAM also stores `masks` on the bot (same all-false card masks as a
+human player) so mark / win-chance math can run; `masks` is not a protocol
+field. Engine subsystems that iterate participants must use an explicit
+parallel bot branch (see ADR-034 §4–§6).
+
+**Drawer identity while the bot draws:** `active_drawer_conn_id = null` and
+`$room['bot']['drawing'] === true`. While a human draws:
+`active_drawer_conn_id = <human conn_id>` and `bot['drawing'] = false`
+(or bot is null). Host and drawer concepts remain independent; the bot is
+never host. Do **not** treat `active_drawer_conn_id === null` alone as
+“no drawer / skip AFK” without also checking `bot['drawing']`.
 
 **Speed mode (ADR-035):** `$room['speed_mode']` is `'slow'` (default) or
 `'fast'`. Chosen only at `create_room`, frozen for the room lifetime. Affects
@@ -116,8 +158,10 @@ $connection->lastPing;
 $connection->packetCount;       // ADR-003: rate limiting, окно 1s
 $connection->packetWindowStart; // ADR-003: rate limiting, окно 1s
 $connection->clientRemoteIp;    // ADR-031: resolved client IP for IP-account cap bucketing
+$connection->fileActionCount;       // ADR-030: file_offer/file_data rate limit
+$connection->fileActionWindowStart; // ADR-030: file action rate-limit window
 ```
-No additional business fields allowed beyond those listed here (see ADR-003 for the rate-limiting pair; ADR-031 for `clientRemoteIp`).
+No additional business fields allowed beyond those listed here (see ADR-003 for the rate-limiting pair; ADR-031 for `clientRemoteIp`; ADR-030 for the file-action pair).
 
 ## Room States
 Allowed: `waiting | playing | apartment | finished`. No others.
@@ -129,15 +173,22 @@ Allowed: `active | disconnected`. No others. Removal reasons are NOT states.
 Allowed: `leave, disconnect, afk, refuse, banned, kicked, admin_close`. Transient events, never stored as player status.
 
 ## Ownership Rules
-Host = `host_conn_id`. Current drawer = `active_drawer_conn_id`. Never merge these concepts.
+Host = `host_conn_id`. Current drawer = `active_drawer_conn_id` when a human
+is drawing; when the bot is drawing (ADR-034), `active_drawer_conn_id` is
+`null` and `$room['bot']['drawing'] === true`. Never merge host and drawer
+concepts. The bot is never host.
 
 ## Drawer Order Rules
-Stored in `drawer_order`:
+Stored in `drawer_order` (human `conn_id`s only — the bot is never stored here):
 1. Host always starts first.
 2. Remaining players added FIFO.
 3. Removed players skipped.
 4. Disconnected players skipped.
 5. Queue is cyclic.
+6. ADR-034 (bot present): conceptual rotation is Host → Bot → Host → …;
+   after the human draw the next drawer is the bot (immediate server draw,
+   no `your_turn` / Game AFK); after the bot draw the next drawer is the
+   sole active human in `drawer_order`.
 
 ## Room Destruction Rules
 Destroy room if: no players remain | game finished | admin closed room |
@@ -152,7 +203,9 @@ No additional timer fields without ADR.
 
 ## Database Ownership
 SQLite = source of truth for: users, passwords, coins, bans.
-RAM = source of truth for: rooms, cards, bags, timers, game state.
+RAM = source of truth for: rooms, cards, bags, timers, game state,
+chat messages in flight, file-transfer offers/bytes (ADR-030 — never
+written to SQLite or disk).
 
 ## Logging Rules
 Comments: Russian. Logs: English.
@@ -205,6 +258,7 @@ Triggers at most once per game. Required (non-immune) player who chooses `agree`
 
 ## Apartment Refusal
 Final choice `refuse` causes removal (reason `refuse`) when the apartment phase ends. Already-paid coins remain in bank — no refund.
+ADR-034 (Live EPIC-034.2): if the bot is required (human closed a row first, bot has no line), the bot is **immediately** force-removed with reason `refuse` (clears `$room['bot'] = null`, broadcasts `player_left` username `"Bot"`, omits `user_id`) — it never waits for the 10s apartment timer and never appears in `apartment_responses`.
 
 ## Apartment Timeout
 Equivalent to `refuse` for players who never sent a choice. Players who sent `agree` or `refuse` may change their choice until the timer expires; only the last choice counts.
@@ -246,7 +300,13 @@ Example: bank=100, playerA double (2 shares) + playerB normal (1 share), total 3
 Priority: Victory > Apartment. If same barrel causes both, victory wins, apartment ignored, no additional payments.
 
 ## Last Survivor
-Exactly one active player remains → takes entire bank: `winner.coins += bank; bank = 0`.
+Exactly one active **human** remains and no opposing bot remains → that human
+takes entire bank: `winner.coins += bank; bank = 0`.
+When a bot is present (ADR-034, **EPIC-034.1+** / **Live EPIC-034.2** for apartment),
+the bot counts as an opposing participant for this check; removing the bot with
+one human left yields `last_survivor` for the human (including immediate
+apartment `refuse` of the bot). Human `last_survivor` payout is existing
+economy (unchanged by bot presence) — not a new rule.
 **Qualifying condition (ADR-013):** when the triggering removal reason is `afk`, the
 survivor must have `auto_draws === 0` (no AFK auto-draws this game). If the survivor
 has `auto_draws > 0`, treat as § No Survivors (refund via `handleNoSurvivors()`). Removal
@@ -257,10 +317,48 @@ survivor payout applies regardless of the survivor's `auto_draws`.
 Zero active players remain → refund all participants (from `all_players_history`) their `total_paid` (including apartment payments). `bank = 0`. Room destroyed.
 
 ## Economic Integrity Rule
-At any time, `bank + sum(user balances) + burned remainder` must be explainable. Coin creation/duplication/deletion forbidden, except daily bonus and burned division remainder (intentional mechanics).
+At any time, `bank + sum(user balances) + burned remainder` must be explainable.
+Coin creation/duplication/deletion forbidden, except daily bonus, burned
+division remainder, and the following ADR-034 intentional mechanics:
+
+- **Bot-win bank burn** (ADR-034 §6, **Live EPIC-034.3**) — room bank cleared
+  with no recipient and no refund when the bot completes a card
+  (`game_over` reason `bot_win`); `bank = 0` with no `users.coins` credit.
+- **Bot win-streak double-bank mint** (ADR-034 §7, **Live EPIC-034.4**) — on a
+  human’s 3rd consecutive win against the bot, after the normal bank payout
+  the server credits an additional amount equal to that bank (genuine
+  emission) in the same SQLite transaction; streak counter is RAM-only
+  (`$worker->botWinStreaks`) and resets to 0 (missing key) after the mint.
+
+## Bot opponent economy (ADR-034)
+Live (EPIC-034.1): bot `total_paid` is always 0; bank at start = human stake
+only; `play_vs_bot` PDO transaction touches only the human `users.coins` row.
+Live (EPIC-034.2): apartment fold-in — bot scanned for lines; bot with a line
+is `immune`; bot without a line is immediately refused (`$room['bot']=null` +
+`player_left` reason `refuse`); active-participant counts include the bot;
+human `last_survivor` after bot refuse uses the **existing** last-survivor
+payout (not a new economy rule).
+Live (EPIC-034.3): bot card complete → `finishBotWin` bank burn
+(`reason: bot_win`, `prize`/`final_bank` = 0, human `received` = 0); human
+streak for that `user_id` is reset via `unset($worker->botWinStreaks[$userId])`
+(missing key ⇒ 0). Human `victory` against the bot still uses the unmodified
+existing payout path (bot never in `checkAllVictories` / `calculatePrize`).
+Live (EPIC-034.4): human `victory` / `last_survivor` vs bot increments
+`$worker->botWinStreaks[$userId]`; on reaching 3, same-transaction double-bank
+mint then unset streak. Streak also resets on fresh login/register
+(`SessionGuardService::claimUserSession(..., freshLogin=true)`) and on
+finishing any human-vs-human game; reconnect (`freshLogin=false`) does **not**
+reset the streak.
 
 ## Mandatory Transactions
-SQLite transaction required for: `startGame()`, apartment payment, kick refund, `admin_close_room`, victory payout, last_survivor payout, zero-survivor refund. No operation may update `bank` and `users.coins` independently — both succeed or both fail.
+SQLite transaction required for: `startGame()`, apartment payment, kick refund,
+`admin_close_room`, victory payout, last_survivor payout, zero-survivor refund.
+ADR-034 additions: `play_vs_bot` human stake deduction (EPIC-034.1 — only
+the human `users.coins` row; bot contributes nothing); streak double-bank
+mint (EPIC-034.4 — same transaction as the accompanying victory /
+last_survivor payout when possible). Bot-win bank burn does not credit any
+`users.coins` (bank cleared in RAM only). No operation may update `bank` and
+`users.coins` independently when both are involved — both succeed or both fail.
 
 ---
 
@@ -290,7 +388,7 @@ Business logic forbidden in `server.php`, `init_db.php`.
 
 ## src/ Modules
 ```
-src/Core/ Auth/ Lobby/ Game/ Admin/ Infrastructure/
+src/Core/ Auth/ Lobby/ Game/ Admin/ Chat/ Infrastructure/
 ```
 
 ### Core (ConnectionManager.php, RoomManager.php, Logger.php, Helpers.php, Constants.php)
@@ -317,6 +415,12 @@ Forbidden: authentication, admin actions.
 
 ### Admin (AdminHandler.php, AdminService.php)
 Responsibilities: kick, ban, unban, close room, logs. Forbidden: game mechanics.
+
+### Chat (ChatHandler.php, ChatService.php, FileTransferService.php) — ADR-030
+Responsibilities: password-room chat broadcast; consent-based 1-to-1 file
+offer/accept/reject/data relay; room transfer lock; file-action rate limit.
+Forbidden: game/economy/apartment/victory/auth/admin logic; any SQLite or
+disk persistence of chat text or file bytes.
 
 ### Infrastructure (Database.php, PreparedStatements.php)
 Responsibilities: PDO init, statement cache. Forbidden: business logic.
@@ -357,8 +461,9 @@ One Epic modifies 1-3 files normally. If 4+ files required, model must STOP and 
 Changes delivered as `diff -u`. Full file content forbidden except new files or explicit user request.
 
 ## Dependency Direction
-Allowed: Core ← Auth, Lobby, Game, Admin.
-Forbidden: Game→Auth, Admin→Game internals, Lobby→Apartment internals.
+Allowed: Core ← Auth, Lobby, Game, Admin, Chat.
+Forbidden: Game→Auth, Admin→Game internals, Lobby→Apartment internals,
+Chat→Game/Lobby/Admin internals.
 Modules communicate only via services/public methods/events — no private internals access.
 
 ---
@@ -371,18 +476,31 @@ If code contradicts this section, the spec here is correct — fix the code. No 
 Allowed states: `waiting | playing | apartment | finished`. No others.
 
 **waiting**: Room exists, game not started, no cards, bank=0.
-Allowed: `room_list, join_room, leave_room, start_game, reconnect, ping`.
+Allowed: `room_list, join_room, leave_room, start_game, play_vs_bot, reconnect, ping`,
+and when `password_hash !== null`: `room_message, file_offer, file_accept, file_reject, file_data` (ADR-030).
 Forbidden: `draw_barrel, apartment_choice`.
-Transitions: `start_game → playing`; `no players remain → destroyed`; `admin_close_room → destroyed`.
+Transitions: `start_game → playing`; `play_vs_bot → playing` (creates
+`$room['bot']`); `no players remain → destroyed`; `admin_close_room → destroyed`.
+While `$room['bot'] !== null`, `join_room` is rejected (`error.room_full`).
 
 **playing**: Main loop active, cards/bag/bank/drawer exist.
-Allowed: `draw_barrel, leave_room, ping, reconnect, nudge_turn`.
-Forbidden: `join_room, start_game, apartment_choice`.
-Transitions: `apartment detected → apartment`; `winner found → finished`; `last survivor → finished`; `admin_close_room → destroyed`; `no active players → destroyed`.
+Allowed: `draw_barrel, leave_room, ping, reconnect, nudge_turn`,
+and when `password_hash !== null`: `room_message, file_offer, file_accept, file_reject, file_data` (ADR-030).
+Forbidden: `join_room, start_game, play_vs_bot, apartment_choice`.
+Transitions: `apartment detected → apartment`; `winner found → finished`;
+`last survivor → finished`; `admin_close_room → destroyed`;
+`no active players → destroyed`.
+ADR-034 Live (EPIC-034.3): `bot win → finished` (reason `bot_win`, bank burn).
+No new room states for bot mode — bot is a room field, not a state.
 
 **apartment**: Apartment event active, loop paused, no barrel drawing, waiting on required responses.
-Allowed: `apartment_choice, ping`. Forbidden: `draw_barrel, start_game, join_room`. Reconnect forbidden.
-Transitions: `apartment timer expired → playing`; `winner found → finished`; `last survivor → finished`; `admin_close_room → destroyed`.
+Allowed: `apartment_choice, ping`,
+and when `password_hash !== null`: `room_message, file_offer, file_accept, file_reject, file_data` (ADR-030).
+Forbidden: `draw_barrel, start_game, play_vs_bot, join_room`. Reconnect forbidden.
+Transitions: `apartment timer expired → playing`; `winner found → finished`;
+`last survivor → finished`; `admin_close_room → destroyed`.
+ADR-034 Live (EPIC-034.2): last survivor after immediate bot `refuse`
+removal (bot never waits for the 10s timer; human timer unchanged).
 
 **finished**: Result finalized, prizes distributed, no gameplay. Allowed: none. Immediately destroyed.
 Transition: `finished → destroyed`.
@@ -408,7 +526,11 @@ After removal, player must not remain in `$room['players']`; may remain only in 
 Host ownership = `host_conn_id`. Changes only if host leaves/disconnects permanently/removed/banned/kicked/afk-removed. New host = next active player FIFO.
 
 ## Drawer Rules
-Drawer ownership = `active_drawer_conn_id`. Changes on: successful draw, afk auto draw, or drawer removal. Host and drawer are independent.
+Drawer ownership = `active_drawer_conn_id` when a human is drawing; when the
+bot is drawing (ADR-034), `active_drawer_conn_id` is `null` and
+`$room['bot']['drawing'] === true`. Changes on: successful draw, afk auto
+draw, drawer removal, or bot↔human handoff after a draw. Host and drawer are
+independent. The bot is never host and never receives `your_turn` / Game AFK.
 
 ## Apartment Priority
 Victory > apartment. Same barrel causing both → victory; apartment must not start.
@@ -424,14 +546,16 @@ If code contradicts this section, the spec here is correct — fix the code. No 
 
 ## General Rules
 Implementation: `Workerman\Timer`.
-Allowed types: `watchdog, lobby_afk, game_afk, apartment, reconnect`. No others.
+Allowed types: `watchdog, lobby_afk, game_afk, apartment, reconnect, file_offer` (ADR-030). No others.
 
 ## Timer Ownership
 Every timer has exactly one owner: connection, player, room, or server. All timer IDs stored and cancellable. No anonymous/unmanaged timers.
 
 ## Timer Storage
 Room-level: `lobby_afk_timer_id, game_afk_timer_id, apartment_timer_id`.
-Player-level: `reconnect_timer`. No timer IDs stored elsewhere.
+Player-level: `reconnect_timer`.
+File transfer (ADR-030): `file_transfer.timer_id` when `file_transfer !== null`
+(offer or relay deadline; type label `file_offer`). No other timer IDs.
 
 ## Global Watchdog Timer
 Owner: server. Count: 1 for entire process. Interval: 60s. Purpose: close dead connections.
@@ -477,10 +601,17 @@ Owner: player. Exists only for `disconnected`. Created on connection loss when `
 Duration: 15s single-shot. Expiration → `removePlayerFromLobby(...)` / `removePlayerFromGame(...)` reason `disconnect`.
 Destroyed when: player reconnects, removed, or room destroyed. Forbidden in `apartment` state.
 
+## File Offer / Relay Timer (ADR-030)
+Owner: room. Exists only while `file_transfer !== null` in a password-protected room.
+Count: at most 1/room. Single-shot. Label: `file_offer`.
+- Offer phase: duration `FILE_OFFER_TIMEOUT` (60s). Expiration → `file_offer_expired` to parties, release lock.
+- Relay phase: duration `FILE_RELAY_TIMEOUT` (30s) after accept. Expiration → same release path.
+Destroyed when: accept (re-armed for relay), reject, successful/failed `file_data`, timeout, sender/recipient disconnect or leave, or room destroyed.
+
 ## Timer State Restrictions
-- `waiting`: watchdog, lobby_afk, reconnect.
-- `playing`: watchdog, game_afk, reconnect.
-- `apartment`: watchdog, apartment.
+- `waiting`: watchdog, lobby_afk, reconnect, file_offer (ADR-030).
+- `playing`: watchdog, game_afk, reconnect, file_offer (ADR-030).
+- `apartment`: watchdog, apartment, file_offer (ADR-030).
 - `finished`: watchdog only.
 
 ## Room Destruction Cleanup
@@ -489,6 +620,7 @@ Before `unset($worker->rooms[$roomId])`:
 if (!empty($room['lobby_afk_timer_id'])) Timer::del($room['lobby_afk_timer_id']);
 if (!empty($room['game_afk_timer_id']))  Timer::del($room['game_afk_timer_id']);
 if (!empty($room['apartment_timer_id'])) Timer::del($room['apartment_timer_id']);
+if (!empty($room['file_transfer']['timer_id'])) Timer::del($room['file_transfer']['timer_id']); // ADR-030
 foreach ($room['players'] as $player) {
     if (!empty($player['reconnect_timer'])) Timer::del($player['reconnect_timer']);
 }
@@ -523,7 +655,7 @@ Language: English only.
 ```php
 Lotto\
 ```
-All PHP classes belong to `Lotto\...` (e.g. `Lotto\Core`, `Lotto\Auth`, `Lotto\Lobby`, `Lotto\Game`, `Lotto\Admin`, `Lotto\Infrastructure`).
+All PHP classes belong to `Lotto\...` (e.g. `Lotto\Core`, `Lotto\Auth`, `Lotto\Lobby`, `Lotto\Game`, `Lotto\Admin`, `Lotto\Chat`, `Lotto\Infrastructure`).
 Forbidden: `App\`, `Application\`, `Project\`, or any other root namespace.
 Composer PSR-4 mapping is authoritative:
 ```json
@@ -540,14 +672,22 @@ MAX_ROOMS, MAX_TOTAL_PLAYERS, BET_PER_CARD, DAILY_BONUS, RECONNECT_TIMEOUT,
 LOBBY_HOST_TIMEOUT, UNAUTHORIZED_TIMEOUT, AUTHORIZED_TIMEOUT, PROTOCOL_VERSION,
 RATE_LIMIT_PACKETS_PER_WINDOW, RATE_LIMIT_WINDOW_SECONDS,
 LOGIN_THROTTLE_MAX_ATTEMPTS, LOGIN_THROTTLE_WINDOW_SECONDS, LOGIN_THROTTLE_LOCKOUT_SECONDS,
-MAX_ACCOUNTS_PER_IP
+MAX_ACCOUNTS_PER_IP,
+CHAT_MESSAGE_MAX_CHARS, FILE_MAX_BYTES, FILE_OFFER_TIMEOUT, FILE_RELAY_TIMEOUT,
+FILE_RATE_LIMIT_MAX, FILE_RATE_LIMIT_WINDOW_SECONDS, WS_MAX_PACKAGE_SIZE
 ```
 
 ## Connection Properties
-`$connection->userId, ->username, ->isAdmin, ->sessionToken, ->lastPing, ->packetCount, ->packetWindowStart` (последние два — ADR-003, rate limiting), `->clientRemoteIp` (ADR-031, IP-account cap bucketing). No additional business fields.
+`$connection->userId, ->username, ->isAdmin, ->sessionToken, ->lastPing, ->packetCount, ->packetWindowStart` (последние два — ADR-003, rate limiting), `->clientRemoteIp` (ADR-031, IP-account cap bucketing), `->fileActionCount, ->fileActionWindowStart` (ADR-030, file-action rate limit). No additional business fields.
 
 ## Worker Storage
+Production worker is `Lotto\Core\LottoWorker` (declared properties; not dynamic
+assignments on `Workerman\Worker`).
 `$worker->rooms`, `$worker->userConnections` (key=`userId`, value=`$connection`).
+`$worker->botWinStreaks` (ADR-034, **Live EPIC-034.3–034.4**): key=`userId`,
+value=`int` consecutive wins vs bot; RAM-only; initialized `[]` in
+`onWorkerStart`; missing key means 0. Cleared via `unset` on bot win, fresh
+login/register, human-vs-human game finish, and after a successful mint-on-3.
 
 ## Room Structure Keys (allowed, no others without ADR)
 ```
@@ -556,10 +696,20 @@ apartment_fired, pause_for_apartment, apartment_responses, win_chance_history,
 active_drawer_conn_id,
 drawer_order, bag, drawn_numbers, players, all_players_history,
 lobby_afk_timer_id, game_afk_timer_id, apartment_timer_id,
-speed_mode
+file_transfer, bot, speed_mode
 ```
 Reserved (ADR-022): `bet_per_card`, `pause_for_apartment` — see § Room Structure
 reserved keys above; remain in the registry but are not consumed at runtime.
+
+`file_transfer` (ADR-030): `null` when idle; otherwise RAM-only offer/relay
+struct (`state`, `offer_id`, `sender_conn_id`, `recipient_conn_id`,
+`sender_username`, `recipient_username`, `filename`, `size_bytes`, `timer_id`).
+Never persisted.
+
+`bot` (ADR-034): `null` on every room from `RoomManager::createRoom()`, or a
+RAM-only bot object (`username`, `cards`, `cards_count`, `total_paid`,
+`immune`, `drawing`, `status`, plus live `masks` for mark/win-chance).
+Never an entry in `players`. Never persisted.
 
 `speed_mode` (ADR-035): `'slow'` \| `'fast'` (default `'slow'`). Set at
 `create_room` only; frozen for the room lifetime. Client animation profile
@@ -587,9 +737,9 @@ Removal reasons: `leave, disconnect, afk, refuse, kicked, banned, admin_close`.
 - Timers: global `$watchdogTimerId`; room `$room['lobby_afk_timer_id']`, `$room['game_afk_timer_id']`, `$room['apartment_timer_id']`; player `$player['reconnect_timer']`.
 
 ## Class Names (allowed only)
-- Services: `AuthService, LoginThrottleService, IpAccountLimitService, LobbyService, GameService, VictoryService, ApartmentService, ReconnectService, AdminService, SessionService`
+- Services: `AuthService, LoginThrottleService, IpAccountLimitService, LobbyService, GameService, VictoryService, ApartmentService, ReconnectService, AdminService, SessionService, ChatService, FileTransferService`
 - Auth helpers: `PasswordPolicy` (ADR-033)
-- Handlers: `AuthHandler, LobbyHandler, GameHandler, AdminHandler`
+- Handlers: `AuthHandler, LobbyHandler, GameHandler, AdminHandler, ChatHandler`
 - Core: `ConnectionManager, RoomManager, Logger, Constants`
 - Infrastructure: `Database, PreparedStatements`
 - Engine: `LottoEngine` with methods `generateCard(), generateBag()`
@@ -602,7 +752,7 @@ Removal reasons: `leave, disconnect, afk, refuse, kicked, banned, admin_close`.
 - Removal: `removePlayerFromLobby(), removePlayerFromGame(), removePlayerFromApartment()` (no generic `removePlayer()`)
 - Reconnect: `handleDisconnect(), handleReconnect(), buildReconnectState()`
 - Apartment: `startApartment(), finishApartment(), processApartmentChoice()`
-- Victory: `checkCardVictory(), calculatePrize(), finishGame()`
+- Victory: `checkCardVictory(), checkAllVictories(), checkBotVictory(), calculatePrize(), finishGame(), finishBotWin()`
 
 ## Protocol Packet Types (allowed)
 ```
@@ -610,16 +760,21 @@ hello, auth_result, error, room_list, room_joined, player_joined, player_left,
 player_status_changed, host_changed, bank_updated, balance_updated, game_started,
 your_turn, barrels_drawn, afk_warning, nudge_received, apartment_alert, reconnect_state, game_over,
 banned, admin_stats_data, admin_users_data, admin_logs_data, admin_settings_data, admin_restart_result,
-admin_change_password_result
+admin_change_password_result,
+room_message, file_offer, file_accepted, file_rejected, file_data, file_offer_expired
 ```
+
+`game_over.reason` values: `victory`, `last_survivor`, `no_survivors`, `bot_win`.
+ADR-034 `bot_win` is **Live (EPIC-034.3)** — bank burn, no recipient.
 
 ## Protocol Actions (allowed)
 ```
 register, login, reconnect, ping, room_list, create_room, join_room, leave_room,
-start_game, draw_barrel, turn_ready, nudge_turn, apartment_choice, admin_ban_user, admin_unban_user,
+start_game, play_vs_bot, draw_barrel, turn_ready, nudge_turn, apartment_choice, admin_ban_user, admin_unban_user,
 admin_kick_user, admin_close_room, admin_get_logs, admin_get_stats, admin_get_users,
 admin_get_settings, admin_set_settings, admin_restart_server,
-admin_change_password, admin_delete_user, admin_bulk_delete_users
+admin_change_password, admin_delete_user, admin_bulk_delete_users,
+room_message, file_offer, file_accept, file_reject, file_data
 ```
 
 ## Logging

@@ -208,6 +208,7 @@
     const panel = $('#room-panel');
     if (!room) {
       panel?.classList.add('hidden');
+      setChatVisible(false);
       return;
     }
     panel?.classList.remove('hidden');
@@ -216,11 +217,23 @@
     $('#room-bank-label').textContent = roomBankDisplay(room);
     const speedLabel = $('#room-speed-label');
     if (speedLabel) speedLabel.textContent = speedModeLabel(room.speed_mode);
-    const isHost = room.host === username;
-    const canStart = isHost && room.status === 'waiting' && (room.players?.length || 0) >= 2;
+    const playerCount = room.players?.length || 0;
+    // Server omits `host` until ≥2 seated (lobby AFK). Alone, the sole player is host.
+    const isHost = !!username && (
+      room.host === username
+      || (playerCount === 1 && room.players[0]?.username === username)
+    );
+    const canStart = isHost && room.status === 'waiting' && playerCount >= 2;
     $('#start-game-btn')?.classList.toggle('hidden', !canStart);
+    // ADR-034 §2: host-only, always rendered while waiting; disabled when >1 seated.
+    const playBotBtn = $('#play-vs-bot-btn');
+    if (playBotBtn) {
+      const showPlayBot = isHost && room.status === 'waiting';
+      playBotBtn.classList.toggle('hidden', !showPlayBot);
+      playBotBtn.disabled = !showPlayBot || playerCount !== 1;
+    }
     const showLobbyTimer = room.status === 'waiting'
-      && (room.players?.length || 0) >= 2
+      && playerCount >= 2
       && room.host_timeout_start
       && room.host_timeout_seconds;
     if (showLobbyTimer) {
@@ -230,6 +243,186 @@
     }
     renderPlayerList('#room-players-list', room.players || [], false);
     syncPlayersDropdownOpen('#room-players-dropdown');
+    setChatVisible(!!room.has_password);
+    if (room.has_password) {
+      refreshChatRecipients(room.players || [], username);
+    }
+  }
+
+  /** ADR-030: show chat only in password-protected rooms. */
+  let chatPanelExpanded = false;
+
+  function syncChatToggleButtons() {
+    const t = global.LottoI18n.t;
+    const label = chatPanelExpanded ? t('chat.collapse') : t('chat.expand');
+    $$('.chat-panel-toggle').forEach((btn) => {
+      btn.setAttribute('aria-expanded', String(chatPanelExpanded));
+      btn.textContent = label;
+    });
+  }
+
+  function setChatPanelExpanded(expanded) {
+    chatPanelExpanded = expanded;
+    $$('.chat-panel-body').forEach((body) => {
+      body.classList.toggle('collapsed', !expanded);
+    });
+    syncChatToggleButtons();
+  }
+
+  function toggleChatPanel() {
+    setChatPanelExpanded(!chatPanelExpanded);
+  }
+
+  function setChatVisible(visible) {
+    $('#lobby-chat-panel')?.classList.toggle('hidden', !visible);
+    $('#game-chat-panel')?.classList.toggle('hidden', !visible);
+    if (!visible) {
+      clearChatLogs();
+      hideFileOfferModal();
+      chatPanelExpanded = false;
+    } else {
+      setChatPanelExpanded(false);
+    }
+  }
+
+  function clearChatLogs() {
+    ['#lobby-chat-log', '#game-chat-log', '#lobby-chat-downloads', '#game-chat-downloads'].forEach((sel) => {
+      const el = $(sel);
+      if (el) el.textContent = '';
+    });
+  }
+
+  /** Append chat line via textContent only (never innerHTML). */
+  function appendChatMessage(from, text) {
+    ['#lobby-chat-log', '#game-chat-log'].forEach((sel) => {
+      const log = $(sel);
+      if (!log) return;
+      const line = document.createElement('div');
+      line.className = 'chat-line';
+      const fromEl = document.createElement('span');
+      fromEl.className = 'chat-line-from';
+      fromEl.textContent = `${from}:`;
+      const textEl = document.createElement('span');
+      textEl.textContent = text;
+      line.appendChild(fromEl);
+      line.appendChild(textEl);
+      log.appendChild(line);
+      log.scrollTop = log.scrollHeight;
+    });
+  }
+
+  function refreshChatRecipients(players, selfUsername) {
+    const names = (players || [])
+      .filter((p) => p && p.username && p.username !== selfUsername
+        && p.username !== 'Bot'
+        && p.status !== 'removed')
+      .map((p) => p.username);
+    ['#lobby-chat-file-to', '#game-chat-file-to'].forEach((sel) => {
+      const select = $(sel);
+      if (!select) return;
+      const prev = select.value;
+      select.textContent = '';
+      names.forEach((name) => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        select.appendChild(opt);
+      });
+      if (names.includes(prev)) select.value = prev;
+    });
+  }
+
+  function showFileOfferModal(from, filename, sizeBytes) {
+    const t = global.LottoI18n.t;
+    const text = $('#file-offer-text');
+    if (text) {
+      text.textContent = t('chat.fileOfferBody', {
+        from,
+        filename,
+        size: String(sizeBytes),
+      });
+    }
+    toggleOverlay('#file-offer-modal', true);
+  }
+
+  function hideFileOfferModal() {
+    toggleOverlay('#file-offer-modal', false);
+  }
+
+  function decodeBase64File(base64Data) {
+    try {
+      const bin = atob(base64Data);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return new Blob([bytes], { type: 'application/octet-stream' });
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async function writeFileToHandle(handle, base64Data) {
+    const blob = decodeBase64File(base64Data);
+    if (!blob) return false;
+    try {
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /** Trigger the browser save dialog (fallback when File System Access API is unavailable). */
+  function promptSaveDownload(filename, base64Data) {
+    const safeName = sanitizeDownloadName(filename);
+    const blob = decodeBase64File(base64Data);
+    if (!blob) {
+      showToast(global.LottoI18n.t('chat.fileCorrupt'));
+      return false;
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = safeName;
+    a.rel = 'noopener';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return true;
+  }
+
+  /**
+   * ADR-030 safeguard: expose received file ONLY as a forced-download link.
+   * Never inline-preview, never target=_blank on blob URLs (blocks scripted SVG/HTML).
+   */
+  function addForcedDownloadLink(filename, base64Data) {
+    const safeName = sanitizeDownloadName(filename);
+    const blob = decodeBase64File(base64Data);
+    if (!blob) {
+      showToast(global.LottoI18n.t('chat.fileCorrupt'));
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    ['#lobby-chat-downloads', '#game-chat-downloads'].forEach((sel) => {
+      const box = $(sel);
+      if (!box) return;
+      const a = document.createElement('a');
+      a.className = 'chat-download-link';
+      a.href = url;
+      a.download = safeName;
+      a.rel = 'noopener';
+      a.textContent = global.LottoI18n.t('chat.download', { filename: safeName });
+      box.appendChild(a);
+    });
+  }
+
+  function sanitizeDownloadName(name) {
+    const base = String(name || 'file').replace(/[\\/:*?"<>|\u0000]/g, '_').trim();
+    if (!base || base === '.' || base === '..') return 'file';
+    return base.slice(0, 120);
   }
 
   function syncPlayersDropdownOpen(dropdownSelector) {
@@ -250,9 +443,14 @@
     ul.innerHTML = '';
     players.forEach((p) => {
       const li = document.createElement('li');
+      const isBot = p.username === 'Bot';
+      if (isBot) li.classList.add('player-bot');
       let statusCls = 'status-online';
       let statusText = t('game.online');
-      if (p.status === 'disconnected') {
+      if (isBot) {
+        statusCls = 'status-bot';
+        statusText = t('game.bot');
+      } else if (p.status === 'disconnected') {
         statusCls = 'status-disconnected';
         statusText = t('game.disconnected');
       } else if (p.status === 'removed') {
@@ -261,7 +459,13 @@
       }
       let extra = p.cards_count != null ? ` (${p.cards_count} ${t('lobby.cards')})` : '';
       if (showChance && p.winChance != null) extra += ` — ${p.winChance}%`;
-      li.innerHTML = `<span>${p.username}${extra}</span><span class="${statusCls}">${statusText}</span>`;
+      const nameEl = document.createElement('span');
+      nameEl.textContent = `${p.username}${extra}`;
+      const statusEl = document.createElement('span');
+      statusEl.className = statusCls;
+      statusEl.textContent = statusText;
+      li.appendChild(nameEl);
+      li.appendChild(statusEl);
       ul.appendChild(li);
     });
   }
@@ -852,7 +1056,7 @@
   }
 
   function showApartment(required, timeLeft, handlers = {}) {
-    const { onChoice, onTimeout } = handlers;
+    const { onChoice, onTimeout, onTimerEnd } = handlers;
     const t = global.LottoI18n.t;
     if (required) {
       global.LottoSound?.startLoop('apartment');
@@ -873,6 +1077,10 @@
       selected = choice;
       agreeBtn?.classList.toggle('selected', choice === 'agree');
       refuseBtn?.classList.toggle('selected', choice === 'refuse');
+      // Stop pulsing once the player has picked (choice can still change until timer ends).
+      if (choice) {
+        actionsEl?.classList.remove('apartment-prompt');
+      }
       onChoice?.(choice);
     };
     agreeBtn?.classList.remove('selected');
@@ -891,6 +1099,7 @@
         if (required && selected === null) {
           onTimeout?.();
         }
+        onTimerEnd?.();
       }
     }, 1000);
     agreeBtn.onclick = () => setSelected('agree');
@@ -905,6 +1114,22 @@
   }
 
   // --- Game over ---
+  function isBotMatchGameOver(pkt) {
+    if (pkt.vs_bot) return true;
+    return (pkt.win_chance_history || []).some(
+      (snap) => snap.chances && Object.prototype.hasOwnProperty.call(snap.chances, 'Bot')
+    );
+  }
+
+  function formatGameOverReceived(stat, t) {
+    const mint = stat.streak_mint ?? 0;
+    const total = stat.received ?? 0;
+    if (mint > 0 && total >= mint) {
+      return t('game.receivedWithStreakBonus', { bank: total - mint, bonus: mint });
+    }
+    return String(total);
+  }
+
   function showGameOver(pkt, options = {}) {
     const t = global.LottoI18n.t;
     toggleOverlay('#game-over-modal', true);
@@ -913,33 +1138,45 @@
       reasonText = t('game.noSurvivors');
     } else if (pkt.reason === 'last_survivor') {
       reasonText = t('game.lastSurvivor');
+    } else if (pkt.reason === 'bot_win') {
+      reasonText = t('game.botWin');
     } else {
       reasonText = t('game.victory');
     }
     if (pkt.reason === 'no_survivors') {
       $('#game-over-text').textContent = t('game.noSurvivorsLine');
+    } else if (pkt.reason === 'bot_win') {
+      $('#game-over-text').textContent = t('game.botWinLine');
     } else {
-      const winners = (pkt.statistics || [])
-        .filter((s) => (s.received ?? 0) > 0)
+      const humanWinners = (pkt.statistics || [])
+        .filter((s) => (s.received ?? 0) > 0 && s.username !== 'Bot')
         .map((s) => s.username);
-      const winnerLabel = winners.length > 0 ? winners.join(', ') : (pkt.winner || '');
-      const prizeAmount = winners.length > 1
+      const winnerLabel = humanWinners.length > 0 ? humanWinners.join(', ') : (pkt.winner || '');
+      const prizeAmount = humanWinners.length > 1
         ? (pkt.final_bank ?? pkt.prize ?? 0)
         : (pkt.prize ?? 0);
-      const lineKey = winners.length > 1 ? 'game.winnersLine' : 'game.winnerLine';
-      $('#game-over-text').textContent = t(lineKey, {
+      const streakBonus = humanWinners.length === 1
+        ? ((pkt.statistics || []).find((s) => s.username === humanWinners[0])?.streak_mint ?? 0)
+        : 0;
+      let lineKey = humanWinners.length > 1 ? 'game.winnersLine' : 'game.winnerLine';
+      const lineArgs = {
         winner: winnerLabel,
         winners: winnerLabel,
         prize: prizeAmount,
         reason: reasonText,
-      });
+      };
+      if (streakBonus > 0 && isBotMatchGameOver(pkt)) {
+        lineKey = 'game.winnerLineStreakBonus';
+        lineArgs.bonus = streakBonus;
+      }
+      $('#game-over-text').textContent = t(lineKey, lineArgs);
     }
     const receivedLabel = pkt.reason === 'no_survivors' ? t('game.returned') : t('game.received');
     const table = $('#game-over-stats');
     table.innerHTML = `<tr><th>${t('game.player')}</th><th>${t('game.paid')}</th><th>${receivedLabel}</th></tr>`;
     (pkt.statistics || []).forEach((s) => {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${s.username}</td><td>${s.paid}</td><td>${s.received}</td>`;
+      tr.innerHTML = `<td>${s.username}</td><td>${s.paid}</td><td>${formatGameOverReceived(s, t)}</td>`;
       table.appendChild(tr);
     });
     renderWinChanceChart(options.winChanceHistory || []);
@@ -1039,6 +1276,12 @@
     if (settings.online != null || settings.memory_mb != null) {
       setAdminStats(settings.online, settings.memory_mb);
     }
+    const restartBtn = $('#admin-restart-btn');
+    if (restartBtn && settings.restart_supported !== undefined) {
+      const supported = settings.restart_supported !== false;
+      restartBtn.disabled = !supported;
+      restartBtn.title = supported ? '' : global.LottoI18n.t('admin.restartUnsupported');
+    }
   }
 
   function readAdminSettingsForm() {
@@ -1134,7 +1377,7 @@
     const box = $('#rules-content');
     if (!box) return;
     const t = global.LottoI18n.t;
-    const sections = ['intro', 'economy', 'cards', 'apartment', 'victory', 'reconnect'];
+    const sections = ['intro', 'economy', 'cards', 'apartment', 'victory', 'bot', 'chat', 'reconnect'];
     box.innerHTML = sections.map((s) => `<h4>${t(`rules.${s}Title`)}</h4><p>${t(`rules.${s}Body`)}</p>`).join('');
   }
 
@@ -1234,6 +1477,18 @@
     hideJoinRoomModal,
     bindJoinRoomModal,
     showRoomPanel,
+    setChatVisible,
+    toggleChatPanel,
+    syncChatToggleButtons,
+    clearChatLogs,
+    appendChatMessage,
+    refreshChatRecipients,
+    showFileOfferModal,
+    hideFileOfferModal,
+    addForcedDownloadLink,
+    writeFileToHandle,
+    promptSaveDownload,
+    sanitizeDownloadName,
     renderPlayerList,
     renderGameHeader,
     renderCards,

@@ -8,14 +8,34 @@
   <meta name="lotto-ws-port" content="">
   <meta name="lotto-ws-path" content="/ws">
   <title>Russian Lotto Bingo</title>
-  <link rel="stylesheet" href="css/style.css?v=22">
+  <link rel="stylesheet" href="css/style.css?v=25">
+  <link rel="preload" as="image" href="img/logo.png?v=2">
 </head>
 <body>
   <div id="app">
     <!-- Auth -->
     <section id="auth-screen" class="screen active">
       <div class="panel auth-panel">
-        <img class="logo-img" src="img/logo.png" alt="" onerror="this.onerror=null;var p=document.createElement('div');p.className='logo-placeholder';p.setAttribute('aria-hidden','true');this.replaceWith(p);">
+        <img class="logo-img" id="auth-logo-img" src="img/logo.png?v=2" alt="">
+        <template id="auth-logo-fallback">
+          <div class="logo-brand" role="img" aria-labelledby="auth-logo-text">
+            <span class="logo-brand-deco" aria-hidden="true">90</span>
+            <span id="auth-logo-text" class="logo-brand-text" data-i18n="app.title">Russian Lotto</span>
+            <span class="logo-brand-deco" aria-hidden="true">1</span>
+          </div>
+        </template>
+        <script>
+          (function () {
+            var img = document.getElementById('auth-logo-img');
+            if (!img) return;
+            img.addEventListener('error', function () {
+              var t = document.getElementById('auth-logo-fallback');
+              if (!t) return;
+              img.replaceWith(t.content.cloneNode(true));
+              if (window.LottoI18n) window.LottoI18n.applyDom();
+            }, { once: true });
+          })();
+        </script>
         <div class="lang-row">
           <button type="button" id="auth-lang-btn" class="icon-btn" title="Language">🌐</button>
           <button type="button" id="rules-btn-auth" class="icon-btn" title="Rules">?</button>
@@ -173,7 +193,30 @@
           </div>
           <div class="room-actions">
             <button type="button" id="start-game-btn" class="btn primary hidden" data-i18n="game.startGame">Start Game</button>
+            <button type="button" id="play-vs-bot-btn" class="btn primary hidden" data-i18n="game.playVsBot" disabled>Play vs Bot</button>
             <button type="button" id="leave-room-btn" class="btn" data-i18n="lobby.leaveRoom">Leave Room</button>
+          </div>
+          <div id="lobby-chat-panel" class="chat-panel hidden" aria-label="Room chat">
+            <div class="chat-panel-head">
+              <h4 class="chat-panel-title" data-i18n="chat.title">Messages &amp; files</h4>
+              <button type="button" class="btn small chat-panel-toggle" aria-expanded="false" data-i18n="chat.expand">Show</button>
+            </div>
+            <div class="chat-panel-body collapsed">
+              <div id="lobby-chat-log" class="chat-log" role="log" aria-live="polite"></div>
+              <form id="lobby-chat-form" class="chat-compose">
+                <input type="text" id="lobby-chat-input" maxlength="500" autocomplete="off" data-i18n-placeholder="chat.placeholder" placeholder="Message…">
+                <button type="submit" class="btn small" data-i18n="chat.send">Send</button>
+              </form>
+              <div class="chat-file-row">
+                <label class="chat-file-label">
+                  <span data-i18n="chat.sendFile">To</span>
+                  <select id="lobby-chat-file-to" aria-label="Recipient"></select>
+                </label>
+                <input type="file" id="lobby-chat-file-input" class="chat-file-input">
+                <button type="button" id="lobby-chat-file-btn" class="btn small" data-i18n="chat.offerFile">Offer file</button>
+              </div>
+              <div id="lobby-chat-downloads" class="chat-downloads"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -193,6 +236,7 @@
             <input type="range" id="sound-volume-slider" class="sound-volume-slider" min="0" max="100" step="1" value="70" aria-label="Volume" title="Volume">
             <button type="button" id="sound-mute-btn" class="icon-btn" aria-pressed="false" aria-label="Mute sound" title="Sound on">🔊</button>
           </div>
+          <button type="button" id="rules-btn-game" class="icon-btn" title="Rules">?</button>
           <button type="button" id="admin-open-game-btn" class="btn small hidden" data-i18n="admin.title">Admin</button>
           <button type="button" id="leave-game-btn" class="btn small" data-i18n="lobby.leaveRoom">Leave Room</button>
         </div>
@@ -253,6 +297,29 @@
           <p id="turn-wait-msg" class="turn-wait-msg hidden" aria-live="polite"></p>
           <button type="button" id="nudge-turn-btn" class="btn small hidden" data-i18n="game.nudgeTurn">Nudge</button>
         </main>
+
+        <aside id="game-chat-panel" class="chat-panel game-chat-panel hidden" aria-label="Room chat">
+          <div class="chat-panel-head">
+            <h4 class="chat-panel-title" data-i18n="chat.title">Messages &amp; files</h4>
+            <button type="button" class="btn small chat-panel-toggle" aria-expanded="false" data-i18n="chat.expand">Show</button>
+          </div>
+          <div class="chat-panel-body collapsed">
+            <div id="game-chat-log" class="chat-log" role="log" aria-live="polite"></div>
+            <form id="game-chat-form" class="chat-compose">
+              <input type="text" id="game-chat-input" maxlength="500" autocomplete="off" data-i18n-placeholder="chat.placeholder" placeholder="Message…">
+              <button type="submit" class="btn small" data-i18n="chat.send">Send</button>
+            </form>
+            <div class="chat-file-row">
+              <label class="chat-file-label">
+                <span data-i18n="chat.sendFile">To</span>
+                <select id="game-chat-file-to" aria-label="Recipient"></select>
+              </label>
+              <input type="file" id="game-chat-file-input" class="chat-file-input">
+              <button type="button" id="game-chat-file-btn" class="btn small" data-i18n="chat.offerFile">Offer file</button>
+            </div>
+            <div id="game-chat-downloads" class="chat-downloads"></div>
+          </div>
+        </aside>
       </div>
     </section>
 
@@ -379,6 +446,17 @@
         <div class="admin-row">
           <button type="button" id="admin-restart-confirm" class="btn primary" data-i18n="admin.restartServer">Restart server</button>
           <button type="button" id="admin-restart-cancel" class="btn" data-i18n="common.cancel">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="file-offer-modal" class="overlay hidden" role="dialog" aria-labelledby="file-offer-title">
+      <div class="panel file-offer-panel">
+        <h2 id="file-offer-title" data-i18n="chat.fileOfferTitle">Incoming file</h2>
+        <p id="file-offer-text"></p>
+        <div class="admin-row">
+          <button type="button" id="file-offer-accept" class="btn primary" data-i18n="chat.accept">Accept</button>
+          <button type="button" id="file-offer-reject" class="btn" data-i18n="chat.reject">Reject</button>
         </div>
       </div>
     </div>

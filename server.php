@@ -44,21 +44,17 @@
  * EPIC-10.3 (Auth packet routing): register/login/reconnect подключены к
  * AuthHandler (EPIC-1.3, уже существовал — здесь только dependency wiring
  * и routing, никакой новой auth-логики). AuthHandler::handleReconnect()
- * валидирует токен и восстанавливает $worker->userConnections, но НЕ
- * устанавливает $connection->userId и не отправляет reconnect_state — это
- * теперь делает ReconnectService::handleReconnect() (EPIC-10.5, см. выше),
- * когда находит игрока с совпадающим session_token в состоянии
- * 'disconnected' внутри какой-либо комнаты.
+ * валидирует токен, восстанавливает $worker->userConnections и (FIX-10)
+ * безусловно биндит соединение через SessionGuardService::claimUserSession()
+ * — $connection->userId устанавливается даже без комнаты.
+ * ReconnectService::handleReconnect() (EPIC-10.5) дополнительно
+ * восстанавливает игрока в комнате и шлёт reconnect_state, когда находит
+ * disconnected-слот. Если комнаты нет — AuthHandler::notifyLobbyRestored()
+ * отправляет auth_result (lobby restore).
  *
- * ⚠️ KNOWN GAP (обнаружено при подключении EPIC-10.5, не устранено в этом
- * Epic'е — узкий edge-case вне основного сценария, см.
- * IMPLEMENTATION_STATUS.md): если токен валиден (AuthHandler подтвердил
- * сессию), но ReconnectService::handleReconnect() не находит подходящего
- * disconnected-игрока ни в одной комнате (т.е. пользователь не был в
- * игровой комнате на момент разрыва — сценарий вне ANCHOR_CORE.md §
- * Reconnect Rules, где reconnect определён только для 'waiting'/'playing'
- * комнаты), $connection->userId остаётся null. Требует отдельного фикса
- * в AuthHandler (симметрично FIX-8), но не в scope EPIC-10.5 (Rule 11).
+ * ✅ RESOLVED (FIX-10 + notifyLobbyRestored): прежний KNOWN GAP EPIC-10.5
+ * («валидный токен без комнаты оставляет userId = null») закрыт. Reconnect
+ * без waiting/playing-комнаты — штатный lobby-сценарий, не дыра.
  *
  * EPIC-10.1 (Packet validation): rate limiting и invalid-JSON policy
  * теперь реализованы и формализованы в ADR-003
@@ -110,6 +106,7 @@ lottoBootstrapPhpExtensions();
 lottoApplyTestConfig();
 
 use Workerman\Worker;
+use Lotto\Core\LottoWorker;
 use Lotto\Core\Constants;
 use Lotto\Core\Logger;
 use Lotto\Core\MemoryAudit;
@@ -141,6 +138,10 @@ use Lotto\Game\ReconnectService;
 use Lotto\Admin\AdminService;
 use Lotto\Admin\AdminSettingsService;
 use Lotto\Admin\AdminHandler;
+use Lotto\Chat\ChatService;
+use Lotto\Chat\FileTransferService;
+use Lotto\Chat\ChatHandler;
+use Workerman\Connection\TcpConnection;
 
 use function Lotto\Core\sendJson;
 use function Lotto\Core\sendError;
@@ -165,9 +166,13 @@ if ($wmPidFile !== null) {
     Worker::$pidFile = $wmPidFile;
 }
 
-$worker = new Worker('websocket://0.0.0.0:' . $wsPort);
+$worker = new LottoWorker('websocket://0.0.0.0:' . $wsPort);
 $worker->count = 1;
 $worker->name = 'LottoGameServer';
+
+// ADR-030: explicit Workerman package cap (default is 10 MiB). 2 MiB fits
+// ~1.37 MiB base64 for a 1 MiB file plus JSON envelope; see ADR-030 memory analysis.
+TcpConnection::$defaultMaxPackageSize = Constants::WS_MAX_PACKAGE_SIZE;
 
 $worker->onWorkerStart = function (Worker $worker): void {
     // Re-apply in forked worker (putenv may not survive pcntl_fork on all hosts).
@@ -278,10 +283,22 @@ $worker->onWorkerStart = function (Worker $worker): void {
     $adminSettingsService = new AdminSettingsService($adminService, $worker->logger);
     $worker->adminHandler = new AdminHandler($adminService, $adminSettingsService);
 
+    // ADR-030: Chat + file transfer (password rooms only; RAM-only).
+    $worker->chatService = new ChatService($worker->roomManager, $worker->logger);
+    $worker->fileTransferService = new FileTransferService(
+        $worker->roomManager,
+        $worker->chatService,
+        $worker->logger
+    );
+    $worker->chatHandler = new ChatHandler($worker->chatService, $worker->fileTransferService);
+
     // Runtime-память (ANCHOR_CORE.md § Runtime Memory Layout / Worker Storage)
     $worker->rooms           = [];
     $worker->userConnections = [];
     $worker->sessionTokens   = [];
+    // ADR-034: consecutive human wins vs bot (missing key ⇒ 0). Reset-on-bot-win
+    // wired in EPIC-034.3; increment/mint in EPIC-034.4.
+    $worker->botWinStreaks   = [];
     ServerRuntimeSettings::initOnWorker($worker);
 
     $worker->memoryAudit = new MemoryAudit($worker->logger);
@@ -412,6 +429,10 @@ $worker->onWebSocketConnected = function ($connection, $request = null) use ($wo
     // ADR-003: Rate limiting — счётчик пакетов в текущем окне (1s).
     $connection->packetCount       = 0;
     $connection->packetWindowStart = time();
+
+    // ADR-030: dedicated file_offer/file_data soft rate limit.
+    $connection->fileActionCount       = 0;
+    $connection->fileActionWindowStart = time();
 
     // ADR-031: resolved client IP for per-network account cap (trusted-proxy aware).
     if (isset($worker->ipAccountLimit)) {
@@ -549,9 +570,9 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
     // handleReconnect() (теперь собран — оба его зависимых сервиса,
     // LobbyService и GameService, готовы) довершает восстановление:
     // находит игрока с совпадающим session_token в состоянии
-    // 'disconnected' внутри комнаты, устанавливает $connection->userId и
-    // рассылает reconnect_state. Если совпадения нет — см. KNOWN GAP в
-    // шапке файла, ничего дополнительно не отправляется.
+    // 'disconnected' внутри комнаты и рассылает reconnect_state.
+    // userId уже установлен AuthHandler/FIX-10. Если комнаты нет —
+    // notifyLobbyRestored() ниже шлёт auth_result (lobby restore).
     if ($action === 'reconnect') {
         $worker->authHandler->handleReconnect($data, $connection, $worker);
 
@@ -606,6 +627,7 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
         'join_room'        => $worker->lobbyHandler->handleJoinRoom($data, $connection, $worker),
         'leave_room'       => $worker->lobbyHandler->handleLeaveRoom($connection, $worker),
         'start_game'       => $worker->gameHandler->handleStartGame($connection, $worker),
+        'play_vs_bot'      => $worker->gameHandler->handlePlayVsBot($connection, $worker),
         'draw_barrel'      => $worker->gameHandler->handleDrawBarrel($connection, $worker),
         'turn_ready'       => $worker->gameHandler->handleTurnReady($connection, $worker),
         'nudge_turn'       => $worker->gameHandler->handleNudgeTurn($connection, $worker),
@@ -623,6 +645,11 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
         'admin_change_password' => $worker->adminHandler->handleChangePassword($data, $connection),
         'admin_delete_user' => $worker->adminHandler->handleDeleteUser($data, $connection, $worker),
         'admin_bulk_delete_users' => $worker->adminHandler->handleBulkDeleteUsers($data, $connection, $worker),
+        'room_message'     => $worker->chatHandler->handleRoomMessage($data, $connection, $worker),
+        'file_offer'       => $worker->chatHandler->handleFileOffer($data, $connection, $worker),
+        'file_accept'      => $worker->chatHandler->handleFileAccept($data, $connection, $worker),
+        'file_reject'      => $worker->chatHandler->handleFileReject($data, $connection, $worker),
+        'file_data'        => $worker->chatHandler->handleFileData($data, $connection, $worker),
         default            => sendError($connection, 'error.invalid_json', "Unknown or not-yet-wired action: {$action}"),
     };
 

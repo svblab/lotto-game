@@ -15,7 +15,7 @@ Server → Client
 ```json
 {"type": "error", "code": "error_code", "message": "optional text"}
 ```
-Codes: `error.invalid_json, error.auth_required, error.room_not_found, error.not_your_turn, error.already_nudged, error.server_full, error.room_full, error.room_limit, error.banned, error.cannot_moderate_admin, error.auth_invalid_username, error.auth_username_taken, error.auth_invalid_credentials, error.auth_invalid_token, error.auth_rate_limited, error.auth_too_many_accounts_same_network, error.admin_wrong_current_password, error.admin_password_invalid, error.admin_user_not_found, error.admin_user_busy`
+Codes: `error.invalid_json, error.auth_required, error.room_not_found, error.not_your_turn, error.already_nudged, error.server_full, error.room_full, error.room_limit, error.banned, error.cannot_moderate_admin, error.auth_invalid_username, error.auth_username_taken, error.auth_invalid_credentials, error.auth_invalid_token, error.auth_rate_limited, error.auth_too_many_accounts_same_network, error.chat_unavailable, error.chat_message_invalid, error.file_transfer_busy, error.file_too_large, error.file_recipient_invalid, error.file_offer_invalid, error.file_invalid_payload, error.file_rate_limited, error.admin_wrong_current_password, error.admin_password_invalid, error.admin_user_not_found, error.admin_user_busy`
 
 `error.invalid_json` (ADR-003): sent for malformed JSON or missing/invalid
 `action` field. The connection is NOT closed — the client remains
@@ -64,6 +64,11 @@ do not remove without ADR approval.
 control without a generic "not your turn" toast. Self-nudge, non-playing
 room, and inactive/non-seated sender use existing codes (`error.not_your_turn`
 / `error.room_not_found`) — see ADR-032.
+
+`error.file_rate_limited` (ADR-030): dedicated soft limit on
+`file_offer`/`file_data` (`FILE_RATE_LIMIT_MAX` per
+`FILE_RATE_LIMIT_WINDOW_SECONDS`). Connection is NOT closed (unlike
+ADR-003's hard close).
 
 `error.admin_wrong_current_password` (ADR-033): `admin_change_password` when
 `current_password` does not match the acting admin's stored hash.
@@ -118,6 +123,9 @@ Client → Server
 ```json
 {"action": "register", "username": "player", "password": "secret"}
 ```
+Username `Bot` is reserved (ADR-034, case-insensitive match on the literal
+`bot`) and must be rejected with `error.auth_invalid_username` so it cannot
+collide with the bot opponent wire display name.
 
 ### login
 Client → Server
@@ -196,8 +204,9 @@ Client → Server
 ### room_joined
 Server → Client. `players[]` includes each seated player's `cards_count` (public); card numbers do not exist until `start_game`.
 ```json
-{"type": "room_joined", "room_id": 7, "host": "player1", "status": "waiting", "bank": 0, "bet_per_card": 10, "speed_mode": "slow", "players": [], "host_timeout_start": 1704067150, "host_timeout_seconds": 120}
+{"type": "room_joined", "room_id": 7, "host": "player1", "status": "waiting", "bank": 0, "bet_per_card": 10, "has_password": true, "speed_mode": "slow", "players": [], "host_timeout_start": 1704067150, "host_timeout_seconds": 120}
 ```
+`has_password` (ADR-030): `true` when `password_hash !== null`; drives client chat panel visibility.
 `speed_mode` (ADR-035): `"slow"` \| `"fast"` — client slot-animation profile.
 `host_timeout_start` / `host_timeout_seconds`: present when a lobby host is assigned (≥2 players); countdown until host AFK transfer.
 Player entry:
@@ -266,10 +275,23 @@ connection to notify.
 ## Game Start
 
 ### start_game
-Client → Server. Host only.
+Client → Server. Host only. Requires ≥2 seated humans. Does not create a bot.
 ```json
 {"action": "start_game"}
 ```
+
+### play_vs_bot
+Client → Server. Host only (ADR-034). Allowed only in `waiting` with exactly
+one seated human. Creates `$room['bot']`, starts the game (human stake only;
+bot `cards_count = 2`, `total_paid = 0`), and transitions `waiting → playing`.
+While the bot is present, `join_room` is rejected with `error.room_full`.
+Host draws first (`your_turn` + Game AFK); the bot never receives `your_turn`.
+```json
+{"action": "play_vs_bot"}
+```
+Rejects: not in a room → `error.room_not_found`; not host / not `waiting` /
+not exactly one seated human → `error.not_your_turn` (same host/phase bucket
+as `start_game`).
 
 ### game_started
 Server → Room (per-player payload).
@@ -291,6 +313,12 @@ Player entry, others:
 {"username": "player2", "is_self": false, "cards_count": 1, "cards": null, "masks": []}
 ```
 `masks` length equals `cards_count` for every entry; foreign `masks` start all-`false` and do not reveal card numbers.
+
+In bot matches (ADR-034), the roster includes an entry with
+`username: "Bot"`, `cards_count: 2`, and the same card-visibility rules
+(human never receives bot card numbers). There is no `is_bot` field — the
+reserved username identifies the bot. `drawer_order` lists human usernames
+only.
 
 ---
 
@@ -344,6 +372,7 @@ Server → Room
 stays accurate without waiting for reconnect.
 `win_chances` (optional, ADR-014): comparative exponential win-chance percent per
 `username` (float, one decimal; sum 100%; informational only; omitted on victory-ending draw).
+In a bot match the map includes `"Bot"` keyed by the reserved username.
 
 ### afk_warning
 Server → Client. Sent to the current drawer when the per-turn timeout is reached.
@@ -416,6 +445,17 @@ Server → Room. Zero active players remain — stakes refunded, no winner, `pri
 ```
 `received` equals `paid` (stake return, not a prize).
 
+### bot_win
+Server → Room (ADR-034, **Live EPIC-034.3**).
+The bot closed all 15 numbers on one of its cards. The room bank is **burned**
+(not paid to the bot, not refunded to the human). `prize` and `final_bank` are 0.
+Winner display name is the reserved username `"Bot"`. No `is_bot` field.
+Human `statistics[].received` is 0; `coins` is the unchanged post-event
+`users.coins` (read fresh per ADR-016).
+```json
+{"type": "game_over", "winner": "Bot", "reason": "bot_win", "prize": 0, "final_bank": 0, "statistics": [{"username": "player", "paid": 20, "received": 0, "coins": 480}], "win_chance_history": []}
+```
+
 ---
 
 ## Reconnect
@@ -446,6 +486,8 @@ the room is destroyed, so a reconnecting client always sees who played, not just
 who remains.
 `win_chances` (optional, ADR-014): same semantics as `barrels_drawn`; included
 for `status === "playing"` so reconnecting clients restore opponent indicators.
+In a bot match the roster includes `username: "Bot"` and `win_chances` includes
+`"Bot"`; `current_drawer` is `"Bot"` while the bot is drawing.
 `is_my_turn` / `afk_start` / `turn_seconds` / `auto_draws` (ADR-017): included
 when the reconnecting player is the current `active_drawer_conn_id` — same
 semantics as the `your_turn` packet's non-deferred variant (`afk_start` always
@@ -539,13 +581,87 @@ Lines are filtered to the last 24 hours (parsed from log timestamps).
 ### admin_settings_data
 Server → Client. Response to `admin_get_settings` and successful `admin_set_settings`.
 ```json
-{"type": "admin_settings_data", "online": 0, "memory_mb": 0, "max_accounts_per_ip": 3, "bet_per_card": 10, "apartment_payment": 5}
+{"type": "admin_settings_data", "online": 0, "memory_mb": 0, "max_accounts_per_ip": 3, "bet_per_card": 10, "apartment_payment": 5, "restart_supported": true}
 ```
+`restart_supported` is `false` on Windows (admin panel restart uses a bash host script). The restart button is disabled; `admin_restart_server` still returns `admin_restart_result` with `success: false`.
 
 ### admin_restart_result
 Server → Client. Response to `admin_restart_server`.
 ```json
 {"type": "admin_restart_result", "success": true, "message": "Server restart initiated"}
+```
+
+---
+
+## Room Chat & File Transfer (ADR-030)
+
+Available only inside password-protected rooms (`password_hash !== null`).
+Never persisted to SQLite or disk. No history on reconnect/rejoin.
+
+### room_message (action)
+Client → Server
+```json
+{"action": "room_message", "text": "hello"}
+```
+
+### room_message (packet)
+Server → Room (active players only)
+```json
+{"type": "room_message", "from": "alice", "text": "hello", "ts": 1704067200}
+```
+
+### file_offer (action)
+Client → Server. Metadata only — no file bytes.
+```json
+{"action": "file_offer", "to_username": "bob", "filename": "notes.txt", "size_bytes": 1234}
+```
+
+### file_offer (packet)
+Server → Recipient only
+```json
+{"type": "file_offer", "offer_id": "a1b2c3d4e5f60718", "from": "alice", "filename": "notes.txt", "size_bytes": 1234}
+```
+
+### file_accept
+Client → Server
+```json
+{"action": "file_accept", "offer_id": "a1b2c3d4e5f60718"}
+```
+
+### file_accepted
+Server → Sender only (prompt to send bytes)
+```json
+{"type": "file_accepted", "offer_id": "a1b2c3d4e5f60718"}
+```
+
+### file_reject
+Client → Server
+```json
+{"action": "file_reject", "offer_id": "a1b2c3d4e5f60718"}
+```
+
+### file_rejected
+Server → Sender only. Distinct from generic `error` — recipient explicitly declined.
+```json
+{"type": "file_rejected", "offer_id": "a1b2c3d4e5f60718", "reason": "declined"}
+```
+
+### file_data (action)
+Client → Server. Sent only after `file_accepted`. `data` is base64 of raw bytes.
+```json
+{"action": "file_data", "offer_id": "a1b2c3d4e5f60718", "data": "<base64>"}
+```
+
+### file_data (packet)
+Server → Recipient only
+```json
+{"type": "file_data", "offer_id": "a1b2c3d4e5f60718", "from": "alice", "filename": "notes.txt", "data": "<base64>"}
+```
+
+### file_offer_expired
+Server → Affected party/parties. Offer timed out, relay timed out, or peer disconnected/left mid-transfer.
+```json
+{"type": "file_offer_expired", "offer_id": "a1b2c3d4e5f60718"}
 ```
 
 ---

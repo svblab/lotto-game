@@ -37,7 +37,7 @@ use function Lotto\Core\sendJson;
  *   - bank = sum(all total_paid).
  *
  * Состояние (ANCHOR_CORE.md Part 4):
- *   waiting → playing (только через startGame).
+ *   waiting → playing (start_game или play_vs_bot).
  *
  * Архитектура:
  *   - Генерация карт: LottoEngine::generateCard().
@@ -348,6 +348,185 @@ final class GameService
     }
 
     /**
+     * {"action": "play_vs_bot"} — атомарно создать бота и стартовать (ADR-034 §3).
+     *
+     * start_game не вызывается и не меняется: отдельный путь, ровно 1 человек.
+     * Списание PDO — только строка человека. Банк = human.total_paid.
+     */
+    public function handlePlayVsBot(object $connection, object $worker): void
+    {
+        if (empty($connection->userId)) {
+            sendError($connection, 'error.auth_required', 'Authentication required');
+            return;
+        }
+
+        $connId = $connection->id;
+
+        $roomId = null;
+        foreach ($worker->rooms as $rid => $r) {
+            if (isset($r['players'][$connId])) {
+                $roomId = $rid;
+                break;
+            }
+        }
+
+        if ($roomId === null) {
+            sendError($connection, 'error.room_not_found', 'You are not in a room');
+            return;
+        }
+
+        $room = &$worker->rooms[$roomId];
+
+        if ($room['host_conn_id'] !== $connId
+            || $room['status'] !== 'waiting'
+            || count($room['players']) !== 1
+        ) {
+            if ($room['status'] !== 'waiting') {
+                lottoStateReject($roomId, $room['status'], 'play_vs_bot', 'error.not_your_turn');
+            }
+            sendError($connection, 'error.not_your_turn', 'Cannot start a bot match');
+            return;
+        }
+
+        $human = $room['players'][$connId];
+        $betPerCard = ServerRuntimeSettings::betPerCard($worker, $room);
+        $totalPaid = $human['cards_count'] * $betPerCard;
+
+        $stmt = $this->stmts->get('user_by_id');
+        $stmt->execute([$human['user_id']]);
+        $row = $stmt->fetch();
+
+        if ($row === false) {
+            sendError($connection, 'error.not_your_turn', 'Player data not found');
+            return;
+        }
+
+        if ((int)$row['coins'] < $totalPaid) {
+            sendError($connection, 'error.not_your_turn', 'Insufficient coins');
+            return;
+        }
+
+        $pdo = $this->db->getPdo();
+        $humanUserId = (int) $human['user_id'];
+        $newCoins = (int)$row['coins'] - $totalPaid;
+
+        try {
+            $pdo->beginTransaction();
+            $upd = $this->stmts->get('update_user_coins');
+            $upd->execute([$newCoins, $humanUserId]);
+            $room['players'][$connId]['total_paid'] = $totalPaid;
+            $pdo->commit();
+            lottoEconomyRecord('stake', $humanUserId, -$totalPaid, [
+                'room_id' => $roomId,
+            ]);
+        } catch (\Throwable $e) {
+            $pdo->rollBack();
+            $this->logger->error('play_vs_bot: transaction failed: ' . $e->getMessage());
+            sendError($connection, 'error.not_your_turn', 'Failed to process payment');
+            return;
+        }
+
+        $humanCards = [];
+        for ($i = 0; $i < $human['cards_count']; $i++) {
+            $humanCards[] = $this->engine->generateCard();
+        }
+        $room['players'][$connId]['cards'] = $humanCards;
+        $humanMasks = [];
+        foreach ($humanCards as $card) {
+            $humanMasks[] = array_map(
+                fn($rowCells) => array_fill(0, 9, false),
+                $card
+            );
+        }
+        $room['players'][$connId]['masks'] = $humanMasks;
+        $room['players'][$connId]['last_action'] = time();
+        $room['players'][$connId]['afk_start']   = null;
+        $room['players'][$connId]['strikes']      = 0;
+        $room['players'][$connId]['auto_draws']   = 0;
+
+        $botCards = [];
+        for ($i = 0; $i < 2; $i++) {
+            $botCards[] = $this->engine->generateCard();
+        }
+        $botMasks = [];
+        foreach ($botCards as $card) {
+            $botMasks[] = array_map(
+                fn($rowCells) => array_fill(0, 9, false),
+                $card
+            );
+        }
+
+        $room['bot'] = [
+            'username'    => 'Bot',
+            'cards'       => $botCards,
+            'cards_count' => 2,
+            'total_paid'  => 0,
+            'immune'      => false,
+            'drawing'     => false,
+            'status'      => 'active',
+            'masks'       => $botMasks,
+        ];
+
+        $room['bag']           = $this->engine->generateBag();
+        $room['drawn_numbers'] = [];
+        $room['status']        = 'playing';
+        lottoStateTransition($roomId, 'waiting', 'playing', 'play_vs_bot');
+
+        $room['game_roster'] = [
+            $connId => [
+                'user_id'  => $humanUserId,
+                'username' => (string) $human['username'],
+            ],
+        ];
+
+        $room['active_drawer_conn_id'] = $room['drawer_order'][0] ?? $connId;
+        $room['bank'] = $totalPaid;
+
+        if (!empty($room['lobby_afk_timer_id'])) {
+            lottoTimerDel((int) $room['lobby_afk_timer_id'], 'lobby_afk', ['room_id' => $roomId]);
+            $room['lobby_afk_timer_id'] = null;
+        }
+
+        $this->logger->info(
+            "Bot match started in room {$roomId}. Bank: {$totalPaid}"
+        );
+
+        $drawerUsernames = array_values(array_map(
+            fn($cid) => $room['players'][$cid]['username'],
+            array_filter(
+                $room['drawer_order'],
+                fn($cid) => isset($room['players'][$cid]) &&
+                            $room['players'][$cid]['status'] === 'active'
+            )
+        ));
+
+        $botRosterEntry = [
+            'username'    => 'Bot',
+            'is_self'     => false,
+            'cards'       => null,
+            'masks'       => $this->buildInitialMasks($botCards),
+            'cards_count' => 2,
+        ];
+
+        $humanPayload = [
+            'username'    => $room['players'][$connId]['username'],
+            'is_self'     => true,
+            'cards'       => $humanCards,
+            'masks'       => $this->buildInitialMasks($humanCards),
+            'cards_count' => (int) $room['players'][$connId]['cards_count'],
+        ];
+
+        sendJson($room['players'][$connId]['connection'], [
+            'type'         => 'game_started',
+            'bank'         => $room['bank'],
+            'drawer_order' => $drawerUsernames,
+            'players'      => [$humanPayload, $botRosterEntry],
+        ]);
+
+        $this->startTurn($room, $worker, $roomId);
+    }
+
+    /**
      * @param list<list<list<int|null>>> $cards
      * @return list<list<list<bool>>>
      */
@@ -383,6 +562,11 @@ final class GameService
     public function startTurn(array &$room, object $worker, int $roomId, bool $deferAfkStart = false): void
     {
         $this->turnService->startTurn($room, $worker, $roomId, $deferAfkStart);
+    }
+
+    public function resumeAfterApartment(array &$room, object $worker, int $roomId): void
+    {
+        $this->turnService->resumeAfterApartment($room, $worker, $roomId);
     }
 
     // -------------------------------------------------------------------------
@@ -459,8 +643,11 @@ final class GameService
         array $winners,
         array $prizes,
         object $worker,
-        string $reason = 'victory'
+        string $reason = 'victory',
+        ?bool $countsTowardBotStreak = null
     ): void {
+        // Prefer explicit flag (apartment may have already cleared $room['bot']).
+        $vsBot = $countsTowardBotStreak ?? (isset($room['bot']) && is_array($room['bot']));
         $this->finishService->finishGame(
             $room,
             $roomId,
@@ -470,8 +657,12 @@ final class GameService
             function () use ($worker, $roomId) {
                 lottoEconomyCheckInvariants($worker, 'game_finish:' . $roomId);
                 unset($worker->rooms[$roomId]);
-                $worker->lobbyService->broadcastRoomList($worker);
-            }
+                if (isset($worker->lobbyService)) {
+                    $worker->lobbyService->broadcastRoomList($worker);
+                }
+            },
+            $worker,
+            $vsBot
         );
     }
 
@@ -490,9 +681,30 @@ final class GameService
             function () use ($worker, $roomId) {
                 lottoEconomyCheckInvariants($worker, 'no_survivors:' . $roomId);
                 unset($worker->rooms[$roomId]);
-                $worker->lobbyService->broadcastRoomList($worker);
+                if (isset($worker->lobbyService)) {
+                    $worker->lobbyService->broadcastRoomList($worker);
+                }
             },
             $notifyConnection
+        );
+    }
+
+    /**
+     * ADR-034 §6 / EPIC-034.3: bot win — bank burn, no payout.
+     */
+    public function finishBotWin(array &$room, int $roomId, object $worker): void
+    {
+        $this->finishService->finishBotWin(
+            $room,
+            $roomId,
+            $worker,
+            function () use ($worker, $roomId) {
+                lottoEconomyCheckInvariants($worker, 'bot_win:' . $roomId);
+                unset($worker->rooms[$roomId]);
+                if (isset($worker->lobbyService)) {
+                    $worker->lobbyService->broadcastRoomList($worker);
+                }
+            }
         );
     }
 }

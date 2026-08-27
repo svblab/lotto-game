@@ -93,6 +93,23 @@ try {
         exit(1);
     }
     echo "----------------------------------------\n";
+
+    // --- Сценарий №6: ADR-034 reserved username Bot ---
+    echo "[Scenario 6] Reject reserved username Bot (case-insensitive)...\n";
+    foreach (['Bot', 'bot', 'BOT'] as $reserved) {
+        try {
+            $authService->register($reserved, 'password123');
+            echo "❌ Failure: reserved username {$reserved} was accepted!\n";
+            exit(1);
+        } catch (\Exception $e) {
+            if ($e->getMessage() !== 'Invalid username format') {
+                echo "❌ Failure: unexpected message for {$reserved}: " . $e->getMessage() . "\n";
+                exit(1);
+            }
+        }
+    }
+    echo "✅ Success: Bot/bot/BOT rejected with Invalid username format.\n";
+    echo "----------------------------------------\n";
     echo "🚀 ALL TESTS PASSED SUCCESSFULLY! AuthService Registration module is ready.\n";
 
 } catch (\Throwable $t) {

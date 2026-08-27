@@ -200,12 +200,22 @@ for ($i = 1; $i <= 4; $i++) {
 
 putenv('LOTTO_TRUSTED_PROXY_IPS=127.0.0.1,::1');
 
+$serverCtx = null;
 try {
     $serverCtx = wsTestStartServer($projectRoot);
 } catch (Throwable $e) {
     fwrite(STDERR, $e->getMessage() . "\n");
+    wsTestCleanupDatabase();
     exit(1);
 }
+
+register_shutdown_function(static function () use (&$serverCtx, $projectRoot): void {
+    if (is_array($serverCtx)) {
+        wsTestStopServer($projectRoot);
+        wsTestShutdownServer($serverCtx);
+        $serverCtx = null;
+    }
+});
 
 $port = (int) wsTestPort();
 
@@ -355,6 +365,7 @@ function wsReconnect(int $port, string $token): array
 
 $tokens = [];
 $clients = [];
+$sentinelWs = [];
 
 try {
   // Same simulated client network (one XFF bucket)
@@ -403,14 +414,24 @@ try {
   }
 } catch (Throwable $e) {
     ipCheck(false, 'WS integration: ' . $e->getMessage());
-}
+} finally {
+    foreach ($clients as $cli) {
+        $cli->close();
+    }
+    $clients = [];
+    foreach ($sentinelWs as $cli) {
+        $cli->close();
+    }
+    $sentinelWs = [];
 
-foreach ($clients as $cli) {
-    $cli->close();
-}
+    if (is_array($serverCtx)) {
+        wsTestStopServer($projectRoot);
+        wsTestShutdownServer($serverCtx);
+        $serverCtx = null;
+    }
 
-wsTestStopServer($projectRoot);
-putenv('LOTTO_TRUSTED_PROXY_IPS');
+    putenv('LOTTO_TRUSTED_PROXY_IPS');
+}
 
 echo "\n=== Results: {$passed} passed, {$failed} failed ===\n";
 exit($failed > 0 ? 1 : 0);
