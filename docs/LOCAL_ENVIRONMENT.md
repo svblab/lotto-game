@@ -12,7 +12,8 @@ Service: lotto-server.service
 WebSocket: ws://localhost:8080 (plain; production WSS via reverse proxy — ADR-027)
 
 Production TLS: terminate at nginx/Caddy on 443, proxy `/ws` → `127.0.0.1:8080`.
-See `README.md` §3 and `docs/ADR/027-reverse-proxy-tls-termination.md`.
+Administrator runbook (install, HTTPS, pull, backup, restart): `docs/ADMIN_VPS_DEPLOY.md`.
+See also `README.md` §3 and `docs/ADR/027-reverse-proxy-tls-termination.md`.
 Client deploy meta: `lotto-ws-port=""`, `lotto-ws-path="/ws"` in `public/index.html`.
 
 ## Composer Convention

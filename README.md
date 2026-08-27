@@ -3,6 +3,8 @@
 WebSocket-сервер на чистом PHP 8.x + Workerman + SQLite3.  
 Клиент — Vanilla JS SPA.
 
+**Развёртывание на VPS (для администратора):** пошаговый runbook — [docs/ADMIN_VPS_DEPLOY.md](docs/ADMIN_VPS_DEPLOY.md). Ниже — сжатые команды и примеры конфигов; при расхождении с runbook-ом ориентируйтесь на него.
+
 ## Требования к серверу
 - VPS с 1 CPU, 512 МБ ОЗУ (SSD)
 - Ubuntu 22.04 LTS
@@ -221,11 +223,11 @@ Environment=LOTTO_TRUSTED_PROXY_IPS=127.0.0.1,::1
 
 ## 4. Логи и бэкап
 
-- Логи: `logs/server.log`, ротация автоматическая.
-- Бэкап БД:
+- Логи: `logs/server.log`. Ротация — `logrotate` (см. runbook §7); в PHP автоматической ротации нет.
+- Бэкап БД (WAL): не копируйте `game.db` на лету. Каноническая команда и crontab — в [docs/ADMIN_VPS_DEPLOY.md](docs/ADMIN_VPS_DEPLOY.md) §7.
 
 ```bash
-0 4 * * * cp /opt/lotto-game/game.db /opt/lotto-game/backups/game_$(date +\%Y\%m\%d).db
+sqlite3 /opt/lotto-game/game.db ".backup '/opt/lotto-game/backups/game_$(date +\%Y\%m\%d).db'"
 ```
 
 ## 5. Ручной разбан
