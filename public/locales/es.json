@@ -118,6 +118,7 @@
     "restartConfirmBody": "Se desconectarán todos los jugadores y se ejecutará admin_emergency_control.sh restart.",
     "restartStarted": "Reinicio iniciado — reconectando…",
     "restartFailed": "Error al reiniciar",
+    "restartUnsupported": "El reinicio desde el panel no está disponible en este host. Use php scripts/start_server.php restart.",
     "backToGame": "Volver al juego",
     "moderation": "Jugadores",
     "select": "Elegir",

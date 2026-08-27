@@ -1276,6 +1276,12 @@
     if (settings.online != null || settings.memory_mb != null) {
       setAdminStats(settings.online, settings.memory_mb);
     }
+    const restartBtn = $('#admin-restart-btn');
+    if (restartBtn && settings.restart_supported !== undefined) {
+      const supported = settings.restart_supported !== false;
+      restartBtn.disabled = !supported;
+      restartBtn.title = supported ? '' : global.LottoI18n.t('admin.restartUnsupported');
+    }
   }
 
   function readAdminSettingsForm() {

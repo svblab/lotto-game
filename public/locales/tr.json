@@ -118,6 +118,7 @@
     "restartConfirmBody": "Tüm oyuncular bağlantısı kesilir ve admin_emergency_control.sh restart çalıştırılır.",
     "restartStarted": "Yeniden başlatma — yeniden bağlanılıyor…",
     "restartFailed": "Yeniden başlatma başarısız",
+    "restartUnsupported": "Yönetim panelinden yeniden başlatma bu makinede yok. php scripts/start_server.php restart kullanın.",
     "backToGame": "Oyuna dön",
     "moderation": "Oyuncular",
     "select": "Seç",

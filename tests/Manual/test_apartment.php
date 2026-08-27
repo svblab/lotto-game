@@ -45,6 +45,8 @@ class MockConnection {
 
 class MockWorker {
     public array $rooms = [];
+    public array $botWinStreaks = [];
+    public ?array $serverSettings = null;
     public object $lobbyService;
 
     public function __construct()

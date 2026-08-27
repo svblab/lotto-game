@@ -118,6 +118,7 @@
     "restartConfirmBody": "将断开所有玩家并运行 admin_emergency_control.sh restart。",
     "restartStarted": "正在重启 — 重新连接…",
     "restartFailed": "重启失败",
+    "restartUnsupported": "此主机不支持从管理面板重启。请使用 php scripts/start_server.php restart。",
     "backToGame": "返回游戏",
     "moderation": "玩家",
     "select": "选择",

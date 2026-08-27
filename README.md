@@ -278,3 +278,29 @@ sudo bash admin_emergency_control.sh
 Автоматически предпочитает `systemctl` (юнит `lotto-server.service`), если он установлен на сервере (штатный путь по разделу 2 выше); иначе управляет процессом напрямую через `php server.php`. Все действия пишутся в `logs/admin_control.log` с таймстампами.
 
 ⚠️ **Это операционный (CLI) инструмент для системного администратора сервера** — не игровая admin-функция. Модерация игроков (бан/кик/закрытие комнаты) выполняется через существующие WebSocket-пакеты `admin_ban_user`/`admin_kick_user`/`admin_close_room` (см. [ANCHOR_PROTOCOL.md](ANCHOR_PROTOCOL.md)), это отдельный, уже реализованный механизм (Phase 9 + EPIC-10.6), и данный скрипт его не заменяет и не дублирует.
+
+Кнопка Restart в веб-админке вызывает этот скрипт на **Linux**. На Windows-хосте кнопка отключена, пакет `admin_restart_server` возвращает явную ошибку — используйте `php scripts/start_server.php restart`.
+
+## 9. Windows (dev host)
+
+Сборка PHP для Windows часто без `pdo_sqlite` в `php.ini`. Проект подключает SQLite через `lottoBootstrapPhpExtensions()` / `lottoPhpIniArgs()` (`src/Core/Helpers.php`):
+
+```bash
+# Полный прогон — подставляет php -d extension=php_pdo_sqlite.dll … каждому тесту
+php run_ALL_tests.php
+```
+
+Прямой запуск отдельного файла **не** добавляет эти флаги:
+
+```bash
+php tests/Manual/test_login.php          # часто: "could not find driver"
+php scripts/start_server.php start       # OK: сам вызывает lottoPhpIniArgs()
+```
+
+Для одного теста либо используйте `run_ALL_tests.php`, либо включите sqlite в `php.ini`, либо повторите флаги из `lottoPhpIniArgs()`:
+
+```bash
+php -d extension_dir=…\ext -d extension=php_sqlite3.dll -d extension=php_pdo_sqlite.dll tests/Manual/test_login.php
+```
+
+`php server.php start` после FIX-15 сам делает `dl()` в процессе. Подробнее: `docs/LOCAL_ENVIRONMENT.md`.

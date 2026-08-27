@@ -581,8 +581,9 @@ Lines are filtered to the last 24 hours (parsed from log timestamps).
 ### admin_settings_data
 Server → Client. Response to `admin_get_settings` and successful `admin_set_settings`.
 ```json
-{"type": "admin_settings_data", "online": 0, "memory_mb": 0, "max_accounts_per_ip": 3, "bet_per_card": 10, "apartment_payment": 5}
+{"type": "admin_settings_data", "online": 0, "memory_mb": 0, "max_accounts_per_ip": 3, "bet_per_card": 10, "apartment_payment": 5, "restart_supported": true}
 ```
+`restart_supported` is `false` on Windows (admin panel restart uses a bash host script). The restart button is disabled; `admin_restart_server` still returns `admin_restart_result` with `success: false`.
 
 ### admin_restart_result
 Server → Client. Response to `admin_restart_server`.

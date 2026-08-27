@@ -1281,6 +1281,7 @@
     });
 
     UI().$('#admin-restart-btn')?.addEventListener('click', () => {
+      if (UI().$('#admin-restart-btn')?.disabled) return;
       UI().toggleOverlay('#admin-restart-modal', true);
     });
     UI().$('#admin-restart-cancel')?.addEventListener('click', () => {

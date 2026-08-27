@@ -44,21 +44,17 @@
  * EPIC-10.3 (Auth packet routing): register/login/reconnect подключены к
  * AuthHandler (EPIC-1.3, уже существовал — здесь только dependency wiring
  * и routing, никакой новой auth-логики). AuthHandler::handleReconnect()
- * валидирует токен и восстанавливает $worker->userConnections, но НЕ
- * устанавливает $connection->userId и не отправляет reconnect_state — это
- * теперь делает ReconnectService::handleReconnect() (EPIC-10.5, см. выше),
- * когда находит игрока с совпадающим session_token в состоянии
- * 'disconnected' внутри какой-либо комнаты.
+ * валидирует токен, восстанавливает $worker->userConnections и (FIX-10)
+ * безусловно биндит соединение через SessionGuardService::claimUserSession()
+ * — $connection->userId устанавливается даже без комнаты.
+ * ReconnectService::handleReconnect() (EPIC-10.5) дополнительно
+ * восстанавливает игрока в комнате и шлёт reconnect_state, когда находит
+ * disconnected-слот. Если комнаты нет — AuthHandler::notifyLobbyRestored()
+ * отправляет auth_result (lobby restore).
  *
- * ⚠️ KNOWN GAP (обнаружено при подключении EPIC-10.5, не устранено в этом
- * Epic'е — узкий edge-case вне основного сценария, см.
- * IMPLEMENTATION_STATUS.md): если токен валиден (AuthHandler подтвердил
- * сессию), но ReconnectService::handleReconnect() не находит подходящего
- * disconnected-игрока ни в одной комнате (т.е. пользователь не был в
- * игровой комнате на момент разрыва — сценарий вне ANCHOR_CORE.md §
- * Reconnect Rules, где reconnect определён только для 'waiting'/'playing'
- * комнаты), $connection->userId остаётся null. Требует отдельного фикса
- * в AuthHandler (симметрично FIX-8), но не в scope EPIC-10.5 (Rule 11).
+ * ✅ RESOLVED (FIX-10 + notifyLobbyRestored): прежний KNOWN GAP EPIC-10.5
+ * («валидный токен без комнаты оставляет userId = null») закрыт. Reconnect
+ * без waiting/playing-комнаты — штатный lobby-сценарий, не дыра.
  *
  * EPIC-10.1 (Packet validation): rate limiting и invalid-JSON policy
  * теперь реализованы и формализованы в ADR-003
@@ -110,6 +106,7 @@ lottoBootstrapPhpExtensions();
 lottoApplyTestConfig();
 
 use Workerman\Worker;
+use Lotto\Core\LottoWorker;
 use Lotto\Core\Constants;
 use Lotto\Core\Logger;
 use Lotto\Core\MemoryAudit;
@@ -169,7 +166,7 @@ if ($wmPidFile !== null) {
     Worker::$pidFile = $wmPidFile;
 }
 
-$worker = new Worker('websocket://0.0.0.0:' . $wsPort);
+$worker = new LottoWorker('websocket://0.0.0.0:' . $wsPort);
 $worker->count = 1;
 $worker->name = 'LottoGameServer';
 
@@ -573,9 +570,9 @@ $worker->onMessage = function ($connection, string $rawData) use ($worker): void
     // handleReconnect() (теперь собран — оба его зависимых сервиса,
     // LobbyService и GameService, готовы) довершает восстановление:
     // находит игрока с совпадающим session_token в состоянии
-    // 'disconnected' внутри комнаты, устанавливает $connection->userId и
-    // рассылает reconnect_state. Если совпадения нет — см. KNOWN GAP в
-    // шапке файла, ничего дополнительно не отправляется.
+    // 'disconnected' внутри комнаты и рассылает reconnect_state.
+    // userId уже установлен AuthHandler/FIX-10. Если комнаты нет —
+    // notifyLobbyRestored() ниже шлёт auth_result (lobby restore).
     if ($action === 'reconnect') {
         $worker->authHandler->handleReconnect($data, $connection, $worker);
 

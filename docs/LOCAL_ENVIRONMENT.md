@@ -39,9 +39,12 @@ so tests do not lock or pollute production `game.db`.
 ```bash
 php run_ALL_tests.php
 ```
-This runner enables SQLite extensions automatically on Windows.
+This runner enables SQLite extensions automatically on Windows via
+`lottoPhpIniArgs()` (`-d extension=php_pdo_sqlite.dll`, …). Direct
+`php tests/Manual/test_login.php` does **not** inject those flags and
+fails with `could not find driver` unless sqlite is enabled in `php.ini`.
 Live WebSocket subprocess tests run on Windows too (FIX-15); VPS remains
-authoritative for production sign-off.
+authoritative for production sign-off. See README.md §9.
 
 **Start server (dev / frontend manual testing):**
 ```bash

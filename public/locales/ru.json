@@ -118,6 +118,7 @@
     "restartConfirmBody": "Все игроки будут отключены. На хосте выполнится admin_emergency_control.sh restart.",
     "restartStarted": "Перезапуск запущен — переподключение…",
     "restartFailed": "Не удалось перезапустить сервер",
+    "restartUnsupported": "Перезапуск из админки недоступен на этом хосте. Используйте php scripts/start_server.php restart.",
     "backToGame": "Вернуться в игру",
     "moderation": "Игроки",
     "searchUser": "Поиск по нику",

@@ -116,6 +116,8 @@ class MockWorker
 {
     public array $sessionTokens   = [];
     public array $userConnections = [];
+    public array $botWinStreaks   = [];
+    public ?array $serverSettings = null;
 }
 
 function makeLogger(): Logger

@@ -121,6 +121,8 @@ final class FlowWorker
     public array $rooms = [];
     public array $userConnections = [];
     public array $sessionTokens = [];
+    public array $botWinStreaks = [];
+    public ?array $serverSettings = null;
     public object $lobbyService;
 
     public function __construct()

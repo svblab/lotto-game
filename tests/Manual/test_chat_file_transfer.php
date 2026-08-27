@@ -126,6 +126,8 @@ class MockWorker
     public array $userConnections = [];
     public array $sessionTokens = [];
     public array $connections = [];
+    public array $botWinStreaks = [];
+    public ?array $serverSettings = null;
     public ?object $reconnectService = null;
     public ?FileTransferService $fileTransferService = null;
     public ?ChatService $chatService = null;

@@ -84,6 +84,8 @@ class MockConnection {
 class MockWorker {
     public array $rooms = [];
     public array $userConnections = [];
+    public array $botWinStreaks = [];
+    public ?array $serverSettings = null;
 }
 
 /**

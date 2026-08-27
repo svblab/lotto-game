@@ -37,8 +37,11 @@ WS_MAX_PACKAGE_SIZE = 2097152;       // ADR-030 (2 MiB Workerman cap)
 
 ## Runtime Memory Layout
 ```
-Worker → rooms, userConnections, db, logger
+Lotto\Core\LottoWorker (extends Workerman\Worker) → rooms, userConnections,
+sessionTokens, botWinStreaks, serverSettings, db, logger, services
 ```
+Runtime fields are declared typed properties on `LottoWorker` (PHP 8.2+ / PHP 9:
+no dynamic properties on the production worker).
 
 ## userConnections
 ```php
@@ -678,6 +681,8 @@ FILE_RATE_LIMIT_MAX, FILE_RATE_LIMIT_WINDOW_SECONDS, WS_MAX_PACKAGE_SIZE
 `$connection->userId, ->username, ->isAdmin, ->sessionToken, ->lastPing, ->packetCount, ->packetWindowStart` (последние два — ADR-003, rate limiting), `->clientRemoteIp` (ADR-031, IP-account cap bucketing), `->fileActionCount, ->fileActionWindowStart` (ADR-030, file-action rate limit). No additional business fields.
 
 ## Worker Storage
+Production worker is `Lotto\Core\LottoWorker` (declared properties; not dynamic
+assignments on `Workerman\Worker`).
 `$worker->rooms`, `$worker->userConnections` (key=`userId`, value=`$connection`).
 `$worker->botWinStreaks` (ADR-034, **Live EPIC-034.3–034.4**): key=`userId`,
 value=`int` consecutive wins vs bot; RAM-only; initialized `[]` in

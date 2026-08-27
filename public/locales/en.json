@@ -118,6 +118,7 @@
     "restartConfirmBody": "This will disconnect all players and run admin_emergency_control.sh restart on the host.",
     "restartStarted": "Server restart initiated — reconnecting…",
     "restartFailed": "Server restart failed",
+    "restartUnsupported": "Restart from the admin panel is not available on this host. Use php scripts/start_server.php restart.",
     "backToGame": "Back to game",
     "moderation": "Players",
     "searchUser": "Search by username",

@@ -44,6 +44,8 @@ class MockConnection {
     public int $id;
     public ?int $userId;
     public string $username;
+    public bool $isAdmin = false;
+    public ?string $sessionToken = null;
     public array $sent = [];
     public ?string $lastError = null;
 
@@ -73,6 +75,10 @@ class MockConnection {
 class MockWorker {
     public array $rooms = [];
     public array $botWinStreaks = [];
+    public array $userConnections = [];
+    public array $sessionTokens = [];
+    public array $connections = [];
+    public ?array $serverSettings = null;
     public object $lobbyService;
 
     public function __construct()
