@@ -1,5 +1,22 @@
 # Implementation Status — Lotto Game Project
 
+## Docker Compose deployment (ADR-036) (2026-08-29)
+
+Status: **Completed**
+
+- [DONE] `deploy/install.sh`, `deploy/remove.sh`, `deploy/healthcheck.sh`
+- [DONE] `deploy/docker/` — Dockerfile, compose template, healthcheck, `.dockerignore`
+- [DONE] `deploy/tests/run_tests.sh` — static + optional live Docker integration
+- [DONE] `init_db.php` — `LOTTO_DB_PATH`, `LOTTO_ADMIN_BOOTSTRAP_FILE` (keeps admin secret out of `docker logs`)
+- [DONE] `Logger.php` — `php://stdout` / stream log targets for container mode
+- [DONE] ADR-036, `docs/LOCAL_ENVIRONMENT.md` Docker section, `docs/ANCHOR_CORE.md` deploy line (additive)
+- [NOTE] Does not modify native/systemd production deployment (`docs/ADMIN_VPS_DEPLOY.md`)
+
+Files:
+- `deploy/**`, `init_db.php`, `src/Core/Logger.php`, `docs/ADR/036-docker-compose-deployment.md`, `docs/LOCAL_ENVIRONMENT.md`, `docs/ANCHOR_CORE.md`
+
+---
+
 ## Pre-deploy regression pass (feature/room-chat-files) (2026-08-24)
 
 Status: **Completed** — VPS `php run_ALL_tests.php` **57/57** twice in a row

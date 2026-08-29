@@ -8,7 +8,8 @@ SSOT for "Russian Lotto" multiplayer game (architecture, economy, file structure
 # PART 1. ARCHITECTURE
 
 Stack: PHP 8.x, Workerman WebSocket, SQLite3 (PDO), Vanilla JS.
-Deploy: Ubuntu 22.04, VPS 1 CPU/500MB RAM, WS port 8080, single Workerman worker.
+Deploy (native): Ubuntu 22.04, VPS 1 CPU/500MB RAM, systemd + single Workerman worker, WS port 8080.
+Deploy (Docker Compose, alternative new VPS): see ADR-036 and `docs/LOCAL_ENVIRONMENT.md` § Docker deployment.
 
 ## Global Constants
 ```php

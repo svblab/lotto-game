@@ -1,0 +1,51 @@
+# Lotto Game — per-instance Compose template.
+# Do not run directly; use deploy/install.sh which supplies --env-file and -p.
+
+services:
+  app:
+    image: ${LOTTO_IMAGE}
+    build:
+      context: ${LOTTO_BUILD_CONTEXT}
+      dockerfile: deploy/docker/Dockerfile
+    container_name: ${LOTTO_CONTAINER_NAME}
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    user: "1000:1000"
+    pids_limit: ${LOTTO_PIDS_LIMIT:-256}
+    mem_limit: ${LOTTO_MEM_LIMIT:-256m}
+    cpus: ${LOTTO_CPU_LIMIT:-0.5}
+    tmpfs:
+      - /tmp
+    environment:
+      LOTTO_WS_PORT: ${LOTTO_CONTAINER_PORT:-8080}
+      LOTTO_DB_PATH: /app/data/game.db
+      LOTTO_SERVER_LOG: php://stdout
+      LOTTO_WORKERMAN_LOG_FILE: php://stdout
+      LOTTO_WORKERMAN_PID_FILE: /app/data/workerman.pid
+      LOTTO_ALLOWED_ORIGINS: ${LOTTO_ALLOWED_ORIGINS:-}
+      LOTTO_TRUSTED_PROXY_IPS: ${LOTTO_TRUSTED_PROXY_IPS:-}
+      LOTTO_MAX_ACCOUNTS_PER_IP: ${LOTTO_MAX_ACCOUNTS_PER_IP:-}
+    volumes:
+      - data:/app/data
+    ports:
+      - "${LOTTO_BIND_ADDRESS:-127.0.0.1}:${LOTTO_HOST_PORT}:${LOTTO_CONTAINER_PORT:-8080}"
+    healthcheck:
+      test: ["CMD", "php", "/app/healthcheck.php"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    networks:
+      - lotto
+
+networks:
+  lotto:
+    name: ${LOTTO_NETWORK_NAME}
+
+volumes:
+  data:
+    name: ${LOTTO_VOLUME_NAME}

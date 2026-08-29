@@ -1,0 +1,15 @@
+.git
+.github
+*.md
+docs/
+patches/
+tests/
+deploy/tests/
+*.db
+*.db-wal
+*.db-shm
+logs/
+vendor/
+.env
+.env.*
+**/.DS_Store

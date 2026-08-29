@@ -4,12 +4,23 @@ require_once __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/src/Core/Helpers.php';
 
 use function Lotto\Core\lottoBootstrapPhpExtensions;
+use function Lotto\Core\lottoRuntimeEnv;
 
 lottoBootstrapPhpExtensions();
 
 try {
-    $dbFile = __DIR__ . '/game.db';
-    
+    $dbPathEnv = lottoRuntimeEnv('LOTTO_DB_PATH');
+    $dbFile = (is_string($dbPathEnv) && $dbPathEnv !== '')
+        ? $dbPathEnv
+        : (__DIR__ . '/game.db');
+
+    $dbDir = dirname($dbFile);
+    if ($dbDir !== '' && $dbDir !== '.' && !is_dir($dbDir)) {
+        if (!mkdir($dbDir, 0755, true) && !is_dir($dbDir)) {
+            throw new RuntimeException("Cannot create database directory: {$dbDir}");
+        }
+    }
+
     // Open PDO connection (Creates game.db file if it does not exist)
     $pdo = new PDO('sqlite:' . $dbFile);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -56,8 +67,27 @@ try {
             ':is_admin'      => 1
         ]);
 
-        // Output generated password to console exactly once
-        echo "ADMIN PASSWORD:\n" . $password . "\n";
+        // Output generated password exactly once (console or restricted file).
+        $bootstrapFile = lottoRuntimeEnv('LOTTO_ADMIN_BOOTSTRAP_FILE');
+        if (is_string($bootstrapFile) && $bootstrapFile !== '') {
+            $bootstrapDir = dirname($bootstrapFile);
+            if ($bootstrapDir !== '' && $bootstrapDir !== '.' && !is_dir($bootstrapDir)) {
+                if (!mkdir($bootstrapDir, 0755, true) && !is_dir($bootstrapDir)) {
+                    throw new RuntimeException("Cannot create bootstrap directory: {$bootstrapDir}");
+                }
+            }
+            $written = file_put_contents(
+                $bootstrapFile,
+                "ADMIN PASSWORD:\n" . $password . "\n",
+                LOCK_EX
+            );
+            if ($written === false) {
+                throw new RuntimeException("Cannot write admin bootstrap file: {$bootstrapFile}");
+            }
+            @chmod($bootstrapFile, 0600);
+        } else {
+            echo "ADMIN PASSWORD:\n" . $password . "\n";
+        }
     }
 
 } catch (PDOException $e) {

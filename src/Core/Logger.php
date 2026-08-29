@@ -14,6 +14,8 @@ class Logger
 
     private string $logFile;
 
+    private bool $isStreamTarget = false;
+
     /**
      * FIX-12: optional $logFilePath injection point, mirroring the FIX-4
      * precedent for Database::__construct(?PDO $pdo = null). Before this
@@ -33,11 +35,14 @@ class Logger
     public function __construct(?string $logFilePath = null)
     {
         if ($logFilePath !== null) {
-            $logDir = dirname($logFilePath);
-            if (!is_dir($logDir)) {
-                mkdir($logDir, 0755, true);
-            }
             $this->logFile = $logFilePath;
+            $this->isStreamTarget = self::isStreamLogTarget($logFilePath);
+            if (!$this->isStreamTarget) {
+                $logDir = dirname($logFilePath);
+                if (!is_dir($logDir)) {
+                    mkdir($logDir, 0755, true);
+                }
+            }
             return;
         }
 
@@ -67,11 +72,29 @@ class Logger
         $timestamp = date('Y-m-d H:i:s');
         $line = "[{$timestamp}] [{$level}] {$message}" . PHP_EOL;
 
+        if ($this->isStreamTarget) {
+            $handle = @fopen($this->logFile, 'ab');
+            if ($handle === false) {
+                throw new Exception("Logger: failed to open stream target '{$this->logFile}'");
+            }
+            $written = fwrite($handle, $line);
+            fclose($handle);
+            if ($written === false) {
+                throw new Exception("Logger: failed to write to stream target '{$this->logFile}'");
+            }
+            return;
+        }
+
         $result = file_put_contents($this->logFile, $line, FILE_APPEND | LOCK_EX);
 
         if ($result === false) {
             throw new Exception("Logger: failed to write to log file '{$this->logFile}'");
         }
+    }
+
+    private static function isStreamLogTarget(string $path): bool
+    {
+        return str_starts_with($path, 'php://');
     }
 
     public function info(string $message): void
@@ -101,7 +124,7 @@ class Logger
             return [];
         }
 
-        if (!is_file($this->logFile) || !is_readable($this->logFile)) {
+        if ($this->isStreamTarget || !is_file($this->logFile) || !is_readable($this->logFile)) {
             return [];
         }
 
@@ -126,7 +149,7 @@ class Logger
             return [];
         }
 
-        if (!is_file($this->logFile) || !is_readable($this->logFile)) {
+        if ($this->isStreamTarget || !is_file($this->logFile) || !is_readable($this->logFile)) {
             return [];
         }
 
