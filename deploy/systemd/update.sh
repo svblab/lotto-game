@@ -76,6 +76,8 @@ lotto_assert_env_file_valid "${ENV_FILE}" || exit 1
 lotto_assert_not_protected_port "${LOTTO_META_PORT}" || exit 1
 
 HOST_PORT="${LOTTO_META_PORT}"
+lotto_print_instance_context "${INSTANCE}" "update" "${HOST_PORT}"
+
 CREATED_USER="false"
 if [[ "${LOTTO_META_CREATED_USER}" == "True" || "${LOTTO_META_CREATED_USER}" == "true" ]]; then
     CREATED_USER="true"

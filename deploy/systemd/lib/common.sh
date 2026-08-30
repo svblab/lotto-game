@@ -36,6 +36,33 @@ lotto_err() { echo "ERROR: $*" >&2; }
 
 lotto_info() { echo "$*"; }
 
+# Print operator-visible context so generic systemd is never confused with production or Docker.
+lotto_print_instance_context() {
+    local instance="$1"
+    local operation="${2:-}"
+    local port="${3:-}"
+
+    lotto_info "=== Generic systemd deployment (NOT production, NOT Docker) ==="
+    if [[ -n "${operation}" ]]; then
+        lotto_info "Operation: ${operation}"
+    fi
+    lotto_info "  Deployment: deploy/systemd/"
+    lotto_info "  Instance:   ${instance}"
+    lotto_info "  Unit:       $(lotto_systemd_unit "${instance}")"
+    lotto_info "  User:       $(lotto_service_user "${instance}")"
+    lotto_info "  Root:       $(lotto_instance_root "${instance}")"
+    lotto_info "  App:        $(lotto_app_path "${instance}")"
+    lotto_info "  Data:       $(lotto_data_path "${instance}")"
+    if [[ -n "${port}" ]]; then
+        lotto_info "  Port:       ${port}"
+    elif lotto_instance_metadata_exists "${instance}"; then
+        local recorded
+        recorded="$(lotto_json_get "$(lotto_metadata_file "${instance}")" port)"
+        [[ -n "${recorded}" ]] && lotto_info "  Port:       ${recorded}"
+    fi
+    lotto_info "  Protected production (/opt/lotto-game, lotto-server.service) is NOT targeted."
+}
+
 # Validate generic systemd instance name.
 # Rule: lowercase ASCII [a-z0-9], then [a-z0-9_-], length 1–32.
 # Stricter than Docker (deploy/docker/lib/common.sh) to keep systemd unit,

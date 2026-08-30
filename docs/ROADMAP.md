@@ -253,7 +253,7 @@ D   Documentation + integration/deployment tests
 | **B2** | Dedicated service user, filesystem, config, DB, logs, port, unit, start/enable, init DB, healthcheck, idempotency | **DONE** (Epic B2) |
 | **B3** | Exact instance resolution, production guards, stop/disable, remove unit, daemon-reload, owned resources, conditional user removal, zero-artifact verification | **DONE** (Epic B3) |
 | **C** | Update, service restart, health verification, config/DB preservation, instance lock, metadata `updated_at` | **DONE** (Epic C) |
-| **D** | `LOCAL_ENVIRONMENT.md`, `ANCHOR_CORE.md`, README; systemd + Docker helper tests; multi-instance / coexistence VPS verification | **NOT STARTED** (Docker paths/docs updated in Epic A; full D scope deferred) |
+| **D** | `LOCAL_ENVIRONMENT.md`, README, VPS verification checklist, operational UX | **PARTIAL** (D2/D3 done; D1 live VPS **NOT RUN**) |
 
 Sequence within this stream: **A → B1 → B2 → B3 → C → D**.
 

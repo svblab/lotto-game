@@ -107,6 +107,8 @@ if [[ "${METADATA_EXISTS}" -eq 1 && "${HOST_PORT}" == "${LOTTO_META_PORT:-}" ]];
 fi
 lotto_assert_port_available "${HOST_PORT}" "${INSTANCE}" "${ALLOW_SAME_PORT}" || exit 1
 
+lotto_print_instance_context "${INSTANCE}" "install" "${HOST_PORT}"
+
 CREATED_USER="$(lotto_create_service_user "${USER}" "${INSTANCE}")"
 
 mkdir -p "${APP}" "${DATA}" "${LOGS}" "${CONFIG}" "${BACKUP}"

@@ -61,6 +61,8 @@ fi
 lotto_load_instance "${INSTANCE}" || exit 1
 lotto_validate_removal_metadata "${INSTANCE}" || exit 1
 
+lotto_print_instance_context "${INSTANCE}" "remove"
+
 if [[ "${LOTTO_META_CREATED_USER}" == "True" || "${LOTTO_META_CREATED_USER}" == "true" ]]; then
     CREATED_USER="true"
 fi

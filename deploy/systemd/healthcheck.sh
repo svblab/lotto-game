@@ -11,9 +11,20 @@ INSTANCE="${LOTTO_DEFAULT_INSTANCE}"
 
 usage() {
     cat <<'EOF'
-Usage: sudo ./deploy/systemd/healthcheck.sh [--name NAME]
+Usage: sudo ./deploy/systemd/healthcheck.sh [INSTANCE] [--name NAME]
+
+Verify unit is active and WebSocket health passes for a managed instance.
+
+Examples:
+  sudo ./deploy/systemd/healthcheck.sh demo
+  sudo ./deploy/systemd/healthcheck.sh --name lotto-01
 EOF
 }
+
+if [[ $# -gt 0 && "$1" != -* ]]; then
+    INSTANCE="$1"
+    shift
+fi
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -30,6 +41,7 @@ if ! lotto_instance_metadata_exists "${INSTANCE}"; then
 fi
 
 lotto_load_instance "${INSTANCE}"
+lotto_print_instance_context "${INSTANCE}" "healthcheck"
 
 if ! systemctl is-active --quiet "${LOTTO_META_UNIT}"; then
     lotto_err "Unit ${LOTTO_META_UNIT} is not active."

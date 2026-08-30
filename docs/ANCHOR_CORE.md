@@ -9,7 +9,7 @@ SSOT for "Russian Lotto" multiplayer game (architecture, economy, file structure
 
 Stack: PHP 8.x, Workerman WebSocket, SQLite3 (PDO), Vanilla JS.
 Deploy (native production): Ubuntu 22.04, `/opt/lotto-game`, `lotto-server.service`, `www-data`, WS port 8080 — see `docs/ADMIN_VPS_DEPLOY.md`.
-Deploy (generic systemd multi-instance, new VPS): `deploy/systemd/` — install/update/remove lifecycle (`install.sh`, `update.sh`, `remove.sh`); full VPS docs deferred (D); see `deploy/systemd/README.md`.
+Deploy (generic systemd multi-instance, new VPS): `deploy/systemd/` — install/update/remove/healthcheck; operator docs in `docs/LOCAL_ENVIRONMENT.md` and `deploy/systemd/README.md`; live VPS checklist `docs/SYSTEMD_VPS_VERIFICATION.md` (D1 pending).
 Deploy (Docker Compose multi-instance, new VPS): `deploy/docker/` — see ADR-036 and `docs/LOCAL_ENVIRONMENT.md` § Docker deployment.
 
 ## Global Constants
