@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Dependency-free deployment helper tests (assert-based, no external framework).
+# Dependency-free Docker deployment helper tests (assert-based, no external framework).
 
 set -euo pipefail
 

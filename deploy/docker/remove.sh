@@ -12,16 +12,12 @@ ASSUME_YES=0
 
 usage() {
     cat <<'EOF'
-Usage: sudo ./deploy/remove.sh [options]
+Usage: sudo ./deploy/docker/remove.sh [options]
 
 Options:
   --name NAME   Instance name (default: default)
   --yes         Non-interactive confirmation
   -h, --help    Show this help
-
-Example:
-  sudo ./deploy/remove.sh --name lotto-01
-  sudo ./deploy/remove.sh --name lotto-01 --yes
 EOF
 }
 
@@ -45,7 +41,7 @@ fi
 lotto_load_instance_env "${INSTANCE}"
 
 if [[ "${ASSUME_YES}" -ne 1 ]]; then
-    read -r -p "Remove Lotto instance '${INSTANCE}' and ALL its data? [y/N] " reply
+    read -r -p "Remove Lotto Docker instance '${INSTANCE}' and ALL its data? [y/N] " reply
     case "${reply}" in
         y|Y|yes|YES) ;;
         *) lotto_info "Aborted."; exit 0 ;;
@@ -64,7 +60,6 @@ if lotto_volume_exists "${LOTTO_VOLUME_NAME}"; then
 fi
 
 if docker network inspect "${LOTTO_NETWORK_NAME}" >/dev/null 2>&1; then
-    lotto_info "Removing network ${LOTTO_NETWORK_NAME}..."
     docker network rm "${LOTTO_NETWORK_NAME}" >/dev/null 2>&1 || true
 fi
 
@@ -77,10 +72,8 @@ if docker image inspect "${LOTTO_IMAGE}" >/dev/null 2>&1; then
     fi
 fi
 
-lotto_info "Removing metadata $(lotto_instance_dir "${INSTANCE}")..."
 rm -rf "$(lotto_instance_dir "${INSTANCE}")"
 
-# Verification
 FAIL=0
 if docker ps -a --format '{{.Names}}' | grep -qx "${LOTTO_CONTAINER_NAME}"; then
     lotto_err "Container still exists: ${LOTTO_CONTAINER_NAME}"
@@ -90,16 +83,9 @@ if lotto_volume_exists "${LOTTO_VOLUME_NAME}"; then
     lotto_err "Volume still exists: ${LOTTO_VOLUME_NAME}"
     FAIL=1
 fi
-if docker network inspect "${LOTTO_NETWORK_NAME}" >/dev/null 2>&1; then
-    lotto_err "Network still exists: ${LOTTO_NETWORK_NAME}"
-    FAIL=1
-fi
 if [[ -d "$(lotto_instance_dir "${INSTANCE}")" ]]; then
     lotto_err "Metadata directory still exists."
     FAIL=1
-fi
-if lotto_port_in_use "${LOTTO_HOST_PORT}"; then
-    lotto_info "Note: TCP port ${LOTTO_HOST_PORT} is still in use (may belong to unrelated services)."
 fi
 
 if [[ "${FAIL}" -ne 0 ]]; then
@@ -107,4 +93,4 @@ if [[ "${FAIL}" -ne 0 ]]; then
     exit 1
 fi
 
-lotto_info "Instance '${INSTANCE}' removed. No Lotto-owned Docker resources remain for this instance."
+lotto_info "Docker instance '${INSTANCE}' removed."

@@ -27,7 +27,8 @@ replace, or modify the existing native/systemd production instance.
    only packaging and lifecycle tooling differ.
 
 2. **Instance lifecycle**
-   - Primary commands: `sudo ./deploy/install.sh` and `sudo ./deploy/remove.sh`.
+   - Primary commands: `sudo ./deploy/docker/install.sh` and
+     `sudo ./deploy/docker/remove.sh`.
    - Instance name: `--name` flag; default fixed name `default` (deterministic, not
      auto-generated).
    - Compose project: `lotto-<instance>`; container: `lotto-<instance>-app`; network:

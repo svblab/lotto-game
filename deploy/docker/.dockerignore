@@ -4,7 +4,7 @@
 docs/
 patches/
 tests/
-deploy/tests/
+deploy/docker/tests/
 *.db
 *.db-wal
 *.db-shm

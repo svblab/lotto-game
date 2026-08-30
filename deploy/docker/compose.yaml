@@ -1,5 +1,5 @@
 # Lotto Game — per-instance Compose template.
-# Do not run directly; use deploy/install.sh which supplies --env-file and -p.
+# Do not run directly; use deploy/docker/install.sh which supplies --env-file and -p.
 
 services:
   app:

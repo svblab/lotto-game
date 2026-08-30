@@ -18,11 +18,10 @@ ALLOWED_ORIGINS="${LOTTO_ALLOWED_ORIGINS:-}"
 TRUSTED_PROXY_IPS="${LOTTO_TRUSTED_PROXY_IPS:-}"
 MAX_ACCOUNTS_PER_IP="${LOTTO_MAX_ACCOUNTS_PER_IP:-}"
 FRESH_INSTALL=0
-BOOTSTRAP_SHOWN=0
 
 usage() {
     cat <<'EOF'
-Usage: sudo ./deploy/install.sh [options]
+Usage: sudo ./deploy/docker/install.sh [options]
 
 Options:
   --name NAME          Instance name (default: default)
@@ -38,9 +37,9 @@ Options:
   -h, --help           Show this help
 
 Examples:
-  sudo ./deploy/install.sh
-  sudo ./deploy/install.sh --name lotto-01
-  sudo ./deploy/install.sh --name lotto-02 --port 8081
+  sudo ./deploy/docker/install.sh
+  sudo ./deploy/docker/install.sh --name lotto-01
+  sudo ./deploy/docker/install.sh --name lotto-02 --port 8081
 EOF
 }
 
@@ -83,7 +82,7 @@ if lotto_instance_metadata_exists "${INSTANCE}"; then
     if [[ -z "${HOST_PORT}" ]]; then
         HOST_PORT="${LOTTO_HOST_PORT}"
     fi
-    if [[ -z "${BIND_ADDRESS}" || "${BIND_ADDRESS}" == "${LOTTO_DEFAULT_BIND_ADDRESS}" ]]; then
+    if [[ "${BIND_ADDRESS}" == "${LOTTO_DEFAULT_BIND_ADDRESS}" ]]; then
         BIND_ADDRESS="${LOTTO_BIND_ADDRESS:-${LOTTO_DEFAULT_BIND_ADDRESS}}"
     fi
 fi
@@ -94,7 +93,7 @@ fi
 
 if lotto_port_in_use "${HOST_PORT}"; then
     if [[ "${METADATA_EXISTS}" -eq 1 && "${HOST_PORT}" == "${LOTTO_HOST_PORT:-}" ]]; then
-        : # existing instance may already own this port via Docker publish
+        :
     else
         lotto_err "Host port ${HOST_PORT} is already in use."
         exit 1
@@ -119,7 +118,7 @@ NEW_DATABASE=0
 if ! lotto_volume_exists "${LOTTO_VOLUME_NAME}"; then
     if [[ "${METADATA_EXISTS}" -eq 1 ]]; then
         lotto_err "Instance metadata exists but volume ${LOTTO_VOLUME_NAME} is missing."
-        lotto_err "Run: sudo ./deploy/remove.sh --name ${INSTANCE} --yes  then reinstall, or restore the volume from backup."
+        lotto_err "Run: sudo ./deploy/docker/remove.sh --name ${INSTANCE} --yes  then reinstall."
         exit 1
     fi
     NEW_DATABASE=1
@@ -154,7 +153,6 @@ if [[ "${NEW_DATABASE}" -eq 1 ]]; then
         lotto_info "=== One-time admin bootstrap credential (save now) ==="
         echo "${BOOTSTRAP}"
         lotto_info "===================================================="
-        BOOTSTRAP_SHOWN=1
         lotto_delete_bootstrap_from_volume "${LOTTO_IMAGE}" "${LOTTO_VOLUME_NAME}"
     fi
 fi
@@ -167,4 +165,4 @@ lotto_info "Lotto Game instance '${INSTANCE}' is running."
 lotto_info "  WebSocket: ws://${BIND_ADDRESS}:${HOST_PORT}/"
 lotto_info "  Reverse proxy upstream: http://${BIND_ADDRESS}:${HOST_PORT} (see docs/LOCAL_ENVIRONMENT.md)"
 lotto_info "  Logs: docker compose -f deploy/docker/compose.yaml --env-file ${STATE_DIR}/instance.env -p lotto-${INSTANCE} logs -f app"
-lotto_info "  Remove: sudo ./deploy/remove.sh --name ${INSTANCE}"
+lotto_info "  Remove: sudo ./deploy/docker/remove.sh --name ${INSTANCE}"

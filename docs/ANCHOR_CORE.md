@@ -8,8 +8,9 @@ SSOT for "Russian Lotto" multiplayer game (architecture, economy, file structure
 # PART 1. ARCHITECTURE
 
 Stack: PHP 8.x, Workerman WebSocket, SQLite3 (PDO), Vanilla JS.
-Deploy (native): Ubuntu 22.04, VPS 1 CPU/500MB RAM, systemd + single Workerman worker, WS port 8080.
-Deploy (Docker Compose, alternative new VPS): see ADR-036 and `docs/LOCAL_ENVIRONMENT.md` § Docker deployment.
+Deploy (native production): Ubuntu 22.04, `/opt/lotto-game`, `lotto-server.service`, `www-data`, WS port 8080 — see `docs/ADMIN_VPS_DEPLOY.md`.
+Deploy (generic systemd multi-instance, new VPS): **reserved** under `deploy/systemd/` — ADR-037; implementation deferred (epics B1–D); see `deploy/systemd/README.md`.
+Deploy (Docker Compose multi-instance, new VPS): `deploy/docker/` — see ADR-036 and `docs/LOCAL_ENVIRONMENT.md` § Docker deployment.
 
 ## Global Constants
 ```php

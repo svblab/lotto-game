@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Shared helpers for deploy/install.sh, deploy/remove.sh, and deploy/tests/*.
+# Docker deployment helpers for deploy/docker/*.sh
 
 set -euo pipefail
 
 LOTTO_DEPLOY_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOTTO_REPO_ROOT="$(cd "${LOTTO_DEPLOY_LIB_DIR}/../.." && pwd)"
+LOTTO_REPO_ROOT="$(cd "${LOTTO_DEPLOY_LIB_DIR}/../../.." && pwd)"
 LOTTO_COMPOSE_FILE="${LOTTO_REPO_ROOT}/deploy/docker/compose.yaml"
 LOTTO_DEFAULT_STATE_ROOT="/var/lib/lotto-game"
 LOTTO_DEFAULT_INSTANCE="default"
@@ -188,7 +188,7 @@ lotto_load_instance_env() {
 lotto_image_used_by_other_instances() {
     local image="$1"
     local skip_instance="$2"
-    local state_root instance env_file other_image
+    local state_root env_file
     state_root="$(lotto_state_root)"
     if [[ ! -d "${state_root}" ]]; then
         return 1

@@ -4,26 +4,22 @@
 
 Status: **Completed** — scripts under `deploy/docker/`.
 
-## Deployment mode separation (ADR-037) (2026-08-30)
+## Deployment mode separation (ADR-037 / Epic A) (2026-08-30)
 
-Status: **Completed** — see **SYSTEM DEPLOYMENT** workstream below for epic breakdown.
+Status: **Completed** (Epic A only — layout boundary; systemd lifecycle deferred)
 
-- [DONE] **A** — ADR-037; `deploy/docker/` vs `deploy/systemd/` layout; Docker behaviour preserved
-- [DONE] **B1** — Instance identity/safety (`deploy/systemd/lib/common.sh`: validation, metadata, production guards)
-- [DONE] **B2** — Systemd installation (`deploy/systemd/install.sh`)
-- [DONE] **B3** — Systemd removal + zero-artifact cleanup (`deploy/systemd/remove.sh`)
-- [DONE] **C** — Update, healthcheck, resource limits (`deploy/systemd/update.sh`, `healthcheck.sh`, unit template)
-- [IMPLEMENTED] **D** — Docs (`LOCAL_ENVIRONMENT.md`, `ANCHOR_CORE.md`); helper tests (`deploy/*/tests/run_tests.sh`); **VPS multi-instance/coexistence verification pending**
+- [DONE] **A** — ADR-037; Docker scripts under `deploy/docker/`; `deploy/systemd/` reserved (`README.md` placeholder)
+- [PENDING] **B1–D** — generic systemd lifecycle (not in Epic A scope)
 
-- [DONE] Docker scripts relocated to `deploy/docker/` (+ `update.sh`)
-- [DONE] Generic systemd multi-instance deployment under `deploy/systemd/`
-- [DONE] Production guards (`/opt/lotto-game`, `lotto-server.service`, `www-data`)
-- [DONE] `LOTTO_WS_BIND` in `server.php` (default `0.0.0.0`, systemd uses `127.0.0.1`)
-- [DONE] ADR-037, docs updated (`LOCAL_ENVIRONMENT.md`, `ANCHOR_CORE.md`)
-- [NOTE] Does not modify existing production deployment
+- [DONE] Docker scripts relocated from top-level `deploy/` to `deploy/docker/` (behaviour preserved)
+- [DONE] Top-level ambiguous entry points removed (`deploy/install.sh`, etc.)
+- [DONE] `deploy/systemd/README.md` — explicit deferral to epics B1–D
+- [DONE] ADR-037, docs updated (`LOCAL_ENVIRONMENT.md`, `ANCHOR_CORE.md`, ADR-036 paths)
+- [NOTE] Does not modify existing production deployment (`/opt/lotto-game`, `lotto-server.service`, `www-data`)
+- [NOTE] No `server.php` or protocol changes in Epic A
 
 Files:
-- `deploy/docker/**`, `deploy/systemd/**`, `server.php`, `docs/ADR/037-*`, docs updates
+- `deploy/docker/**`, `deploy/systemd/README.md`, deleted top-level `deploy/*.sh`, `docs/ADR/037-*`, doc path updates
 
 ---
 
@@ -33,12 +29,12 @@ Independent from TECHNICAL DEBT. Sequence: **A → B1 → B2 → B3 → C → D*
 
 | Epic | Status | Evidence |
 |------|--------|----------|
-| A — ADR-037 + deploy layout | **DONE** | `docs/ADR/037-deployment-mode-separation.md`; `deploy/docker/`, `deploy/systemd/` |
-| B1 — Systemd identity/safety | **DONE** | `deploy/systemd/lib/common.sh` (validation, guards, metadata) |
-| B2 — Systemd installation | **DONE** | `deploy/systemd/install.sh` |
-| B3 — Systemd removal | **DONE** | `deploy/systemd/remove.sh` |
-| C — Update / health / limits | **DONE** | `deploy/systemd/update.sh`, `healthcheck.sh`, `service.template` |
-| D — Documentation / tests | **IMPLEMENTED**; VPS coexistence **PENDING** | `docs/LOCAL_ENVIRONMENT.md`; `bash deploy/systemd/tests/run_tests.sh`; `bash deploy/docker/tests/run_tests.sh` |
+| A — ADR-037 + deploy layout | **DONE** (Epic A) | `docs/ADR/037-deployment-mode-separation.md`; `deploy/docker/`; `deploy/systemd/README.md` |
+| B1 — Systemd identity/safety | **NOT STARTED** | Deferred — see `deploy/systemd/README.md` |
+| B2 — Systemd installation | **NOT STARTED** | Deferred |
+| B3 — Systemd removal | **NOT STARTED** | Deferred |
+| C — Update / health / limits | **NOT STARTED** | Deferred |
+| D — Documentation / tests | **NOT STARTED** | Docker helper tests under `deploy/docker/tests/`; systemd/coexistence VPS verification deferred |
 
 **NOT BLOCKING:** TD-1, TD-2, TD-3 (no hard dependencies demonstrated).
 

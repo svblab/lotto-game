@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run the in-container WebSocket healthcheck against a running instance.
+# Run the in-container WebSocket healthcheck against a running Docker instance.
 
 set -euo pipefail
 
@@ -11,10 +11,7 @@ INSTANCE="${LOTTO_DEFAULT_INSTANCE}"
 
 usage() {
     cat <<'EOF'
-Usage: ./deploy/healthcheck.sh [--name NAME]
-
-Runs the same WebSocket hello healthcheck used by Docker HEALTHCHECK.
-Requires the instance container to be running.
+Usage: sudo ./deploy/docker/healthcheck.sh [--name NAME]
 EOF
 }
 
