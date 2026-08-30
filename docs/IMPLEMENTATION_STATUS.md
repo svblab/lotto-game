@@ -6,10 +6,31 @@ Status: **Completed** — scripts under `deploy/docker/`.
 
 ## Deployment mode separation (ADR-037 / Epic A) (2026-08-30)
 
-Status: **Completed** (Epic A only — layout boundary; systemd lifecycle deferred)
+Status: **Completed** (Epic A only — layout boundary)
 
-- [DONE] **A** — ADR-037; Docker scripts under `deploy/docker/`; `deploy/systemd/` reserved (`README.md` placeholder)
-- [PENDING] **B1–D** — generic systemd lifecycle (not in Epic A scope)
+## Epic B1 — Systemd identity and safety foundation (2026-08-30)
+
+Status: **Completed** (foundation only — no install/remove/update)
+
+- [DONE] Instance-name validation (`^[a-z0-9][a-z0-9_-]{0,31}$`, reserved production names)
+- [DONE] Deterministic identity: `/opt/lotto-game-<name>/`, `lotto-game-<name>.service`, `lotto-<name>` user
+- [DONE] Filesystem layout helpers: `app/`, `data/`, `logs/`, `config/`, backups under `/var/backups/lotto-game/<name>/`
+- [DONE] Metadata schema v1 (`config/deployment.json`, no secrets)
+- [DONE] Production guards: `/opt/lotto-game`, `lotto-server.service`, `www-data`, port 8080
+- [DONE] Tests: `deploy/systemd/tests/run_tests.sh`
+- [NOT STARTED] B2 install, B3 remove, C update/health, D full docs/VPS tests
+
+Files:
+- `deploy/systemd/lib/common.sh`, `deploy/systemd/tests/run_tests.sh`, `deploy/systemd/README.md`
+
+VERIFICATION:
+- `bash deploy/systemd/tests/run_tests.sh` — **50/50 PASS** (Git Bash on Windows dev host)
+
+---
+
+- [DONE] **A** — ADR-037; Docker scripts under `deploy/docker/`; `deploy/systemd/` boundary
+- [DONE] **B1** — identity, metadata, production guards (`deploy/systemd/lib/common.sh`)
+- [PENDING] **B2–D** — systemd lifecycle scripts
 
 - [DONE] Docker scripts relocated from top-level `deploy/` to `deploy/docker/` (behaviour preserved)
 - [DONE] Top-level ambiguous entry points removed (`deploy/install.sh`, etc.)
@@ -30,7 +51,7 @@ Independent from TECHNICAL DEBT. Sequence: **A → B1 → B2 → B3 → C → D*
 | Epic | Status | Evidence |
 |------|--------|----------|
 | A — ADR-037 + deploy layout | **DONE** (Epic A) | `docs/ADR/037-deployment-mode-separation.md`; `deploy/docker/`; `deploy/systemd/README.md` |
-| B1 — Systemd identity/safety | **NOT STARTED** | Deferred — see `deploy/systemd/README.md` |
+| B1 — Systemd identity/safety | **DONE** (Epic B1) | `deploy/systemd/lib/common.sh`, `deploy/systemd/tests/run_tests.sh` |
 | B2 — Systemd installation | **NOT STARTED** | Deferred |
 | B3 — Systemd removal | **NOT STARTED** | Deferred |
 | C — Update / health / limits | **NOT STARTED** | Deferred |
