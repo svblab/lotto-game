@@ -2,18 +2,89 @@
 
 ## Docker Compose deployment (ADR-036) (2026-08-29)
 
-Status: **Completed**
+Status: **Completed** — scripts under `deploy/docker/`.
 
-- [DONE] `deploy/install.sh`, `deploy/remove.sh`, `deploy/healthcheck.sh`
-- [DONE] `deploy/docker/` — Dockerfile, compose template, healthcheck, `.dockerignore`
-- [DONE] `deploy/tests/run_tests.sh` — static + optional live Docker integration
-- [DONE] `init_db.php` — `LOTTO_DB_PATH`, `LOTTO_ADMIN_BOOTSTRAP_FILE` (keeps admin secret out of `docker logs`)
-- [DONE] `Logger.php` — `php://stdout` / stream log targets for container mode
-- [DONE] ADR-036, `docs/LOCAL_ENVIRONMENT.md` Docker section, `docs/ANCHOR_CORE.md` deploy line (additive)
-- [NOTE] Does not modify native/systemd production deployment (`docs/ADMIN_VPS_DEPLOY.md`)
+## Deployment mode separation (ADR-037) (2026-08-30)
+
+Status: **Completed** — see **SYSTEM DEPLOYMENT** workstream below for epic breakdown.
+
+- [DONE] **A** — ADR-037; `deploy/docker/` vs `deploy/systemd/` layout; Docker behaviour preserved
+- [DONE] **B1** — Instance identity/safety (`deploy/systemd/lib/common.sh`: validation, metadata, production guards)
+- [DONE] **B2** — Systemd installation (`deploy/systemd/install.sh`)
+- [DONE] **B3** — Systemd removal + zero-artifact cleanup (`deploy/systemd/remove.sh`)
+- [DONE] **C** — Update, healthcheck, resource limits (`deploy/systemd/update.sh`, `healthcheck.sh`, unit template)
+- [IMPLEMENTED] **D** — Docs (`LOCAL_ENVIRONMENT.md`, `ANCHOR_CORE.md`); helper tests (`deploy/*/tests/run_tests.sh`); **VPS multi-instance/coexistence verification pending**
+
+- [DONE] Docker scripts relocated to `deploy/docker/` (+ `update.sh`)
+- [DONE] Generic systemd multi-instance deployment under `deploy/systemd/`
+- [DONE] Production guards (`/opt/lotto-game`, `lotto-server.service`, `www-data`)
+- [DONE] `LOTTO_WS_BIND` in `server.php` (default `0.0.0.0`, systemd uses `127.0.0.1`)
+- [DONE] ADR-037, docs updated (`LOCAL_ENVIRONMENT.md`, `ANCHOR_CORE.md`)
+- [NOTE] Does not modify existing production deployment
 
 Files:
-- `deploy/**`, `init_db.php`, `src/Core/Logger.php`, `docs/ADR/036-docker-compose-deployment.md`, `docs/LOCAL_ENVIRONMENT.md`, `docs/ANCHOR_CORE.md`
+- `deploy/docker/**`, `deploy/systemd/**`, `server.php`, `docs/ADR/037-*`, docs updates
+
+---
+
+## SYSTEM DEPLOYMENT (workstream)
+
+Independent from TECHNICAL DEBT. Sequence: **A → B1 → B2 → B3 → C → D**.
+
+| Epic | Status | Evidence |
+|------|--------|----------|
+| A — ADR-037 + deploy layout | **DONE** | `docs/ADR/037-deployment-mode-separation.md`; `deploy/docker/`, `deploy/systemd/` |
+| B1 — Systemd identity/safety | **DONE** | `deploy/systemd/lib/common.sh` (validation, guards, metadata) |
+| B2 — Systemd installation | **DONE** | `deploy/systemd/install.sh` |
+| B3 — Systemd removal | **DONE** | `deploy/systemd/remove.sh` |
+| C — Update / health / limits | **DONE** | `deploy/systemd/update.sh`, `healthcheck.sh`, `service.template` |
+| D — Documentation / tests | **IMPLEMENTED**; VPS coexistence **PENDING** | `docs/LOCAL_ENVIRONMENT.md`; `bash deploy/systemd/tests/run_tests.sh`; `bash deploy/docker/tests/run_tests.sh` |
+
+**NOT BLOCKING:** TD-1, TD-2, TD-3 (no hard dependencies demonstrated).
+
+---
+
+## TECHNICAL DEBT (workstream)
+
+Independent from SYSTEM DEPLOYMENT. Does **not** block deployment epics A–D.
+
+### TD-1 — ADR-023 / `admin_stats_data` reconciliation
+
+Status: **DONE** (implementation + documentation reconciled 2026-08-30).
+
+| Aspect | Status |
+|--------|--------|
+| Implementation | **DONE** — `AdminService::handleGetStats()` emits `admin_stats_data`; `server.php` wires `admin_get_stats`; client `app.js` (`refreshAdminData`, `onAdminStats`); UI renders stats + rooms (EPIC-033B) |
+| Documentation/status | **RECONCILED** (2026-08-30) — ADR-023, PHASE_11_REPORT, KNOWN GAPS updated; Epic 023.1 obsolete |
+| Test coverage | **VERIFIED** — `tests/Manual/test_admin_stats.php` **10/10 PASS** (2026-08-30 audit) |
+
+Priority: **Low**. Not blocking deployment.
+
+Roadmap work remaining: none for TD-1 core reconciliation (completed 2026-08-30); optional: prune historical EPIC-10.7/11.5 log entries that still describe pre-ADR-023 state.
+
+### TD-2 — `error.banned` protocol/documentation debt (ADR-007)
+
+| Aspect | Status |
+|--------|--------|
+| Runtime | **IMPLEMENTED per ADR-007** — `error.banned` reserved/unused; canonical ban rejection = `{"type":"banned","until":...}` at login (`AuthHandler`), reconnect, admin notification (`AdminService`) |
+| Documentation | Reconciliation only — registry entry intentional; `test_protocol_completeness.php` warns with ADR-007 semantics |
+
+Priority: **Very Low**. Not blocking deployment. No runtime change proposed.
+
+### TD-3 — Phase 11 VPS verification (11.1–11.6)
+
+| Sub-item | Instrumentation | Local/mock | VPS verification | Blocks deployment? |
+|----------|-----------------|------------|------------------|-------------------|
+| 11.1 Memory | DONE | PASS | **PENDING** | No |
+| 11.2 Timer | DONE | PASS | **PENDING** | No |
+| 11.3 Economy | DONE | PASS | **PENDING** | No |
+| 11.4 State machine | DONE | PASS | **PENDING** | No |
+| 11.5 Protocol replay | DONE | Static PASS | **PENDING** (live WS on VPS) | No |
+| 11.6 Load testing | DONE | PASS | **PENDING** | No |
+
+See `docs/PHASE_11_REPORT.md` and `docs/ROADMAP.md` § TD-3 matrix. VPS runs not executed in this roadmap update.
+
+Priority: Medium for release readiness; **NOT BLOCKING DEPLOYMENT**.
 
 ---
 
@@ -1223,8 +1294,11 @@ Notes: Documentation-only. Player-facing language; no formula reproduction.
 VERIFICATION:
 - Manual review against ADR-014 § Formula — concept accurate, no new claims.
 
-- [PENDING USER DECISION] EPIC-17.2 Protocol registry cleanup (`admin_stats_data`, `error.banned`)
-Status: Blocked — requires explicit path (implement vs deprecate via ADR). See ISSUE 4 in audit prompt.
+- [DOCUMENTATION STALE] TD-1 / former EPIC-17.2 — Protocol registry cleanup (`admin_stats_data`, `error.banned`)
+Status: Reclassified under TECHNICAL DEBT (2026-08-30 audit).
+- `admin_stats_data`: **IMPLEMENTATION DONE** — see TD-1; docs reconciliation only (not implement vs deprecate).
+- `error.banned`: **ADR-007 decision stands** — reserved/unused; `banned` packet canonical; docs reconciliation only.
+Priority: TD-1 Low, TD-2 Very Low. **NOT BLOCKING DEPLOYMENT.**
 
 - [PROPOSED] ADR-015 GameTurnService extraction draft (GameService file-size policy)
 Files:
@@ -1567,8 +1641,8 @@ Implemented:
   authenticated unknown action, missing fields, room_full live, auth_required.
 - ws_emulator.php: --send, --replay (.jsonl), --interactive modes for
   protocol replay and manual audit.
-- test_protocol_completeness.php: 50/50 PASS, 2 warnings (admin_stats_data,
-  error.banned reserved — both documented KNOWN GAPS).
+- test_protocol_completeness.php: 50/50 PASS; at EPIC-11.5 time 2 warnings
+  (`admin_stats_data` since resolved via ADR-023; `error.banned` reserved per ADR-007).
 
 Verification (Windows dev host):
 - test_protocol_completeness.php: 50/50 PASS, 2 warnings (expected)
@@ -3807,20 +3881,20 @@ Result:
 - ✅ RESOLVED (ADR-007, EPIC-11.5, 2026-07-27): пакет afk_warning добавлен
   в ANCHOR_CORE.md § Protocol Packet Types и ANCHOR_PROTOCOL.md § Turn System.
   Поведение было корректным с EPIC-8.3; закрыт документационный долг W1.
-- ⚠️ OPEN (низкий приоритет, roadmap-долг): пакет admin_stats_data объявлен
-  в ANCHOR_PROTOCOL.md и в реестре ANCHOR_CORE.md, но ни разу не реализован
-  и не назначен ни одному Epic в ROADMAP.md (EPIC-9.x покрыл только
-  admin_logs_data). Нужно либо завести Epic, либо формально исключить из
-  протокола.
-- ⚠️ OPEN (низкий приоритет, документационный долг, найдено EPIC-10.7):
-  код ошибки `error.banned` объявлен в реестре Error Packet Codes
-  (ANCHOR_PROTOCOL.md) но нигде не используется — ноль usage sites по
-  всему src/ и server.php. Не функциональный пробел: выделенный пакет
-  `banned` (`{"type":"banned","until":...}`) уже покрывает каждый путь
-  отказа по бану (login, reconnect — с FIX-11, admin-уведомление).
-  Документирован как reserved/unused в ADR-007 (EPIC-11.5). Требует
-  либо явного назначения использования, либо формального исключения из
-  реестра (тот же выбор, что уже стоит перед admin_stats_data).
+- ✅ RESOLVED (ADR-023 / TD-1, 2026-08-30 audit): `admin_stats_data` **is implemented**
+  end-to-end — `AdminService::handleGetStats()` emits the packet; `admin_get_stats`
+  wired in `server.php`; client `app.js` requests and renders via `onAdminStats` /
+  `UI().setAdminStats` / `renderAdminRooms` (EPIC-033B). Dedicated test
+  `tests/Manual/test_admin_stats.php` **10/10 PASS**. Remaining work is
+  **documentation/status reconciliation only** (ADR-023 §023.1 obsolete,
+  PHASE_11_REPORT W2, former KNOWN GAP entry below). Priority: Low. Not blocking
+  deployment.
+- ⚠️ OPEN (TD-2, very low priority, documentation only): код ошибки `error.banned`
+  объявлен в реестре Error Packet Codes (ANCHOR_PROTOCOL.md) но нигде не
+  эмитируется — **намеренно**, per ADR-007. Не функциональный пробел: выделенный
+  пакет `banned` (`{"type":"banned","until":...}`) покрывает каждый путь отказа
+  по бану (login, reconnect, admin). Документирован как reserved/unused.
+  Reconciliation only — no runtime change. **NOT BLOCKING DEPLOYMENT.**
 
 - ✅ RESOLVED (FIX-4, 2026-07-03): test_game_start.php/test_victory.php падали из-за
   устаревших фикстур после ADR-002. Устранено — см. секцию PATCHES § FIX-4.
@@ -3902,18 +3976,19 @@ FIX-12-logger-isolation (Logger DI-seam + 6 test files redirected +
 root-caused and resolved; full regression 0 failed)
 `
 
-Next planned Epic:
+Next planned work (see `docs/ROADMAP.md`):
 
-`text
-EPIC-11.4 State machine audit (Phase 11 — see docs/PHASE_11_REPORT.md;
-EPIC-11.1/11.2/11.3 instrumentation complete, VPS runs pending)
-`
+```text
+SYSTEM DEPLOYMENT: D — VPS multi-instance/coexistence verification (optional)
+TECHNICAL DEBT: TD-1 docs reconciliation; TD-3 Phase 11 VPS runs (11.1–11.6)
+```
+
 PHASE 10 — WEBSOCKET PROTOCOL: COMPLETE (10.0-10.7 all done). Server-side
 protocol surface confirmed complete against ANCHOR_CORE.md/
-ANCHOR_PROTOCOL.md's own declared registries (EPIC-10.7). Four low-
-priority documentation-debt items remain open (admin_stats_data,
-afk_warning, error.banned, real-WS-subprocess test log noise — see
-KNOWN GAPS) but none block the next phase.
+ANCHOR_PROTOCOL.md's own declared registries (EPIC-10.7). Remaining low-
+priority items are **TECHNICAL DEBT** (TD-1 documentation stale; TD-2
+`error.banned` reserved per ADR-007; real-WS-subprocess test log noise —
+see KNOWN GAPS) — **none block deployment or the next phase**.
 Known open items: none blocking. The EPIC-10.5 KNOWN GAP
 (AuthHandler::handleReconnect() not binding $connection->userId when no
 matching disconnected room player is found) is RESOLVED as of FIX-10 —

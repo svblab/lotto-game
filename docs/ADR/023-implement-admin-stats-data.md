@@ -29,7 +29,14 @@ actions list in `ANCHOR_CORE.md` while the feature remained unimplemented.
    `MemoryAudit`: `user_connections` count from `$worker->userConnections`, and
    `memory_get_usage(true)` converted to integer megabytes.
 
-Client-side wiring (request + render) is deferred to follow-up Epic 023.1.
+4. **`online` / `memory_mb`** — sourced the same way as `LoadAudit` /
+   `MemoryAudit`: `user_connections` count from `$worker->userConnections`, and
+   `memory_get_usage(true)` converted to integer megabytes.
+
+Client-side wiring was originally deferred to follow-up Epic 023.1; as of the
+2026-08-30 repository audit it is **already complete** (`app.js`:
+`refreshAdminData()` → `admin_get_stats`; `onAdminStats` → `UI().setAdminStats` /
+`renderAdminRooms`; EPIC-033B admin rooms UI). Epic 023.1 is **obsolete**.
 
 ## Consequences
 
@@ -40,13 +47,14 @@ Positive:
 - Reuses existing `buildRoomListEntry()` — no duplication of `room_list`
   logic.
 - Metrics align with existing audit instrumentation.
+- Client wiring complete (server + client + `test_admin_stats.php`).
 
 Negative / limitations:
 
-- Admin panel still shows the `statsHint` placeholder until Epic 023.1 wires
-  the client.
 - `memory_mb` is an integer snapshot (not the two-decimal string used in audit
   logs).
+- Some status documents (PHASE_11_REPORT W2, former KNOWN GAPS) may remain stale
+  until TD-1 documentation reconciliation.
 
 Compatibility: this Epic only implements an already-declared action/packet pair —
 no rename, no protocol version bump.

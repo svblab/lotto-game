@@ -197,10 +197,10 @@ php scripts/analyze_memory_log.php
 | Warning | Item | Resolution |
 |---------|------|------------|
 | W1 | `afk_warning` packet used but not in ANCHOR_CORE registry | **Resolved** — added to ANCHOR_CORE.md + ANCHOR_PROTOCOL.md |
-| W2 | `admin_stats_data` declared but never emitted | **Open** — deferred (no Epic assigned) |
-| W3 | `error.banned` declared but unused | **Documented** — reserved per ADR-007; `banned` packet is canonical |
+| W2 | `admin_stats_data` declared but never emitted | **Resolved (implementation)** — ADR-023 / EPIC-23.0; server + client wired; `test_admin_stats.php` 10/10. **Documentation stale** (TD-1) |
+| W3 | `error.banned` declared but unused | **Documented** — reserved per ADR-007; `banned` packet is canonical (TD-2, very low) |
 
-`test_protocol_completeness.php`: **50/50 PASS**, 2 warnings (W2 + W3 only).
+`test_protocol_completeness.php`: **50/50 PASS**; warnings limited to `error.banned` reserved semantics (W3).
 
 ### New tooling
 
@@ -250,13 +250,14 @@ php scripts/load_test_runner.php --scenario=long --duration=3600
 
 ---
 
-## Open KNOWN GAPS (unchanged)
+## Open KNOWN GAPS (updated 2026-08-30 roadmap audit)
 
-See `docs/IMPLEMENTATION_STATUS.md` § KNOWN GAPS:
-- Real-WS test log noise in production log (low)
-- `afk_warning` documentation debt (low)
-- `admin_stats_data` unimplemented (low)
-- `error.banned` unused (low)
+See `docs/IMPLEMENTATION_STATUS.md` § TECHNICAL DEBT and § KNOWN GAPS:
+
+- **TD-1:** `admin_stats_data` — **implementation complete**; documentation/status reconciliation pending (Low, not blocking deployment).
+- **TD-2:** `error.banned` — reserved/unused per ADR-007; `banned` packet canonical (Very Low, documentation only).
+- Real-WS test log noise (low) — unchanged.
+- Phase 11 VPS verification (TD-3) — instrumentation complete; VPS runs pending for 11.1–11.6.
 
 ---
 
@@ -268,9 +269,9 @@ See `docs/IMPLEMENTATION_STATUS.md` § KNOWN GAPS:
 | Unit/integration tests pass | ✅ 28/28 on Windows |
 | Live WS tests pass | ⏳ Run on VPS (9 live-server tests incl. test_protocol_audit.php) |
 | Memory/timer/load audits | ⏳ EPIC-11.1/11.2/11.3/11.4 instrumented (VPS runs pending); 11.5 instrumented (VPS replay pending); 11.6 instrumented (VPS load runs pending) |
-| Protocol docs synced | ⚠️ 2 low-priority gaps (admin_stats_data, error.banned reserved) |
+| Protocol docs synced | ✅ `admin_stats_data` implemented (TD-1 docs reconciliation only); `error.banned` reserved per ADR-007 (TD-2) |
 
-**Verdict:** Proceed with Phase 12 frontend development in parallel with completing EPIC-11.1–11.6 on VPS, **provided** the 8 live-server tests pass on Ubuntu after deploying P11-001 fix. Frontend should not depend on admin_stats_data or error.banned until those gaps are resolved.
+**Verdict:** Proceed with Phase 12 frontend development in parallel with completing EPIC-11.1–11.6 VPS verification (TD-3), **provided** the live-server tests pass on Ubuntu after deploying P11-001 fix. `admin_stats_data` is implemented end-to-end; remaining TD-1 work is documentation reconciliation only.
 
 ---
 
