@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Epic B1 — systemd deployment foundation tests (identity, guards, metadata).
+# Epic B1/B2 — systemd deployment tests (identity, guards, metadata, install helpers).
 
 set -euo pipefail
 
@@ -147,14 +147,66 @@ test_metadata_schema() {
 
 test_static_syntax() {
     echo "--- shell syntax ---"
-    if bash -n "${DEPLOY_DIR}/lib/common.sh"; then
-        assert_true "common.sh syntax" true
-    else
-        assert_false "common.sh syntax" true
-    fi
+    for script in lib/common.sh install.sh healthcheck.sh; do
+        if bash -n "${DEPLOY_DIR}/${script}"; then
+            assert_true "${script} syntax" true
+        else
+            assert_false "${script} syntax" true
+        fi
+    done
     assert_true "README exists" test -f "${DEPLOY_DIR}/README.md"
-    assert_false "install.sh must not exist in B1" test -f "${DEPLOY_DIR}/install.sh"
-    assert_false "remove.sh must not exist in B1" test -f "${DEPLOY_DIR}/remove.sh"
+    assert_true "install.sh exists (B2)" test -f "${DEPLOY_DIR}/install.sh"
+    assert_false "remove.sh must not exist in B2" test -f "${DEPLOY_DIR}/remove.sh"
+    assert_true "service.template exists" test -f "${DEPLOY_DIR}/service.template"
+}
+
+test_env_file_generation() {
+    echo "--- environment file ---"
+    local tmp
+    tmp="$(mktemp -d)"
+    LOTTO_INSTANCE_ROOT_PREFIX="${tmp}/lotto-game-"
+    LOTTO_BACKUP_ROOT="${tmp}/backups"
+
+    lotto_write_env_file "demo" 8099 "127.0.0.1" "https://example.com" "127.0.0.1" "3"
+    assert_true "env file created" test -f "$(lotto_env_file demo)"
+    assert_false "env has no password" grep -qi password "$(lotto_env_file demo)"
+    grep -q "LOTTO_WS_PORT=8099" "$(lotto_env_file demo)"
+    assert_true "env sets LOTTO_WS_PORT" true
+    grep -q "LOTTO_DB_PATH=.*/data/game.db" "$(lotto_env_file demo)"
+    assert_true "env sets LOTTO_DB_PATH" true
+
+    rm -rf "${tmp}"
+}
+
+test_unit_render() {
+    echo "--- systemd unit render ---"
+    local tmp unit
+    tmp="$(mktemp -d)"
+    unit="${tmp}/lotto-game-demo.service"
+    LOTTO_SYSTEMD_SERVICE_TEMPLATE="${DEPLOY_DIR}/service.template"
+
+    lotto_render_unit_file "${unit}" "lotto-demo" "${tmp}/app" "${tmp}/config/environment" \
+        "${tmp}/data" "${tmp}/logs" "${tmp}/config"
+    assert_true "unit file rendered" test -f "${unit}"
+    grep -q "User=lotto-demo" "${unit}"
+    assert_true "unit sets User" true
+    grep -q "ExecStart=/usr/bin/php ${tmp}/app/server.php start" "${unit}"
+    assert_true "unit sets ExecStart" true
+
+    rm -rf "${tmp}"
+}
+
+test_port_helpers() {
+    echo "--- port helpers ---"
+    assert_false "8080 blocked for generic" lotto_assert_not_protected_port "8080"
+    local tmp meta
+    tmp="$(mktemp -d)"
+    LOTTO_INSTANCE_ROOT_PREFIX="${tmp}/lotto-game-"
+    LOTTO_BACKUP_ROOT="${tmp}/backups"
+    lotto_write_metadata "other" 8099 "127.0.0.1" false
+    assert_true "other instance owns 8099" lotto_port_used_by_other_systemd_instance "8099" "demo"
+    assert_false "same instance skipped" lotto_port_used_by_other_systemd_instance "8099" "other"
+    rm -rf "${tmp}"
 }
 
 test_valid_instance_names
@@ -164,10 +216,13 @@ test_production_guards
 test_identity_collision
 test_resolve_identity
 test_metadata_schema
+test_env_file_generation
+test_unit_render
+test_port_helpers
 test_static_syntax
 
 echo ""
-echo "Systemd B1 tests: ${TESTS_PASSED}/${TESTS_RUN} passed, ${TESTS_FAILED} failed"
+echo "Systemd deployment tests: ${TESTS_PASSED}/${TESTS_RUN} passed, ${TESTS_FAILED} failed"
 if [[ "${TESTS_FAILED}" -ne 0 ]]; then
     exit 1
 fi

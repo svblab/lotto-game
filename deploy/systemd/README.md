@@ -7,12 +7,38 @@ Multi-instance native/systemd deployment tooling lives here (ADR-037).
 | Epic | Scope | Status |
 |------|-------|--------|
 | **B1** | Identity, layout, metadata, production guards | **DONE** — `lib/common.sh`, `tests/run_tests.sh` |
-| **B2** | Installation | **NOT STARTED** |
+| **B2** | Installation | **DONE** — `install.sh`, `healthcheck.sh`, `service.template` |
 | **B3** | Removal | **NOT STARTED** |
 | **C** | Update / healthcheck / resource limits | **NOT STARTED** |
 | **D** | Documentation / deployment tests | **NOT STARTED** |
 
-Epic B1 provides validation and identity helpers only. **Generic systemd deployment is not installable yet.**
+Epic B2 installs a generic systemd instance under `/opt/lotto-game-<name>/`. Removal, update, and full operational lifecycle are deferred to B3/C.
+
+## Install (B2)
+
+Run on a Linux host with root, systemd, PHP, Composer, and rsync:
+
+```bash
+sudo ./deploy/systemd/install.sh [options] [INSTANCE]
+
+# Options: --name, --port, --bind, --allowed-origins, --trusted-proxy-ips, --max-accounts-per-ip
+```
+
+Examples:
+
+```bash
+sudo ./deploy/systemd/install.sh demo
+sudo ./deploy/systemd/install.sh --name lotto-01 --port 8099
+```
+
+Requirements:
+
+- Valid instance name: `^[a-z0-9][a-z0-9_-]{0,31}$` (not reserved)
+- Source repo path defaults to the directory containing `deploy/systemd/`
+- Port defaults to the first free port in `8081–8999` (8080 is reserved for production)
+- Creates dedicated user `lotto-<name>`, syncs app source, runs Composer, writes env + unit, initializes DB if new, enables and starts the unit, runs health verification
+
+Idempotent reinstall: re-running install for the same instance refreshes app source, env, and unit; existing `data/game.db` is preserved.
 
 ## B1 foundation (`lib/common.sh`)
 
@@ -47,24 +73,26 @@ Hard-fail before privileged operations on:
 
 ## Not the same as existing production
 
-| | Production | Generic systemd (future) |
-|---|------------|--------------------------|
+| | Production | Generic systemd |
+|---|------------|-----------------|
 | Path | `/opt/lotto-game` | `/opt/lotto-game-<name>/` |
 | Unit | `lotto-server.service` | `lotto-game-<name>.service` |
 | User | `www-data` | `lotto-<name>` |
-| Runbook | `docs/ADMIN_VPS_DEPLOY.md` | B2+ (not available) |
+| Runbook | `docs/ADMIN_VPS_DEPLOY.md` | This README + `install.sh` |
 
-## Planned entry points (future — B2/C)
+## Entry points
 
-```bash
-sudo ./deploy/systemd/install.sh      # B2
-sudo ./deploy/systemd/remove.sh       # B3
-sudo ./deploy/systemd/update.sh       # C
-sudo ./deploy/systemd/healthcheck.sh # C
-```
+| Script | Epic | Status |
+|--------|------|--------|
+| `install.sh` | B2 | **Available** |
+| `healthcheck.sh` | B2 (install verification) | **Available** |
+| `remove.sh` | B3 | Not implemented |
+| `update.sh` | C | Not implemented |
 
 ## Tests
 
 ```bash
 bash deploy/systemd/tests/run_tests.sh
 ```
+
+Helper/unit tests run on Git Bash or Linux. Full install integration requires a Linux VPS with root and systemd.

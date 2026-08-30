@@ -322,3 +322,312 @@ PY
     fi
     echo "${line}" | sed -E 's/.*: *"?([^",}]*)"?,.*/\1/; s/.*: *"?([^",}]*)"?/\1/'
 }
+
+# --- Epic B2: installation helpers (no remove/update lifecycle) ---
+
+LOTTO_SYSTEMD_PICK_PORT_START=8081
+LOTTO_SYSTEMD_PICK_PORT_END=8999
+LOTTO_SYSTEMD_SERVICE_TEMPLATE="${LOTTO_SYSTEMD_LIB_DIR}/../service.template"
+
+lotto_require_root() {
+    if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
+        lotto_err "This command must be run as root (sudo)."
+        return 1
+    fi
+}
+
+lotto_os_check() {
+    if [[ "$(uname -s)" != "Linux" ]]; then
+        lotto_err "Systemd deployment targets Linux (Debian/Ubuntu VPS)."
+        return 1
+    fi
+    if [[ -r /etc/os-release ]]; then
+        # shellcheck disable=SC1091
+        source /etc/os-release
+        case "${ID:-}" in
+            debian|ubuntu) ;;
+            *) lotto_err "Unsupported distribution '${ID:-unknown}'."; return 1 ;;
+        esac
+    fi
+}
+
+lotto_repo_check() {
+    if [[ ! -f "${LOTTO_REPO_ROOT}/server.php" || ! -f "${LOTTO_REPO_ROOT}/composer.json" ]]; then
+        lotto_err "Missing lotto-game checkout (server.php/composer.json)."
+        return 1
+    fi
+}
+
+lotto_canonical_path() {
+    local path="$1"
+    if command -v realpath >/dev/null 2>&1; then
+        if [[ -e "${path}" ]]; then
+            realpath "${path}"
+            return 0
+        fi
+        local parent base
+        parent="$(dirname "${path}")"
+        base="$(basename "${path}")"
+        if [[ -d "${parent}" ]]; then
+            echo "$(realpath "${parent}")/${base}"
+            return 0
+        fi
+    fi
+    lotto_canonical_path_string "${path}"
+}
+
+lotto_assert_safe_instance_path() {
+    local path="$1"
+    local canon protected
+    canon="$(lotto_canonical_path "${path}")"
+    protected="$(lotto_canonical_path "${LOTTO_PROTECTED_APP_ROOT}")"
+    lotto_assert_not_protected_path "${canon}" || return 1
+    if [[ "${canon}" == "${protected}" ]]; then
+        lotto_err "Refusing protected production app root '${LOTTO_PROTECTED_APP_ROOT}'."
+        return 1
+    fi
+}
+
+lotto_port_in_use() {
+    local port="$1"
+    if command -v ss >/dev/null 2>&1; then
+        ss -ltn "sport = :${port}" 2>/dev/null | grep -q ":${port} "
+        return $?
+    fi
+    if command -v netstat >/dev/null 2>&1; then
+        netstat -ltn 2>/dev/null | awk '{print $4}' | grep -q ":${port}$"
+        return $?
+    fi
+    return 1
+}
+
+lotto_port_published_by_docker() {
+    local port="$1"
+    if ! command -v docker >/dev/null 2>&1; then
+        return 1
+    fi
+    docker ps --format '{{.Ports}}' 2>/dev/null | grep -qE "(0\.0\.0\.0|127\.0\.0\.1|\[::\]):${port}->"
+}
+
+lotto_port_used_by_other_systemd_instance() {
+    local port="$1"
+    local skip_instance="$2"
+    local prefix meta inst recorded
+    prefix="${LOTTO_INSTANCE_ROOT_PREFIX}"
+    shopt -s nullglob
+    for meta in "${prefix}"*/config/deployment.json; do
+        [[ -f "${meta}" ]] || continue
+        inst="$(lotto_json_get "${meta}" instance)"
+        [[ -n "${inst}" && "${inst}" != "${skip_instance}" ]] || continue
+        recorded="$(lotto_json_get "${meta}" port)"
+        if [[ "${recorded}" == "${port}" ]]; then
+            shopt -u nullglob
+            return 0
+        fi
+    done
+    shopt -u nullglob
+    return 1
+}
+
+lotto_assert_port_available() {
+    local port="$1"
+    local instance="$2"
+    local allow_same="${3:-0}"
+
+    lotto_assert_not_protected_port "${port}" || return 1
+
+    if lotto_port_in_use "${port}"; then
+        if [[ "${allow_same}" -eq 1 ]]; then
+            return 0
+        fi
+        lotto_err "Port ${port} is already in use (listening socket)."
+        return 1
+    fi
+    if lotto_port_published_by_docker "${port}"; then
+        lotto_err "Port ${port} is published by a Docker container."
+        return 1
+    fi
+    if lotto_port_used_by_other_systemd_instance "${port}" "${instance}"; then
+        lotto_err "Port ${port} is assigned to another systemd Lotto instance."
+        return 1
+    fi
+}
+
+lotto_pick_free_systemd_port() {
+    local start="${1:-${LOTTO_SYSTEMD_PICK_PORT_START}}"
+    local end="${2:-${LOTTO_SYSTEMD_PICK_PORT_END}}"
+    local port
+    for ((port=start; port<=end; port++)); do
+        if [[ "${port}" == "${LOTTO_PROTECTED_PORT}" ]]; then
+            continue
+        fi
+        if lotto_port_in_use "${port}"; then
+            continue
+        fi
+        if lotto_port_published_by_docker "${port}"; then
+            continue
+        fi
+        if lotto_port_used_by_other_systemd_instance "${port}" ""; then
+            continue
+        fi
+        echo "${port}"
+        return 0
+    done
+    lotto_err "No free TCP port found in range ${start}-${end}."
+    return 1
+}
+
+lotto_create_service_user() {
+    local user="$1"
+    local instance="$2"
+
+    lotto_assert_not_protected_user "${user}" || return 1
+
+    if id -u "${user}" >/dev/null 2>&1; then
+        if lotto_instance_metadata_exists "${instance}"; then
+            lotto_load_instance "${instance}"
+            if [[ "${LOTTO_META_USER}" == "${user}" ]]; then
+                echo "false"
+                return 0
+            fi
+        fi
+        lotto_err "User '${user}' already exists and is not owned by instance '${instance}' metadata."
+        return 1
+    fi
+
+    useradd -r -s /usr/sbin/nologin -M -d "/nonexistent" "${user}"
+    echo "true"
+}
+
+lotto_sync_app_source() {
+    local dest="$1"
+    mkdir -p "${dest}"
+    rsync -a --delete \
+        --exclude '.git/' \
+        --exclude 'vendor/' \
+        --exclude 'logs/' \
+        --exclude '*.db' \
+        --exclude '*.db-wal' \
+        --exclude '*.db-shm' \
+        --exclude 'deploy/' \
+        --exclude '.lotto-deploy/' \
+        "${LOTTO_REPO_ROOT}/" "${dest}/"
+}
+
+lotto_run_composer() {
+    local app_path="$1"
+    local user="$2"
+    if ! command -v composer >/dev/null 2>&1; then
+        lotto_err "Composer is required on the host for systemd deployment."
+        return 1
+    fi
+    sudo -u "${user}" -H composer install \
+        --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-scripts \
+        --working-dir="${app_path}"
+}
+
+lotto_write_env_file() {
+    local instance="$1"
+    local port="$2"
+    local bind="$3"
+    local allowed_origins="${4:-}"
+    local trusted_proxy_ips="${5:-}"
+    local max_accounts_per_ip="${6:-}"
+
+    local env_file app data logs
+    env_file="$(lotto_env_file "${instance}")"
+    app="$(lotto_app_path "${instance}")"
+    data="$(lotto_data_path "${instance}")"
+    logs="$(lotto_logs_path "${instance}")"
+
+    mkdir -p "$(dirname "${env_file}")"
+    cat >"${env_file}" <<EOF
+LOTTO_WS_PORT=${port}
+LOTTO_DB_PATH=${data}/game.db
+LOTTO_SERVER_LOG=${logs}/server.log
+LOTTO_WORKERMAN_LOG_FILE=${logs}/workerman.log
+LOTTO_WORKERMAN_PID_FILE=${data}/workerman.pid
+LOTTO_ALLOWED_ORIGINS=${allowed_origins}
+LOTTO_TRUSTED_PROXY_IPS=${trusted_proxy_ips}
+LOTTO_MAX_ACCOUNTS_PER_IP=${max_accounts_per_ip}
+LOTTO_ADMIN_BOOTSTRAP_FILE=${data}/.admin_bootstrap
+EOF
+    chmod 640 "${env_file}"
+}
+
+lotto_render_unit_file() {
+    local unit_file="$1"
+    local user="$2"
+    local app="$3"
+    local env_file="$4"
+    local data="$5"
+    local logs="$6"
+    local config="$7"
+
+    if [[ ! -f "${LOTTO_SYSTEMD_SERVICE_TEMPLATE}" ]]; then
+        lotto_err "Missing service template: ${LOTTO_SYSTEMD_SERVICE_TEMPLATE}"
+        return 1
+    fi
+
+    sed \
+        -e "s|@LOTTO_USER@|${user}|g" \
+        -e "s|@LOTTO_APP@|${app}|g" \
+        -e "s|@LOTTO_ENV@|${env_file}|g" \
+        -e "s|@LOTTO_DATA@|${data}|g" \
+        -e "s|@LOTTO_LOGS@|${logs}|g" \
+        -e "s|@LOTTO_CONFIG@|${config}|g" \
+        "${LOTTO_SYSTEMD_SERVICE_TEMPLATE}" >"${unit_file}"
+    chmod 644 "${unit_file}"
+}
+
+lotto_run_instance_healthcheck() {
+    local port="$1"
+    LOTTO_WS_PORT="${port}" php "${LOTTO_REPO_ROOT}/deploy/docker/healthcheck.php"
+}
+
+lotto_wait_for_active_unit() {
+    local unit="$1"
+    local timeout="${2:-60}"
+    local start now
+    start=$(date +%s)
+    while true; do
+        if systemctl is-active --quiet "${unit}"; then
+            return 0
+        fi
+        now=$(date +%s)
+        if (( now - start >= timeout )); then
+            lotto_err "Timed out waiting for ${unit} to become active."
+            systemctl status "${unit}" --no-pager || true
+            return 1
+        fi
+        sleep 2
+    done
+}
+
+lotto_cleanup_failed_install() {
+    local instance="$1"
+    local unit user root created_user
+    unit="$(lotto_systemd_unit "${instance}")"
+    user="$(lotto_service_user "${instance}")"
+    root="$(lotto_instance_root "${instance}")"
+
+    systemctl stop "${unit}" >/dev/null 2>&1 || true
+    systemctl disable "${unit}" >/dev/null 2>&1 || true
+    rm -f "$(lotto_unit_file "${instance}")"
+    systemctl daemon-reload >/dev/null 2>&1 || true
+
+    if [[ -d "${root}" ]]; then
+        rm -rf "${root}"
+    fi
+    local backup
+    backup="$(lotto_backup_dir "${instance}")"
+    if [[ -d "${backup}" ]]; then
+        rm -rf "${backup}"
+    fi
+
+    if id -u "${user}" >/dev/null 2>&1; then
+        if ! lotto_instance_metadata_exists "${instance}"; then
+            userdel "${user}" >/dev/null 2>&1 || true
+        fi
+    fi
+}

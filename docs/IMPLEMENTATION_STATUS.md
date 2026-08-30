@@ -18,7 +18,7 @@ Status: **Completed** (foundation only — no install/remove/update)
 - [DONE] Metadata schema v1 (`config/deployment.json`, no secrets)
 - [DONE] Production guards: `/opt/lotto-game`, `lotto-server.service`, `www-data`, port 8080
 - [DONE] Tests: `deploy/systemd/tests/run_tests.sh`
-- [NOT STARTED] B2 install, B3 remove, C update/health, D full docs/VPS tests
+- [NOT STARTED] B3 remove, C update/health, D full docs/VPS tests
 
 Files:
 - `deploy/systemd/lib/common.sh`, `deploy/systemd/tests/run_tests.sh`, `deploy/systemd/README.md`
@@ -26,11 +26,33 @@ Files:
 VERIFICATION:
 - `bash deploy/systemd/tests/run_tests.sh` — **50/50 PASS** (Git Bash on Windows dev host)
 
+## Epic B2 — Systemd installation (2026-08-30)
+
+Status: **Completed** (install only — no remove/update)
+
+- [DONE] `install.sh` — validate, dedicated user, dirs, rsync app source, Composer, env file, unit render, DB init (if new), enable/start, health verification, metadata
+- [DONE] Idempotent reinstall (preserve existing DB; refresh app/config/unit)
+- [DONE] Port selection `8081–8999` with production/Docker/other-instance checks
+- [DONE] `healthcheck.sh` — unit active + WebSocket health (reuses `deploy/docker/healthcheck.php`)
+- [DONE] `service.template` — hardened unit (`NoNewPrivileges`, `PrivateTmp`, `ProtectSystem`, `ReadWritePaths`)
+- [DONE] B2 helper tests in `deploy/systemd/tests/run_tests.sh`
+- [NOT STARTED] B3 remove, C update/limits, D full VPS integration docs/tests
+
+Files:
+- `deploy/systemd/install.sh`, `deploy/systemd/healthcheck.sh`, `deploy/systemd/service.template`
+- `deploy/systemd/lib/common.sh` (B2 install helpers appended)
+
+VERIFICATION:
+- `bash deploy/systemd/tests/run_tests.sh` — **63/63 PASS** (Git Bash on Windows dev host)
+- `bash deploy/docker/tests/run_tests.sh` — Docker regression (unchanged behaviour)
+- Full systemd install on Linux VPS — **NOT RUN** (requires root + systemd host)
+
 ---
 
 - [DONE] **A** — ADR-037; Docker scripts under `deploy/docker/`; `deploy/systemd/` boundary
 - [DONE] **B1** — identity, metadata, production guards (`deploy/systemd/lib/common.sh`)
-- [PENDING] **B2–D** — systemd lifecycle scripts
+- [DONE] **B2** — systemd install (`deploy/systemd/install.sh`, helpers, tests)
+- [PENDING] **B3–D** — remove, update/health lifecycle, full docs/VPS tests
 
 - [DONE] Docker scripts relocated from top-level `deploy/` to `deploy/docker/` (behaviour preserved)
 - [DONE] Top-level ambiguous entry points removed (`deploy/install.sh`, etc.)
@@ -52,7 +74,7 @@ Independent from TECHNICAL DEBT. Sequence: **A → B1 → B2 → B3 → C → D*
 |------|--------|----------|
 | A — ADR-037 + deploy layout | **DONE** (Epic A) | `docs/ADR/037-deployment-mode-separation.md`; `deploy/docker/`; `deploy/systemd/README.md` |
 | B1 — Systemd identity/safety | **DONE** (Epic B1) | `deploy/systemd/lib/common.sh`, `deploy/systemd/tests/run_tests.sh` |
-| B2 — Systemd installation | **NOT STARTED** | Deferred |
+| B2 — Systemd installation | **DONE** (Epic B2) | `deploy/systemd/install.sh`, `healthcheck.sh`, `service.template`; tests 63/63 |
 | B3 — Systemd removal | **NOT STARTED** | Deferred |
 | C — Update / health / limits | **NOT STARTED** | Deferred |
 | D — Documentation / tests | **NOT STARTED** | Docker helper tests under `deploy/docker/tests/`; systemd/coexistence VPS verification deferred |
