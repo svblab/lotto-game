@@ -8,11 +8,11 @@ Multi-instance native/systemd deployment tooling lives here (ADR-037).
 |------|-------|--------|
 | **B1** | Identity, layout, metadata, production guards | **DONE** — `lib/common.sh`, `tests/run_tests.sh` |
 | **B2** | Installation | **DONE** — `install.sh`, `healthcheck.sh`, `service.template` |
-| **B3** | Removal | **NOT STARTED** |
-| **C** | Update / healthcheck / resource limits | **NOT STARTED** |
+| **B3** | Removal | **DONE** — `remove.sh` |
+| **C** | Update / operational lifecycle | **DONE** — `update.sh` |
 | **D** | Documentation / deployment tests | **NOT STARTED** |
 
-Epic B2 installs a generic systemd instance under `/opt/lotto-game-<name>/`. Removal, update, and full operational lifecycle are deferred to B3/C.
+Epic B2 installs, Epic C updates, and Epic B3 removes generic systemd instances under `/opt/lotto-game-<name>/`. Full VPS documentation and integration tests are deferred to D.
 
 ## Install (B2)
 
@@ -39,6 +39,61 @@ Requirements:
 - Creates dedicated user `lotto-<name>`, syncs app source, runs Composer, writes env + unit, initializes DB if new, enables and starts the unit, runs health verification
 
 Idempotent reinstall: re-running install for the same instance refreshes app source, env, and unit; existing `data/game.db` is preserved.
+
+## Update (C)
+
+Run on the same Linux host as root:
+
+```bash
+sudo ./deploy/systemd/update.sh [INSTANCE]
+```
+
+Examples:
+
+```bash
+sudo ./deploy/systemd/update.sh demo
+sudo ./deploy/systemd/update.sh lotto-01
+```
+
+Update refreshes a managed instance safely:
+
+- Requires valid metadata and `config/environment`
+- Stops service → rsync `app/` from repo → `composer install` (no `composer update`)
+- Preserves `data/`, `config/environment`, `config/deployment.json` contents, existing port, and service user
+- Re-renders systemd unit only when the template output changed; `daemon-reload` only then
+- Restarts service, runs WebSocket healthcheck, sets metadata `updated_at` only after success
+- Instance lock at `/var/lock/lotto-game-<name>.lock` prevents concurrent updates of the same instance
+- On failure: service left stopped, database and configuration preserved, metadata not finalized
+
+Port changes are not supported in C; updates preserve the existing metadata port.
+
+Production and Docker deployments are never modified.
+
+## Remove (B3)
+
+Run on the same Linux host as root:
+
+```bash
+sudo ./deploy/systemd/remove.sh [INSTANCE]
+```
+
+Examples:
+
+```bash
+sudo ./deploy/systemd/remove.sh demo
+sudo ./deploy/systemd/remove.sh lotto-01
+```
+
+Removal is instance-scoped and ownership-scoped:
+
+- Requires valid metadata (`config/deployment.json`) to establish ownership before destructive steps
+- Validates metadata paths against the deterministic B1 layout (tampered paths fail closed)
+- Canonicalizes paths and rejects symlink escapes before deleting files
+- Stops/disables/removes only the expected `lotto-game-<name>.service` unit
+- Removes `/opt/lotto-game-<name>/`, instance backup dir, and metadata
+- Removes `lotto-<name>` only when `created_user=true` and no other instance claims the user
+- Idempotent: re-running on an already-absent instance succeeds
+- Missing metadata with residual resources fails safely (no blind deletion)
 
 ## B1 foundation (`lib/common.sh`)
 
@@ -69,7 +124,7 @@ Hard-fail before privileged operations on:
 
 ### Metadata
 
-`config/deployment.json` — schema version 1, no secrets. Tracks paths, unit, user, port, and whether the service user was created by the installer (for B3 ownership).
+`config/deployment.json` — schema version 1, no secrets. Tracks paths, unit, user, port, `created_user`, `created_at`, and `updated_at` (after successful updates).
 
 ## Not the same as existing production
 
@@ -78,16 +133,16 @@ Hard-fail before privileged operations on:
 | Path | `/opt/lotto-game` | `/opt/lotto-game-<name>/` |
 | Unit | `lotto-server.service` | `lotto-game-<name>.service` |
 | User | `www-data` | `lotto-<name>` |
-| Runbook | `docs/ADMIN_VPS_DEPLOY.md` | This README + `install.sh` |
+| Runbook | `docs/ADMIN_VPS_DEPLOY.md` | This README + lifecycle scripts |
 
 ## Entry points
 
 | Script | Epic | Status |
 |--------|------|--------|
 | `install.sh` | B2 | **Available** |
-| `healthcheck.sh` | B2 (install verification) | **Available** |
-| `remove.sh` | B3 | Not implemented |
-| `update.sh` | C | Not implemented |
+| `update.sh` | C | **Available** |
+| `remove.sh` | B3 | **Available** |
+| `healthcheck.sh` | B2/C (verification) | **Available** |
 
 ## Tests
 
@@ -95,4 +150,4 @@ Hard-fail before privileged operations on:
 bash deploy/systemd/tests/run_tests.sh
 ```
 
-Helper/unit tests run on Git Bash or Linux. Full install integration requires a Linux VPS with root and systemd.
+Helper/unit tests run on Git Bash or Linux. Full install/update/remove integration requires a Linux VPS with root and systemd.

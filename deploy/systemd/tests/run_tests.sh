@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Epic B1/B2 — systemd deployment tests (identity, guards, metadata, install helpers).
+# Epic B1/B2/B3/C — systemd deployment tests.
 
 set -euo pipefail
 
@@ -147,7 +147,7 @@ test_metadata_schema() {
 
 test_static_syntax() {
     echo "--- shell syntax ---"
-    for script in lib/common.sh install.sh healthcheck.sh; do
+    for script in lib/common.sh install.sh remove.sh update.sh healthcheck.sh; do
         if bash -n "${DEPLOY_DIR}/${script}"; then
             assert_true "${script} syntax" true
         else
@@ -156,7 +156,8 @@ test_static_syntax() {
     done
     assert_true "README exists" test -f "${DEPLOY_DIR}/README.md"
     assert_true "install.sh exists (B2)" test -f "${DEPLOY_DIR}/install.sh"
-    assert_false "remove.sh must not exist in B2" test -f "${DEPLOY_DIR}/remove.sh"
+    assert_true "remove.sh exists (B3)" test -f "${DEPLOY_DIR}/remove.sh"
+    assert_true "update.sh exists (C)" test -f "${DEPLOY_DIR}/update.sh"
     assert_true "service.template exists" test -f "${DEPLOY_DIR}/service.template"
 }
 
@@ -209,6 +210,328 @@ test_port_helpers() {
     rm -rf "${tmp}"
 }
 
+test_b3_metadata_validation() {
+    echo "--- B3 metadata validation ---"
+    local tmp
+    tmp="$(mktemp -d)"
+    LOTTO_INSTANCE_ROOT_PREFIX="${tmp}/lotto-game-"
+    LOTTO_BACKUP_ROOT="${tmp}/backups"
+
+    lotto_test_create_managed_instance "demo" 8099 true
+    lotto_load_instance "demo"
+    assert_true "valid managed metadata passes" lotto_validate_removal_metadata "demo"
+
+    if command -v python3 >/dev/null 2>&1; then
+        python3 - "$(lotto_metadata_file demo)" <<'PY'
+import json, sys
+path = sys.argv[1]
+with open(path, encoding="utf-8") as fh:
+    data = json.load(fh)
+data["data_path"] = "/etc"
+with open(path, "w", encoding="utf-8") as fh:
+    json.dump(data, fh)
+PY
+        lotto_load_instance "demo"
+        assert_false "tampered data_path rejected" lotto_validate_removal_metadata "demo"
+    else
+        echo "SKIP: tampered metadata test (python3 unavailable)"
+    fi
+
+    rm -rf "${tmp}"
+}
+
+test_b3_missing_metadata() {
+    echo "--- B3 missing metadata ---"
+    local tmp
+    tmp="$(mktemp -d)"
+    LOTTO_INSTANCE_ROOT_PREFIX="${tmp}/lotto-game-"
+    LOTTO_BACKUP_ROOT="${tmp}/backups"
+
+    mkdir -p "$(lotto_instance_root residual)/app"
+    assert_true "residual root detected" lotto_instance_has_unmanaged_residuals "residual"
+    assert_false "fully absent with residuals" lotto_instance_fully_absent "residual"
+    assert_true "fully absent when empty" lotto_instance_fully_absent "ghost"
+
+    rm -rf "${tmp}"
+}
+
+test_b3_idempotent_absent() {
+    echo "--- B3 idempotent absent ---"
+    local tmp
+    tmp="$(mktemp -d)"
+    LOTTO_INSTANCE_ROOT_PREFIX="${tmp}/lotto-game-"
+    LOTTO_BACKUP_ROOT="${tmp}/backups"
+
+    assert_true "never-installed instance absent" lotto_instance_fully_absent "never"
+
+    lotto_test_create_managed_instance "gone" 8099 true
+    lotto_load_instance "gone"
+    lotto_test_remove_managed_instance "gone"
+    assert_true "removed instance fully absent" lotto_instance_fully_absent "gone"
+    assert_true "second absent check safe" lotto_instance_fully_absent "gone"
+
+    rm -rf "${tmp}"
+}
+
+test_b3_managed_removal() {
+    echo "--- B3 managed instance removal ---"
+    local tmp
+    tmp="$(mktemp -d)"
+    LOTTO_INSTANCE_ROOT_PREFIX="${tmp}/lotto-game-"
+    LOTTO_BACKUP_ROOT="${tmp}/backups"
+
+    lotto_test_create_managed_instance "demo" 8099 true
+    assert_true "instance root exists before removal" test -d "$(lotto_instance_root demo)"
+    assert_true "metadata exists before removal" lotto_instance_metadata_exists "demo"
+    assert_true "backup exists before removal" test -d "$(lotto_backup_dir demo)"
+
+    lotto_load_instance "demo"
+    lotto_test_remove_managed_instance "demo"
+    assert_false "instance root removed" test -d "$(lotto_instance_root demo)"
+    assert_false "metadata removed" lotto_instance_metadata_exists "demo"
+    assert_false "backup removed" test -d "$(lotto_backup_dir demo)"
+
+    rm -rf "${tmp}"
+}
+
+test_b3_foreign_user_flag() {
+    echo "--- B3 foreign user preservation ---"
+    local tmp
+    tmp="$(mktemp -d)"
+    LOTTO_INSTANCE_ROOT_PREFIX="${tmp}/lotto-game-"
+    LOTTO_BACKUP_ROOT="${tmp}/backups"
+
+    lotto_test_create_managed_instance "foreign" 8099 false
+    lotto_load_instance "foreign"
+    assert_eq "created_user false recorded" "False" "${LOTTO_META_CREATED_USER}"
+    assert_true "removal skips owned user delete" lotto_remove_owned_service_user "foreign"
+
+    rm -rf "${tmp}"
+}
+
+test_b3_user_claimed_by_other() {
+    echo "--- B3 user shared across instances ---"
+    local tmp
+    tmp="$(mktemp -d)"
+    LOTTO_INSTANCE_ROOT_PREFIX="${tmp}/lotto-game-"
+    LOTTO_BACKUP_ROOT="${tmp}/backups"
+
+    lotto_test_create_managed_instance "one" 8099 true
+    lotto_test_create_managed_instance "two" 8100 true
+
+    if command -v python3 >/dev/null 2>&1; then
+        python3 - "$(lotto_metadata_file two)" <<'PY'
+import json, sys
+path = sys.argv[1]
+with open(path, encoding="utf-8") as fh:
+    data = json.load(fh)
+data["service_user"] = "lotto-one"
+with open(path, "w", encoding="utf-8") as fh:
+    json.dump(data, fh)
+PY
+        assert_true "shared user detected" lotto_user_claimed_by_other_instance "lotto-one" "one"
+    else
+        echo "SKIP: shared user tamper test (python3 unavailable)"
+    fi
+
+    rm -rf "${tmp}"
+}
+
+test_b3_symlink_escape() {
+    echo "--- B3 symlink escape protection ---"
+    if ! lotto_symlinks_supported; then
+        echo "SKIP: symlink escape test (platform does not support symlinks)"
+        return 0
+    fi
+    local tmp evil root
+    tmp="$(mktemp -d)"
+    evil="$(mktemp -d)"
+    LOTTO_INSTANCE_ROOT_PREFIX="${tmp}/lotto-game-"
+    LOTTO_BACKUP_ROOT="${tmp}/backups"
+
+    lotto_test_create_managed_instance "demo" 8099 true
+    root="$(lotto_instance_root demo)"
+    ln -s "${evil}" "${root}/data/escape-link"
+    touch "${evil}/precious.txt"
+
+    lotto_load_instance "demo"
+    assert_false "outside symlink blocks removal" lotto_remove_instance_tree "demo"
+    assert_true "external target preserved" test -f "${evil}/precious.txt"
+    assert_true "instance root preserved after blocked removal" test -d "${root}"
+
+    rm -rf "${tmp}" "${evil}"
+}
+
+test_b3_wrong_unit_metadata() {
+    echo "--- B3 wrong unit metadata ---"
+    local tmp
+    tmp="$(mktemp -d)"
+    LOTTO_INSTANCE_ROOT_PREFIX="${tmp}/lotto-game-"
+    LOTTO_BACKUP_ROOT="${tmp}/backups"
+
+    lotto_test_create_managed_instance "demo" 8099 true
+    if command -v python3 >/dev/null 2>&1; then
+        python3 - "$(lotto_metadata_file demo)" <<'PY'
+import json, sys
+path = sys.argv[1]
+with open(path, encoding="utf-8") as fh:
+    data = json.load(fh)
+data["unit"] = "lotto-game-evil.service"
+with open(path, "w", encoding="utf-8") as fh:
+    json.dump(data, fh)
+PY
+        lotto_load_instance "demo"
+        assert_false "wrong unit rejected" lotto_validate_removal_metadata "demo"
+    else
+        echo "SKIP: wrong unit test (python3 unavailable)"
+    fi
+
+    rm -rf "${tmp}"
+}
+
+test_b3_production_remove_guard() {
+    echo "--- B3 production removal guards ---"
+    assert_false "remove production name blocked" lotto_validate_instance_name "production"
+    assert_false "remove lotto-server blocked" lotto_validate_instance_name "lotto-server"
+    assert_false "remove www-data blocked" lotto_validate_instance_name "www-data"
+    assert_false "protected path blocked" lotto_assert_not_protected_path "${LOTTO_PROTECTED_APP_ROOT}"
+    assert_false "protected unit blocked" lotto_assert_not_protected_unit "${LOTTO_PROTECTED_UNIT}"
+}
+
+test_c_update_preconditions() {
+    echo "--- C update preconditions ---"
+    local tmp
+    tmp="$(mktemp -d)"
+    LOTTO_INSTANCE_ROOT_PREFIX="${tmp}/lotto-game-"
+    LOTTO_BACKUP_ROOT="${tmp}/backups"
+
+    assert_false "missing metadata not installed" lotto_assert_managed_instance_installed "ghost"
+
+    lotto_test_create_managed_instance "demo" 8099 true
+    assert_true "managed instance installed" lotto_assert_managed_instance_installed "demo"
+    lotto_load_instance "demo"
+    assert_true "valid metadata passes update validation" lotto_validate_update_metadata "demo"
+    assert_true "env file valid" lotto_assert_env_file_valid "$(lotto_env_file demo)"
+
+    if command -v python3 >/dev/null 2>&1; then
+        python3 - "$(lotto_metadata_file demo)" <<'PY'
+import json, sys
+path = sys.argv[1]
+with open(path, encoding="utf-8") as fh:
+    data = json.load(fh)
+data["deployment_type"] = "docker"
+with open(path, "w", encoding="utf-8") as fh:
+    json.dump(data, fh)
+PY
+        lotto_load_instance "demo"
+        assert_false "wrong deployment type rejected" lotto_validate_update_metadata "demo"
+    else
+        echo "SKIP: wrong deployment type test (python3 unavailable)"
+    fi
+
+    rm -rf "${tmp}"
+}
+
+test_c_update_preservation() {
+    echo "--- C update preservation ---"
+    local tmp env_before port_before
+    tmp="$(mktemp -d)"
+    LOTTO_INSTANCE_ROOT_PREFIX="${tmp}/lotto-game-"
+    LOTTO_BACKUP_ROOT="${tmp}/backups"
+
+    lotto_test_create_managed_instance "demo" 8099 true
+    echo "seed-db-content" >"$(lotto_data_path demo)/game.db"
+    echo "LOTTO_CUSTOM=keep" >>"$(lotto_env_file demo)"
+    env_before="$(cat "$(lotto_env_file demo)")"
+    port_before="$(lotto_json_get "$(lotto_metadata_file demo)" port)"
+
+    assert_true "simulate update preserves state" lotto_test_simulate_update "demo"
+    assert_eq "environment preserved" "${env_before}" "$(cat "$(lotto_env_file demo)")"
+    assert_eq "database preserved" "seed-db-content" "$(cat "$(lotto_data_path demo)/game.db")"
+    assert_eq "port preserved" "${port_before}" "$(lotto_json_get "$(lotto_metadata_file demo)" port)"
+    assert_true "updated_at recorded" grep -q updated_at "$(lotto_metadata_file demo)"
+
+    rm -rf "${tmp}"
+}
+
+test_c_update_idempotent() {
+    echo "--- C update idempotency ---"
+    local tmp
+    tmp="$(mktemp -d)"
+    LOTTO_INSTANCE_ROOT_PREFIX="${tmp}/lotto-game-"
+    LOTTO_BACKUP_ROOT="${tmp}/backups"
+
+    lotto_test_create_managed_instance "demo" 8099 true
+    assert_true "first update simulation" lotto_test_simulate_update "demo"
+    assert_true "second update simulation" lotto_test_simulate_update "demo"
+
+    rm -rf "${tmp}"
+}
+
+test_c_unit_refresh_detection() {
+    echo "--- C unit refresh detection ---"
+    local tmp unit_file
+    tmp="$(mktemp -d)"
+    LOTTO_INSTANCE_ROOT_PREFIX="${tmp}/lotto-game-"
+    LOTTO_BACKUP_ROOT="${tmp}/backups"
+    LOTTO_SYSTEMD_UNIT_DIR="${tmp}/units"
+    LOTTO_SYSTEMD_SERVICE_TEMPLATE="${DEPLOY_DIR}/service.template"
+    mkdir -p "${LOTTO_SYSTEMD_UNIT_DIR}"
+
+    lotto_test_create_managed_instance "demo" 8099 true
+    assert_true "missing unit file needs refresh" lotto_unit_needs_refresh "demo"
+
+    unit_file="$(lotto_unit_file demo)"
+    lotto_render_unit_file "${unit_file}" "lotto-demo" "$(lotto_app_path demo)" \
+        "$(lotto_env_file demo)" "$(lotto_data_path demo)" "$(lotto_logs_path demo)" \
+        "$(lotto_config_path demo)"
+
+    assert_false "identical unit not flagged" lotto_unit_needs_refresh "demo"
+
+    rm -rf "${tmp}"
+}
+
+test_c_update_lock() {
+    echo "--- C update lock ---"
+    if ! command -v flock >/dev/null 2>&1; then
+        echo "SKIP: update lock test (flock unavailable)"
+        return 0
+    fi
+    local tmp
+    tmp="$(mktemp -d)"
+    LOTTO_UPDATE_LOCK_DIR="${tmp}"
+
+    (
+        lotto_acquire_update_lock "demo"
+        sleep 1
+    ) &
+    local bg=$!
+    sleep 0.2
+    assert_false "concurrent update blocked" lotto_acquire_update_lock "demo"
+    wait "${bg}" 2>/dev/null || true
+
+    assert_true "other instance lock independent" lotto_acquire_update_lock "other"
+    lotto_release_update_lock
+
+    rm -rf "${tmp}"
+}
+
+test_c_update_failure_no_metadata_touch() {
+    echo "--- C update failure metadata ---"
+    local tmp meta_before
+    tmp="$(mktemp -d)"
+    LOTTO_INSTANCE_ROOT_PREFIX="${tmp}/lotto-game-"
+    LOTTO_BACKUP_ROOT="${tmp}/backups"
+
+    lotto_test_create_managed_instance "demo" 8099 true
+    meta_before="$(cat "$(lotto_metadata_file demo)")"
+    assert_false "missing env fails validation" lotto_assert_env_file_valid "/nonexistent/env"
+    assert_eq "metadata unchanged on validation failure" "${meta_before}" "$(cat "$(lotto_metadata_file demo)")"
+    assert_false "metadata has no updated_at yet" grep -q updated_at "$(lotto_metadata_file demo)"
+
+    rm -rf "${tmp}"
+}
+
 test_valid_instance_names
 test_invalid_instance_names
 test_production_name_reservation
@@ -219,6 +542,21 @@ test_metadata_schema
 test_env_file_generation
 test_unit_render
 test_port_helpers
+test_b3_metadata_validation
+test_b3_missing_metadata
+test_b3_idempotent_absent
+test_b3_managed_removal
+test_b3_foreign_user_flag
+test_b3_user_claimed_by_other
+test_b3_symlink_escape
+test_b3_wrong_unit_metadata
+test_b3_production_remove_guard
+test_c_update_preconditions
+test_c_update_preservation
+test_c_update_idempotent
+test_c_unit_refresh_detection
+test_c_update_lock
+test_c_update_failure_no_metadata_touch
 test_static_syntax
 
 echo ""

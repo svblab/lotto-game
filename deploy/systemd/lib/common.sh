@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Systemd deployment foundation (Epic B1): identity, layout, metadata, guards.
-# Lifecycle install/remove/update belongs to epics B2/B3/C — not implemented here.
+# B2 install and B3 remove helpers live in this library.
 
 set -euo pipefail
 
@@ -82,6 +82,10 @@ lotto_service_user() {
 }
 
 lotto_unit_file() {
+    if [[ -n "${LOTTO_SYSTEMD_UNIT_DIR:-}" ]]; then
+        echo "${LOTTO_SYSTEMD_UNIT_DIR}/$(lotto_systemd_unit "$1")"
+        return 0
+    fi
     echo "/etc/systemd/system/$(lotto_systemd_unit "$1")"
 }
 
@@ -225,7 +229,7 @@ lotto_resolve_instance_identity() {
     echo "LOTTO_BIND=${LOTTO_DEFAULT_BIND}"
 }
 
-# Write deployment metadata (JSON). Used by tests and future B2 install.
+# Write deployment metadata (JSON). Used by tests and B2/B3/C lifecycle scripts.
 # Does not create directories or touch production paths unless caller sets temp roots.
 lotto_write_metadata() {
     local instance="$1"
@@ -233,15 +237,21 @@ lotto_write_metadata() {
     local bind="${3:-${LOTTO_DEFAULT_BIND}}"
     local created_user="${4:-false}"
     local created_at="${5:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
+    local updated_at="${6:-}"
 
     lotto_validate_instance_name "${instance}" || return 1
     lotto_validate_port_number "${port}" || return 1
 
     local meta_path
+    local updated_line=""
     meta_path="$(lotto_metadata_file "${instance}")"
     lotto_assert_not_protected_path "$(lotto_instance_root "${instance}")" || return 1
 
     mkdir -p "$(dirname "${meta_path}")"
+
+    if [[ -n "${updated_at}" ]]; then
+        updated_line="  \"updated_at\": \"${updated_at}\","
+    fi
 
     cat >"${meta_path}" <<EOF
 {
@@ -249,7 +259,7 @@ lotto_write_metadata() {
   "deployment_type": "systemd",
   "instance": "${instance}",
   "created_at": "${created_at}",
-  "app_path": "$(lotto_app_path "${instance}")",
+${updated_line}  "app_path": "$(lotto_app_path "${instance}")",
   "data_path": "$(lotto_data_path "${instance}")",
   "logs_path": "$(lotto_logs_path "${instance}")",
   "config_path": "$(lotto_config_path "${instance}")",
@@ -320,7 +330,7 @@ PY
         echo ""
         return 0
     fi
-    echo "${line}" | sed -E 's/.*: *"?([^",}]*)"?,.*/\1/; s/.*: *"?([^",}]*)"?/\1/'
+    echo "${line}" | sed -E "s/.*: *\"?([^\",}]+)\"?,.*\"/\\1/; t; s/.*: *\"?([^\",}]+)\"?/\\1/"
 }
 
 # --- Epic B2: installation helpers (no remove/update lifecycle) ---
@@ -629,5 +639,633 @@ lotto_cleanup_failed_install() {
         if ! lotto_instance_metadata_exists "${instance}"; then
             userdel "${user}" >/dev/null 2>&1 || true
         fi
+    fi
+}
+
+# --- Epic B3: safe removal helpers (no update lifecycle) ---
+
+lotto_validate_removal_metadata() {
+    local instance="$1"
+    local meta expected
+
+    meta="$(lotto_metadata_file "${instance}")"
+    if [[ ! -f "${meta}" ]]; then
+        lotto_err "Metadata not found for instance '${instance}'."
+        return 1
+    fi
+
+    if [[ "${LOTTO_META_SCHEMA}" != "${LOTTO_METADATA_SCHEMA}" ]]; then
+        lotto_err "Unsupported metadata schema version '${LOTTO_META_SCHEMA}'."
+        return 1
+    fi
+
+    local deployment_type
+    deployment_type="$(lotto_json_get "${meta}" deployment_type)"
+    if [[ "${deployment_type}" != "systemd" ]]; then
+        lotto_err "Metadata deployment_type is not 'systemd'."
+        return 1
+    fi
+
+    if [[ "${LOTTO_META_INSTANCE}" != "${instance}" ]]; then
+        lotto_err "Metadata instance '${LOTTO_META_INSTANCE}' does not match '${instance}'."
+        return 1
+    fi
+
+    expected="$(lotto_systemd_unit "${instance}")"
+    if [[ "${LOTTO_META_UNIT}" != "${expected}" ]]; then
+        lotto_err "Metadata unit '${LOTTO_META_UNIT}' does not match expected '${expected}'."
+        return 1
+    fi
+
+    expected="$(lotto_service_user "${instance}")"
+    if [[ "${LOTTO_META_USER}" != "${expected}" ]]; then
+        lotto_err "Metadata service_user '${LOTTO_META_USER}' does not match expected '${expected}'."
+        return 1
+    fi
+
+    if [[ "${LOTTO_META_APP}" != "$(lotto_app_path "${instance}")" ]]; then
+        lotto_err "Metadata app_path does not match deterministic layout."
+        return 1
+    fi
+    if [[ "${LOTTO_META_DATA}" != "$(lotto_data_path "${instance}")" ]]; then
+        lotto_err "Metadata data_path does not match deterministic layout."
+        return 1
+    fi
+    if [[ "${LOTTO_META_LOGS}" != "$(lotto_logs_path "${instance}")" ]]; then
+        lotto_err "Metadata logs_path does not match deterministic layout."
+        return 1
+    fi
+    if [[ "${LOTTO_META_CONFIG}" != "$(lotto_config_path "${instance}")" ]]; then
+        lotto_err "Metadata config_path does not match deterministic layout."
+        return 1
+    fi
+    if [[ "${LOTTO_META_BACKUP}" != "$(lotto_backup_dir "${instance}")" ]]; then
+        lotto_err "Metadata backup_path does not match deterministic layout."
+        return 1
+    fi
+
+    local meta_path_field
+    meta_path_field="$(lotto_json_get "${meta}" metadata_path)"
+    if [[ -n "${meta_path_field}" && "${meta_path_field}" != "${meta}" ]]; then
+        lotto_err "Metadata metadata_path does not match expected location."
+        return 1
+    fi
+
+    lotto_assert_not_protected_path "$(lotto_instance_root "${instance}")" || return 1
+    lotto_assert_not_protected_unit "${LOTTO_META_UNIT}" || return 1
+    lotto_assert_not_protected_user "${LOTTO_META_USER}" || return 1
+}
+
+lotto_assert_path_under_root() {
+    local path="$1"
+    local canon_root="$2"
+
+    if [[ ! -e "${path}" && ! -L "${path}" ]]; then
+        return 0
+    fi
+
+    local canon
+    canon="$(lotto_canonical_path "${path}")"
+    lotto_assert_not_protected_path "${canon}" || return 1
+    if [[ "${canon}" != "${canon_root}" && "${canon}" != "${canon_root}/"* ]]; then
+        lotto_err "Path '${path}' resolves outside instance root."
+        return 1
+    fi
+}
+
+lotto_assert_no_outside_symlinks() {
+    local root="$1"
+    local canon_root="$2"
+    local path target canon_target base
+
+    if [[ ! -e "${root}" ]]; then
+        return 0
+    fi
+
+    while IFS= read -r path; do
+        [[ -n "${path}" && -L "${path}" ]] || continue
+        target="$(readlink "${path}" 2>/dev/null || true)"
+        [[ -n "${target}" ]] || continue
+        if [[ "${target}" != /* ]]; then
+            base="$(cd "$(dirname "${path}")" 2>/dev/null && pwd)"
+            target="${base}/${target}"
+        fi
+        canon_target="$(lotto_canonical_path "${target}")"
+        if [[ "${canon_target}" != "${canon_root}" && "${canon_target}" != "${canon_root}/"* ]]; then
+            lotto_err "Symlink '${path}' points outside instance root (${canon_target})."
+            return 1
+        fi
+    done < <(find "${root}" 2>/dev/null || true)
+}
+
+lotto_assert_instance_tree_safe_for_removal() {
+    local instance="$1"
+    local root canon_root
+    root="$(lotto_instance_root "${instance}")"
+
+    lotto_assert_safe_instance_path "${root}" || return 1
+    canon_root="$(lotto_canonical_path "${root}")"
+
+    lotto_assert_path_under_root "${LOTTO_META_APP}" "${canon_root}" || return 1
+    lotto_assert_path_under_root "${LOTTO_META_DATA}" "${canon_root}" || return 1
+    lotto_assert_path_under_root "${LOTTO_META_LOGS}" "${canon_root}" || return 1
+    lotto_assert_path_under_root "${LOTTO_META_CONFIG}" "${canon_root}" || return 1
+
+    if [[ -e "${root}" || -L "${root}" ]]; then
+        lotto_assert_no_outside_symlinks "${root}" "${canon_root}" || return 1
+    fi
+}
+
+lotto_user_claimed_by_other_instance() {
+    local user="$1"
+    local skip_instance="$2"
+    local prefix meta inst recorded_user
+    prefix="${LOTTO_INSTANCE_ROOT_PREFIX}"
+    shopt -s nullglob
+    for meta in "${prefix}"*/config/deployment.json; do
+        [[ -f "${meta}" ]] || continue
+        inst="$(lotto_json_get "${meta}" instance)"
+        [[ -n "${inst}" && "${inst}" != "${skip_instance}" ]] || continue
+        recorded_user="$(lotto_json_get "${meta}" service_user)"
+        if [[ "${recorded_user}" == "${user}" ]]; then
+            shopt -u nullglob
+            return 0
+        fi
+    done
+    shopt -u nullglob
+    return 1
+}
+
+lotto_instance_has_unmanaged_residuals() {
+    local instance="$1"
+    local root unit backup svc_unit
+    root="$(lotto_instance_root "${instance}")"
+    unit="$(lotto_unit_file "${instance}")"
+    backup="$(lotto_backup_dir "${instance}")"
+    svc_unit="$(lotto_systemd_unit "${instance}")"
+
+    if [[ -e "${root}" ]]; then
+        return 0
+    fi
+    if [[ -f "${unit}" ]]; then
+        return 0
+    fi
+    if [[ -d "${backup}" ]]; then
+        return 0
+    fi
+    if command -v systemctl >/dev/null 2>&1; then
+        if systemctl is-active --quiet "${svc_unit}" 2>/dev/null; then
+            return 0
+        fi
+    fi
+    return 1
+}
+
+lotto_instance_fully_absent() {
+    local instance="$1"
+    if lotto_instance_metadata_exists "${instance}"; then
+        return 1
+    fi
+    if lotto_instance_has_unmanaged_residuals "${instance}"; then
+        return 1
+    fi
+    return 0
+}
+
+lotto_stop_disable_instance_unit() {
+    local instance="$1"
+    local unit
+    unit="$(lotto_systemd_unit "${instance}")"
+
+    lotto_assert_not_protected_unit "${unit}" || return 1
+
+    if ! command -v systemctl >/dev/null 2>&1; then
+        lotto_err "systemctl is required for systemd removal."
+        return 1
+    fi
+
+    if systemctl is-active --quiet "${unit}" 2>/dev/null; then
+        if ! systemctl stop "${unit}"; then
+            lotto_err "Failed to stop ${unit}."
+            return 1
+        fi
+    fi
+
+    if systemctl is-failed --quiet "${unit}" 2>/dev/null; then
+        systemctl reset-failed "${unit}" >/dev/null 2>&1 || true
+    fi
+
+    if systemctl is-enabled --quiet "${unit}" 2>/dev/null; then
+        if ! systemctl disable "${unit}" >/dev/null; then
+            lotto_err "Failed to disable ${unit}."
+            return 1
+        fi
+    fi
+}
+
+lotto_assert_unit_not_active() {
+    local instance="$1"
+    local unit
+    unit="$(lotto_systemd_unit "${instance}")"
+
+    lotto_assert_not_protected_unit "${unit}" || return 1
+
+    if ! command -v systemctl >/dev/null 2>&1; then
+        return 0
+    fi
+
+    if systemctl is-active --quiet "${unit}" 2>/dev/null; then
+        lotto_err "Service ${unit} is still active; refusing filesystem removal."
+        return 1
+    fi
+}
+
+lotto_remove_instance_unit_file() {
+    local instance="$1"
+    local unit unit_file
+    unit="$(lotto_systemd_unit "${instance}")"
+    unit_file="$(lotto_unit_file "${instance}")"
+
+    lotto_assert_not_protected_unit "${unit}" || return 1
+
+    if [[ -f "${unit_file}" ]]; then
+        rm -f "${unit_file}"
+    fi
+
+    if command -v systemctl >/dev/null 2>&1; then
+        systemctl daemon-reload >/dev/null 2>&1 || true
+    fi
+}
+
+lotto_remove_instance_tree() {
+    local instance="$1"
+    local root
+    root="$(lotto_instance_root "${instance}")"
+
+    if [[ ! -e "${root}" && ! -L "${root}" ]]; then
+        return 0
+    fi
+
+    lotto_assert_instance_tree_safe_for_removal "${instance}" || return 1
+    rm -rf "${root}"
+}
+
+lotto_remove_instance_backup_dir() {
+    local instance="$1"
+    local backup expected canon_backup canon_expected canon_parent
+
+    expected="$(lotto_backup_dir "${instance}")"
+    backup="${expected}"
+
+    if [[ ! -e "${backup}" && ! -L "${backup}" ]]; then
+        return 0
+    fi
+
+    canon_expected="$(lotto_canonical_path "${expected}")"
+    canon_backup="$(lotto_canonical_path "${backup}")"
+
+    if [[ "${canon_backup}" != "${canon_expected}" ]]; then
+        lotto_err "Backup path canonical mismatch."
+        return 1
+    fi
+
+    canon_parent="$(lotto_canonical_path "${LOTTO_BACKUP_ROOT}")"
+    if [[ "${canon_backup}" == "${canon_parent}" ]]; then
+        lotto_err "Refusing to remove shared backup root '${LOTTO_BACKUP_ROOT}'."
+        return 1
+    fi
+
+    if [[ "${canon_backup}" != "${canon_parent}/${instance}" && "${canon_backup}" != "${canon_parent}/${instance}/"* ]]; then
+        lotto_err "Backup path is outside instance-specific backup directory."
+        return 1
+    fi
+
+    rm -rf "${backup}"
+}
+
+lotto_remove_owned_service_user() {
+    local instance="$1"
+    local user created
+
+    user="$(lotto_service_user "${instance}")"
+    created="${LOTTO_META_CREATED_USER:-false}"
+
+    lotto_assert_not_protected_user "${user}" || return 1
+
+    if [[ "${created}" != "True" && "${created}" != "true" ]]; then
+        return 0
+    fi
+
+    if [[ "${user}" != "$(lotto_service_user "${instance}")" ]]; then
+        lotto_err "Service user mismatch during removal."
+        return 1
+    fi
+
+    if lotto_user_claimed_by_other_instance "${user}" "${instance}"; then
+        lotto_err "Service user '${user}' is referenced by another managed instance."
+        return 1
+    fi
+
+    if id -u "${user}" >/dev/null 2>&1; then
+        if ! userdel "${user}"; then
+            lotto_err "Failed to remove service user '${user}'."
+            return 1
+        fi
+    fi
+}
+
+lotto_verify_zero_artifacts() {
+    local instance="$1"
+    local expect_user_removed="${2:-false}"
+    local issues=0
+
+    if [[ -e "$(lotto_instance_root "${instance}")" ]]; then
+        lotto_err "Instance root still exists: $(lotto_instance_root "${instance}")"
+        issues=$((issues + 1))
+    fi
+    if lotto_instance_metadata_exists "${instance}"; then
+        lotto_err "Metadata still exists for '${instance}'."
+        issues=$((issues + 1))
+    fi
+    if [[ -f "$(lotto_unit_file "${instance}")" ]]; then
+        lotto_err "Unit file still exists: $(lotto_unit_file "${instance}")"
+        issues=$((issues + 1))
+    fi
+    if command -v systemctl >/dev/null 2>&1; then
+        if systemctl is-active --quiet "$(lotto_systemd_unit "${instance}")" 2>/dev/null; then
+            lotto_err "Service $(lotto_systemd_unit "${instance}") is still active."
+            issues=$((issues + 1))
+        fi
+    fi
+    if [[ -d "$(lotto_backup_dir "${instance}")" ]]; then
+        lotto_err "Instance backup directory still exists."
+        issues=$((issues + 1))
+    fi
+    if [[ "${expect_user_removed}" == "true" ]]; then
+        if id -u "$(lotto_service_user "${instance}")" >/dev/null 2>&1; then
+            lotto_err "Installer-owned service user still exists."
+            issues=$((issues + 1))
+        fi
+    fi
+
+    return $((issues > 0 ? 1 : 0))
+}
+
+# Simulate managed instance layout for tests (no systemd).
+lotto_symlinks_supported() {
+    local tmp target link
+    tmp="$(mktemp -d)"
+    target="$(mktemp -d)"
+    link="${tmp}/probe-link"
+    if ! ln -s "${target}" "${link}" 2>/dev/null; then
+        rm -rf "${tmp}" "${target}"
+        return 1
+    fi
+    if [[ -L "${link}" ]]; then
+        rm -rf "${tmp}" "${target}"
+        return 0
+    fi
+    rm -rf "${tmp}" "${target}" "${link}"
+    return 1
+}
+
+lotto_test_create_managed_instance() {
+    local instance="$1"
+    local port="${2:-8099}"
+    local created_user="${3:-true}"
+
+    lotto_validate_instance_name "${instance}" || return 1
+    mkdir -p "$(lotto_app_path "${instance}")" \
+        "$(lotto_data_path "${instance}")" \
+        "$(lotto_logs_path "${instance}")" \
+        "$(lotto_config_path "${instance}")" \
+        "$(lotto_backup_dir "${instance}")"
+    touch "$(lotto_data_path "${instance}")/game.db"
+    lotto_write_env_file "${instance}" "${port}" "127.0.0.1"
+    lotto_write_metadata "${instance}" "${port}" "127.0.0.1" "${created_user}"
+}
+
+lotto_test_remove_managed_instance() {
+    local instance="$1"
+
+    lotto_load_instance "${instance}" || return 1
+    lotto_validate_removal_metadata "${instance}" || return 1
+    lotto_assert_instance_tree_safe_for_removal "${instance}" || return 1
+    lotto_remove_instance_tree "${instance}" || return 1
+    lotto_remove_instance_backup_dir "${instance}" || return 1
+
+    local remove_user="false"
+    if [[ "${LOTTO_META_CREATED_USER}" == "True" || "${LOTTO_META_CREATED_USER}" == "true" ]]; then
+        remove_user="true"
+    fi
+
+    lotto_verify_zero_artifacts "${instance}" "${remove_user}"
+}
+
+# --- Epic C: update / operational lifecycle helpers ---
+
+LOTTO_UPDATE_LOCK_DIR="/var/lock"
+LOTTO_UPDATE_LOCK_FD=9
+
+lotto_validate_update_metadata() {
+    lotto_validate_removal_metadata "$@"
+}
+
+lotto_assert_managed_instance_installed() {
+    local instance="$1"
+
+    if ! lotto_instance_metadata_exists "${instance}"; then
+        lotto_err "Instance '${instance}' is not installed (metadata missing)."
+        return 1
+    fi
+    if [[ ! -d "$(lotto_instance_root "${instance}")" ]]; then
+        lotto_err "Instance root missing for '${instance}'."
+        return 1
+    fi
+    if [[ ! -f "$(lotto_env_file "${instance}")" ]]; then
+        lotto_err "Environment file missing for '${instance}'."
+        return 1
+    fi
+}
+
+lotto_assert_env_file_valid() {
+    local env_file="$1"
+    local key
+
+    if [[ ! -f "${env_file}" ]]; then
+        lotto_err "Environment file not found: ${env_file}"
+        return 1
+    fi
+    for key in LOTTO_WS_PORT LOTTO_DB_PATH LOTTO_SERVER_LOG LOTTO_WORKERMAN_LOG_FILE LOTTO_WORKERMAN_PID_FILE; do
+        if ! grep -q "^${key}=" "${env_file}"; then
+            lotto_err "Required environment key missing: ${key}"
+            return 1
+        fi
+    done
+}
+
+lotto_acquire_update_lock() {
+    local instance="$1"
+    local lock_file="${LOTTO_UPDATE_LOCK_DIR}/lotto-game-${instance}.lock"
+
+    mkdir -p "${LOTTO_UPDATE_LOCK_DIR}"
+    # shellcheck disable=SC2086
+    eval "exec ${LOTTO_UPDATE_LOCK_FD}>\"${lock_file}\""
+    if ! command -v flock >/dev/null 2>&1; then
+        lotto_err "flock is required for concurrent update protection."
+        return 1
+    fi
+    if ! flock -n "${LOTTO_UPDATE_LOCK_FD}"; then
+        lotto_err "Another update is already running for instance '${instance}'."
+        return 1
+    fi
+}
+
+lotto_release_update_lock() {
+    if command -v flock >/dev/null 2>&1; then
+        flock -u "${LOTTO_UPDATE_LOCK_FD}" 2>/dev/null || true
+    fi
+}
+
+lotto_stop_instance_for_update() {
+    local instance="$1"
+    local unit
+    unit="$(lotto_systemd_unit "${instance}")"
+
+    lotto_assert_not_protected_unit "${unit}" || return 1
+    if ! command -v systemctl >/dev/null 2>&1; then
+        lotto_err "systemctl is required for systemd update."
+        return 1
+    fi
+    if systemctl is-active --quiet "${unit}" 2>/dev/null; then
+        if ! systemctl stop "${unit}"; then
+            lotto_err "Failed to stop ${unit} before update."
+            return 1
+        fi
+    fi
+}
+
+lotto_start_instance_after_update() {
+    local instance="$1"
+    local unit
+    unit="$(lotto_systemd_unit "${instance}")"
+
+    lotto_assert_not_protected_unit "${unit}" || return 1
+    if ! systemctl restart "${unit}"; then
+        lotto_err "Failed to restart ${unit} after update."
+        return 1
+    fi
+    lotto_wait_for_active_unit "${unit}" 60
+}
+
+lotto_unit_needs_refresh() {
+    local instance="$1"
+    local unit_file tmp user app env data logs config
+    unit_file="$(lotto_unit_file "${instance}")"
+    user="$(lotto_service_user "${instance}")"
+    app="$(lotto_app_path "${instance}")"
+    env="$(lotto_env_file "${instance}")"
+    data="$(lotto_data_path "${instance}")"
+    logs="$(lotto_logs_path "${instance}")"
+    config="$(lotto_config_path "${instance}")"
+
+    tmp="$(mktemp)"
+    lotto_render_unit_file "${tmp}" "${user}" "${app}" "${env}" "${data}" "${logs}" "${config}"
+
+    if [[ ! -f "${unit_file}" ]]; then
+        rm -f "${tmp}"
+        return 0
+    fi
+    if cmp -s "${tmp}" "${unit_file}"; then
+        rm -f "${tmp}"
+        return 1
+    fi
+    rm -f "${tmp}"
+    return 0
+}
+
+lotto_refresh_instance_unit_if_needed() {
+    local instance="$1"
+    local unit_file user app env data logs config
+    unit_file="$(lotto_unit_file "${instance}")"
+    user="$(lotto_service_user "${instance}")"
+    app="$(lotto_app_path "${instance}")"
+    env="$(lotto_env_file "${instance}")"
+    data="$(lotto_data_path "${instance}")"
+    logs="$(lotto_logs_path "${instance}")"
+    config="$(lotto_config_path "${instance}")"
+
+    if ! lotto_unit_needs_refresh "${instance}"; then
+        return 1
+    fi
+
+    lotto_render_unit_file "${unit_file}" "${user}" "${app}" "${env}" "${data}" "${logs}" "${config}"
+    if command -v systemctl >/dev/null 2>&1; then
+        systemctl daemon-reload >/dev/null 2>&1 || true
+    fi
+    return 0
+}
+
+lotto_refresh_metadata_timestamp() {
+    local instance="$1"
+    local meta created_at created_user cu port bind updated_at
+    meta="$(lotto_metadata_file "${instance}")"
+
+    lotto_load_instance "${instance}" || return 1
+    created_at="$(lotto_json_get "${meta}" created_at)"
+    port="${LOTTO_META_PORT}"
+    bind="${LOTTO_META_BIND}"
+    created_user="${LOTTO_META_CREATED_USER}"
+    updated_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+    cu="false"
+    if [[ "${created_user}" == "True" || "${created_user}" == "true" ]]; then
+        cu="true"
+    fi
+
+    lotto_write_metadata "${instance}" "${port}" "${bind}" "${cu}" "${created_at}" "${updated_at}"
+}
+
+lotto_chown_app_tree() {
+    local instance="$1"
+    local user app
+    user="$(lotto_service_user "${instance}")"
+    app="$(lotto_app_path "${instance}")"
+    chown -R "${user}:${user}" "${app}"
+}
+
+lotto_test_simulate_update() {
+    local instance="$1"
+    local env_before db_before meta_port env_file data_db
+
+    lotto_load_instance "${instance}" || return 1
+    lotto_validate_update_metadata "${instance}" || return 1
+    lotto_assert_env_file_valid "$(lotto_env_file "${instance}")" || return 1
+
+    env_file="$(lotto_env_file "${instance}")"
+    data_db="$(lotto_data_path "${instance}")/game.db"
+    env_before="$(cat "${env_file}")"
+    db_before=""
+    if [[ -f "${data_db}" ]]; then
+        db_before="$(cat "${data_db}")"
+    fi
+    meta_port="${LOTTO_META_PORT}"
+
+    lotto_sync_app_source "$(lotto_app_path "${instance}")"
+
+    if [[ "$(cat "${env_file}")" != "${env_before}" ]]; then
+        lotto_err "Environment file changed during update simulation."
+        return 1
+    fi
+    if [[ -f "${data_db}" && -n "${db_before}" && "$(cat "${data_db}")" != "${db_before}" ]]; then
+        lotto_err "Database changed during update simulation."
+        return 1
+    fi
+
+    lotto_refresh_metadata_timestamp "${instance}" || return 1
+    lotto_load_instance "${instance}"
+    if [[ "${LOTTO_META_PORT}" != "${meta_port}" ]]; then
+        lotto_err "Port changed unexpectedly during update."
+        return 1
     fi
 }

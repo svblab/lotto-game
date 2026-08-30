@@ -18,7 +18,7 @@ Status: **Completed** (foundation only — no install/remove/update)
 - [DONE] Metadata schema v1 (`config/deployment.json`, no secrets)
 - [DONE] Production guards: `/opt/lotto-game`, `lotto-server.service`, `www-data`, port 8080
 - [DONE] Tests: `deploy/systemd/tests/run_tests.sh`
-- [NOT STARTED] B3 remove, C update/health, D full docs/VPS tests
+- [NOT STARTED] C update/health, D full docs/VPS tests
 
 Files:
 - `deploy/systemd/lib/common.sh`, `deploy/systemd/tests/run_tests.sh`, `deploy/systemd/README.md`
@@ -36,7 +36,7 @@ Status: **Completed** (install only — no remove/update)
 - [DONE] `healthcheck.sh` — unit active + WebSocket health (reuses `deploy/docker/healthcheck.php`)
 - [DONE] `service.template` — hardened unit (`NoNewPrivileges`, `PrivateTmp`, `ProtectSystem`, `ReadWritePaths`)
 - [DONE] B2 helper tests in `deploy/systemd/tests/run_tests.sh`
-- [NOT STARTED] B3 remove, C update/limits, D full VPS integration docs/tests
+- [NOT STARTED] C update/limits, D full VPS integration docs/tests
 
 Files:
 - `deploy/systemd/install.sh`, `deploy/systemd/healthcheck.sh`, `deploy/systemd/service.template`
@@ -47,12 +47,53 @@ VERIFICATION:
 - `bash deploy/docker/tests/run_tests.sh` — Docker regression (unchanged behaviour)
 - Full systemd install on Linux VPS — **NOT RUN** (requires root + systemd host)
 
+## Epic B3 — Systemd safe removal (2026-08-30)
+
+Status: **Completed** (remove only — no update/rollback)
+
+- [DONE] `remove.sh` — metadata-validated, instance-scoped removal with fail-closed ownership checks
+- [DONE] Stop/disable/remove unit; safe filesystem + backup cleanup; conditional user removal (`created_user`)
+- [DONE] Canonical path + symlink escape protection before destructive operations
+- [DONE] Zero-artifact verification; idempotent re-removal; missing-metadata-with-residuals fails safely
+- [DONE] B3 tests in `deploy/systemd/tests/run_tests.sh`
+- [NOT STARTED] C update/limits, D full VPS integration docs/tests
+
+Files:
+- `deploy/systemd/remove.sh`
+- `deploy/systemd/lib/common.sh` (B3 removal helpers appended)
+
+VERIFICATION:
+- `bash deploy/systemd/tests/run_tests.sh` — **87/87 PASS** (Git Bash on Windows dev host; symlink escape test skipped when OS lacks symlinks)
+- `bash deploy/docker/tests/run_tests.sh` — Docker regression (unchanged behaviour)
+- Full systemd remove on Linux VPS — **NOT RUN** (requires root + systemd host)
+
+## Epic C — Systemd update and operational lifecycle (2026-08-30)
+
+Status: **Completed** (update only — no rollback framework, no port change)
+
+- [DONE] `update.sh` — validate managed instance, stop, rsync app, `composer install`, conditional unit refresh, restart, healthcheck
+- [DONE] Preserves `data/game.db`, `config/environment`, port, user; metadata `updated_at` only after success
+- [DONE] Instance lock (`/var/lock/lotto-game-<name>.lock`); failure leaves service stopped with config/DB intact
+- [DONE] C tests in `deploy/systemd/tests/run_tests.sh`
+- [NOT STARTED] D full VPS integration docs/tests; transactional rollback; pre-update backup framework
+
+Files:
+- `deploy/systemd/update.sh`
+- `deploy/systemd/lib/common.sh` (C update helpers appended)
+
+VERIFICATION:
+- `bash deploy/systemd/tests/run_tests.sh` — **106/106 PASS** (Git Bash on Windows dev host)
+- `bash deploy/docker/tests/run_tests.sh` — Docker regression (unchanged behaviour)
+- Full systemd update on Linux VPS — **NOT RUN** (requires root + systemd host)
+
 ---
 
 - [DONE] **A** — ADR-037; Docker scripts under `deploy/docker/`; `deploy/systemd/` boundary
 - [DONE] **B1** — identity, metadata, production guards (`deploy/systemd/lib/common.sh`)
 - [DONE] **B2** — systemd install (`deploy/systemd/install.sh`, helpers, tests)
-- [PENDING] **B3–D** — remove, update/health lifecycle, full docs/VPS tests
+- [DONE] **B3** — systemd remove (`deploy/systemd/remove.sh`, helpers, tests)
+- [DONE] **C** — systemd update (`deploy/systemd/update.sh`, helpers, tests)
+- [PENDING] **D** — full docs/VPS integration tests
 
 - [DONE] Docker scripts relocated from top-level `deploy/` to `deploy/docker/` (behaviour preserved)
 - [DONE] Top-level ambiguous entry points removed (`deploy/install.sh`, etc.)
@@ -75,8 +116,8 @@ Independent from TECHNICAL DEBT. Sequence: **A → B1 → B2 → B3 → C → D*
 | A — ADR-037 + deploy layout | **DONE** (Epic A) | `docs/ADR/037-deployment-mode-separation.md`; `deploy/docker/`; `deploy/systemd/README.md` |
 | B1 — Systemd identity/safety | **DONE** (Epic B1) | `deploy/systemd/lib/common.sh`, `deploy/systemd/tests/run_tests.sh` |
 | B2 — Systemd installation | **DONE** (Epic B2) | `deploy/systemd/install.sh`, `healthcheck.sh`, `service.template`; tests 63/63 |
-| B3 — Systemd removal | **NOT STARTED** | Deferred |
-| C — Update / health / limits | **NOT STARTED** | Deferred |
+| B3 — Systemd removal | **DONE** (Epic B3) | `deploy/systemd/remove.sh`; metadata validation, symlink guards, zero-artifact verify |
+| C — Update / operational lifecycle | **DONE** (Epic C) | `deploy/systemd/update.sh`; app refresh, composer install, lock, health verify |
 | D — Documentation / tests | **NOT STARTED** | Docker helper tests under `deploy/docker/tests/`; systemd/coexistence VPS verification deferred |
 
 **NOT BLOCKING:** TD-1, TD-2, TD-3 (no hard dependencies demonstrated).
