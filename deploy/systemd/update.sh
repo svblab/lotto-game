@@ -108,7 +108,7 @@ lotto_start_instance_after_update "${INSTANCE}"
 SERVICE_STOPPED=0
 
 UPDATE_STAGE="healthcheck"
-lotto_run_instance_healthcheck "${HOST_PORT}"
+lotto_wait_for_instance_healthcheck "${HOST_PORT}" 60
 
 UPDATE_STAGE="finalize metadata"
 lotto_refresh_metadata_timestamp "${INSTANCE}"

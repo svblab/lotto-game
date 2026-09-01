@@ -622,6 +622,24 @@ lotto_run_instance_healthcheck() {
     LOTTO_WS_PORT="${port}" php "${LOTTO_REPO_ROOT}/deploy/docker/healthcheck.php"
 }
 
+lotto_wait_for_instance_healthcheck() {
+    local port="$1"
+    local timeout="${2:-60}"
+    local start now
+    start=$(date +%s)
+    while true; do
+        if LOTTO_WS_PORT="${port}" php "${LOTTO_REPO_ROOT}/deploy/docker/healthcheck.php"; then
+            return 0
+        fi
+        now=$(date +%s)
+        if (( now - start >= timeout )); then
+            lotto_err "Timed out waiting for WebSocket health on port ${port}."
+            return 1
+        fi
+        sleep 2
+    done
+}
+
 lotto_wait_for_active_unit() {
     local unit="$1"
     local timeout="${2:-60}"

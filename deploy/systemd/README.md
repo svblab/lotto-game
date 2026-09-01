@@ -13,7 +13,7 @@ Live VPS verification checklist: **`docs/SYSTEMD_VPS_VERIFICATION.md`**.
 | **B2** | Installation | **DONE** |
 | **B3** | Removal | **DONE** |
 | **C** | Update / operational lifecycle | **DONE** |
-| **D** | VPS verification + final docs + operational UX | **PARTIAL** — docs/UX done; live VPS checklist **NOT RUN** |
+| **D** | VPS verification + final docs + operational UX | **DONE** — D1 verified on Ubuntu 24.04 VPS (2026-09-01) |
 
 ## Deployment models (do not confuse)
 
@@ -72,6 +72,18 @@ sudo ./deploy/systemd/healthcheck.sh [INSTANCE]
 ```
 
 Requires unit active + WebSocket health via `deploy/docker/healthcheck.php`.
+
+## Passwordless sudo (automation)
+
+For SSH MCP / CI, configure NOPASSWD for deploy scripts (one-time, as root):
+
+```bash
+su -
+bash /path/to/lotto-game/deploy/sudoers/install.sh cursor-user
+bash /path/to/lotto-game/deploy/sudoers/verify.sh   # as deploy user
+```
+
+See **`deploy/sudoers/README.md`**.
 
 ## Tests
 

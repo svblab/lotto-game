@@ -150,7 +150,7 @@ systemctl restart "${UNIT}"
 lotto_wait_for_active_unit "${UNIT}" 60
 
 lotto_info "Running application healthcheck..."
-lotto_run_instance_healthcheck "${HOST_PORT}"
+lotto_wait_for_instance_healthcheck "${HOST_PORT}" 60
 
 if [[ "${CREATED_USER}" == "false" && "${METADATA_EXISTS}" -eq 1 && ( "${LOTTO_META_CREATED_USER}" == "True" || "${LOTTO_META_CREATED_USER}" == "true" ) ]]; then
     CREATED_USER="true"

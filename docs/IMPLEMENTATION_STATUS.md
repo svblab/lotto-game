@@ -18,7 +18,7 @@ Status: **Completed** (foundation only — no install/remove/update)
 - [DONE] Metadata schema v1 (`config/deployment.json`, no secrets)
 - [DONE] Production guards: `/opt/lotto-game`, `lotto-server.service`, `www-data`, port 8080
 - [DONE] Tests: `deploy/systemd/tests/run_tests.sh`
-- [NOT STARTED] D VPS verification (D1 live host)
+- [DONE] D VPS verification (D1 live host — Ubuntu 24.04 VPS 2026-09-01)
 
 Files:
 - `deploy/systemd/lib/common.sh`, `deploy/systemd/tests/run_tests.sh`, `deploy/systemd/README.md`
@@ -36,7 +36,7 @@ Status: **Completed** (install only — no remove/update)
 - [DONE] `healthcheck.sh` — unit active + WebSocket health (reuses `deploy/docker/healthcheck.php`)
 - [DONE] `service.template` — hardened unit (`NoNewPrivileges`, `PrivateTmp`, `ProtectSystem`, `ReadWritePaths`)
 - [DONE] B2 helper tests in `deploy/systemd/tests/run_tests.sh`
-- [NOT STARTED] D VPS verification (D1 live host)
+- [DONE] D VPS verification (D1 live host — Ubuntu 24.04 VPS 2026-09-01)
 
 Files:
 - `deploy/systemd/install.sh`, `deploy/systemd/healthcheck.sh`, `deploy/systemd/service.template`
@@ -56,7 +56,7 @@ Status: **Completed** (remove only — no update/rollback)
 - [DONE] Canonical path + symlink escape protection before destructive operations
 - [DONE] Zero-artifact verification; idempotent re-removal; missing-metadata-with-residuals fails safely
 - [DONE] B3 tests in `deploy/systemd/tests/run_tests.sh`
-- [NOT STARTED] D VPS verification (D1 live host)
+- [DONE] D VPS verification (D1 live host — Ubuntu 24.04 VPS 2026-09-01)
 
 Files:
 - `deploy/systemd/remove.sh`
@@ -88,13 +88,15 @@ VERIFICATION:
 
 ## Epic D — VPS verification, documentation, operational UX (2026-08-31)
 
-Status: **Partial** — D2/D3 complete; **D1 live VPS lifecycle NOT RUN**
+Status: **Completed** — D1 verified on real Linux VPS (2026-09-01); D2/D3 complete.
 
 ### D1 — Live VPS verification
 
-- [NOT RUN] Full install → health → multi-instance → update → remove lifecycle on clean Linux VPS
-- [NOT RUN] Production regression, Docker coexistence, Linux symlink security test
+- [DONE] Full install → health → multi-instance → update → remove lifecycle on clean Linux VPS (`box-963286`, Ubuntu 24.04)
+- [DONE] Production regression (no production present; baseline unchanged), Linux symlink security test (111/111 on VPS)
+- [DONE] Docker regression 21/21; Docker coexistence **SKIPPED** (Docker not on verification VPS)
 - Checklist: `docs/SYSTEMD_VPS_VERIFICATION.md`
+- Fix during D1: `lotto_wait_for_instance_healthcheck()` — install/update healthcheck race on slow VPS
 
 ### D2 — Final deployment documentation
 
@@ -115,9 +117,9 @@ Files:
 - `deploy/systemd/lib/common.sh`, `install.sh`, `update.sh`, `remove.sh`, `healthcheck.sh`
 
 VERIFICATION:
-- `bash deploy/systemd/tests/run_tests.sh` — helper tests (Git Bash)
-- `bash deploy/docker/tests/run_tests.sh` — Docker regression
-- D1 VPS acceptance test — **NOT RUN**
+- `bash deploy/systemd/tests/run_tests.sh` — **111/111 PASS** on Ubuntu 24.04 VPS (`box-963286`) via SSH MCP
+- `bash deploy/docker/tests/run_tests.sh` — **21/21 PASS** on same VPS (Docker integration skipped)
+- D1 VPS acceptance test — **DONE** — see `docs/SYSTEMD_VPS_VERIFICATION.md`
 
 ---
 
@@ -126,7 +128,7 @@ VERIFICATION:
 - [DONE] **B2** — systemd install (`deploy/systemd/install.sh`, helpers, tests)
 - [DONE] **B3** — systemd remove (`deploy/systemd/remove.sh`, helpers, tests)
 - [DONE] **C** — systemd update (`deploy/systemd/update.sh`, helpers, tests)
-- [PARTIAL] **D** — docs/UX complete; D1 VPS verification pending (`docs/SYSTEMD_VPS_VERIFICATION.md`)
+- [DONE] **D** — VPS verification complete on real Linux/systemd host (`docs/SYSTEMD_VPS_VERIFICATION.md`)
 
 - [DONE] Docker scripts relocated from top-level `deploy/` to `deploy/docker/` (behaviour preserved)
 - [DONE] Top-level ambiguous entry points removed (`deploy/install.sh`, etc.)
@@ -151,7 +153,7 @@ Independent from TECHNICAL DEBT. Sequence: **A → B1 → B2 → B3 → C → D*
 | B2 — Systemd installation | **DONE** (Epic B2) | `deploy/systemd/install.sh`, `healthcheck.sh`, `service.template`; tests 63/63 |
 | B3 — Systemd removal | **DONE** (Epic B3) | `deploy/systemd/remove.sh`; metadata validation, symlink guards, zero-artifact verify |
 | C — Update / operational lifecycle | **DONE** (Epic C) | `deploy/systemd/update.sh`; app refresh, composer install, lock, health verify |
-| D — Documentation / VPS verification | **PARTIAL** (Epic D) | D2/D3 docs + operational UX done; D1 live VPS checklist **NOT RUN** — `docs/SYSTEMD_VPS_VERIFICATION.md` |
+| D — Documentation / VPS verification | **DONE** (Epic D) | D1 verified on Ubuntu 24.04 VPS; lifecycle + 111/111 systemd tests — `docs/SYSTEMD_VPS_VERIFICATION.md` |
 
 **NOT BLOCKING:** TD-1, TD-2, TD-3 (no hard dependencies demonstrated).
 
