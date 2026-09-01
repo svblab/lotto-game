@@ -21,9 +21,11 @@ bash deploy/sudoers/verify.sh
 Or manually:
 
 ```bash
-sudo -n true
-sudo -n bash deploy/systemd/install.sh --help
+sudo -n /bin/bash deploy/systemd/install.sh --help
 ```
+
+Deploy scripts are not executable in Git; use `sudo -n /bin/bash <script>` from the repo root.
+Direct `sudo -n ./deploy/systemd/install.sh` fails without `chmod +x`.
 
 ## Scope
 

@@ -82,7 +82,7 @@ Test instances: `d-vps-test` (port 8081), `d-vps-test-2` (port 8082).
 | Remove B idempotent | second remove | **PASS** — "already absent" |
 | Zero artifacts B | root, unit, metadata, user | **PASS** |
 | Remove A | `sudo ./deploy/systemd/remove.sh d-vps-test` | **PASS** — zero-artifact PASS |
-| Zero artifacts A | full B3 verification | **PASS** — note: empty `/var/lock/lotto-game-d-vps-test.lock` remains (update lock; not in B3 verify list) |
+| Zero artifacts A | full B3 verification | **PASS** — update lock file removed on instance removal (Post-D1 fix) |
 | Production regression | production resources unchanged | **PASS** — same baseline as preflight |
 | Docker regression | `bash deploy/docker/tests/run_tests.sh` | **PASS** — 21/21 (PHP syntax OK after install); integration **SKIP** (Docker not on VPS) |
 | Docker coexistence | optional if Docker available | **SKIPPED** — Docker not installed |
@@ -98,6 +98,20 @@ Test instances: `d-vps-test` (port 8081), `d-vps-test-2` (port 8082).
 Files changed: `deploy/systemd/lib/common.sh`, `deploy/systemd/install.sh`, `deploy/systemd/update.sh`.
 
 ---
+
+## Post-D1 operational verification (2026-09-01)
+
+| Check | Result |
+|-------|--------|
+| Healthcheck race retry | **PASS** — `Connection refused` once, then `Healthcheck: PASS` on real install |
+| `sudo -n` lifecycle via `/bin/bash` | **PASS** — install/update/healthcheck/remove without password |
+| `deploy/sudoers/verify.sh` | **PASS** — all 7 whitelisted scripts |
+| Sudo boundary | **PASS** — `sudo -n /bin/bash -c`, `systemctl`, `rm` require password |
+| Lock file on removal | **PASS** — `/var/lock/lotto-game-<instance>.lock` removed with instance |
+| Docker coexistence | **SKIPPED** — Docker not on verification VPS |
+| Regression suites | **PASS** — systemd 111/111, docker 21/21 on VPS |
+
+**Operator note:** deploy scripts are not executable in Git; use `sudo -n /bin/bash deploy/systemd/<script>.sh` from repo root (not `sudo -n ./deploy/systemd/<script>.sh`).
 
 ## Automated regression (executed on VPS via SSH MCP)
 

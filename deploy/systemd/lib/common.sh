@@ -1046,6 +1046,10 @@ lotto_verify_zero_artifacts() {
         lotto_err "Instance backup directory still exists."
         issues=$((issues + 1))
     fi
+    if [[ -f "$(lotto_instance_lock_file "${instance}")" ]]; then
+        lotto_err "Update lock file still exists: $(lotto_instance_lock_file "${instance}")"
+        issues=$((issues + 1))
+    fi
     if [[ "${expect_user_removed}" == "true" ]]; then
         if id -u "$(lotto_service_user "${instance}")" >/dev/null 2>&1; then
             lotto_err "Installer-owned service user still exists."
@@ -1098,6 +1102,7 @@ lotto_test_remove_managed_instance() {
     lotto_assert_instance_tree_safe_for_removal "${instance}" || return 1
     lotto_remove_instance_tree "${instance}" || return 1
     lotto_remove_instance_backup_dir "${instance}" || return 1
+    lotto_remove_instance_lock_file "${instance}" || true
 
     local remove_user="false"
     if [[ "${LOTTO_META_CREATED_USER}" == "True" || "${LOTTO_META_CREATED_USER}" == "true" ]]; then
@@ -1111,6 +1116,20 @@ lotto_test_remove_managed_instance() {
 
 LOTTO_UPDATE_LOCK_DIR="/var/lock"
 LOTTO_UPDATE_LOCK_FD=9
+
+lotto_instance_lock_file() {
+    local instance="$1"
+    echo "${LOTTO_UPDATE_LOCK_DIR}/lotto-game-${instance}.lock"
+}
+
+lotto_remove_instance_lock_file() {
+    local instance="$1"
+    local lock_file
+    lock_file="$(lotto_instance_lock_file "${instance}")"
+    if [[ -f "${lock_file}" ]]; then
+        rm -f "${lock_file}"
+    fi
+}
 
 lotto_validate_update_metadata() {
     lotto_validate_removal_metadata "$@"
@@ -1151,7 +1170,8 @@ lotto_assert_env_file_valid() {
 
 lotto_acquire_update_lock() {
     local instance="$1"
-    local lock_file="${LOTTO_UPDATE_LOCK_DIR}/lotto-game-${instance}.lock"
+    local lock_file
+    lock_file="$(lotto_instance_lock_file "${instance}")"
 
     mkdir -p "${LOTTO_UPDATE_LOCK_DIR}"
     # shellcheck disable=SC2086

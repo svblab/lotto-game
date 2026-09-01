@@ -55,7 +55,7 @@ Requires Linux, root, systemd, PHP + Composer + rsync on the host. Port defaults
 sudo ./deploy/systemd/update.sh [INSTANCE]
 ```
 
-Preserves `data/`, `config/environment`, port, and user. No transactional rollback. Instance lock: `/var/lock/lotto-game-<name>.lock`.
+Preserves `data/`, `config/environment`, port, and user. No transactional rollback. Instance lock: `/var/lock/lotto-game-<name>.lock` (created during update; removed on instance removal).
 
 ## Remove (B3)
 
@@ -84,6 +84,15 @@ bash /path/to/lotto-game/deploy/sudoers/verify.sh   # as deploy user
 ```
 
 See **`deploy/sudoers/README.md`**.
+
+Lifecycle commands (from repo root, after sudoers install):
+
+```bash
+sudo -n /bin/bash deploy/systemd/install.sh demo
+sudo -n /bin/bash deploy/systemd/healthcheck.sh demo
+sudo -n /bin/bash deploy/systemd/update.sh demo
+sudo -n /bin/bash deploy/systemd/remove.sh demo
+```
 
 ## Tests
 

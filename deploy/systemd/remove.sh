@@ -84,6 +84,8 @@ fi
 
 lotto_remove_instance_backup_dir "${INSTANCE}" || exit 1
 
+lotto_remove_instance_lock_file "${INSTANCE}" || true
+
 if [[ "${CREATED_USER}" == "true" ]]; then
     lotto_remove_owned_service_user "${INSTANCE}" || exit 1
 else

@@ -15,10 +15,10 @@ pass() {
     echo "PASS: $*"
 }
 
-if ! sudo -n true 2>/dev/null; then
-    fail "passwordless sudo is not configured (sudo -n true failed)"
+if ! sudo -n /bin/bash "${REPO_ROOT}/deploy/systemd/install.sh" --help >/dev/null 2>&1; then
+    fail "passwordless sudo is not configured for deploy/systemd/install.sh"
 fi
-pass "sudo -n true"
+pass "deploy/systemd/install.sh --help"
 
 check_script() {
     local rel="$1"
@@ -26,8 +26,8 @@ check_script() {
     if [[ ! -f "${path}" ]]; then
         fail "missing script: ${path}"
     fi
-    if ! sudo -n bash "${path}" --help >/dev/null 2>&1; then
-        fail "NOPASSWD denied for: bash ${path} --help"
+    if ! sudo -n /bin/bash "${path}" --help >/dev/null 2>&1; then
+        fail "NOPASSWD denied for: /bin/bash ${path} --help"
     fi
     pass "${rel}"
 }

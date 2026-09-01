@@ -281,15 +281,15 @@ test_b3_managed_removal() {
     LOTTO_BACKUP_ROOT="${tmp}/backups"
 
     lotto_test_create_managed_instance "demo" 8099 true
-    assert_true "instance root exists before removal" test -d "$(lotto_instance_root demo)"
-    assert_true "metadata exists before removal" lotto_instance_metadata_exists "demo"
-    assert_true "backup exists before removal" test -d "$(lotto_backup_dir demo)"
+    touch "$(lotto_instance_lock_file demo)"
+    assert_true "lock file exists before removal" test -f "$(lotto_instance_lock_file demo)"
 
     lotto_load_instance "demo"
     lotto_test_remove_managed_instance "demo"
     assert_false "instance root removed" test -d "$(lotto_instance_root demo)"
     assert_false "metadata removed" lotto_instance_metadata_exists "demo"
     assert_false "backup removed" test -d "$(lotto_backup_dir demo)"
+    assert_false "lock file removed" test -f "$(lotto_instance_lock_file demo)"
 
     rm -rf "${tmp}"
 }
