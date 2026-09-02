@@ -20,7 +20,8 @@ Do **not** use the existing production deployment as a destructive test target.
 | OS | Ubuntu 24.04.4 LTS, kernel 6.8.0-138-generic |
 | Access | SSH MCP, user `cursor-user`, root via `su` for lifecycle scripts |
 | Repository | `~/lotto-game` — branch `feature/epic-d-systemd-docs-vps` |
-| Commit tested | `09d2cb41e35a7309140e6e9bb7e7d4cd167f9d6f` |
+| Commit tested (D1 lifecycle) | `9671312` — healthcheck race fix + full install/update/remove on VPS |
+| Branch HEAD (Post-D1) | `84394c0` — sudo verify UX + lock-file cleanup (re-verified on VPS) |
 | Test instances | `d-vps-test`, `d-vps-test-2` |
 
 ---
@@ -77,7 +78,7 @@ Test instances: `d-vps-test` (port 8081), `d-vps-test-2` (port 8082).
 | Update A ×2 | two consecutive updates | **PASS** — both succeeded; healthcheck pass |
 | Port conflict | `install.sh d-vps-portconflict --port 8099` with listener on 8099 | **PASS** — rejected; no partial install dir |
 | Production guards | reserved names/8080 rejected | **PASS** — `production`, `www-data`, `lotto-server`, port 8080 all rejected |
-| Symlink escape (Linux) | B3 symlink test on real symlinks | **PASS** — `run_tests.sh` 111/111 on VPS |
+| Symlink escape (Linux) | B3 symlink test on real symlinks | **PASS** — `run_tests.sh` 110/110 on VPS (D1 session) |
 | Remove B | `sudo ./deploy/systemd/remove.sh d-vps-test-2` | **PASS** — zero-artifact PASS |
 | Remove B idempotent | second remove | **PASS** — "already absent" |
 | Zero artifacts B | root, unit, metadata, user | **PASS** |
@@ -109,7 +110,7 @@ Files changed: `deploy/systemd/lib/common.sh`, `deploy/systemd/install.sh`, `dep
 | Sudo boundary | **PASS** — `sudo -n /bin/bash -c`, `systemctl`, `rm` require password |
 | Lock file on removal | **PASS** — `/var/lock/lotto-game-<instance>.lock` removed with instance |
 | Docker coexistence | **SKIPPED** — Docker not on verification VPS |
-| Regression suites | **PASS** — systemd 111/111, docker 21/21 on VPS |
+| Regression suites | **PASS** — systemd 110/110, docker 21/21 on VPS at `84394c0` |
 
 **Operator note:** deploy scripts are not executable in Git; use `sudo -n /bin/bash deploy/systemd/<script>.sh` from repo root (not `sudo -n ./deploy/systemd/<script>.sh`).
 
@@ -117,7 +118,7 @@ Files changed: `deploy/systemd/lib/common.sh`, `deploy/systemd/install.sh`, `dep
 
 ```bash
 cd ~/lotto-game && bash deploy/systemd/tests/run_tests.sh
-# Systemd deployment tests: 111/111 passed
+# Systemd deployment tests: 110/110 passed (at branch HEAD 84394c0)
 
 bash deploy/docker/tests/run_tests.sh
 # Results: 21/21 passed, 0 failed, 1 skipped (Docker runtime)

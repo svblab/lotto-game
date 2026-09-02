@@ -45,7 +45,7 @@ Files:
 VERIFICATION:
 - `bash deploy/systemd/tests/run_tests.sh` — **63/63 PASS** (Git Bash on Windows dev host)
 - `bash deploy/docker/tests/run_tests.sh` — Docker regression (unchanged behaviour)
-- Full systemd install on Linux VPS — **NOT RUN** (requires root + systemd host)
+- Full systemd install on Linux VPS — **DONE** (Epic D1 — `docs/SYSTEMD_VPS_VERIFICATION.md`)
 
 ## Epic B3 — Systemd safe removal (2026-08-30)
 
@@ -65,7 +65,7 @@ Files:
 VERIFICATION:
 - `bash deploy/systemd/tests/run_tests.sh` — **87/87 PASS** (Git Bash on Windows dev host; symlink escape test skipped when OS lacks symlinks)
 - `bash deploy/docker/tests/run_tests.sh` — Docker regression (unchanged behaviour)
-- Full systemd remove on Linux VPS — **NOT RUN** (requires root + systemd host)
+- Full systemd remove on Linux VPS — **DONE** (Epic D1 — `docs/SYSTEMD_VPS_VERIFICATION.md`)
 
 ## Epic C — Systemd update and operational lifecycle (2026-08-30)
 
@@ -75,7 +75,7 @@ Status: **Completed** (update only — no rollback framework, no port change)
 - [DONE] Preserves `data/game.db`, `config/environment`, port, user; metadata `updated_at` only after success
 - [DONE] Instance lock (`/var/lock/lotto-game-<name>.lock`); failure leaves service stopped with config/DB intact
 - [DONE] C tests in `deploy/systemd/tests/run_tests.sh`
-- [NOT STARTED] D full VPS integration docs/tests; transactional rollback; pre-update backup framework
+- [DONE] D VPS lifecycle verification (Epic D1 — see `docs/SYSTEMD_VPS_VERIFICATION.md`)
 
 Files:
 - `deploy/systemd/update.sh`
@@ -84,7 +84,7 @@ Files:
 VERIFICATION:
 - `bash deploy/systemd/tests/run_tests.sh` — **106/106 PASS** (Git Bash on Windows dev host)
 - `bash deploy/docker/tests/run_tests.sh` — Docker regression (unchanged behaviour)
-- Full systemd update on Linux VPS — **NOT RUN** (requires root + systemd host)
+- Full systemd update on Linux VPS — **DONE** (Epic D1 — `docs/SYSTEMD_VPS_VERIFICATION.md`)
 
 ## Epic D — VPS verification, documentation, operational UX (2026-08-31)
 
@@ -93,7 +93,7 @@ Status: **Completed** — D1 verified on real Linux VPS (2026-09-01); D2/D3 comp
 ### D1 — Live VPS verification
 
 - [DONE] Full install → health → multi-instance → update → remove lifecycle on clean Linux VPS (`box-963286`, Ubuntu 24.04)
-- [DONE] Production regression (no production present; baseline unchanged), Linux symlink security test (111/111 on VPS)
+- [DONE] Production regression (no production present; baseline unchanged), Linux symlink security test (110/110 on VPS at `84394c0`)
 - [DONE] Docker regression 21/21; Docker coexistence **SKIPPED** (Docker not on verification VPS)
 - Checklist: `docs/SYSTEMD_VPS_VERIFICATION.md`
 - Fix during D1: `lotto_wait_for_instance_healthcheck()` — install/update healthcheck race on slow VPS
@@ -117,7 +117,7 @@ Files:
 - `deploy/systemd/lib/common.sh`, `install.sh`, `update.sh`, `remove.sh`, `healthcheck.sh`
 
 VERIFICATION:
-- `bash deploy/systemd/tests/run_tests.sh` — **111/111 PASS** on Ubuntu 24.04 VPS (`box-963286`) via SSH MCP
+- `bash deploy/systemd/tests/run_tests.sh` — **110/110 PASS** on Ubuntu 24.04 VPS (`box-963286`) via SSH MCP
 - `bash deploy/docker/tests/run_tests.sh` — **21/21 PASS** on same VPS (Docker integration skipped)
 - D1 VPS acceptance test — **DONE** — see `docs/SYSTEMD_VPS_VERIFICATION.md`
 
@@ -153,7 +153,7 @@ Independent from TECHNICAL DEBT. Sequence: **A → B1 → B2 → B3 → C → D*
 | B2 — Systemd installation | **DONE** (Epic B2) | `deploy/systemd/install.sh`, `healthcheck.sh`, `service.template`; tests 63/63 |
 | B3 — Systemd removal | **DONE** (Epic B3) | `deploy/systemd/remove.sh`; metadata validation, symlink guards, zero-artifact verify |
 | C — Update / operational lifecycle | **DONE** (Epic C) | `deploy/systemd/update.sh`; app refresh, composer install, lock, health verify |
-| D — Documentation / VPS verification | **DONE** (Epic D) | D1 verified on Ubuntu 24.04 VPS; lifecycle + 111/111 systemd tests — `docs/SYSTEMD_VPS_VERIFICATION.md` |
+| D — Documentation / VPS verification | **DONE** (Epic D) | D1 verified on Ubuntu 24.04 VPS; lifecycle + 110/110 systemd tests — `docs/SYSTEMD_VPS_VERIFICATION.md` |
 
 **NOT BLOCKING:** TD-1, TD-2, TD-3 (no hard dependencies demonstrated).
 
