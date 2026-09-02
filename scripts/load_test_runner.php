@@ -177,7 +177,7 @@ function connectClients(string $host, int $port, int $count, string $prefix, str
             'action'   => 'register',
             'username' => $username,
             'password' => 'testpass123',
-        ]);
+        ], ['auth_result', 'error', 'banned']);
         if ($rtt !== null) {
             logClientMetric($clientLog, 'register', $rtt);
         }
@@ -206,7 +206,7 @@ function setupGameRooms(
             'action'      => 'create_room',
             'max_players' => 4,
             'cards_count' => 1,
-        ]);
+        ], ['room_joined', 'error']);
         if ($rtt !== null) {
             logClientMetric($clientLog, 'create_room', $rtt);
         }
@@ -223,14 +223,14 @@ function setupGameRooms(
             $rtt = $joiner->sendAction([
                 'action'  => 'join_room',
                 'room_id' => $roomId,
-            ]);
+            ], ['room_joined', 'error']);
             if ($rtt !== null) {
                 logClientMetric($clientLog, 'join_room', $rtt);
             }
             $roomClients[] = $joiner;
         }
 
-        $rtt = $hostClient->sendAction(['action' => 'start_game']);
+        $rtt = $hostClient->sendAction(['action' => 'start_game'], ['game_started', 'error']);
         if ($rtt !== null) {
             logClientMetric($clientLog, 'start_game', $rtt);
         }
@@ -288,14 +288,17 @@ function runSteady(
 
     while (time() < $end) {
         foreach ($clients as $client) {
-            $rtt = $client->sendAction(['action' => 'room_list']);
+            $rtt = $client->sendAction(['action' => 'room_list'], ['room_list', 'error']);
             if ($rtt !== null) {
                 logClientMetric($clientLog, 'room_list', $rtt);
             }
         }
 
         foreach ($rooms as $room) {
-            $rtt = $room['host']->sendAction(['action' => 'draw_barrel']);
+            $rtt = $room['host']->sendAction(
+                ['action' => 'draw_barrel'],
+                ['barrels_drawn', 'your_turn', 'game_over', 'apartment_alert', 'error']
+            );
             if ($rtt !== null) {
                 logClientMetric($clientLog, 'draw_barrel', $rtt);
             }
@@ -320,14 +323,17 @@ function runStorm(
     $rooms = setupGameRooms($clients, min($targetGames, 10), $clientLog);
 
     foreach ($clients as $client) {
-        $rtt = $client->sendAction(['action' => 'room_list']);
+        $rtt = $client->sendAction(['action' => 'room_list'], ['room_list', 'error']);
         if ($rtt !== null) {
             logClientMetric($clientLog, 'room_list', $rtt);
         }
     }
 
     foreach ($rooms as $room) {
-        $rtt = $room['host']->sendAction(['action' => 'draw_barrel']);
+        $rtt = $room['host']->sendAction(
+            ['action' => 'draw_barrel'],
+            ['barrels_drawn', 'your_turn', 'game_over', 'apartment_alert', 'error']
+        );
         if ($rtt !== null) {
             logClientMetric($clientLog, 'draw_barrel', $rtt);
         }
@@ -457,8 +463,9 @@ final class LoadWsClient
 
     /**
      * @param array<string, mixed> $payload
+     * @param list<string> $acceptTypes packet types that complete this action
      */
-    public function sendAction(array $payload): ?float
+    public function sendAction(array $payload, array $acceptTypes = []): ?float
     {
         $start = hrtime(true);
         $json = json_encode($payload, JSON_UNESCAPED_UNICODE);
@@ -468,8 +475,8 @@ final class LoadWsClient
 
         self::sendFrame($this->sock, $json);
 
-        // Read until a JSON response for this action (skip stray hello if any).
-        $deadline = microtime(true) + 3.0;
+        // Read until an accepted response type (skip broadcasts / hello).
+        $deadline = microtime(true) + 5.0;
         while (microtime(true) < $deadline) {
             $frame = $this->readFrameBuffered();
             if ($frame === null) {
@@ -479,16 +486,20 @@ final class LoadWsClient
             if (!is_array($data)) {
                 continue;
             }
-            if (($data['type'] ?? '') === 'hello') {
+            $type = (string) ($data['type'] ?? '');
+            if ($type === 'hello') {
                 continue;
             }
             if (isset($data['room_id'])) {
                 $this->roomId = (int) $data['room_id'];
             }
-            if (($data['type'] ?? '') === 'room_joined' && isset($data['room_id'])) {
+            if ($type === 'room_joined' && isset($data['room_id'])) {
                 $this->roomId = (int) $data['room_id'];
             }
-            break;
+            if ($acceptTypes === [] || in_array($type, $acceptTypes, true)) {
+                break;
+            }
+            // Discard unexpected broadcast frames (e.g. player_joined on host).
         }
 
         return (hrtime(true) - $start) / 1_000_000;
