@@ -399,10 +399,10 @@ function sampleResources(string $resourceLog, ?int $serverPid, int $clients, int
     $cpu = 0.0;
     $memMb = 0.0;
 
-    if ($serverPid !== null && is_readable('/proc/' . $serverPid . '/stat')) {
-        $stat = file_get_contents('/proc/' . $serverPid . '/stat');
-        if ($stat !== false && preg_match('/\d+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+(\d+)\s+(\d+)/', $stat, $m)) {
-            $memMb = ((int) $m[2]) / 1024;
+    if ($serverPid !== null && is_readable('/proc/' . $serverPid . '/status')) {
+        $status = file_get_contents('/proc/' . $serverPid . '/status');
+        if ($status !== false && preg_match('/^VmRSS:\\s+(\\d+)\\s+kB/m', $status, $m)) {
+            $memMb = ((int) $m[1]) / 1024;
         }
     }
 
