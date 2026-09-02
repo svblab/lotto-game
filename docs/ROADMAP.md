@@ -161,7 +161,7 @@ Status: In progress (EPIC-11.0 started 2026-07-27; see docs/PHASE_11_REPORT.md).
 - EPIC-11.2 Timer audit — IN PROGRESS (instrumentation done; VPS accelerated run pending)
 - EPIC-11.3 Economy audit — IN PROGRESS (instrumentation done; VPS live-game run pending)
 - EPIC-11.4 State machine audit — IN PROGRESS (instrumentation done; VPS live-game run pending)
-- EPIC-11.5 Protocol audit — IN PROGRESS (instrumentation done; VPS live replay pending)
+- EPIC-11.5 Protocol audit — **DONE** (VPS live WS 145/145 PASS on `box-963286`, 2026-09-02)
 - EPIC-11.6 Load testing — IN PROGRESS (instrumentation done; VPS load runs pending)
 
 See **TD-3** under TECHNICAL DEBT for VPS verification matrix (11.1–11.6).
@@ -276,7 +276,7 @@ TD-3  Phase 11 VPS verification (11.1–11.6)
 |----|-------|--------|----------|---------------------|
 | **TD-1** | ADR-023 / `admin_stats_data` — documentation reconciliation | IMPLEMENTATION **DONE**; docs **RECONCILED** (2026-08-30); TEST COVERAGE **VERIFIED** (`test_admin_stats.php` 10/10) | Low | No |
 | **TD-2** | `error.banned` vs `banned` packet — ADR-007 alignment | Runtime **IMPLEMENTED** (`error.banned` reserved/unused; `banned` packet canonical at login/reconnect/admin); DOCUMENTATION reconciliation only | Very Low | No |
-| **TD-3** | Phase 11 VPS verification backlog | Instrumentation **IMPLEMENTED** for 11.1–11.6; mock/local tests pass; **VPS verification pending** for each sub-item | Medium (release readiness) | No |
+| **TD-3** | Phase 11 VPS verification backlog | Instrumentation **IMPLEMENTED** for 11.1–11.6; mock/local tests pass; **11.5 VPS verified** (2026-09-02); 11.1–11.4 and 11.6 VPS runs **pending** | Medium (release readiness) | No |
 
 ### TD-3 — Phase 11 VPS verification matrix
 
@@ -286,7 +286,7 @@ TD-3  Phase 11 VPS verification (11.1–11.6)
 | **11.2** Timer | DONE (`TimerAudit`) | PASS (`test_timer_audit.php` 20/20) | **PENDING** (`timer_accelerated_runner.php`) | Advisory | No |
 | **11.3** Economy | DONE (`EconomyAudit`) | PASS (`test_economy_audit.php` 32/32) | **PENDING** (live-game log replay) | Advisory | No |
 | **11.4** State machine | DONE (`StateMachineAudit`) | PASS (`test_state_machine_audit.php` 29/29) | **PENDING** (live-session log replay) | Advisory | No |
-| **11.5** Protocol replay | DONE (`ws_emulator.php`, `test_protocol_audit.php`) | Static PASS (`test_protocol_completeness.php`) | **PENDING** (9 live WS tests on VPS) | Advisory | No |
+| **11.5** Protocol replay | DONE (`ws_emulator.php`, `test_protocol_audit.php`) | Static PASS (`test_protocol_completeness.php`) | **DONE** (8 live WS tests, 145/145 PASS, `box-963286` 2026-09-02) | Advisory | No |
 | **11.6** Load testing | DONE (`LoadAudit`) | PASS (`test_load_audit.php`) | **PENDING** (4 VPS load scenarios) | Advisory | No |
 
-Evidence: `docs/PHASE_11_REPORT.md`. No VPS runs were executed for this roadmap update.
+Evidence: `docs/PHASE_11_REPORT.md`. EPIC-11.5 VPS live WS verified 2026-09-02; remaining TD-3 items unchanged.

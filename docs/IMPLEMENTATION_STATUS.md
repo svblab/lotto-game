@@ -194,10 +194,35 @@ Priority: **Very Low**. Not blocking deployment. No runtime change proposed.
 | 11.2 Timer | DONE | PASS | **PENDING** | No |
 | 11.3 Economy | DONE | PASS | **PENDING** | No |
 | 11.4 State machine | DONE | PASS | **PENDING** | No |
-| 11.5 Protocol replay | DONE | Static PASS | **PENDING** (live WS on VPS) | No |
+| 11.5 Protocol replay | DONE | Static PASS | **DONE** (8 live WS tests, 145/145 PASS, `box-963286` 2026-09-02) | No |
 | 11.6 Load testing | DONE | PASS | **PENDING** | No |
 
-See `docs/PHASE_11_REPORT.md` and `docs/ROADMAP.md` § TD-3 matrix. VPS runs not executed in this roadmap update.
+See `docs/PHASE_11_REPORT.md` and `docs/ROADMAP.md` § TD-3 matrix. **11.5** VPS live WS verified 2026-09-02; 11.1–11.4 and 11.6 VPS runs still pending.
+
+### EPIC-11.5 — VPS live WebSocket verification (2026-09-02)
+
+Status: **DONE** — protocol audit reproduced on Ubuntu VPS.
+
+| Item | Value |
+|------|-------|
+| Host | `box-963286` (Ubuntu 24.04.4 LTS) |
+| Commit | `f2c9cfb` (main post-PR #2) |
+| Method | SSH MCP; dev checkout `~/lotto-game` |
+
+| Test file | Result |
+|-----------|--------|
+| `test_server_bootstrap.php` | 24/24 PASS |
+| `test_packet_validation.php` | 11/11 PASS |
+| `test_auth_packet_routing.php` | 18/18 PASS |
+| `test_lobby_packet_routing.php` | 23/23 PASS |
+| `test_game_packet_routing.php` | 22/22 PASS |
+| `test_admin_packet_routing.php` | 15/15 PASS |
+| `test_session_lifecycle.php` | 13/13 PASS |
+| `test_protocol_audit.php` | 19/19 PASS |
+
+**Total:** 145 passed, 0 failed. Evidence: `docs/PHASE_11_REPORT.md` § EPIC-11.5.
+
+**Out of scope for this sign-off:** 11.1 memory, 11.2–11.4 replay, 11.6 load, deployment changes.
 
 Priority: Medium for release readiness; **NOT BLOCKING DEPLOYMENT**.
 
@@ -1737,7 +1762,7 @@ Remaining: Run load scenarios on Ubuntu VPS (1 CPU / 512 MB target):
 
 Next in Phase 11: Complete EPIC-11.1–11.6 VPS sign-off runs per docs/PHASE_11_REPORT.md.
 
-- [IN PROGRESS] EPIC-11.5 Protocol audit (Phase 11 — instrumentation complete 2026-07-27; VPS live replay pending)
+- [DONE] EPIC-11.5 Protocol audit (instrumentation 2026-07-27; **VPS live WS verified 2026-09-02** — 145/145 PASS on `box-963286` @ `f2c9cfb`)
 Files:
 - docs/ANCHOR_CORE.md (diff — afk_warning added to packet registry)
 - docs/ANCHOR_PROTOCOL.md (diff — afk_warning packet spec, error.banned note)
@@ -1765,8 +1790,9 @@ Verification (Windows dev host):
 - Full suite: php run_ALL_tests.php — 29/29 test files passed (Windows;
   9 live-server tests skipped)
 
-Remaining: Run test_protocol_audit.php on Ubuntu VPS; use ws_emulator.php
-for session replay during live-game protocol sign-off.
+Verification (Ubuntu VPS — 2026-09-02):
+- Eight live WS tests: **145/145 PASS** on `box-963286` @ `f2c9cfb`
+  (see TD-3 § EPIC-11.5 above and `docs/PHASE_11_REPORT.md`)
 
 - [IN PROGRESS] EPIC-11.4 State machine audit (Phase 11 — instrumentation complete 2026-07-27; VPS live-game run pending)
 Files:
@@ -4094,8 +4120,8 @@ root-caused and resolved; full regression 0 failed)
 Next planned work (see `docs/ROADMAP.md`):
 
 ```text
-SYSTEM DEPLOYMENT: D — VPS multi-instance/coexistence verification (optional)
-TECHNICAL DEBT: TD-1 docs reconciliation; TD-3 Phase 11 VPS runs (11.1–11.6)
+SYSTEM DEPLOYMENT: D — DONE (D1 verified 2026-09-01)
+TECHNICAL DEBT: TD-1 docs reconciliation; TD-3 Phase 11 VPS runs (11.1–11.4, 11.6 pending; 11.5 DONE)
 ```
 
 PHASE 10 — WEBSOCKET PROTOCOL: COMPLETE (10.0-10.7 all done). Server-side
