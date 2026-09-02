@@ -9,8 +9,10 @@ declare(strict_types=1);
  * EPIC-11.2 — Parse logs/timer_audit.log and verify timer drift / orphan state.
  *
  * Acceptance:
- *   - No orphaned timers (adds - dels >= fires for one-shot; active count = 0 at end)
- *   - Fired reconnect timers within ±tolerance of expected interval
+ *   - No orphaned one-shot timers (reconnect / apartment / file_offer without fire or del)
+ *   - Fired one-shot timers within ±tolerance of expected interval (add -> first fire)
+ *   - Persistent/periodic timers (watchdog, AFK ticks, audit periodics) are expected to
+ *     remain active until process stop and are excluded from orphan/drift checks
  *
  * Usage:
  *   php scripts/analyze_timer_log.php [path/to/timer_audit.log] [--tolerance-ms=200]
@@ -89,16 +91,23 @@ if (count($events) === 0) {
 $stats = TimerAudit::parseLogStats($logPath);
 $failures = [];
 
-if ($stats['active'] > 0) {
-    $failures[] = "orphaned timers at end of log: {$stats['active']} still active";
-}
+/** @var list<string> One-shot labels subject to drift + orphan acceptance */
+$oneShotLabels = ['reconnect', 'apartment', 'file_offer'];
 
 $pending = [];
+$oneShotSeen = 0;
+$oneShotFired = 0;
+
 foreach ($events as $event) {
     $id = $event['timer_id'];
+    $label = $event['label'];
+    $isOneShot = in_array($label, $oneShotLabels, true);
 
     if ($event['event'] === 'add') {
         $pending[$id] = $event;
+        if ($isOneShot) {
+            $oneShotSeen++;
+        }
         continue;
     }
 
@@ -108,24 +117,27 @@ foreach ($events as $event) {
         }
 
         $add = $pending[$id];
-        $expectedMs = ($add['interval'] ?? 0) * 1000;
-        if ($expectedMs > 0 && $add['ts_us'] !== null && $event['ts_us'] !== null) {
-            $actualMs = ($event['ts_us'] - $add['ts_us']) / 1000;
-            $driftMs = abs($actualMs - $expectedMs);
-            if ($driftMs > $toleranceMs) {
-                $failures[] = sprintf(
-                    'timer %d (%s): drift %.1fms (expected %.0fms, actual %.1fms, tolerance %dms)',
-                    $id,
-                    $event['label'],
-                    $driftMs,
-                    $expectedMs,
-                    $actualMs,
-                    $toleranceMs
-                );
-            }
-        }
+        $addIsOneShot = in_array($add['label'], $oneShotLabels, true);
 
-        if (in_array($add['label'], ['reconnect', 'apartment'], true)) {
+        // Drift: only first fire of one-shot timers (periodic fires are not add->N*interval).
+        if ($addIsOneShot) {
+            $expectedMs = ($add['interval'] ?? 0) * 1000;
+            if ($expectedMs > 0 && $add['ts_us'] !== null && $event['ts_us'] !== null) {
+                $actualMs = ($event['ts_us'] - $add['ts_us']) / 1000;
+                $driftMs = abs($actualMs - $expectedMs);
+                if ($driftMs > $toleranceMs) {
+                    $failures[] = sprintf(
+                        'timer %d (%s): drift %.1fms (expected %.0fms, actual %.1fms, tolerance %dms)',
+                        $id,
+                        $event['label'],
+                        $driftMs,
+                        $expectedMs,
+                        $actualMs,
+                        $toleranceMs
+                    );
+                }
+            }
+            $oneShotFired++;
             unset($pending[$id]);
         }
         continue;
@@ -136,13 +148,32 @@ foreach ($events as $event) {
     }
 }
 
+$orphanedOneShots = 0;
+foreach ($pending as $left) {
+    if (in_array($left['label'], $oneShotLabels, true)) {
+        $orphanedOneShots++;
+        $failures[] = sprintf(
+            'orphaned one-shot timer %d (%s) - no fire/del before end of log',
+            $left['timer_id'],
+            $left['label']
+        );
+    }
+}
+
+if ($oneShotSeen === 0) {
+    $failures[] = 'no one-shot timer (reconnect/apartment/file_offer) observed - harness did not exercise reconnect grace';
+}
+
 echo "Timer audit analysis: {$logPath}\n";
 echo sprintf(
-    "Events: adds=%d dels=%d fires=%d active_end=%d tolerance=%dms\n",
+    "Events: adds=%d dels=%d fires=%d active_end=%d one_shot_seen=%d one_shot_fired=%d orphaned_one_shot=%d tolerance=%dms\n",
     $stats['adds'],
     $stats['dels'],
     $stats['fires'],
     $stats['active'],
+    $oneShotSeen,
+    $oneShotFired,
+    $orphanedOneShots,
     $toleranceMs
 );
 

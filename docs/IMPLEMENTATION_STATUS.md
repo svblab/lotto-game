@@ -191,13 +191,31 @@ Priority: **Very Low**. Not blocking deployment. No runtime change proposed.
 | Sub-item | Instrumentation | Local/mock | VPS verification | Blocks deployment? |
 |----------|-----------------|------------|------------------|-------------------|
 | 11.1 Memory | DONE | PASS | **DONE** (6h `memory_stability_runner.php` PASS, `box-963286`, 2026-09-02) | No |
-| 11.2 Timer | DONE | PASS | **PENDING** | No |
+| 11.2 Timer | DONE | PASS | **DONE** (accelerated `timer_accelerated_runner.php` PASS, reconnect drift ~0.5ms, `box-963286`, 2026-09-02) | No |
 | 11.3 Economy | DONE | PASS | **PENDING** | No |
 | 11.4 State machine | DONE | PASS | **PENDING** | No |
 | 11.5 Protocol replay | DONE | Static PASS | **DONE** (8 live WS tests, 145/145 PASS, `box-963286` 2026-09-02) | No |
 | 11.6 Load testing | DONE | PASS | **PENDING** | No |
 
-See `docs/PHASE_11_REPORT.md` and `docs/ROADMAP.md` § TD-3 matrix. **11.1** VPS memory/stability verified 2026-09-02; **11.5** VPS live WS verified 2026-09-02; 11.2–11.4 and 11.6 VPS runs still pending.
+See `docs/PHASE_11_REPORT.md` and `docs/ROADMAP.md` § TD-3 matrix. **11.1** VPS memory/stability verified 2026-09-02; **11.2** VPS accelerated timer verified 2026-09-02; **11.5** VPS live WS verified 2026-09-02; 11.3–11.4 and 11.6 VPS runs still pending.
+
+### EPIC-11.2 — VPS accelerated timer verification (2026-09-02)
+
+Status: **DONE** — accelerated reconnect timer drift PASS on Ubuntu VPS.
+
+| Item | Value |
+|------|-------|
+| Host | `box-963286` (Ubuntu 24.04, non-production) |
+| Base commit | `ef066d6` (main post-PR #4) |
+| Start / End | `2026-09-02T18:11:27Z` → `2026-09-02T18:11:36Z` |
+| Scenario | register → create_room → play_vs_bot → disconnect → reconnect fire |
+| Reconnect | interval 5.000s; drift ~0.5ms (tolerance 200ms) |
+| One-shot | seen=1 fired=1 orphaned=0 |
+| Result | **PASS** (`analyze_timer_log.php` exit 0) |
+
+**Harness fixes in this epic:** runner arms reconnect only after entering `playing` via `play_vs_bot`; analyzer evaluates one-shot drift/orphans (not periodic watchdog); clean `php server.php stop`; auto `init_db.php` when schema missing.
+
+**Out of scope for this sign-off:** 11.3–11.4 replay, 11.6 load, deployment changes.
 
 ### EPIC-11.1 — VPS memory / stability verification (2026-09-02)
 
@@ -1880,7 +1898,7 @@ run analyze_economy_log.php with --initial balances for full sign-off.
 Next in Phase 11: EPIC-11.5 Protocol audit, then 11.6 per
 docs/prompt phase 11 detail.md and docs/PHASE_11_REPORT.md.
 
-- [IN PROGRESS] EPIC-11.2 Timer audit (Phase 11 — instrumentation complete 2026-07-27; VPS accelerated run pending)
+- [DONE] EPIC-11.2 Timer audit (Phase 11 — instrumentation complete 2026-07-27; **VPS accelerated run PASS 2026-09-02** on `box-963286`)
 Files:
 - src/Core/TimerAudit.php (новый файл — opt-in timer lifecycle logging → logs/timer_audit.log)
 - src/Core/Constants.php (diff — env-resolved timeout accessors + AFK/APARTMENT constants)
@@ -1889,12 +1907,12 @@ Files:
 - src/Lobby/LobbyService.php, src/Game/ReconnectService.php, src/Game/ApartmentService.php,
   src/Game/GameService.php, src/Game/GameFinishService.php, src/Core/RoomManager.php
   (diff — all Timer::add/del migrated to lottoTimer* wrappers)
-- tests/Manual/test_timer_audit.php (новый файл — 20 mock regression tests)
+- tests/Manual/test_timer_audit.php (новый файл — mock regression tests)
 - tests/Manual/mock_timer.php (diff — fire()/fireAll() for accelerated mock tests)
-- scripts/timer_accelerated_runner.php (новый файл — VPS accelerated timer scenarios)
-- scripts/analyze_timer_log.php (новый файл — drift ±200ms + orphan check)
+- scripts/timer_accelerated_runner.php (diff — play_vs_bot before disconnect; init_db; clean stop; analyze exit code)
+- scripts/analyze_timer_log.php (diff — one-shot reconnect drift/orphan acceptance; ignore periodic watchdog)
 - tests/Manual/ws_test_harness.php (diff — LOTTO_TIMER_AUDIT_LOG isolation)
-- docs/PHASE_11_REPORT.md (diff — EPIC-11.2 section updated)
+- docs/PHASE_11_REPORT.md / docs/IMPLEMENTATION_STATUS.md / docs/ROADMAP.md (diff — EPIC-11.2 VPS verified)
 
 Implemented:
 - TimerAudit utility: LOTTO_TIMER_AUDIT=1 logs add/del/fire with microsecond timestamps.
@@ -1906,12 +1924,18 @@ Implemented:
 - test_timer_audit.php: TimerAudit utility, env overrides, RoomManager cleanup,
   reconnect schedule/cancel, lobby AFK start/stop, single-shot fire semantics.
 - VPS tooling: timer_accelerated_runner.php (5s reconnect default) +
-  analyze_timer_log.php (acceptance: no orphans, drift ≤200ms).
+  analyze_timer_log.php (acceptance: one-shot reconnect drift ≤200ms, no orphaned one-shots).
 
 Verification (Windows dev host):
-- test_timer_audit.php: 20/20 PASS
-- test_timer_integrity.php: 5/5 PASS (FIX-6 regression, unchanged)
-- Full suite: php run_ALL_tests.php — 26/26 test files passed
+- test_timer_audit.php: 24/24 PASS
+- test_timer_integrity.php: groups 1–4 PASS locally; group 5 needs PDO SQLite (pre-existing Windows limitation)
+
+VPS verification (2026-09-02):
+- `php scripts/timer_accelerated_runner.php` on `box-963286` — **PASS**
+- reconnect interval 5.000s, drift ~0.5ms, one_shot_seen=1 fired=1 orphaned=0
+- Evidence: `docs/PHASE_11_REPORT.md` § EPIC-11.2
+
+Remaining TD-3: 11.3, 11.4, 11.6 (11.1 and 11.5 already DONE).
 
 Remaining: Run timer_accelerated_runner.php on Ubuntu VPS for live drift
 acceptance sign-off per EPIC-11.2 acceptance criteria.
@@ -4141,7 +4165,7 @@ Next planned work (see `docs/ROADMAP.md`):
 
 ```text
 SYSTEM DEPLOYMENT: D — DONE (D1 verified 2026-09-01)
-TECHNICAL DEBT: TD-1 docs reconciliation; TD-3 Phase 11 VPS runs (11.2–11.4, 11.6 pending; 11.1 DONE; 11.5 DONE)
+TECHNICAL DEBT: TD-1 docs reconciliation; TD-3 Phase 11 VPS runs (11.3–11.4, 11.6 pending; 11.1 DONE; 11.2 DONE; 11.5 DONE)
 ```
 
 PHASE 10 — WEBSOCKET PROTOCOL: COMPLETE (10.0-10.7 all done). Server-side

@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-27  
 **Repository:** https://github.com/svblab/lotto-game  
-**Auditor session:** EPIC-11.0 complete; **EPIC-11.1 VPS memory/stability verified (2026-09-02)**; EPIC-11.2/11.3/11.4 instrumentation complete (VPS runs pending); **EPIC-11.5 VPS live WS verified (2026-09-02)**; EPIC-11.6 instrumentation complete (VPS load runs pending)
+**Auditor session:** EPIC-11.0 complete; **EPIC-11.1 VPS memory/stability verified (2026-09-02)**; **EPIC-11.2 VPS accelerated timer verified (2026-09-02)**; EPIC-11.3/11.4 instrumentation complete (VPS runs pending); **EPIC-11.5 VPS live WS verified (2026-09-02)**; EPIC-11.6 instrumentation complete (VPS load runs pending)
 
 ---
 
@@ -119,9 +119,9 @@ php scripts/analyze_memory_log.php
 
 ---
 
-## EPIC-11.2 — Timer Audit (Instrumentation Complete)
+## EPIC-11.2 — Timer Audit (VPS Verified)
 
-**Status:** Instrumentation + mock tests complete; VPS accelerated run pending.
+**Status:** Instrumentation + mock tests complete; **VPS accelerated run PASS (2026-09-02)**.
 
 | Timer | Location | Constant / Env override |
 |-------|----------|-------------------------|
@@ -140,15 +140,31 @@ php scripts/analyze_memory_log.php
 |------|---------|
 | `src/Core/TimerAudit.php` | Opt-in add/del/fire logging (`LOTTO_TIMER_AUDIT=1`) → `logs/timer_audit.log` |
 | `src/Core/Helpers.php` | `lottoTimerAdd` / `lottoTimerDel` wrappers |
-| `scripts/timer_accelerated_runner.php` | VPS accelerated scenarios (5s timeouts) |
-| `scripts/analyze_timer_log.php` | Drift ±200ms + orphan timer check |
+| `scripts/timer_accelerated_runner.php` | VPS accelerated scenarios (5s timeouts); `play_vs_bot` then disconnect to arm reconnect |
+| `scripts/analyze_timer_log.php` | One-shot reconnect drift ±200ms + orphan one-shot check |
+
+### VPS accelerated timer verification (2026-09-02)
+
+| Item | Value |
+|------|-------|
+| Host | `box-963286` (Ubuntu 24.04, non-production verification VPS) |
+| Method | SSH; isolated tree from main `ef066d6` + harness fixes in this epic |
+| Commit (base) | `ef066d6` (main post-PR #4 / EPIC-11.1) |
+| Start / End | `2026-09-02T18:11:27Z` → `2026-09-02T18:11:36Z` |
+| Scenario | register → create_room → `play_vs_bot` → disconnect → wait reconnect fire |
+| Reconnect timeout | 5s (accelerated) |
+| Reconnect drift | ~0.5 ms (expected 5000 ms, actual ~5000.5 ms, tolerance 200 ms) |
+| One-shot | seen=1 fired=1 orphaned=0 |
+| Result | **PASS** (`analyze_timer_log.php` exit 0) |
+
+**Harness notes (fixed in this epic):** prior runner disconnected in `waiting` (no reconnect timer). Analyzer incorrectly treated periodic `global_watchdog` fires as drift/orphan failures. Runner now enters playing via `play_vs_bot`, stops Workerman cleanly, propagates analyze exit code, and auto-runs `init_db.php` when `game.db` lacks schema.
 
 ### Preliminary static + mock results
 
-- `test_timer_audit.php`: **20/20 PASS** (utility, env overrides, cleanup, reconnect cancel)
-- `test_timer_integrity.php`: **5/5 PASS** (FIX-6 reconnect timer cleanup regression)
+- `test_timer_audit.php`: **24/24 PASS** (utility, env overrides, cleanup, reconnect cancel)
+- `test_timer_integrity.php`: **5/5 PASS** on environments with PDO SQLite (Windows without sqlite extension may fail late groups)
 
-**Remaining:** Run `timer_accelerated_runner.php` on Ubuntu VPS for live drift acceptance.
+**VPS sign-off:** Complete — see table above.
 
 ---
 
@@ -314,7 +330,7 @@ See `docs/IMPLEMENTATION_STATUS.md` § TECHNICAL DEBT and § KNOWN GAPS:
 - **TD-1:** `admin_stats_data` — **implementation complete**; documentation/status reconciliation pending (Low, not blocking deployment).
 - **TD-2:** `error.banned` — reserved/unused per ADR-007; `banned` packet canonical (Very Low, documentation only).
 - Real-WS test log noise (low) — unchanged.
-- Phase 11 VPS verification (TD-3) — **11.1 DONE** (6h memory/stability PASS on VPS); **11.5 DONE** (live WS on VPS); 11.2–11.4 and 11.6 VPS runs still pending.
+- Phase 11 VPS verification (TD-3) — **11.1 DONE** (6h memory/stability PASS on VPS); **11.2 DONE** (accelerated timer PASS on VPS); **11.5 DONE** (live WS on VPS); 11.3–11.4 and 11.6 VPS runs still pending.
 
 ---
 
@@ -325,10 +341,10 @@ See `docs/IMPLEMENTATION_STATUS.md` § TECHNICAL DEBT and § KNOWN GAPS:
 | All protocol actions wired | ✅ Fixed (P11-001) |
 | Unit/integration tests pass | ✅ 28/28 on Windows |
 | Live WS tests pass | ✅ **145/145 PASS** on VPS (`box-963286`, `f2c9cfb`, 2026-09-02) |
-| Memory/timer/load audits | ✅ **11.1 VPS verified** (6h PASS); ⏳ 11.2/11.3/11.4 instrumented (VPS runs pending); **11.5 VPS verified**; 11.6 instrumented (VPS load runs pending) |
+| Memory/timer/load audits | ✅ **11.1 VPS verified** (6h PASS); ✅ **11.2 VPS verified** (accelerated timer PASS); ⏳ 11.3/11.4 instrumented (VPS runs pending); **11.5 VPS verified**; 11.6 instrumented (VPS load runs pending) |
 | Protocol docs synced | ✅ `admin_stats_data` implemented (TD-1 docs reconciliation only); `error.banned` reserved per ADR-007 (TD-2) |
 
-**Verdict:** Proceed with Phase 12 frontend development in parallel with completing remaining EPIC-11.2–11.4 and 11.6 VPS verification (TD-3). Live-server protocol tests and the 6-hour memory/stability run are verified on Ubuntu VPS. `admin_stats_data` is implemented end-to-end; remaining TD-1 work is documentation reconciliation only.
+**Verdict:** Proceed with Phase 12 frontend development in parallel with completing remaining EPIC-11.3–11.4 and 11.6 VPS verification (TD-3). Live-server protocol tests, the 6-hour memory/stability run, and accelerated timer drift are verified on Ubuntu VPS. `admin_stats_data` is implemented end-to-end; remaining TD-1 work is documentation reconciliation only.
 
 ---
 
