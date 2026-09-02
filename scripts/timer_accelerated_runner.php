@@ -41,13 +41,34 @@ foreach (array_slice($argv, 1) as $arg) {
 
 $projectRoot = dirname(__DIR__);
 $serverScript = $projectRoot . '/server.php';
+$initDbScript = $projectRoot . '/init_db.php';
 $logOut = $projectRoot . '/logs/timer_accel_server.out';
 $logErr = $projectRoot . '/logs/timer_accel_server.err';
 $auditLog = $projectRoot . '/logs/timer_audit.log';
+$dbPath = $projectRoot . '/game.db';
 
 @mkdir($projectRoot . '/logs', 0755, true);
 if (is_file($auditLog)) {
     unlink($auditLog);
+}
+
+// Fresh / incomplete checkouts need schema before register + play_vs_bot.
+$needsInit = !is_file($dbPath);
+if (!$needsInit) {
+    try {
+        $pdo = new PDO('sqlite:' . $dbPath);
+        $pdo->query('SELECT 1 FROM users LIMIT 1');
+    } catch (Throwable $e) {
+        $needsInit = true;
+    }
+}
+if ($needsInit) {
+    echo "Initializing game.db via init_db.php...\n";
+    passthru(PHP_BINARY . ' ' . escapeshellarg($initDbScript), $initCode);
+    if ($initCode !== 0) {
+        fwrite(STDERR, "FAIL: init_db.php exited {$initCode}\n");
+        exit(2);
+    }
 }
 
 $accelEnv = [
@@ -127,7 +148,13 @@ wsAccelSend($client, [
 ]);
 wsAccelRead($client);
 
-echo "Disconnecting client to arm reconnect timer ({$reconnectTimeout}s)...\n";
+// Reconnect grace arms only in playing (waiting disconnect removes immediately).
+wsAccelSend($client, ['action' => 'play_vs_bot']);
+wsAccelRead($client);
+usleep(300_000);
+wsAccelRead($client);
+
+echo "Disconnecting playing client to arm reconnect timer ({$reconnectTimeout}s)...\n";
 fclose($client);
 
 $waitSeconds = $reconnectTimeout + 2;
@@ -142,10 +169,22 @@ while (proc_get_status($proc)['running'] && $waited < 5_000_000) {
     $waited += 100_000;
 }
 proc_close($proc);
+// Workerman master/worker may outlive proc_terminate — stop by pid file.
+passthru(
+    PHP_BINARY . ' ' . escapeshellarg($serverScript) . ' stop',
+    $stopCode
+);
+if ($stopCode !== 0) {
+    fwrite(STDERR, "WARN: php server.php stop exited {$stopCode}\n");
+}
 
 echo "Analyzing timer_audit.log...\n";
-passthru(PHP_BINARY . ' ' . escapeshellarg($projectRoot . '/scripts/analyze_timer_log.php') . ' ' . escapeshellarg($auditLog));
-exit(0);
+passthru(
+    PHP_BINARY . ' ' . escapeshellarg($projectRoot . '/scripts/analyze_timer_log.php')
+    . ' ' . escapeshellarg($auditLog),
+    $analyzeCode
+);
+exit($analyzeCode);
 
 /**
  * @return resource|null
