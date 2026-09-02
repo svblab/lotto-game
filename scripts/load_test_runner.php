@@ -150,13 +150,15 @@ while (proc_get_status($proc)['running'] && $waited < 5_000_000) {
 proc_close($proc);
 
 echo "Analyzing load logs...\n";
+$analyzeExit = 0;
 passthru(
     PHP_BINARY . ' ' . escapeshellarg($projectRoot . '/scripts/analyze_load_log.php')
     . ' ' . escapeshellarg($auditLog)
     . ' --client-log=' . escapeshellarg($clientLog)
-    . ' --resource-log=' . escapeshellarg($resourceLog)
+    . ' --resource-log=' . escapeshellarg($resourceLog),
+    $analyzeExit
 );
-exit(0);
+exit($analyzeExit === 0 ? 0 : 1);
 
 /**
  * @return list<LoadWsClient>
@@ -396,10 +398,12 @@ final class LoadWsClient
     /** @var resource */
     private $sock;
     private ?int $roomId = null;
+    private string $buffer = '';
 
-    private function __construct($sock)
+    private function __construct($sock, string $buffer = '')
     {
         $this->sock = $sock;
+        $this->buffer = $buffer;
     }
 
     public static function connect(string $host, int $port): ?self
@@ -418,9 +422,37 @@ final class LoadWsClient
             . "Sec-WebSocket-Key: {$key}\r\n"
             . "Sec-WebSocket-Version: 13\r\n\r\n";
         fwrite($sock, $headers);
-        fread($sock, 4096);
 
-        return new self($sock);
+        // Read HTTP upgrade response only; keep any trailing WS bytes in buffer.
+        $http = '';
+        while (!str_contains($http, "\r\n\r\n")) {
+            $chunk = fread($sock, 1024);
+            if ($chunk === false || $chunk === '') {
+                fclose($sock);
+                return null;
+            }
+            $http .= $chunk;
+            if (strlen($http) > 8192) {
+                fclose($sock);
+                return null;
+            }
+        }
+
+        $pos = strpos($http, "\r\n\r\n");
+        $leftover = $pos === false ? '' : substr($http, $pos + 4);
+        $client = new self($sock, $leftover);
+
+        // Server sends `hello` immediately after upgrade — drain it so the next
+        // readFrame belongs to the first client action (auth_result, etc.).
+        $hello = $client->readFrameBuffered();
+        if ($hello !== null) {
+            $data = json_decode($hello, true);
+            if (!is_array($data) || ($data['type'] ?? '') !== 'hello') {
+                // Unexpected first frame; keep socket usable for actions anyway.
+            }
+        }
+
+        return $client;
     }
 
     /**
@@ -435,22 +467,31 @@ final class LoadWsClient
         }
 
         self::sendFrame($this->sock, $json);
-        $raw = self::readFrame($this->sock);
-        $rttMs = (hrtime(true) - $start) / 1_000_000;
 
-        if ($raw !== null) {
-            $data = json_decode($raw, true);
-            if (is_array($data)) {
-                if (isset($data['room_id'])) {
-                    $this->roomId = (int) $data['room_id'];
-                }
-                if (isset($data['type']) && $data['type'] === 'room_created' && isset($data['room_id'])) {
-                    $this->roomId = (int) $data['room_id'];
-                }
+        // Read until a JSON response for this action (skip stray hello if any).
+        $deadline = microtime(true) + 3.0;
+        while (microtime(true) < $deadline) {
+            $frame = $this->readFrameBuffered();
+            if ($frame === null) {
+                break;
             }
+            $data = json_decode($frame, true);
+            if (!is_array($data)) {
+                continue;
+            }
+            if (($data['type'] ?? '') === 'hello') {
+                continue;
+            }
+            if (isset($data['room_id'])) {
+                $this->roomId = (int) $data['room_id'];
+            }
+            if (($data['type'] ?? '') === 'room_joined' && isset($data['room_id'])) {
+                $this->roomId = (int) $data['room_id'];
+            }
+            break;
         }
 
-        return $rttMs;
+        return (hrtime(true) - $start) / 1_000_000;
     }
 
     public function lastRoomId(): ?int
@@ -490,17 +531,19 @@ final class LoadWsClient
         fwrite($sock, $frame);
     }
 
-    /**
-     * @param resource $sock
-     */
-    private static function readFrame($sock): ?string
+    private function readFrameBuffered(): ?string
     {
-        stream_set_timeout($sock, 3);
-        $hdr = fread($sock, 2);
-        if ($hdr === false || strlen($hdr) < 2) {
-            return null;
+        stream_set_timeout($this->sock, 3);
+
+        while (strlen($this->buffer) < 2) {
+            $chunk = fread($this->sock, 4096);
+            if ($chunk === false || $chunk === '') {
+                return null;
+            }
+            $this->buffer .= $chunk;
         }
 
+        $hdr = substr($this->buffer, 0, 2);
         $opcode = ord($hdr[0]) & 0x0F;
         if ($opcode === 0x8) {
             return null;
@@ -508,28 +551,40 @@ final class LoadWsClient
 
         $b1 = ord($hdr[1]);
         $len = $b1 & 0x7F;
+        $offset = 2;
         if ($len === 126) {
-            $ext = fread($sock, 2);
-            if ($ext === false || strlen($ext) < 2) {
-                return null;
+            while (strlen($this->buffer) < 4) {
+                $chunk = fread($this->sock, 4096);
+                if ($chunk === false || $chunk === '') {
+                    return null;
+                }
+                $this->buffer .= $chunk;
             }
-            $len = unpack('n', $ext)[1];
+            $len = unpack('n', substr($this->buffer, 2, 2))[1];
+            $offset = 4;
         } elseif ($len === 127) {
-            $ext = fread($sock, 8);
-            if ($ext === false || strlen($ext) < 8) {
-                return null;
+            while (strlen($this->buffer) < 10) {
+                $chunk = fread($this->sock, 4096);
+                if ($chunk === false || $chunk === '') {
+                    return null;
+                }
+                $this->buffer .= $chunk;
             }
-            $len = unpack('J', $ext)[1];
+            $len = unpack('J', substr($this->buffer, 2, 8))[1];
+            $offset = 10;
         }
 
-        $payload = '';
-        while (strlen($payload) < $len) {
-            $chunk = fread($sock, $len - strlen($payload));
+        $need = $offset + $len;
+        while (strlen($this->buffer) < $need) {
+            $chunk = fread($this->sock, 4096);
             if ($chunk === false || $chunk === '') {
-                break;
+                return null;
             }
-            $payload .= $chunk;
+            $this->buffer .= $chunk;
         }
+
+        $payload = substr($this->buffer, $offset, $len);
+        $this->buffer = substr($this->buffer, $need);
 
         return $payload !== '' ? $payload : null;
     }
