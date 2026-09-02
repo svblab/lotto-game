@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-27  
 **Repository:** https://github.com/svblab/lotto-game  
-**Auditor session:** EPIC-11.0 complete; EPIC-11.1/11.2/11.3/11.4 instrumentation complete (VPS runs pending); EPIC-11.5 instrumentation complete (VPS replay pending); EPIC-11.6 instrumentation complete (VPS load runs pending)
+**Auditor session:** EPIC-11.0 complete; EPIC-11.1/11.2/11.3/11.4 instrumentation complete (VPS runs pending); **EPIC-11.5 VPS live WS verified (2026-09-02)**; EPIC-11.6 instrumentation complete (VPS load runs pending)
 
 ---
 
@@ -188,9 +188,45 @@ php scripts/analyze_memory_log.php
 
 ---
 
-## EPIC-11.5 — Protocol Audit (Instrumentation Complete)
+## EPIC-11.5 — Protocol Audit (VPS Verified)
 
-**Status:** Documentation aligned; live audit tests added. VPS replay pending.
+**Status:** Documentation aligned; live audit tests **PASS on Ubuntu VPS** (2026-09-02).
+
+### VPS live WebSocket verification
+
+| Item | Value |
+|------|-------|
+| Host | `box-963286` (Ubuntu 24.04.4 LTS, non-production verification VPS) |
+| Method | SSH MCP; dev checkout `~/lotto-game` (Workerman subprocess tests) |
+| Commit | `f2c9cfb` (main post-PR #2 merge) |
+| Date | 2026-09-02 |
+
+Eight live-server manual tests — **145 passed, 0 failed**:
+
+| Test | Result |
+|------|--------|
+| `test_server_bootstrap.php` | 24/24 PASS |
+| `test_packet_validation.php` | 11/11 PASS |
+| `test_auth_packet_routing.php` | 18/18 PASS |
+| `test_lobby_packet_routing.php` | 23/23 PASS |
+| `test_game_packet_routing.php` | 22/22 PASS |
+| `test_admin_packet_routing.php` | 15/15 PASS |
+| `test_session_lifecycle.php` | 13/13 PASS |
+| `test_protocol_audit.php` | 19/19 PASS |
+
+Reproduction:
+
+```bash
+cd ~/lotto-game && git fetch origin main && git reset --hard FETCH_HEAD
+composer install -q
+for f in test_server_bootstrap test_packet_validation test_auth_packet_routing \
+  test_lobby_packet_routing test_game_packet_routing test_admin_packet_routing \
+  test_session_lifecycle test_protocol_audit; do
+  php tests/Manual/$f.php
+done
+```
+
+`ws_emulator.php` remains available for manual session replay (`--send`, `--replay`, `--interactive`).
 
 ### Documentation fixes (ADR-007)
 
@@ -209,12 +245,12 @@ php scripts/analyze_memory_log.php
 | `tests/Manual/test_protocol_audit.php` | 7 live WS acceptance tests (extensibility, room_full, auth guards) |
 | `scripts/ws_emulator.php` | CLI emulator: `--send`, `--replay session.jsonl`, `--interactive` |
 
-### Live-server test coverage (VPS required)
+### Live-server test coverage
 
 - `test_protocol_audit.php` — EPIC-11.5 acceptance criteria not covered by routing tests
-- Existing: `test_server_bootstrap.php`, `test_packet_validation.php`, `test_*_packet_routing.php`
+- Routing/bootstrap suite: `test_server_bootstrap.php`, `test_packet_validation.php`, `test_*_packet_routing.php`, `test_session_lifecycle.php`
 
-**Action:** Run `php tests/Manual/test_protocol_audit.php` on Ubuntu VPS.
+All listed tests verified on VPS — see table above.
 
 ---
 
@@ -257,7 +293,7 @@ See `docs/IMPLEMENTATION_STATUS.md` § TECHNICAL DEBT and § KNOWN GAPS:
 - **TD-1:** `admin_stats_data` — **implementation complete**; documentation/status reconciliation pending (Low, not blocking deployment).
 - **TD-2:** `error.banned` — reserved/unused per ADR-007; `banned` packet canonical (Very Low, documentation only).
 - Real-WS test log noise (low) — unchanged.
-- Phase 11 VPS verification (TD-3) — instrumentation complete; VPS runs pending for 11.1–11.6.
+- Phase 11 VPS verification (TD-3) — **11.5 DONE** (live WS on VPS); 11.1–11.4 and 11.6 VPS runs still pending.
 
 ---
 
@@ -267,8 +303,8 @@ See `docs/IMPLEMENTATION_STATUS.md` § TECHNICAL DEBT and § KNOWN GAPS:
 |-----------|--------|
 | All protocol actions wired | ✅ Fixed (P11-001) |
 | Unit/integration tests pass | ✅ 28/28 on Windows |
-| Live WS tests pass | ⏳ Run on VPS (9 live-server tests incl. test_protocol_audit.php) |
-| Memory/timer/load audits | ⏳ EPIC-11.1/11.2/11.3/11.4 instrumented (VPS runs pending); 11.5 instrumented (VPS replay pending); 11.6 instrumented (VPS load runs pending) |
+| Live WS tests pass | ✅ **145/145 PASS** on VPS (`box-963286`, `f2c9cfb`, 2026-09-02) |
+| Memory/timer/load audits | ⏳ EPIC-11.1/11.2/11.3/11.4 instrumented (VPS runs pending); **11.5 VPS verified**; 11.6 instrumented (VPS load runs pending) |
 | Protocol docs synced | ✅ `admin_stats_data` implemented (TD-1 docs reconciliation only); `error.banned` reserved per ADR-007 (TD-2) |
 
 **Verdict:** Proceed with Phase 12 frontend development in parallel with completing EPIC-11.1–11.6 VPS verification (TD-3), **provided** the live-server tests pass on Ubuntu after deploying P11-001 fix. `admin_stats_data` is implemented end-to-end; remaining TD-1 work is documentation reconciliation only.
