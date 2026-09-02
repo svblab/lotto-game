@@ -193,11 +193,25 @@ Priority: **Very Low**. Not blocking deployment. No runtime change proposed.
 | 11.1 Memory | DONE | PASS | **DONE** (6h `memory_stability_runner.php` PASS, `box-963286`, 2026-09-02) | No |
 | 11.2 Timer | DONE | PASS | **DONE** (accelerated `timer_accelerated_runner.php` PASS, reconnect drift ~0.5ms, `box-963286`, 2026-09-02) | No |
 | 11.3 Economy | DONE | PASS | **DONE** (`economy_integrity_runner.php` + analyze replay PASS; live Workerman stake PASS, `box-963286`, 2026-09-02) | No |
-| 11.4 State machine | DONE | PASS | **PENDING** | No |
+| 11.4 State machine | DONE | PASS | **DONE** (live Workerman + analyze PASS, `box-963286`, 2026-09-02) | No |
 | 11.5 Protocol replay | DONE | Static PASS | **DONE** (8 live WS tests, 145/145 PASS, `box-963286` 2026-09-02) | No |
 | 11.6 Load testing | DONE | PASS | **PENDING** | No |
 
-See `docs/PHASE_11_REPORT.md` and `docs/ROADMAP.md` § TD-3 matrix. **11.1** VPS memory/stability verified 2026-09-02; **11.2** VPS accelerated timer verified 2026-09-02; **11.3** VPS economy integrity verified 2026-09-02; **11.5** VPS live WS verified 2026-09-02; 11.4 and 11.6 VPS runs still pending.
+See `docs/PHASE_11_REPORT.md` and `docs/ROADMAP.md` § TD-3 matrix. **11.1** VPS memory/stability verified 2026-09-02; **11.2** VPS accelerated timer verified 2026-09-02; **11.3** VPS economy integrity verified 2026-09-02; **11.4** VPS state-machine live-session verified 2026-09-02; **11.5** VPS live WS verified 2026-09-02; 11.6 VPS load runs still pending.
+
+### EPIC-11.4 — VPS state-machine live-session verification (2026-09-02)
+
+Status: **DONE** — mock 35/35 + live Workerman transition log replay PASS on Ubuntu VPS.
+
+| Item | Value |
+|------|-------|
+| Host | `box-963286` (Ubuntu 24.04, non-production) |
+| Commit | `7032a4a` (main post-PR #6) |
+| Mock | `test_state_machine_audit.php` 35/35 PASS @ `2026-09-02T18:33:31Z` |
+| Live | `LOTTO_STATE_AUDIT=1` + play_vs_bot path; 3 events; analyze PASS |
+| Window | live `2026-09-02T18:34:08Z` → `2026-09-02T18:35:23Z` |
+
+**Out of scope for this sign-off:** 11.6 load, deployment changes.
 
 ### EPIC-11.3 — VPS economy integrity verification (2026-09-02)
 
@@ -1845,7 +1859,7 @@ Verification (Ubuntu VPS — 2026-09-02):
 - Eight live WS tests: **145/145 PASS** on `box-963286` @ `f2c9cfb`
   (see TD-3 § EPIC-11.5 above and `docs/PHASE_11_REPORT.md`)
 
-- [IN PROGRESS] EPIC-11.4 State machine audit (Phase 11 — instrumentation complete 2026-07-27; VPS live-game run pending)
+- [DONE] EPIC-11.4 State machine audit (Phase 11 — instrumentation complete 2026-07-27; **VPS live-session + analyze PASS 2026-09-02** on `box-963286`)
 Files:
 - src/Core/StateMachineAudit.php (новый файл — opt-in state transition logging → logs/state_machine_audit.log)
 - src/Core/Helpers.php (diff — lottoStateTransition/lottoStateReject/lottoPlayerStateTransition)
@@ -1853,9 +1867,9 @@ Files:
 - src/Core/RoomManager.php, src/Game/GameService.php, src/Game/GameFinishService.php,
   src/Game/ApartmentService.php, src/Game/ReconnectService.php, src/Lobby/LobbyService.php,
   src/Admin/AdminService.php (diff — transition/rejection hooks)
-- tests/Manual/test_state_machine_audit.php (новый файл — 29 mock regression tests)
+- tests/Manual/test_state_machine_audit.php (новый файл — mock regression tests)
 - scripts/analyze_state_machine_log.php (новый файл — log replay + transition validation)
-- docs/PHASE_11_REPORT.md (diff — EPIC-11.4 section updated)
+- docs/PHASE_11_REPORT.md / docs/IMPLEMENTATION_STATUS.md / docs/ROADMAP.md (diff — EPIC-11.4 VPS verified)
 
 Implemented:
 - StateMachineAudit utility: LOTTO_STATE_AUDIT=1 logs room transitions, player
@@ -1866,16 +1880,17 @@ Implemented:
   cycle, apartment timeout, host disconnect/reconnect, join_room guard.
 - analyze_state_machine_log.php: parse log, verify sequence against spec.
 
-Verification (Windows dev host):
-- test_state_machine_audit.php: 29/29 PASS
-- Full suite: php run_ALL_tests.php — 28/28 test files passed
-- Existing state tests unchanged: test_phase11_core_flows.php (17/17),
-  test_apartment.php (32/32), test_reconnect.php (20/20)
+Verification (Windows + VPS mock):
+- test_state_machine_audit.php: 35/35 PASS
 
-Remaining: Enable LOTTO_STATE_AUDIT=1 on VPS during live multi-game sessions;
-run analyze_state_machine_log.php after sessions for full sign-off.
+Verification (Ubuntu VPS — 2026-09-02):
+- Live Workerman `LOTTO_STATE_AUDIT=1` @ `7032a4a`: created→waiting→playing +
+  active→disconnected; `analyze_state_machine_log.php` PASS (exit 0)
+- Window: `2026-09-02T18:34:08Z` → `2026-09-02T18:35:23Z` on `box-963286`
 
-Next in Phase 11: EPIC-11.5 Protocol audit, then 11.6 per
+Remaining TD-3: 11.6 only (11.1–11.5 DONE).
+
+Next in Phase 11 historically: EPIC-11.5 Protocol audit (DONE), then 11.6 per
 docs/prompt phase 11 detail.md and docs/PHASE_11_REPORT.md.
 
 - [DONE] EPIC-11.3 Economy audit (Phase 11 — instrumentation complete 2026-07-27; **VPS integrity + live stake PASS 2026-09-02** on `box-963286`)
@@ -1910,7 +1925,7 @@ VPS verification (2026-09-02):
 - Live Workerman LOTTO_ECONOMY_AUDIT=1 play_vs_bot stake — **PASS**
 - Evidence: docs/PHASE_11_REPORT.md § EPIC-11.3
 
-Remaining TD-3: 11.4, 11.6 (11.1, 11.2, 11.3, 11.5 DONE).
+Remaining TD-3: 11.6 (11.1–11.5 DONE).
 
 - [DONE] EPIC-11.2 Timer audit (Phase 11 — instrumentation complete 2026-07-27; **VPS accelerated run PASS 2026-09-02** on `box-963286`)
 Files:
@@ -1949,7 +1964,7 @@ VPS verification (2026-09-02):
 - reconnect interval 5.000s, drift ~0.5ms, one_shot_seen=1 fired=1 orphaned=0
 - Evidence: `docs/PHASE_11_REPORT.md` § EPIC-11.2
 
-Remaining TD-3: 11.4, 11.6 (11.1, 11.2, 11.3, 11.5 already DONE).
+Remaining TD-3: 11.6 (11.1, 11.2, 11.3, 11.4, 11.5 already DONE).
 
 Remaining: Run timer_accelerated_runner.php on Ubuntu VPS for live drift
 acceptance sign-off per EPIC-11.2 acceptance criteria.
@@ -4179,7 +4194,7 @@ Next planned work (see `docs/ROADMAP.md`):
 
 ```text
 SYSTEM DEPLOYMENT: D — DONE (D1 verified 2026-09-01)
-TECHNICAL DEBT: TD-1 docs reconciliation; TD-3 Phase 11 VPS runs (11.4, 11.6 pending; 11.1 DONE; 11.2 DONE; 11.3 DONE; 11.5 DONE)
+TECHNICAL DEBT: TD-1 docs reconciliation; TD-3 Phase 11 VPS runs (11.6 pending; 11.1 DONE; 11.2 DONE; 11.3 DONE; 11.4 DONE; 11.5 DONE)
 ```
 
 PHASE 10 — WEBSOCKET PROTOCOL: COMPLETE (10.0-10.7 all done). Server-side

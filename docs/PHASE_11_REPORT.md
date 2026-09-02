@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-27  
 **Repository:** https://github.com/svblab/lotto-game  
-**Auditor session:** EPIC-11.0 complete; **EPIC-11.1 VPS memory/stability verified (2026-09-02)**; **EPIC-11.2 VPS accelerated timer verified (2026-09-02)**; **EPIC-11.3 VPS economy integrity verified (2026-09-02)**; EPIC-11.4 instrumentation complete (VPS run pending); **EPIC-11.5 VPS live WS verified (2026-09-02)**; EPIC-11.6 instrumentation complete (VPS load runs pending)
+**Auditor session:** EPIC-11.0 complete; **EPIC-11.1 VPS memory/stability verified (2026-09-02)**; **EPIC-11.2 VPS accelerated timer verified (2026-09-02)**; **EPIC-11.3 VPS economy integrity verified (2026-09-02)**; **EPIC-11.4 VPS state-machine live-session verified (2026-09-02)**; **EPIC-11.5 VPS live WS verified (2026-09-02)**; EPIC-11.6 instrumentation complete (VPS load runs pending)
 
 ---
 
@@ -221,20 +221,22 @@ php scripts/analyze_economy_log.php logs/economy_audit_runner.log --initial=1:50
 
 ---
 
-## EPIC-11.4 — State Machine Audit (Instrumentation Complete)
+## EPIC-11.4 — State Machine Audit (VPS Verified)
 
-**Status:** Instrumentation complete 2026-07-27; VPS live-session validation pending.
+**Status:** Instrumentation + mock regression complete; **VPS live-session log replay PASS (2026-09-02)**.
 
-**Implemented:**
-- `StateMachineAudit` utility (`LOTTO_STATE_AUDIT=1` → `logs/state_machine_audit.log`)
-- Transition graph per ANCHOR_CORE.md Part 4 (room + player states)
-- Hooks at: `RoomManager`, `GameService`, `GameFinishService`, `ApartmentService`,
-  `ReconnectService`, `LobbyService`, `AdminService`
-- `test_state_machine_audit.php`: **29/29 PASS**
-- `scripts/analyze_state_machine_log.php` — replay + sequence validation
+| File | Purpose |
+|------|---------|
+| `src/Core/StateMachineAudit.php` | Opt-in transition logging (`LOTTO_STATE_AUDIT=1`) → `logs/state_machine_audit.log` |
+| `src/Core/Helpers.php` | `lottoStateTransition` / `lottoStateReject` / `lottoPlayerStateTransition` |
+| `tests/Manual/test_state_machine_audit.php` | Mock regression (room + player lifecycle) |
+| `scripts/analyze_state_machine_log.php` | Log replay + ANCHOR_CORE Part 4 validation |
+
+**Hooks:** `RoomManager`, `GameService`, `GameFinishService`, `ApartmentService`,
+`ReconnectService`, `LobbyService`, `AdminService`
 
 **Verified transitions (mock tests):**
-- `created → waiting → playing` (start_game)
+- `created → waiting → playing` (start_game / play_vs_bot)
 - `playing → apartment → playing` (apartment_complete / apartment_timeout)
 - `playing/apartment → finished` (victory / last_survivor via GameFinishService)
 - `finished → destroyed` (game_over_cleanup)
@@ -242,7 +244,34 @@ php scripts/analyze_economy_log.php logs/economy_audit_runner.log --initial=1:50
 - Player: `active ↔ disconnected` (connection_lost / reconnect)
 - Host disconnect + reconnect preserves `host_conn_id`
 
-**Remaining:** Run with `LOTTO_STATE_AUDIT=1` on VPS during live games; verify via `analyze_state_machine_log.php`.
+### VPS state-machine verification (2026-09-02)
+
+| Item | Value |
+|------|-------|
+| Host | `box-963286` (Ubuntu 24.04, non-production verification VPS) |
+| Commit | `7032a4a` (main post-PR #6 / EPIC-11.3) |
+| Mock | `test_state_machine_audit.php` **35/35 PASS** @ `2026-09-02T18:33:31Z` |
+| Live window | `2026-09-02T18:34:08Z` → `2026-09-02T18:35:23Z` |
+| Live Workerman | `LOTTO_STATE_AUDIT=1` + register → create_room → `play_vs_bot` → draws → disconnect |
+| Live events | 3: `created→waiting` (`room_created`), `waiting→playing` (`play_vs_bot`), `active→disconnected` (`connection_lost`) |
+| Analyze | `analyze_state_machine_log.php` **PASS** (exit 0) |
+| Result | **PASS** |
+
+Commands:
+
+```bash
+php tests/Manual/test_state_machine_audit.php
+# Live path:
+LOTTO_STATE_AUDIT=1 LOTTO_STATE_AUDIT_LOG=logs/state_machine_audit_live.log php server.php start
+# register → create_room → play_vs_bot → draw_barrel ×N → disconnect
+php scripts/analyze_state_machine_log.php logs/state_machine_audit_live.log
+```
+
+### Mock regression results
+
+- `test_state_machine_audit.php`: **35/35 PASS** (Windows + VPS)
+
+**VPS sign-off:** Complete — see table above.
 
 ---
 
@@ -351,7 +380,7 @@ See `docs/IMPLEMENTATION_STATUS.md` § TECHNICAL DEBT and § KNOWN GAPS:
 - **TD-1:** `admin_stats_data` — **implementation complete**; documentation/status reconciliation pending (Low, not blocking deployment).
 - **TD-2:** `error.banned` — reserved/unused per ADR-007; `banned` packet canonical (Very Low, documentation only).
 - Real-WS test log noise (low) — unchanged.
-- Phase 11 VPS verification (TD-3) — **11.1 DONE**; **11.2 DONE**; **11.3 DONE** (economy integrity + live stake PASS on VPS); **11.5 DONE**; 11.4 and 11.6 VPS runs still pending.
+- Phase 11 VPS verification (TD-3) — **11.1 DONE**; **11.2 DONE**; **11.3 DONE**; **11.4 DONE** (live-session log replay PASS on VPS); **11.5 DONE**; 11.6 VPS load runs still pending.
 
 ---
 
@@ -362,10 +391,10 @@ See `docs/IMPLEMENTATION_STATUS.md` § TECHNICAL DEBT and § KNOWN GAPS:
 | All protocol actions wired | ✅ Fixed (P11-001) |
 | Unit/integration tests pass | ✅ 28/28 on Windows |
 | Live WS tests pass | ✅ **145/145 PASS** on VPS (`box-963286`, `f2c9cfb`, 2026-09-02) |
-| Memory/timer/load audits | ✅ **11.1 VPS verified**; ✅ **11.2 VPS verified**; ✅ **11.3 VPS verified**; ⏳ 11.4 instrumented (VPS pending); **11.5 VPS verified**; 11.6 instrumented (VPS load pending) |
+| Memory/timer/load audits | ✅ **11.1 VPS verified**; ✅ **11.2 VPS verified**; ✅ **11.3 VPS verified**; ✅ **11.4 VPS verified**; **11.5 VPS verified**; ⏳ 11.6 instrumented (VPS load pending) |
 | Protocol docs synced | ✅ `admin_stats_data` implemented (TD-1 docs reconciliation only); `error.banned` reserved per ADR-007 (TD-2) |
 
-**Verdict:** Proceed with Phase 12 frontend development in parallel with completing remaining EPIC-11.4 and 11.6 VPS verification (TD-3). Live-server protocol tests, memory/stability, timer drift, and economy integrity are verified on Ubuntu VPS. `admin_stats_data` is implemented end-to-end; remaining TD-1 work is documentation reconciliation only.
+**Verdict:** Proceed with Phase 12 frontend development in parallel with completing remaining EPIC-11.6 VPS load verification (TD-3). Live-server protocol tests, memory/stability, timer drift, economy integrity, and state-machine live-session replay are verified on Ubuntu VPS. `admin_stats_data` is implemented end-to-end; remaining TD-1 work is documentation reconciliation only.
 
 ---
 
