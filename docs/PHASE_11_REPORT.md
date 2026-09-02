@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-27  
 **Repository:** https://github.com/svblab/lotto-game  
-**Auditor session:** EPIC-11.0 complete; EPIC-11.1/11.2/11.3/11.4 instrumentation complete (VPS runs pending); **EPIC-11.5 VPS live WS verified (2026-09-02)**; EPIC-11.6 instrumentation complete (VPS load runs pending)
+**Auditor session:** EPIC-11.0 complete; **EPIC-11.1 VPS memory/stability verified (2026-09-02)**; EPIC-11.2/11.3/11.4 instrumentation complete (VPS runs pending); **EPIC-11.5 VPS live WS verified (2026-09-02)**; EPIC-11.6 instrumentation complete (VPS load runs pending)
 
 ---
 
@@ -61,9 +61,9 @@ These spawn `php server.php start` and connect via real WebSocket. **Workerman f
 
 ---
 
-## EPIC-11.1 — Memory Audit
+## EPIC-11.1 — Memory Audit (VPS Verified)
 
-**Status:** Instrumentation complete; mock regression tests pass. VPS long-duration run pending.
+**Status:** Instrumentation complete; mock regression tests pass; **6-hour VPS memory/stability run PASS (2026-09-02)**.
 
 ### Implementation
 
@@ -88,13 +88,34 @@ php scripts/memory_stability_runner.php --duration=21600 --players=50 --games=10
 php scripts/analyze_memory_log.php
 ```
 
+### VPS memory / stability verification (2026-09-02)
+
+| Item | Value |
+|------|-------|
+| Host | `box-963286` (Ubuntu 24.04, non-production verification VPS) |
+| Method | SSH; dev checkout `~/lotto-game` |
+| Commit | `6498144` (main post-PR #3 / EPIC-11.5) |
+| Start | `2026-09-02T03:33:19Z` |
+| End | ~`2026-09-02T09:33:25Z` (run log mtime; Stopping server then analyze) |
+| Duration | 21600s planned; last progress `elapsed=21559s` `remaining=41s` then stop |
+| Load | `--players=50 --games=10` |
+| Baseline | 4.00 MB |
+| Peak | 4.00 MB |
+| Threshold | 120% → limit 4.80 MB |
+| Snapshots | 644,587 (all `mem_mb=4.00`); violations **0** |
+| Result | **PASS** (≤120% baseline) |
+
+**Service health:** No crashes/restarts of the memory-stability runner; connected clients stayed at 50 for the run. Post-run leftover Workerman on port 8080 (dev checkout `~/lotto-game`) was stopped with `php server.php stop` — ports 8080/18080 clear; no production systemd unit was active.
+
+**Official analyzer note:** `php scripts/analyze_memory_log.php` was **OOM-killed (exit 137)** on this ~543 MB VPS because `file()` loads the full ~98 MB audit log. A streaming equivalent analysis using the same ≤120% baseline acceptance logic **PASSED**. Limitation (document only; no analyzer rewrite in this epic): prefer streaming over `file()` for long runs.
+
 ### Preliminary static + mock results
 
 - `test_memory_audit.php`: map cleanup and bounded memory growth verified (mock-based)
 - Runtime maps (`$worker->rooms`, `$worker->userConnections`) keyed by ID and destroyed via RoomManager/ReconnectService paths
 - No obvious unbounded array growth patterns in static review
 
-**Remaining:** Run `memory_stability_runner.php` on Ubuntu VPS for 6-hour acceptance sign-off.
+**VPS acceptance:** Complete — see evidence table above.
 
 ---
 
@@ -293,7 +314,7 @@ See `docs/IMPLEMENTATION_STATUS.md` § TECHNICAL DEBT and § KNOWN GAPS:
 - **TD-1:** `admin_stats_data` — **implementation complete**; documentation/status reconciliation pending (Low, not blocking deployment).
 - **TD-2:** `error.banned` — reserved/unused per ADR-007; `banned` packet canonical (Very Low, documentation only).
 - Real-WS test log noise (low) — unchanged.
-- Phase 11 VPS verification (TD-3) — **11.5 DONE** (live WS on VPS); 11.1–11.4 and 11.6 VPS runs still pending.
+- Phase 11 VPS verification (TD-3) — **11.1 DONE** (6h memory/stability PASS on VPS); **11.5 DONE** (live WS on VPS); 11.2–11.4 and 11.6 VPS runs still pending.
 
 ---
 
@@ -304,10 +325,10 @@ See `docs/IMPLEMENTATION_STATUS.md` § TECHNICAL DEBT and § KNOWN GAPS:
 | All protocol actions wired | ✅ Fixed (P11-001) |
 | Unit/integration tests pass | ✅ 28/28 on Windows |
 | Live WS tests pass | ✅ **145/145 PASS** on VPS (`box-963286`, `f2c9cfb`, 2026-09-02) |
-| Memory/timer/load audits | ⏳ EPIC-11.1/11.2/11.3/11.4 instrumented (VPS runs pending); **11.5 VPS verified**; 11.6 instrumented (VPS load runs pending) |
+| Memory/timer/load audits | ✅ **11.1 VPS verified** (6h PASS); ⏳ 11.2/11.3/11.4 instrumented (VPS runs pending); **11.5 VPS verified**; 11.6 instrumented (VPS load runs pending) |
 | Protocol docs synced | ✅ `admin_stats_data` implemented (TD-1 docs reconciliation only); `error.banned` reserved per ADR-007 (TD-2) |
 
-**Verdict:** Proceed with Phase 12 frontend development in parallel with completing EPIC-11.1–11.6 VPS verification (TD-3), **provided** the live-server tests pass on Ubuntu after deploying P11-001 fix. `admin_stats_data` is implemented end-to-end; remaining TD-1 work is documentation reconciliation only.
+**Verdict:** Proceed with Phase 12 frontend development in parallel with completing remaining EPIC-11.2–11.4 and 11.6 VPS verification (TD-3). Live-server protocol tests and the 6-hour memory/stability run are verified on Ubuntu VPS. `admin_stats_data` is implemented end-to-end; remaining TD-1 work is documentation reconciliation only.
 
 ---
 

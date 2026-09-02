@@ -157,7 +157,7 @@ ahead of Frontend (see note below).
 Status: In progress (EPIC-11.0 started 2026-07-27; see docs/PHASE_11_REPORT.md).
 
 - EPIC-11.0 Full integration testing — DONE
-- EPIC-11.1 Memory audit — IN PROGRESS (instrumentation done; VPS 6h run pending)
+- EPIC-11.1 Memory audit — **DONE** (VPS 6h memory/stability PASS on `box-963286`, 2026-09-02)
 - EPIC-11.2 Timer audit — IN PROGRESS (instrumentation done; VPS accelerated run pending)
 - EPIC-11.3 Economy audit — IN PROGRESS (instrumentation done; VPS live-game run pending)
 - EPIC-11.4 State machine audit — IN PROGRESS (instrumentation done; VPS live-game run pending)
@@ -276,17 +276,17 @@ TD-3  Phase 11 VPS verification (11.1–11.6)
 |----|-------|--------|----------|---------------------|
 | **TD-1** | ADR-023 / `admin_stats_data` — documentation reconciliation | IMPLEMENTATION **DONE**; docs **RECONCILED** (2026-08-30); TEST COVERAGE **VERIFIED** (`test_admin_stats.php` 10/10) | Low | No |
 | **TD-2** | `error.banned` vs `banned` packet — ADR-007 alignment | Runtime **IMPLEMENTED** (`error.banned` reserved/unused; `banned` packet canonical at login/reconnect/admin); DOCUMENTATION reconciliation only | Very Low | No |
-| **TD-3** | Phase 11 VPS verification backlog | Instrumentation **IMPLEMENTED** for 11.1–11.6; mock/local tests pass; **11.5 VPS verified** (2026-09-02); 11.1–11.4 and 11.6 VPS runs **pending** | Medium (release readiness) | No |
+| **TD-3** | Phase 11 VPS verification backlog | Instrumentation **IMPLEMENTED** for 11.1–11.6; mock/local tests pass; **11.1 VPS verified** (2026-09-02); **11.5 VPS verified** (2026-09-02); 11.2–11.4 and 11.6 VPS runs **pending** | Medium (release readiness) | No |
 
 ### TD-3 — Phase 11 VPS verification matrix
 
 | Sub-item | Instrumentation | Local/mock tests | VPS verification | Blocks release? | Blocks deployment? |
 |----------|-----------------|------------------|------------------|-----------------|-------------------|
-| **11.1** Memory | DONE (`MemoryAudit`) | PASS (`test_memory_audit.php`) | **PENDING** (6h `memory_stability_runner.php`) | Advisory | No |
+| **11.1** Memory | DONE (`MemoryAudit`) | PASS (`test_memory_audit.php`) | **DONE** (6h PASS, baseline/peak 4.00 MB, 0 violations, `box-963286` @ `6498144`, 2026-09-02) | Advisory | No |
 | **11.2** Timer | DONE (`TimerAudit`) | PASS (`test_timer_audit.php` 20/20) | **PENDING** (`timer_accelerated_runner.php`) | Advisory | No |
 | **11.3** Economy | DONE (`EconomyAudit`) | PASS (`test_economy_audit.php` 32/32) | **PENDING** (live-game log replay) | Advisory | No |
 | **11.4** State machine | DONE (`StateMachineAudit`) | PASS (`test_state_machine_audit.php` 29/29) | **PENDING** (live-session log replay) | Advisory | No |
 | **11.5** Protocol replay | DONE (`ws_emulator.php`, `test_protocol_audit.php`) | Static PASS (`test_protocol_completeness.php`) | **DONE** (8 live WS tests, 145/145 PASS, `box-963286` 2026-09-02) | Advisory | No |
 | **11.6** Load testing | DONE (`LoadAudit`) | PASS (`test_load_audit.php`) | **PENDING** (4 VPS load scenarios) | Advisory | No |
 
-Evidence: `docs/PHASE_11_REPORT.md`. EPIC-11.5 VPS live WS verified 2026-09-02; remaining TD-3 items unchanged.
+Evidence: `docs/PHASE_11_REPORT.md`. EPIC-11.1 VPS memory/stability verified 2026-09-02; EPIC-11.5 VPS live WS verified 2026-09-02; remaining TD-3 items unchanged.

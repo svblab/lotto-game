@@ -190,14 +190,33 @@ Priority: **Very Low**. Not blocking deployment. No runtime change proposed.
 
 | Sub-item | Instrumentation | Local/mock | VPS verification | Blocks deployment? |
 |----------|-----------------|------------|------------------|-------------------|
-| 11.1 Memory | DONE | PASS | **PENDING** | No |
+| 11.1 Memory | DONE | PASS | **DONE** (6h `memory_stability_runner.php` PASS, `box-963286`, 2026-09-02) | No |
 | 11.2 Timer | DONE | PASS | **PENDING** | No |
 | 11.3 Economy | DONE | PASS | **PENDING** | No |
 | 11.4 State machine | DONE | PASS | **PENDING** | No |
 | 11.5 Protocol replay | DONE | Static PASS | **DONE** (8 live WS tests, 145/145 PASS, `box-963286` 2026-09-02) | No |
 | 11.6 Load testing | DONE | PASS | **PENDING** | No |
 
-See `docs/PHASE_11_REPORT.md` and `docs/ROADMAP.md` § TD-3 matrix. **11.5** VPS live WS verified 2026-09-02; 11.1–11.4 and 11.6 VPS runs still pending.
+See `docs/PHASE_11_REPORT.md` and `docs/ROADMAP.md` § TD-3 matrix. **11.1** VPS memory/stability verified 2026-09-02; **11.5** VPS live WS verified 2026-09-02; 11.2–11.4 and 11.6 VPS runs still pending.
+
+### EPIC-11.1 — VPS memory / stability verification (2026-09-02)
+
+Status: **DONE** — six-hour memory/stability run PASS on Ubuntu VPS.
+
+| Item | Value |
+|------|-------|
+| Host | `box-963286` (Ubuntu 24.04, non-production) |
+| Commit | `6498144` (main post-PR #3) |
+| Start / End | `2026-09-02T03:33:19Z` → ~`2026-09-02T09:33:25Z` |
+| Duration | 21600s planned; last progress elapsed=21559s remaining=41s |
+| Load | 50 players, 10 games |
+| Baseline / Peak | 4.00 MB / 4.00 MB (limit 4.80 MB @ 120%) |
+| Snapshots | 644,587; violations 0 |
+| Result | **PASS** |
+
+**Note:** Official `analyze_memory_log.php` OOM-killed (exit 137) loading ~98 MB log via `file()` on ~543 MB VPS; streaming equivalent analysis with same acceptance logic PASSed. Prefer streaming for long runs (document-only limitation; no analyzer rewrite in this epic).
+
+**Out of scope for this sign-off:** 11.2–11.4 replay, 11.6 load, deployment changes, analyzer rewrite.
 
 ### EPIC-11.5 — VPS live WebSocket verification (2026-09-02)
 
@@ -1760,7 +1779,7 @@ Remaining: Run load scenarios on Ubuntu VPS (1 CPU / 512 MB target):
   php scripts/load_test_runner.php --scenario=storm
   php scripts/load_test_runner.php --scenario=long --duration=3600
 
-Next in Phase 11: Complete EPIC-11.1–11.6 VPS sign-off runs per docs/PHASE_11_REPORT.md.
+Next in Phase 11: Complete EPIC-11.2–11.4 and 11.6 VPS sign-off runs per docs/PHASE_11_REPORT.md.
 
 - [DONE] EPIC-11.5 Protocol audit (instrumentation 2026-07-27; **VPS live WS verified 2026-09-02** — 145/145 PASS on `box-963286` @ `f2c9cfb`)
 Files:
@@ -1900,7 +1919,7 @@ acceptance sign-off per EPIC-11.2 acceptance criteria.
 Next in Phase 11: EPIC-11.5 Protocol audit, then 11.6 per
 docs/prompt phase 11 detail.md and docs/PHASE_11_REPORT.md.
 
-- [IN PROGRESS] EPIC-11.1 Memory audit (Phase 11 — instrumentation complete 2026-07-27; VPS 6h run pending)
+- [DONE] EPIC-11.1 Memory audit (Phase 11 — instrumentation complete 2026-07-27; **VPS 6h memory/stability PASS 2026-09-02** on `box-963286` @ `6498144`)
 Files:
 - src/Core/MemoryAudit.php (новый файл — opt-in memory snapshots → logs/memory_audit.log)
 - server.php (diff — worker_start/connection/packet/periodic snapshots)
@@ -1930,8 +1949,9 @@ Verification (Windows dev host):
 - test_memory_audit.php: all groups PASS
 - Full suite: php run_ALL_tests.php (includes new test file)
 
-Remaining: Run memory_stability_runner.php on Ubuntu VPS for 6-hour
-acceptance sign-off per EPIC-11.1 acceptance criteria.
+Remaining: VPS acceptance complete 2026-09-02 — see TD-3 § EPIC-11.1 and
+`docs/PHASE_11_REPORT.md` (streaming analyze note: official analyzer OOM on
+~98 MB log; acceptance logic PASSed via streaming equivalent).
 
 FIX-14 (VPS test isolation, 2026-07-27): Live WS tests now use port 18080
 and temp-dir logs via tests/Manual/ws_test_harness.php — no collision with
@@ -4121,7 +4141,7 @@ Next planned work (see `docs/ROADMAP.md`):
 
 ```text
 SYSTEM DEPLOYMENT: D — DONE (D1 verified 2026-09-01)
-TECHNICAL DEBT: TD-1 docs reconciliation; TD-3 Phase 11 VPS runs (11.1–11.4, 11.6 pending; 11.5 DONE)
+TECHNICAL DEBT: TD-1 docs reconciliation; TD-3 Phase 11 VPS runs (11.2–11.4, 11.6 pending; 11.1 DONE; 11.5 DONE)
 ```
 
 PHASE 10 — WEBSOCKET PROTOCOL: COMPLETE (10.0-10.7 all done). Server-side
