@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-27  
 **Repository:** https://github.com/svblab/lotto-game  
-**Auditor session:** EPIC-11.0 complete; **EPIC-11.1 VPS memory/stability verified (2026-09-02)**; **EPIC-11.2 VPS accelerated timer verified (2026-09-02)**; EPIC-11.3/11.4 instrumentation complete (VPS runs pending); **EPIC-11.5 VPS live WS verified (2026-09-02)**; EPIC-11.6 instrumentation complete (VPS load runs pending)
+**Auditor session:** EPIC-11.0 complete; **EPIC-11.1 VPS memory/stability verified (2026-09-02)**; **EPIC-11.2 VPS accelerated timer verified (2026-09-02)**; **EPIC-11.3 VPS economy integrity verified (2026-09-02)**; EPIC-11.4 instrumentation complete (VPS run pending); **EPIC-11.5 VPS live WS verified (2026-09-02)**; EPIC-11.6 instrumentation complete (VPS load runs pending)
 
 ---
 
@@ -168,9 +168,9 @@ php scripts/analyze_memory_log.php
 
 ---
 
-## EPIC-11.3 — Economy Audit (Instrumentation Complete)
+## EPIC-11.3 — Economy Audit (VPS Verified)
 
-**Status:** Instrumentation + mock regression complete; VPS live-game log replay pending.
+**Status:** Instrumentation + mock regression complete; **VPS economy integrity + live stake path PASS (2026-09-02)**.
 
 | File | Purpose |
 |------|---------|
@@ -190,13 +190,34 @@ php scripts/analyze_memory_log.php
 | `ApartmentService` | no-survivors refund | `refund` |
 | `AdminService` | kick/close room refund | `refund` |
 
+### VPS economy verification (2026-09-02)
+
+| Item | Value |
+|------|-------|
+| Host | `box-963286` (Ubuntu 24.04, non-production verification VPS) |
+| Commit | `85e9bbb` (main post-PR #5 / EPIC-11.2) |
+| Integrity start/end | `2026-09-02T18:20:17Z` (same-second run) |
+| Integrity scenarios | 4 (stake → prize/burn → apartment → refund) |
+| Integrity log | 7 events: stake=2 prize=2 apartment=1 refund=1 burn=1 |
+| Conservation | initial 1500; final coins 1499 + burned 1; replay PASS with `--initial=1:500,2:500,3:500` |
+| Live Workerman | `LOTTO_ECONOMY_AUDIT=1` + `play_vs_bot` → stake `amount=-10` logged; analyze PASS |
+| Result | **PASS** |
+
+Commands:
+
+```bash
+php scripts/economy_integrity_runner.php --log=logs/economy_audit_runner.log
+php scripts/analyze_economy_log.php logs/economy_audit_runner.log --initial=1:500,2:500,3:500
+# Live path: LOTTO_ECONOMY_AUDIT=1 php server.php start → play_vs_bot → analyze
+```
+
 ### Mock regression results
 
-- `test_economy_audit.php`: **32/32 PASS**
+- `test_economy_audit.php`: **34/34 PASS** (Windows)
 - `economy_integrity_runner.php`: **PASS** (4 scenarios, conservation holds)
 - Existing: `test_victory.php` (40/40), `test_apartment.php` (32/32), `test_admin_integration.php` (20/20)
 
-**Remaining:** Run with `LOTTO_ECONOMY_AUDIT=1` on VPS during live games; verify via `analyze_economy_log.php --initial=...`.
+**VPS sign-off:** Complete — see table above.
 
 ---
 
@@ -330,7 +351,7 @@ See `docs/IMPLEMENTATION_STATUS.md` § TECHNICAL DEBT and § KNOWN GAPS:
 - **TD-1:** `admin_stats_data` — **implementation complete**; documentation/status reconciliation pending (Low, not blocking deployment).
 - **TD-2:** `error.banned` — reserved/unused per ADR-007; `banned` packet canonical (Very Low, documentation only).
 - Real-WS test log noise (low) — unchanged.
-- Phase 11 VPS verification (TD-3) — **11.1 DONE** (6h memory/stability PASS on VPS); **11.2 DONE** (accelerated timer PASS on VPS); **11.5 DONE** (live WS on VPS); 11.3–11.4 and 11.6 VPS runs still pending.
+- Phase 11 VPS verification (TD-3) — **11.1 DONE**; **11.2 DONE**; **11.3 DONE** (economy integrity + live stake PASS on VPS); **11.5 DONE**; 11.4 and 11.6 VPS runs still pending.
 
 ---
 
@@ -341,10 +362,10 @@ See `docs/IMPLEMENTATION_STATUS.md` § TECHNICAL DEBT and § KNOWN GAPS:
 | All protocol actions wired | ✅ Fixed (P11-001) |
 | Unit/integration tests pass | ✅ 28/28 on Windows |
 | Live WS tests pass | ✅ **145/145 PASS** on VPS (`box-963286`, `f2c9cfb`, 2026-09-02) |
-| Memory/timer/load audits | ✅ **11.1 VPS verified** (6h PASS); ✅ **11.2 VPS verified** (accelerated timer PASS); ⏳ 11.3/11.4 instrumented (VPS runs pending); **11.5 VPS verified**; 11.6 instrumented (VPS load runs pending) |
+| Memory/timer/load audits | ✅ **11.1 VPS verified**; ✅ **11.2 VPS verified**; ✅ **11.3 VPS verified**; ⏳ 11.4 instrumented (VPS pending); **11.5 VPS verified**; 11.6 instrumented (VPS load pending) |
 | Protocol docs synced | ✅ `admin_stats_data` implemented (TD-1 docs reconciliation only); `error.banned` reserved per ADR-007 (TD-2) |
 
-**Verdict:** Proceed with Phase 12 frontend development in parallel with completing remaining EPIC-11.3–11.4 and 11.6 VPS verification (TD-3). Live-server protocol tests, the 6-hour memory/stability run, and accelerated timer drift are verified on Ubuntu VPS. `admin_stats_data` is implemented end-to-end; remaining TD-1 work is documentation reconciliation only.
+**Verdict:** Proceed with Phase 12 frontend development in parallel with completing remaining EPIC-11.4 and 11.6 VPS verification (TD-3). Live-server protocol tests, memory/stability, timer drift, and economy integrity are verified on Ubuntu VPS. `admin_stats_data` is implemented end-to-end; remaining TD-1 work is documentation reconciliation only.
 
 ---
 

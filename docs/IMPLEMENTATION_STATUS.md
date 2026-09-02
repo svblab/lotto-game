@@ -192,12 +192,26 @@ Priority: **Very Low**. Not blocking deployment. No runtime change proposed.
 |----------|-----------------|------------|------------------|-------------------|
 | 11.1 Memory | DONE | PASS | **DONE** (6h `memory_stability_runner.php` PASS, `box-963286`, 2026-09-02) | No |
 | 11.2 Timer | DONE | PASS | **DONE** (accelerated `timer_accelerated_runner.php` PASS, reconnect drift ~0.5ms, `box-963286`, 2026-09-02) | No |
-| 11.3 Economy | DONE | PASS | **PENDING** | No |
+| 11.3 Economy | DONE | PASS | **DONE** (`economy_integrity_runner.php` + analyze replay PASS; live Workerman stake PASS, `box-963286`, 2026-09-02) | No |
 | 11.4 State machine | DONE | PASS | **PENDING** | No |
 | 11.5 Protocol replay | DONE | Static PASS | **DONE** (8 live WS tests, 145/145 PASS, `box-963286` 2026-09-02) | No |
 | 11.6 Load testing | DONE | PASS | **PENDING** | No |
 
-See `docs/PHASE_11_REPORT.md` and `docs/ROADMAP.md` § TD-3 matrix. **11.1** VPS memory/stability verified 2026-09-02; **11.2** VPS accelerated timer verified 2026-09-02; **11.5** VPS live WS verified 2026-09-02; 11.3–11.4 and 11.6 VPS runs still pending.
+See `docs/PHASE_11_REPORT.md` and `docs/ROADMAP.md` § TD-3 matrix. **11.1** VPS memory/stability verified 2026-09-02; **11.2** VPS accelerated timer verified 2026-09-02; **11.3** VPS economy integrity verified 2026-09-02; **11.5** VPS live WS verified 2026-09-02; 11.4 and 11.6 VPS runs still pending.
+
+### EPIC-11.3 — VPS economy integrity verification (2026-09-02)
+
+Status: **DONE** — multi-scenario conservation + live Workerman stake path PASS on Ubuntu VPS.
+
+| Item | Value |
+|------|-------|
+| Host | `box-963286` (Ubuntu 24.04, non-production) |
+| Commit | `85e9bbb` (main post-PR #5) |
+| Integrity | 4 scenarios; 7 audit events; conservation PASS; analyze `--initial=1:500,2:500,3:500` PASS |
+| Live | `LOTTO_ECONOMY_AUDIT=1` + `play_vs_bot` → stake -10 logged; analyze PASS |
+| Window | `2026-09-02T18:20:17Z` (integrity); live stake ~`18:20:40` UTC |
+
+**Out of scope for this sign-off:** 11.4 state-machine replay, 11.6 load, deployment changes.
 
 ### EPIC-11.2 — VPS accelerated timer verification (2026-09-02)
 
@@ -1864,17 +1878,17 @@ run analyze_state_machine_log.php after sessions for full sign-off.
 Next in Phase 11: EPIC-11.5 Protocol audit, then 11.6 per
 docs/prompt phase 11 detail.md and docs/PHASE_11_REPORT.md.
 
-- [IN PROGRESS] EPIC-11.3 Economy audit (Phase 11 — instrumentation complete 2026-07-27; VPS live-game run pending)
+- [DONE] EPIC-11.3 Economy audit (Phase 11 — instrumentation complete 2026-07-27; **VPS integrity + live stake PASS 2026-09-02** on `box-963286`)
 Files:
 - src/Core/EconomyAudit.php (новый файл — opt-in financial event logging → logs/economy_audit.log)
 - src/Core/Helpers.php (diff — lottoEconomyRecord() helper)
 - server.php (diff — EconomyAudit wiring)
 - src/Game/GameService.php, src/Game/GameFinishService.php, src/Game/ApartmentService.php,
   src/Admin/AdminService.php (diff — audit hooks on stake/prize/burn/apartment/refund)
-- tests/Manual/test_economy_audit.php (новый файл — 32 mock regression tests)
+- tests/Manual/test_economy_audit.php (новый файл — mock regression tests)
 - scripts/economy_integrity_runner.php (новый файл — multi-scenario conservation check)
 - scripts/analyze_economy_log.php (новый файл — log replay + duplicate tx_id check)
-- docs/PHASE_11_REPORT.md (diff — EPIC-11.3 section updated)
+- docs/PHASE_11_REPORT.md / docs/IMPLEMENTATION_STATUS.md / docs/ROADMAP.md (diff — EPIC-11.3 VPS verified)
 
 Implemented:
 - EconomyAudit utility: LOTTO_ECONOMY_AUDIT=1 logs stake/prize/apartment/refund/burn
@@ -1887,16 +1901,16 @@ Implemented:
 - analyze_economy_log.php: parse log, optional --initial replay verification.
 
 Verification (Windows dev host):
-- test_economy_audit.php: 32/32 PASS
+- test_economy_audit.php: 34/34 PASS
 - economy_integrity_runner.php: PASS
-- Existing economy tests unchanged: test_victory.php (40/40), test_apartment.php (32/32),
-  test_admin_integration.php (20/20)
+- analyze_economy_log.php --initial=1:500,2:500,3:500: PASS
 
-Remaining: Enable LOTTO_ECONOMY_AUDIT=1 on VPS during live multi-game sessions;
-run analyze_economy_log.php with --initial balances for full sign-off.
+VPS verification (2026-09-02):
+- economy_integrity_runner.php + analyze replay — **PASS** on `box-963286` @ `85e9bbb`
+- Live Workerman LOTTO_ECONOMY_AUDIT=1 play_vs_bot stake — **PASS**
+- Evidence: docs/PHASE_11_REPORT.md § EPIC-11.3
 
-Next in Phase 11: EPIC-11.5 Protocol audit, then 11.6 per
-docs/prompt phase 11 detail.md and docs/PHASE_11_REPORT.md.
+Remaining TD-3: 11.4, 11.6 (11.1, 11.2, 11.3, 11.5 DONE).
 
 - [DONE] EPIC-11.2 Timer audit (Phase 11 — instrumentation complete 2026-07-27; **VPS accelerated run PASS 2026-09-02** on `box-963286`)
 Files:
@@ -1935,7 +1949,7 @@ VPS verification (2026-09-02):
 - reconnect interval 5.000s, drift ~0.5ms, one_shot_seen=1 fired=1 orphaned=0
 - Evidence: `docs/PHASE_11_REPORT.md` § EPIC-11.2
 
-Remaining TD-3: 11.3, 11.4, 11.6 (11.1 and 11.5 already DONE).
+Remaining TD-3: 11.4, 11.6 (11.1, 11.2, 11.3, 11.5 already DONE).
 
 Remaining: Run timer_accelerated_runner.php on Ubuntu VPS for live drift
 acceptance sign-off per EPIC-11.2 acceptance criteria.
@@ -4165,7 +4179,7 @@ Next planned work (see `docs/ROADMAP.md`):
 
 ```text
 SYSTEM DEPLOYMENT: D — DONE (D1 verified 2026-09-01)
-TECHNICAL DEBT: TD-1 docs reconciliation; TD-3 Phase 11 VPS runs (11.3–11.4, 11.6 pending; 11.1 DONE; 11.2 DONE; 11.5 DONE)
+TECHNICAL DEBT: TD-1 docs reconciliation; TD-3 Phase 11 VPS runs (11.4, 11.6 pending; 11.1 DONE; 11.2 DONE; 11.3 DONE; 11.5 DONE)
 ```
 
 PHASE 10 — WEBSOCKET PROTOCOL: COMPLETE (10.0-10.7 all done). Server-side
