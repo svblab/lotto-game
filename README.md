@@ -5,6 +5,25 @@ WebSocket-сервер на чистом PHP 8.x + Workerman + SQLite3.
 
 **Развёртывание на VPS (для администратора):** пошаговый runbook — [docs/ADMIN_VPS_DEPLOY.md](docs/ADMIN_VPS_DEPLOY.md). Ниже — сжатые команды и примеры конфигов; при расхождении с runbook-ом ориентируйтесь на него.
 
+### Модели развёртывания (выберите одну)
+
+| Модель | Когда использовать | Точка входа |
+|--------|----------------------|-------------|
+| **Production (существующее)** | Один инстанс на VPS, `www-data`, порт 8080 | [docs/ADMIN_VPS_DEPLOY.md](docs/ADMIN_VPS_DEPLOY.md) |
+| **Generic systemd (новый VPS, несколько инстансов)** | Native systemd, `/opt/lotto-game-<name>/` | [deploy/systemd/README.md](deploy/systemd/README.md), [docs/LOCAL_ENVIRONMENT.md](docs/LOCAL_ENVIRONMENT.md) |
+| **Docker Compose (новый VPS)** | Контейнеры, без PHP на хосте | [deploy/docker/](deploy/docker/), [docs/LOCAL_ENVIRONMENT.md](docs/LOCAL_ENVIRONMENT.md) |
+
+Примеры generic systemd (не production):
+
+```bash
+sudo ./deploy/systemd/install.sh demo
+sudo ./deploy/systemd/healthcheck.sh demo
+sudo ./deploy/systemd/update.sh demo
+sudo ./deploy/systemd/remove.sh demo
+```
+
+Нет общего `deploy/install.sh` и нет переключателя `--mode docker|systemd`.
+
 ## Требования к серверу
 - VPS с 1 CPU, 512 МБ ОЗУ (SSD)
 - Ubuntu 22.04 LTS

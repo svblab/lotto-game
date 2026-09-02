@@ -181,30 +181,159 @@ bash deploy/docker/tests/run_tests.sh
 
 ---
 
-## Systemd deployment — reserved (not yet implemented)
+## Generic systemd deployment (multi-instance, new VPS)
 
-Directory: **`deploy/systemd/`** (ADR-037). Epic A created this boundary only;
-lifecycle scripts are **intentionally deferred** to roadmap epics B1–D. See
-`deploy/systemd/README.md`.
+Entry point: **`deploy/systemd/`** (ADR-037). **Not** the existing production deployment
+(`lotto-server.service` / `/opt/lotto-game` / `www-data`) and **not** Docker
+(`deploy/docker/`).
 
-This is **not** the existing production deployment (`lotto-server.service`,
-`/opt/lotto-game`, `www-data` — see `docs/ADMIN_VPS_DEPLOY.md`).
+Use this path when you want one or more **isolated native systemd instances** on a
+Linux VPS, each under `/opt/lotto-game-<name>/` with its own unit, user, port, and
+SQLite database.
 
-When B1+ lands, generic multi-instance systemd will support independent instances
-under `/opt/lotto-game-<name>/` with dedicated units and users. **Do not run
-installer commands until those epics ship.**
+### What it is / what it is NOT
 
-Planned future entry points (unavailable today):
+| | Generic systemd (`deploy/systemd/`) | Existing production | Docker (`deploy/docker/`) |
+|---|-------------------------------------|---------------------|---------------------------|
+| Path | `/opt/lotto-game-<name>/` | `/opt/lotto-game` | Container + `/var/lib/lotto-game/<name>/` |
+| Unit | `lotto-game-<name>.service` | `lotto-server.service` | Compose project |
+| User | `lotto-<name>` | `www-data` | container user |
+| Runbook | This section + `deploy/systemd/README.md` | `docs/ADMIN_VPS_DEPLOY.md` | § Docker deployment above |
+
+There is **no** top-level `deploy/install.sh` and **no** `--mode systemd|docker` switch.
+
+### Prerequisites (host)
+
+- Debian or Ubuntu VPS with **systemd**
+- **root/sudo**
+- **PHP 8.x** CLI with extensions: `sqlite3`, `pdo_sqlite`, `mbstring`, `json`, `pcntl` (Workerman)
+- **Composer** on the host
+- **rsync**
+- **ss** (or `netstat`) for port checks
+- Git clone of this repository (source for `install.sh` / `update.sh` rsync)
+
+Verify before install:
 
 ```bash
-# NOT YET IMPLEMENTED — placeholders for roadmap epics B1–D
-sudo ./deploy/systemd/install.sh
-sudo ./deploy/systemd/remove.sh
-sudo ./deploy/systemd/update.sh
-sudo ./deploy/systemd/healthcheck.sh
+cat /etc/os-release
+systemctl --version
+php --version
+php -m | grep -E 'sqlite|pcntl|mbstring'
+composer --version
+rsync --version
+ss --version || netstat --version
 ```
 
-For production on a single VPS today, use `docs/ADMIN_VPS_DEPLOY.md`. For
-containerised fresh VPS installs, use `deploy/docker/` above.
+### New VPS quick-start
+
+1. Clone the repository on the VPS (or copy a checkout reachable by the scripts).
+2. Install OS packages: PHP CLI + sqlite extensions, Composer, rsync.
+3. Choose a valid instance name (`^[a-z0-9][a-z0-9_-]{0,31}$`, not reserved).
+4. Install one instance (example name `demo`):
+
+```bash
+cd /path/to/lotto-game
+sudo ./deploy/systemd/install.sh demo
+```
+
+5. Verify health:
+
+```bash
+sudo ./deploy/systemd/healthcheck.sh demo
+```
+
+6. Configure firewall and/or reverse proxy if the instance port must not be public.
+7. For a second instance, pick another name; ports auto-allocate from `8081–8999`
+   (8080 is reserved for production).
+
+### One-command lifecycle
+
+| Step | Command |
+|------|---------|
+| Install | `sudo ./deploy/systemd/install.sh [options] [INSTANCE]` |
+| Health | `sudo ./deploy/systemd/healthcheck.sh [INSTANCE]` |
+| Update | `sudo ./deploy/systemd/update.sh [INSTANCE]` |
+| Remove | `sudo ./deploy/systemd/remove.sh [INSTANCE]` |
+
+Supported install options (see `./deploy/systemd/install.sh --help`):
+
+- `--name`, `--port`, `--bind`, `--allowed-origins`, `--trusted-proxy-ips`, `--max-accounts-per-ip`
+
+Update and remove take the instance name as the first positional argument only.
+
+### Persistent layout (per instance)
+
+```text
+/opt/lotto-game-<name>/
+  app/                 application source (refreshed on install/update)
+  data/game.db         SQLite database (preserved on update; deleted on remove)
+  logs/                server and Workerman logs
+  config/environment   instance env (preserved on update)
+  config/deployment.json  metadata v1 (no secrets)
+/var/backups/lotto-game/<name>/   instance backup dir (optional/empty until used)
+/etc/systemd/system/lotto-game-<name>.service
+```
+
+Service user: `lotto-<name>` (created by installer when absent; removed on remove only if `created_user=true` in metadata).
+
+### Port behavior
+
+- Production port **8080** is reserved and rejected for generic instances.
+- Fresh install without `--port`: first free port in **8081–8999**.
+- **Update preserves** the existing port (port change not supported in Epic C).
+- Conflicts with listening sockets, Docker-published ports, or other instances fail closed.
+
+### Bind address / networking (important)
+
+`server.php` binds Workerman to **`0.0.0.0:$LOTTO_WS_PORT`** (all interfaces). Metadata
+`bind_address` (default `127.0.0.1`) documents upstream/reverse-proxy targeting only —
+it does **not** currently restrict the PHP listener. Plan firewall rules or a reverse
+proxy accordingly. Do not assume loopback-only exposure without verifying `server.php`.
+
+### Operational lifecycle
+
+```text
+install   → create instance, user, unit, DB (if new), start, healthcheck
+health    → unit active + WebSocket hello health (deploy/docker/healthcheck.php)
+update    → stop, refresh app/, composer install, restart, healthcheck (DB/config preserved)
+remove    → stop, delete instance tree, metadata, owned user when safe
+```
+
+**Update does not provide transactional rollback.** On failure the service may remain
+stopped while `data/` and `config/environment` are preserved.
+
+**Remove deletes** the instance's persistent data per B3 semantics.
+
+### Security notes
+
+- Production paths (`/opt/lotto-game`, `lotto-server.service`, `www-data`) are hard-protected.
+- Instance names are validated; reserved names are rejected.
+- Secrets are **not** stored in `deployment.json`.
+- `config/environment` is mode `640`; treat it as sensitive configuration.
+- Generic systemd instances are independent from Docker deployments on the same host when ports do not conflict.
+
+### Multi-instance example
+
+```bash
+sudo ./deploy/systemd/install.sh staging-a
+sudo ./deploy/systemd/install.sh staging-b
+sudo ./deploy/systemd/healthcheck.sh staging-a
+sudo ./deploy/systemd/healthcheck.sh staging-b
+```
+
+Each instance gets a distinct root, user, port, unit, and database.
+
+### Tests (helper scripts)
+
+```bash
+bash deploy/systemd/tests/run_tests.sh
+bash deploy/docker/tests/run_tests.sh
+```
+
+Helper tests run on Git Bash or Linux. **Full lifecycle verification on a real Linux VPS**
+is documented in `docs/SYSTEMD_VPS_VERIFICATION.md` (Epic D).
+
+For production on a single VPS today, use `docs/ADMIN_VPS_DEPLOY.md`. For containerised
+fresh VPS installs, use `deploy/docker/` above.
 
 ---

@@ -16,6 +16,7 @@ workerman.*.pid
 # Environment & Configs
 .env
 .env.local
+.SSH/
 
 # IDE & OS Files
 .idea/

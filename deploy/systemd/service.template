@@ -1,0 +1,22 @@
+[Unit]
+Description=Lotto Game (generic systemd instance)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@LOTTO_USER@
+Group=@LOTTO_USER@
+WorkingDirectory=@LOTTO_APP@
+EnvironmentFile=@LOTTO_ENV@
+ExecStart=/usr/bin/php @LOTTO_APP@/server.php start
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=@LOTTO_DATA@ @LOTTO_LOGS@ @LOTTO_CONFIG@
+
+[Install]
+WantedBy=multi-user.target

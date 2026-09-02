@@ -249,11 +249,11 @@ D   Documentation + integration/deployment tests
 | Epic | Scope | Status |
 |------|-------|--------|
 | **A** | ADR-037; `deploy/docker/` vs `deploy/systemd/` layout; preserve Docker behaviour | **DONE** (Epic A) |
-| **B1** | Instance-name validation, deterministic identity, paths, metadata, production guards, ownership model (no install/start) | **NOT STARTED** |
-| **B2** | Dedicated service user, filesystem, config, DB, logs, port, unit, start/enable, init DB, healthcheck, idempotency | **NOT STARTED** |
-| **B3** | Exact instance resolution, production guards, stop/disable, remove unit, daemon-reload, owned resources, conditional user removal, zero-artifact verification | **NOT STARTED** |
-| **C** | Update, resource limits, healthcheck refinements, failure handling, DB preservation, optional minimal rollback | **NOT STARTED** |
-| **D** | `LOCAL_ENVIRONMENT.md`, `ANCHOR_CORE.md`, README; systemd + Docker helper tests; multi-instance / coexistence VPS verification | **NOT STARTED** (Docker paths/docs updated in Epic A; full D scope deferred) |
+| **B1** | Instance-name validation, deterministic identity, paths, metadata, production guards, ownership model (no install/start) | **DONE** (Epic B1) |
+| **B2** | Dedicated service user, filesystem, config, DB, logs, port, unit, start/enable, init DB, healthcheck, idempotency | **DONE** (Epic B2) |
+| **B3** | Exact instance resolution, production guards, stop/disable, remove unit, daemon-reload, owned resources, conditional user removal, zero-artifact verification | **DONE** (Epic B3) |
+| **C** | Update, service restart, health verification, config/DB preservation, instance lock, metadata `updated_at` | **DONE** (Epic C) |
+| **D** | `LOCAL_ENVIRONMENT.md`, README, VPS verification checklist, operational UX | **DONE** (D1 verified on Ubuntu 24.04 VPS 2026-09-01) |
 
 Sequence within this stream: **A → B1 → B2 → B3 → C → D**.
 
