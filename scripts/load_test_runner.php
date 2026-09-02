@@ -133,6 +133,13 @@ if (!@fsockopen($host, $port, $errno, $errstr, 1.0)) {
 
 echo "Server ready.\n";
 
+// proc_open PID is often the shell wrapper; resolve the Workerman listener PID for CPU/mem samples.
+$workerPid = resolveWorkerPid($host, $port) ?? $serverPid;
+if ($workerPid !== null && $workerPid !== $serverPid) {
+    echo "Resolved worker PID {$workerPid} (proc_open PID was " . ($serverPid ?? 'null') . ")\n";
+    $serverPid = $workerPid;
+}
+
 match ($scenario) {
     'ramp'   => runRamp($host, $port, $targetPlayers, $targetGames, $duration, $clientLog, $resourceLog, $serverPid),
     'steady' => runSteady($host, $port, $targetPlayers, $targetGames, $duration, $clientLog, $resourceLog, $serverPid),
@@ -159,6 +166,24 @@ passthru(
     $analyzeExit
 );
 exit($analyzeExit === 0 ? 0 : 1);
+
+/**
+ * Best-effort resolve of the process listening on the game port.
+ */
+function resolveWorkerPid(string $host, int $port): ?int
+{
+    $ss = @shell_exec('ss -tlnp 2>/dev/null | grep -E \':' . (int) $port . '\\b\'');
+    if (is_string($ss) && preg_match('/pid=(\\d+)/', $ss, $m)) {
+        return (int) $m[1];
+    }
+
+    $pgrep = @shell_exec("pgrep -n -f '[s]erver\\.php' 2>/dev/null");
+    if (is_string($pgrep) && preg_match('/^(\\d+)/', trim($pgrep), $m)) {
+        return (int) $m[1];
+    }
+
+    return null;
+}
 
 /**
  * @return list<LoadWsClient>
