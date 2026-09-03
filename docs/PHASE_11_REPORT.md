@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-27  
 **Repository:** https://github.com/svblab/lotto-game  
-**Auditor session:** EPIC-11.0 complete; **EPIC-11.1 VPS memory/stability verified (2026-09-02)**; **EPIC-11.2 VPS accelerated timer verified (2026-09-02)**; **EPIC-11.3 VPS economy integrity verified (2026-09-02)**; **EPIC-11.4 VPS state-machine live-session verified (2026-09-02)**; **EPIC-11.5 VPS live WS verified (2026-09-02)**; **EPIC-11.6 VPS load scenarios executed (2026-09-02)** — acceptance FAIL on register p95 / peak CPU (see § EPIC-11.6)
+**Auditor session:** EPIC-11.0 complete; **EPIC-11.1–11.5 VPS verified (2026-09-02)**; **EPIC-11.6 BLOCKED / NEEDS CHANGES** — load scenarios executed; register p95 + peak CPU acceptance FAIL under diagnosis/fix (see § EPIC-11.6)
 
 ---
 
@@ -341,9 +341,9 @@ All listed tests verified on VPS — see table above.
 
 ---
 
-## EPIC-11.6 — Load Testing (VPS Verified)
+## EPIC-11.6 — Load Testing (**BLOCKED / NEEDS CHANGES**)
 
-**Status:** **DONE** — all four VPS load scenarios executed on Ubuntu VPS (2026-09-02). `analyze_load_log.php` reports **FAIL** on register p95 and peak CPU in sustained scenarios; draw_barrel and server memory within targets.
+**Status:** **BLOCKED / NEEDS CHANGES** — four VPS load scenarios executed (2026-09-02); `analyze_load_log.php` acceptance **FAIL**. Not DONE until analyzer PASS.
 
 **Targets (from spec):**
 - 100–150 concurrent connections
@@ -360,27 +360,34 @@ All listed tests verified on VPS — see table above.
 | `scripts/analyze_load_log.php` | Validates p95/CPU/memory acceptance criteria |
 | `tests/Manual/test_load_audit.php` | 30 mock regression tests (Windows) |
 
-### VPS load verification (2026-09-02)
+### Diagnosis (2026-09-03)
+
+| Failure | Observed | Threshold | Root cause | Classification | Fix |
+|---------|----------|-----------|------------|----------------|-----|
+| register p95 | 153–160 ms | <100 ms | `handleRegister` ran `password_hash` + auto-`login`/`password_verify` (VPS bcrypt cost 10: ~63 ms + ~61 ms); server register p95 ≈ 154 ms | PRODUCT | `loginAfterRegister()` skips redundant same-request verify |
+| steady/long peak CPU | 81.8–81.9% | <80% | `ps %cpu` lifetime average; first sample after register burst ≈ 82%; sustained long-run avg ≈ 1.4%, end ≈ 0.4% | TEST/HARNESS | Interval CPU via `/proc/[pid]/stat` tick deltas |
+
+**Evidence:** VPS `php` bench — `PASSWORD_DEFAULT` = bcrypt **cost 10**; avg hash 62.78 ms, verify 60.62 ms, sum 123.40 ms. Long `load_resource.log`: max 81.9 → mid ~6% → end 0.4%.
+
+**ADR required: NO** — hash algorithm/cost unchanged; protocol unchanged.
+
+### Prior VPS load runs (2026-09-02, pre-fix)
 
 | Item | Value |
 |------|-------|
 | Host | `box-963286` (Ubuntu 24.04, 1 CPU / ~543 MB RAM, non-production) |
 | Base commit | `78e603a` (main post-PR #7) |
-| Harness | `442c789` on branch `feature/epic-11-6-vps-load-testing` (WS frame sync, response-type wait, worker PID, VmRSS sampling) |
-| Mock | `test_load_audit.php` **30/30 PASS** (Windows + VPS) |
+| Harness | `442c789` / docs `3ae6eb9` |
+| Mock | `test_load_audit.php` **30/30 PASS** |
 
-| Scenario | Window (UTC) | Load | analyze exit | Key metrics |
-|----------|--------------|------|--------------|-------------|
-| **storm** | `19:14:29` → `19:14:37` | 50 clients, 10 rooms | 1 (FAIL) | register p95 **154.55 ms**; draw_barrel p95 **1.73 ms**; server peak mem **4.00 MB** |
-| **ramp** | `19:15:26` → `19:16:41` | 100 clients ramped, 10 games | 1 (FAIL) | register p95 **159.85 ms**; peak CPU **69.6%**; server peak mem **4.00 MB** |
-| **steady** | `19:17:31` → `19:47:47` | 100 clients, 10 games, 30 min | 1 (FAIL) | register p95 **158.56 ms**; draw_barrel p95 **3.38 ms**; peak CPU **81.8%**; server peak mem **4.00 MB** |
-| **long** | `19:47:50` → `20:47:59` | 50 clients, 5 games, 60 min | 1 (FAIL) | register p95 **153.63 ms**; draw_barrel p95 **2.07 ms**; peak CPU **81.9%**; server peak mem **4.00 MB** |
+| Scenario | Window (UTC) | analyze | Key metrics |
+|----------|--------------|---------|-------------|
+| storm | `19:14:29`–`19:14:37` | FAIL | register p95 154.55 ms; draw_barrel 1.73 ms; mem 4.00 MB |
+| ramp | `19:15:26`–`19:16:41` | FAIL | register p95 159.85 ms; peak CPU 69.6%; mem 4.00 MB |
+| steady | `19:17:31`–`19:47:47` | FAIL | register p95 158.56 ms; draw_barrel 3.38 ms; peak CPU 81.8% |
+| long | `19:47:50`–`20:47:59` | FAIL | register p95 153.63 ms; draw_barrel 2.07 ms; peak CPU 81.9% |
 
-**Acceptance summary:** draw_barrel p95 and server memory **PASS** on all scenarios. **register p95 FAIL** (~141–160 ms client RTT; server-side register latency ~130–160 ms in audit log — consistent with bcrypt `PASSWORD_DEFAULT` on 1 CPU). **login** not sampled (scenarios use register-only auth). **peak CPU FAIL** on steady/long (**81.8–81.9%** vs 80% limit); ramp peak **69.6% PASS**.
-
-**Harness fixes (this epic):** initial runner did not drain post-upgrade `hello` and treated broadcast frames as action responses (`rooms=0`); fixed in `load_test_runner.php`. Runner now propagates `analyze_load_log.php` exit code.
-
-**VPS sign-off:** Verification complete — all four scenarios executed with captured logs. Performance acceptance **not met** for register p95 and sustained CPU; documented as product findings (not harness defects after harness fix).
+**Re-verification:** Pending after product + harness fixes — storm/ramp/steady/long must all analyzer-PASS before DONE.
 
 ---
 
@@ -391,7 +398,7 @@ See `docs/IMPLEMENTATION_STATUS.md` § TECHNICAL DEBT and § KNOWN GAPS:
 - **TD-1:** `admin_stats_data` — **implementation complete**; documentation/status reconciliation pending (Low, not blocking deployment).
 - **TD-2:** `error.banned` — reserved/unused per ADR-007; `banned` packet canonical (Very Low, documentation only).
 - Real-WS test log noise (low) — unchanged.
-- Phase 11 VPS verification (TD-3) — **11.1–11.6 DONE** on VPS (2026-09-02). EPIC-11.6 load acceptance: register p95 and sustained peak CPU **FAIL** documented; draw_barrel + memory **PASS**.
+- Phase 11 VPS verification (TD-3) — **11.1–11.5 DONE**; **11.6 BLOCKED / NEEDS CHANGES** (acceptance FAIL; diagnosis + fixes in progress).
 
 ---
 
@@ -402,7 +409,7 @@ See `docs/IMPLEMENTATION_STATUS.md` § TECHNICAL DEBT and § KNOWN GAPS:
 | All protocol actions wired | ✅ Fixed (P11-001) |
 | Unit/integration tests pass | ✅ 28/28 on Windows |
 | Live WS tests pass | ✅ **145/145 PASS** on VPS (`box-963286`, `f2c9cfb`, 2026-09-02) |
-| Memory/timer/load audits | ✅ **11.1 VPS verified**; ✅ **11.2 VPS verified**; ✅ **11.3 VPS verified**; ✅ **11.4 VPS verified**; **11.5 VPS verified**; ✅ **11.6 VPS verified** (acceptance FAIL register p95 / peak CPU documented) |
+| Memory/timer/load audits | ✅ **11.1–11.5 VPS verified**; ⛔ **11.6 BLOCKED** (register p95 / peak CPU acceptance FAIL) |
 | Protocol docs synced | ✅ `admin_stats_data` implemented (TD-1 docs reconciliation only); `error.banned` reserved per ADR-007 (TD-2) |
 
 **Verdict:** Proceed with Phase 12 frontend development in parallel with completing remaining EPIC-11.6 VPS load verification (TD-3). Live-server protocol tests, memory/stability, timer drift, economy integrity, and state-machine live-session replay are verified on Ubuntu VPS. `admin_stats_data` is implemented end-to-end; remaining TD-1 work is documentation reconciliation only.

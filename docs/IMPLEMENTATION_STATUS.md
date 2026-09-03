@@ -195,33 +195,32 @@ Priority: **Very Low**. Not blocking deployment. No runtime change proposed.
 | 11.3 Economy | DONE | PASS | **DONE** (`economy_integrity_runner.php` + analyze replay PASS; live Workerman stake PASS, `box-963286`, 2026-09-02) | No |
 | 11.4 State machine | DONE | PASS | **DONE** (live Workerman + analyze PASS, `box-963286`, 2026-09-02) | No |
 | 11.5 Protocol replay | DONE | Static PASS | **DONE** (8 live WS tests, 145/145 PASS, `box-963286` 2026-09-02) | No |
-| 11.6 Load testing | DONE | PASS | **DONE** (4 VPS scenarios; analyze FAIL register p95 + peak CPU; draw_barrel + memory PASS, `box-963286`, 2026-09-02) | No |
+| 11.6 Load testing | DONE | PASS | **BLOCKED / NEEDS CHANGES** (acceptance FAIL; diagnosis 2026-09-03) | No |
 
-See `docs/PHASE_11_REPORT.md` and `docs/ROADMAP.md` § TD-3 matrix. **TD-3 VPS verification complete (11.1–11.6)** on `box-963286` (2026-09-02). EPIC-11.6 acceptance: register p95 and sustained peak CPU exceed spec; documented in `docs/PHASE_11_REPORT.md` § EPIC-11.6.
+See `docs/PHASE_11_REPORT.md` and `docs/ROADMAP.md` § TD-3 matrix. **11.1–11.5 VPS DONE**; **11.6 BLOCKED** until analyzer PASS.
 
-### EPIC-11.6 — VPS load testing verification (2026-09-02)
+### EPIC-11.6 — VPS load testing (**BLOCKED / NEEDS CHANGES**) (2026-09-03)
 
-Status: **DONE** — four VPS load scenarios executed; `analyze_load_log.php` acceptance **FAIL** on register p95 and peak CPU (steady/long); draw_barrel and memory **PASS**.
+Status: **BLOCKED / NEEDS CHANGES** — scenarios executed; acceptance not met.
 
 | Item | Value |
 |------|-------|
-| Host | `box-963286` (Ubuntu 24.04, 1 CPU / ~543 MB RAM, non-production) |
+| Host | `box-963286` (Ubuntu 24.04, 1 CPU / ~543 MB RAM) |
 | Base commit | `78e603a` (main post-PR #7) |
-| Harness commit | `442c789` (`feature/epic-11-6-vps-load-testing`) |
 | Mock | `test_load_audit.php` 30/30 PASS |
 
-| Scenario | Window (UTC) | Result (analyze) | Notes |
-|----------|--------------|------------------|-------|
-| storm | `19:14:29`–`19:14:37` | FAIL (exit 1) | register p95 154.55 ms; draw_barrel p95 1.73 ms; mem 4.00 MB |
-| ramp | `19:15:26`–`19:16:41` | FAIL (exit 1) | register p95 159.85 ms; peak CPU 69.6%; mem 4.00 MB |
-| steady | `19:17:31`–`19:47:47` | FAIL (exit 1) | register p95 158.56 ms; draw_barrel p95 3.38 ms; peak CPU 81.8% |
-| long | `19:47:50`–`20:47:59` | FAIL (exit 1) | register p95 153.63 ms; draw_barrel p95 2.07 ms; peak CPU 81.9% |
+**Diagnosis:**
 
-**Harness fixes:** WS `hello`/frame sync, wait for expected response types (ignore broadcasts), resolve Workerman listener PID, VmRSS resource sampling, propagate analyzer exit code.
+| Failure | Classification | Root cause | Fix |
+|---------|----------------|------------|-----|
+| register p95 153–160 ms | PRODUCT | register auto-login did hash+verify (~63+61 ms bcrypt cost 10) | `loginAfterRegister()` skips same-request verify |
+| peak CPU 81.8–81.9% | TEST/HARNESS | lifetime `ps %cpu` after register burst; sustained ~0.4–6% | interval CPU via `/proc` tick deltas |
 
-**Product finding:** register p95 ~141–160 ms on 1-CPU VPS (bcrypt `PASSWORD_DEFAULT`); not a harness artifact after fixes.
+**ADR required: NO**
 
-**Out of scope for this sign-off:** auth latency optimization, deployment changes.
+**Prior runs (2026-09-02):** storm/ramp/steady/long all analyze exit 1. Re-run pending after fixes.
+
+**Out of scope:** lowering bcrypt cost; weakening analyzer thresholds.
 
 ### EPIC-11.4 — VPS state-machine live-session verification (2026-09-02)
 

@@ -396,6 +396,11 @@ function logClientMetric(string $clientLog, string $action, float $rttMs): void
 
 function sampleResources(string $resourceLog, ?int $serverPid, int $clients, int $rooms): void
 {
+    static $prevCpuTicks = null;
+    static $prevWallNs = null;
+    static $prevPid = null;
+    static $clkTck = null;
+
     $cpu = 0.0;
     $memMb = 0.0;
 
@@ -406,10 +411,39 @@ function sampleResources(string $resourceLog, ?int $serverPid, int $clients, int
         }
     }
 
-    if ($serverPid !== null) {
-        $ps = @shell_exec('ps -p ' . (int) $serverPid . ' -o %cpu= 2>/dev/null');
-        if ($ps !== null && trim($ps) !== '') {
-            $cpu = (float) trim($ps);
+    // Interval CPU% from /proc/[pid]/stat tick deltas — not lifetime ps %cpu.
+    // Lifetime averages spike after bcrypt registration and falsely fail peak CPU.
+    if ($serverPid !== null && is_readable('/proc/' . $serverPid . '/stat')) {
+        $stat = file_get_contents('/proc/' . $serverPid . '/stat');
+        if ($stat !== false) {
+            $rparen = strrpos($stat, ')');
+            if ($rparen !== false) {
+                $parts = explode(' ', substr($stat, $rparen + 2));
+                if (isset($parts[11], $parts[12])) {
+                    $ticks = (int) $parts[11] + (int) $parts[12];
+                    $wallNs = hrtime(true);
+                    if (
+                        $prevPid === $serverPid
+                        && $prevCpuTicks !== null
+                        && $prevWallNs !== null
+                        && $wallNs > $prevWallNs
+                    ) {
+                        if ($clkTck === null) {
+                            $raw = @shell_exec('getconf CLK_TCK 2>/dev/null');
+                            $clkTck = (is_string($raw) && (int) trim($raw) > 0) ? (int) trim($raw) : 100;
+                        }
+                        $dTicks = $ticks - $prevCpuTicks;
+                        $dWallSec = ($wallNs - $prevWallNs) / 1_000_000_000;
+                        $cpu = ($dTicks / $clkTck) / $dWallSec * 100.0;
+                        if ($cpu < 0.0) {
+                            $cpu = 0.0;
+                        }
+                    }
+                    $prevCpuTicks = $ticks;
+                    $prevWallNs = $wallNs;
+                    $prevPid = $serverPid;
+                }
+            }
         }
     }
 
