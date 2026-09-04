@@ -79,12 +79,11 @@ final class AuthHandler
            return;
        }
 
-       // Авто-логин: регистрация завершена, сразу создаём сессию
+       // Same-request session after register — skip password_verify (password was
+       // just hashed in register(); a second bcrypt would double auth latency).
        try {
-           $result = $this->authService->login($username, $password);
+           $result = $this->authService->loginAfterRegister($username);
        } catch (Exception $e) {
-           // Теоретически невозможно сразу после успешного register(),
-           // но защищаемся на случай race condition или внутренней ошибки БД.
            $this->logger->write('WARNING', "Auto-login failed after register for {$username}: " . $e->getMessage());
            sendError($connection, 'error.auth_invalid_credentials', 'Auto-login failed after registration');
            return;

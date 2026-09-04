@@ -70,7 +70,7 @@ class AuthService
             // 3. Проверка на уникальность username с использованием строгого реестра SQL
             $selectStmt = $this->statements->get('user_by_username');
             $selectStmt->execute([$username]);
-            
+
             if ($selectStmt->fetch()) {
                 throw new Exception('Username already exists');
             }
@@ -193,6 +193,51 @@ class AuthService
         } catch (Exception $e) {
             // Запись лога ошибки выполнения/аутентификации (Уровень WARNING)
             $this->safeLog('WARNING', "Login failed: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Complete a session immediately after a successful register() in the same
+     * request. Skips password_verify — the plaintext was just hashed and stored.
+     * Explicit login() still always verifies.
+     *
+     * @return array Контракт EPIC-1.1 + session_token на верхнем уровне
+     * @throws Exception
+     */
+    public function loginAfterRegister(string $username): array
+    {
+        try {
+            $selectStmt = $this->statements->get('user_by_username');
+            $selectStmt->execute([$username]);
+            $user = $selectStmt->fetch();
+
+            if (!is_array($user)) {
+                throw new Exception('Invalid username or password');
+            }
+
+            if ((int) $user['banned_until'] > time()) {
+                throw new Exception('User is banned', (int) $user['banned_until']);
+            }
+
+            $token = $this->sessionService->generateToken();
+            if (!$this->sessionService->isValidToken($token)) {
+                throw new Exception('Generated session token is invalid');
+            }
+
+            return [
+                'success' => true,
+                'user' => [
+                    'id' => (int) $user['id'],
+                    'username' => (string) $user['username'],
+                    'coins' => (int) $user['coins'],
+                    'is_admin' => (bool) $user['is_admin'],
+                ],
+                'daily_bonus_received' => false,
+                'session_token' => $token,
+            ];
+        } catch (Exception $e) {
+            $this->safeLog('WARNING', "Login after register failed: " . $e->getMessage());
             throw $e;
         }
     }

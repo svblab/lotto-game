@@ -133,6 +133,13 @@ if (!@fsockopen($host, $port, $errno, $errstr, 1.0)) {
 
 echo "Server ready.\n";
 
+// proc_open PID is often the shell wrapper; resolve the Workerman listener PID for CPU/mem samples.
+$workerPid = resolveWorkerPid($host, $port) ?? $serverPid;
+if ($workerPid !== null && $workerPid !== $serverPid) {
+    echo "Resolved worker PID {$workerPid} (proc_open PID was " . ($serverPid ?? 'null') . ")\n";
+    $serverPid = $workerPid;
+}
+
 match ($scenario) {
     'ramp'   => runRamp($host, $port, $targetPlayers, $targetGames, $duration, $clientLog, $resourceLog, $serverPid),
     'steady' => runSteady($host, $port, $targetPlayers, $targetGames, $duration, $clientLog, $resourceLog, $serverPid),
@@ -150,13 +157,33 @@ while (proc_get_status($proc)['running'] && $waited < 5_000_000) {
 proc_close($proc);
 
 echo "Analyzing load logs...\n";
+$analyzeExit = 0;
 passthru(
     PHP_BINARY . ' ' . escapeshellarg($projectRoot . '/scripts/analyze_load_log.php')
     . ' ' . escapeshellarg($auditLog)
     . ' --client-log=' . escapeshellarg($clientLog)
-    . ' --resource-log=' . escapeshellarg($resourceLog)
+    . ' --resource-log=' . escapeshellarg($resourceLog),
+    $analyzeExit
 );
-exit(0);
+exit($analyzeExit === 0 ? 0 : 1);
+
+/**
+ * Best-effort resolve of the process listening on the game port.
+ */
+function resolveWorkerPid(string $host, int $port): ?int
+{
+    $ss = @shell_exec('ss -tlnp 2>/dev/null | grep -E \':' . (int) $port . '\\b\'');
+    if (is_string($ss) && preg_match('/pid=(\\d+)/', $ss, $m)) {
+        return (int) $m[1];
+    }
+
+    $pgrep = @shell_exec("pgrep -n -f '[s]erver\\.php' 2>/dev/null");
+    if (is_string($pgrep) && preg_match('/^(\\d+)/', trim($pgrep), $m)) {
+        return (int) $m[1];
+    }
+
+    return null;
+}
 
 /**
  * @return list<LoadWsClient>
@@ -175,7 +202,7 @@ function connectClients(string $host, int $port, int $count, string $prefix, str
             'action'   => 'register',
             'username' => $username,
             'password' => 'testpass123',
-        ]);
+        ], ['auth_result', 'error', 'banned']);
         if ($rtt !== null) {
             logClientMetric($clientLog, 'register', $rtt);
         }
@@ -204,7 +231,7 @@ function setupGameRooms(
             'action'      => 'create_room',
             'max_players' => 4,
             'cards_count' => 1,
-        ]);
+        ], ['room_joined', 'error']);
         if ($rtt !== null) {
             logClientMetric($clientLog, 'create_room', $rtt);
         }
@@ -221,14 +248,14 @@ function setupGameRooms(
             $rtt = $joiner->sendAction([
                 'action'  => 'join_room',
                 'room_id' => $roomId,
-            ]);
+            ], ['room_joined', 'error']);
             if ($rtt !== null) {
                 logClientMetric($clientLog, 'join_room', $rtt);
             }
             $roomClients[] = $joiner;
         }
 
-        $rtt = $hostClient->sendAction(['action' => 'start_game']);
+        $rtt = $hostClient->sendAction(['action' => 'start_game'], ['game_started', 'error']);
         if ($rtt !== null) {
             logClientMetric($clientLog, 'start_game', $rtt);
         }
@@ -286,14 +313,17 @@ function runSteady(
 
     while (time() < $end) {
         foreach ($clients as $client) {
-            $rtt = $client->sendAction(['action' => 'room_list']);
+            $rtt = $client->sendAction(['action' => 'room_list'], ['room_list', 'error']);
             if ($rtt !== null) {
                 logClientMetric($clientLog, 'room_list', $rtt);
             }
         }
 
         foreach ($rooms as $room) {
-            $rtt = $room['host']->sendAction(['action' => 'draw_barrel']);
+            $rtt = $room['host']->sendAction(
+                ['action' => 'draw_barrel'],
+                ['barrels_drawn', 'your_turn', 'game_over', 'apartment_alert', 'error']
+            );
             if ($rtt !== null) {
                 logClientMetric($clientLog, 'draw_barrel', $rtt);
             }
@@ -318,14 +348,17 @@ function runStorm(
     $rooms = setupGameRooms($clients, min($targetGames, 10), $clientLog);
 
     foreach ($clients as $client) {
-        $rtt = $client->sendAction(['action' => 'room_list']);
+        $rtt = $client->sendAction(['action' => 'room_list'], ['room_list', 'error']);
         if ($rtt !== null) {
             logClientMetric($clientLog, 'room_list', $rtt);
         }
     }
 
     foreach ($rooms as $room) {
-        $rtt = $room['host']->sendAction(['action' => 'draw_barrel']);
+        $rtt = $room['host']->sendAction(
+            ['action' => 'draw_barrel'],
+            ['barrels_drawn', 'your_turn', 'game_over', 'apartment_alert', 'error']
+        );
         if ($rtt !== null) {
             logClientMetric($clientLog, 'draw_barrel', $rtt);
         }
@@ -363,20 +396,54 @@ function logClientMetric(string $clientLog, string $action, float $rttMs): void
 
 function sampleResources(string $resourceLog, ?int $serverPid, int $clients, int $rooms): void
 {
+    static $prevCpuTicks = null;
+    static $prevWallNs = null;
+    static $prevPid = null;
+    static $clkTck = null;
+
     $cpu = 0.0;
     $memMb = 0.0;
 
-    if ($serverPid !== null && is_readable('/proc/' . $serverPid . '/stat')) {
-        $stat = file_get_contents('/proc/' . $serverPid . '/stat');
-        if ($stat !== false && preg_match('/\d+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+(\d+)\s+(\d+)/', $stat, $m)) {
-            $memMb = ((int) $m[2]) / 1024;
+    if ($serverPid !== null && is_readable('/proc/' . $serverPid . '/status')) {
+        $status = file_get_contents('/proc/' . $serverPid . '/status');
+        if ($status !== false && preg_match('/^VmRSS:\\s+(\\d+)\\s+kB/m', $status, $m)) {
+            $memMb = ((int) $m[1]) / 1024;
         }
     }
 
-    if ($serverPid !== null) {
-        $ps = @shell_exec('ps -p ' . (int) $serverPid . ' -o %cpu= 2>/dev/null');
-        if ($ps !== null && trim($ps) !== '') {
-            $cpu = (float) trim($ps);
+    // Interval CPU% from /proc/[pid]/stat tick deltas — not lifetime ps %cpu.
+    // Lifetime averages spike after bcrypt registration and falsely fail peak CPU.
+    if ($serverPid !== null && is_readable('/proc/' . $serverPid . '/stat')) {
+        $stat = file_get_contents('/proc/' . $serverPid . '/stat');
+        if ($stat !== false) {
+            $rparen = strrpos($stat, ')');
+            if ($rparen !== false) {
+                $parts = explode(' ', substr($stat, $rparen + 2));
+                if (isset($parts[11], $parts[12])) {
+                    $ticks = (int) $parts[11] + (int) $parts[12];
+                    $wallNs = hrtime(true);
+                    if (
+                        $prevPid === $serverPid
+                        && $prevCpuTicks !== null
+                        && $prevWallNs !== null
+                        && $wallNs > $prevWallNs
+                    ) {
+                        if ($clkTck === null) {
+                            $raw = @shell_exec('getconf CLK_TCK 2>/dev/null');
+                            $clkTck = (is_string($raw) && (int) trim($raw) > 0) ? (int) trim($raw) : 100;
+                        }
+                        $dTicks = $ticks - $prevCpuTicks;
+                        $dWallSec = ($wallNs - $prevWallNs) / 1_000_000_000;
+                        $cpu = ($dTicks / $clkTck) / $dWallSec * 100.0;
+                        if ($cpu < 0.0) {
+                            $cpu = 0.0;
+                        }
+                    }
+                    $prevCpuTicks = $ticks;
+                    $prevWallNs = $wallNs;
+                    $prevPid = $serverPid;
+                }
+            }
         }
     }
 
@@ -396,10 +463,12 @@ final class LoadWsClient
     /** @var resource */
     private $sock;
     private ?int $roomId = null;
+    private string $buffer = '';
 
-    private function __construct($sock)
+    private function __construct($sock, string $buffer = '')
     {
         $this->sock = $sock;
+        $this->buffer = $buffer;
     }
 
     public static function connect(string $host, int $port): ?self
@@ -418,15 +487,44 @@ final class LoadWsClient
             . "Sec-WebSocket-Key: {$key}\r\n"
             . "Sec-WebSocket-Version: 13\r\n\r\n";
         fwrite($sock, $headers);
-        fread($sock, 4096);
 
-        return new self($sock);
+        // Read HTTP upgrade response only; keep any trailing WS bytes in buffer.
+        $http = '';
+        while (!str_contains($http, "\r\n\r\n")) {
+            $chunk = fread($sock, 1024);
+            if ($chunk === false || $chunk === '') {
+                fclose($sock);
+                return null;
+            }
+            $http .= $chunk;
+            if (strlen($http) > 8192) {
+                fclose($sock);
+                return null;
+            }
+        }
+
+        $pos = strpos($http, "\r\n\r\n");
+        $leftover = $pos === false ? '' : substr($http, $pos + 4);
+        $client = new self($sock, $leftover);
+
+        // Server sends `hello` immediately after upgrade — drain it so the next
+        // readFrame belongs to the first client action (auth_result, etc.).
+        $hello = $client->readFrameBuffered();
+        if ($hello !== null) {
+            $data = json_decode($hello, true);
+            if (!is_array($data) || ($data['type'] ?? '') !== 'hello') {
+                // Unexpected first frame; keep socket usable for actions anyway.
+            }
+        }
+
+        return $client;
     }
 
     /**
      * @param array<string, mixed> $payload
+     * @param list<string> $acceptTypes packet types that complete this action
      */
-    public function sendAction(array $payload): ?float
+    public function sendAction(array $payload, array $acceptTypes = []): ?float
     {
         $start = hrtime(true);
         $json = json_encode($payload, JSON_UNESCAPED_UNICODE);
@@ -435,22 +533,35 @@ final class LoadWsClient
         }
 
         self::sendFrame($this->sock, $json);
-        $raw = self::readFrame($this->sock);
-        $rttMs = (hrtime(true) - $start) / 1_000_000;
 
-        if ($raw !== null) {
-            $data = json_decode($raw, true);
-            if (is_array($data)) {
-                if (isset($data['room_id'])) {
-                    $this->roomId = (int) $data['room_id'];
-                }
-                if (isset($data['type']) && $data['type'] === 'room_created' && isset($data['room_id'])) {
-                    $this->roomId = (int) $data['room_id'];
-                }
+        // Read until an accepted response type (skip broadcasts / hello).
+        $deadline = microtime(true) + 5.0;
+        while (microtime(true) < $deadline) {
+            $frame = $this->readFrameBuffered();
+            if ($frame === null) {
+                break;
             }
+            $data = json_decode($frame, true);
+            if (!is_array($data)) {
+                continue;
+            }
+            $type = (string) ($data['type'] ?? '');
+            if ($type === 'hello') {
+                continue;
+            }
+            if (isset($data['room_id'])) {
+                $this->roomId = (int) $data['room_id'];
+            }
+            if ($type === 'room_joined' && isset($data['room_id'])) {
+                $this->roomId = (int) $data['room_id'];
+            }
+            if ($acceptTypes === [] || in_array($type, $acceptTypes, true)) {
+                break;
+            }
+            // Discard unexpected broadcast frames (e.g. player_joined on host).
         }
 
-        return $rttMs;
+        return (hrtime(true) - $start) / 1_000_000;
     }
 
     public function lastRoomId(): ?int
@@ -490,17 +601,19 @@ final class LoadWsClient
         fwrite($sock, $frame);
     }
 
-    /**
-     * @param resource $sock
-     */
-    private static function readFrame($sock): ?string
+    private function readFrameBuffered(): ?string
     {
-        stream_set_timeout($sock, 3);
-        $hdr = fread($sock, 2);
-        if ($hdr === false || strlen($hdr) < 2) {
-            return null;
+        stream_set_timeout($this->sock, 3);
+
+        while (strlen($this->buffer) < 2) {
+            $chunk = fread($this->sock, 4096);
+            if ($chunk === false || $chunk === '') {
+                return null;
+            }
+            $this->buffer .= $chunk;
         }
 
+        $hdr = substr($this->buffer, 0, 2);
         $opcode = ord($hdr[0]) & 0x0F;
         if ($opcode === 0x8) {
             return null;
@@ -508,28 +621,40 @@ final class LoadWsClient
 
         $b1 = ord($hdr[1]);
         $len = $b1 & 0x7F;
+        $offset = 2;
         if ($len === 126) {
-            $ext = fread($sock, 2);
-            if ($ext === false || strlen($ext) < 2) {
-                return null;
+            while (strlen($this->buffer) < 4) {
+                $chunk = fread($this->sock, 4096);
+                if ($chunk === false || $chunk === '') {
+                    return null;
+                }
+                $this->buffer .= $chunk;
             }
-            $len = unpack('n', $ext)[1];
+            $len = unpack('n', substr($this->buffer, 2, 2))[1];
+            $offset = 4;
         } elseif ($len === 127) {
-            $ext = fread($sock, 8);
-            if ($ext === false || strlen($ext) < 8) {
-                return null;
+            while (strlen($this->buffer) < 10) {
+                $chunk = fread($this->sock, 4096);
+                if ($chunk === false || $chunk === '') {
+                    return null;
+                }
+                $this->buffer .= $chunk;
             }
-            $len = unpack('J', $ext)[1];
+            $len = unpack('J', substr($this->buffer, 2, 8))[1];
+            $offset = 10;
         }
 
-        $payload = '';
-        while (strlen($payload) < $len) {
-            $chunk = fread($sock, $len - strlen($payload));
+        $need = $offset + $len;
+        while (strlen($this->buffer) < $need) {
+            $chunk = fread($this->sock, 4096);
             if ($chunk === false || $chunk === '') {
-                break;
+                return null;
             }
-            $payload .= $chunk;
+            $this->buffer .= $chunk;
         }
+
+        $payload = substr($this->buffer, $offset, $len);
+        $this->buffer = substr($this->buffer, $need);
 
         return $payload !== '' ? $payload : null;
     }

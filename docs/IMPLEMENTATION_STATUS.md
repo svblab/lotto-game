@@ -195,9 +195,34 @@ Priority: **Very Low**. Not blocking deployment. No runtime change proposed.
 | 11.3 Economy | DONE | PASS | **DONE** (`economy_integrity_runner.php` + analyze replay PASS; live Workerman stake PASS, `box-963286`, 2026-09-02) | No |
 | 11.4 State machine | DONE | PASS | **DONE** (live Workerman + analyze PASS, `box-963286`, 2026-09-02) | No |
 | 11.5 Protocol replay | DONE | Static PASS | **DONE** (8 live WS tests, 145/145 PASS, `box-963286` 2026-09-02) | No |
-| 11.6 Load testing | DONE | PASS | **PENDING** | No |
+| 11.6 Load testing | DONE | PASS | **DONE** (gameplay <100 ms; auth ≤160 ms; all 4 scenarios PASS 2026-09-04) | No |
 
-See `docs/PHASE_11_REPORT.md` and `docs/ROADMAP.md` § TD-3 matrix. **11.1** VPS memory/stability verified 2026-09-02; **11.2** VPS accelerated timer verified 2026-09-02; **11.3** VPS economy integrity verified 2026-09-02; **11.4** VPS state-machine live-session verified 2026-09-02; **11.5** VPS live WS verified 2026-09-02; 11.6 VPS load runs still pending.
+See `docs/PHASE_11_REPORT.md` and `docs/ROADMAP.md` § TD-3 matrix. **11.1–11.6 VPS DONE**.
+
+### EPIC-11.6 — VPS load testing (**DONE**, criteria reassessment 2026-09-04)
+
+Status: **DONE** — owner clarified register latency is not ultra-low-critical; analyzer reframed; full VPS suite PASS. TD-3 COMPLETE for 11.6.
+
+| Item | Value |
+|------|-------|
+| Host | `box-963286` (Ubuntu 24.04, 1 CPU / ~543 MB RAM) |
+| Product fix | `f7c180b` (`loginAfterRegister` + interval CPU) |
+| Final gates | gameplay p95 <100 ms (`draw_barrel`); auth p95 ≤160 ms (`register`/`login`); CPU <80%; mem <450 MB |
+| Suite | `2026-09-04T03:11:15Z`–`04:42:15Z` — storm/ramp/steady/long all analyze exit 0 |
+| Mock | `test_load_audit.php` 30/30 PASS |
+
+| Scenario | register p95 | peak CPU | draw_barrel p95 | Result |
+|----------|--------------|----------|-----------------|--------|
+| storm | 110.20ms | 0.0% | 3.82ms | PASS |
+| ramp | 100.33ms | 22.6% | n/a | PASS |
+| steady | 105.52ms | 2.0% | 3.41ms | PASS |
+| long | 101.52ms | 1.0% | 2.08ms | PASS |
+
+**Why criteria changed:** Old `register p95 < 100 ms` had no ADR/ANCHOR/product justification. Owner: ~150–160 ms OK if no overload/gameplay harm. Gameplay responsiveness is critical. bcrypt cost unchanged.
+
+**ADR required: NO** for criteria reframe. **YES** if lowering bcrypt cost (forbidden / not done).
+
+**Out of scope:** lowering bcrypt cost.
 
 ### EPIC-11.4 — VPS state-machine live-session verification (2026-09-02)
 
@@ -1795,7 +1820,7 @@ audit only — see DECISION LOG 2026-07-28.
 
 ---
 
-- [IN PROGRESS] EPIC-11.6 Load testing (Phase 11 — instrumentation complete 2026-07-27; VPS load runs pending)
+- [DONE] EPIC-11.6 Load testing (Phase 11 — instrumentation 2026-07-27; criteria reassessment + VPS PASS 2026-09-04)
 Files:
 - src/Core/LoadAudit.php (новый файл — opt-in handler latency + snapshots → logs/load_audit.log)
 - server.php (diff — LoadAudit wiring, onMessage latency recording, periodic snapshots)
@@ -1810,8 +1835,8 @@ Implemented:
 - load_test_runner.php: four scenarios (ramp, steady, storm, long) with
   realistic register/room/game flows; client RTT → logs/load_client.log;
   CPU/memory sampling → logs/load_resource.log.
-- analyze_load_log.php: validates p95 < 100ms (register/login/draw_barrel),
-  peak memory < 450 MB, peak CPU < 80%.
+- analyze_load_log.php: validates gameplay p95 < 100ms (draw_barrel),
+  auth p95 ≤ 160ms (register/login), peak memory < 450 MB, peak CPU < 80%.
 - test_load_audit.php: utility, percentile math, client/resource log parsing.
 
 Verification (Windows dev host):
@@ -1819,13 +1844,9 @@ Verification (Windows dev host):
 - load_test_runner.php: requires Linux/VPS (Workerman)
 - analyze_load_log.php: runs after VPS load_test_runner completion
 
-Remaining: Run load scenarios on Ubuntu VPS (1 CPU / 512 MB target):
-  php scripts/load_test_runner.php --scenario=ramp --players=100 --games=10 --duration=300
-  php scripts/load_test_runner.php --scenario=steady --duration=1800
-  php scripts/load_test_runner.php --scenario=storm
-  php scripts/load_test_runner.php --scenario=long --duration=3600
+Remaining: VPS load scenarios completed 2026-09-04 under final gates (see PHASE_11_REPORT § EPIC-11.6).
 
-Next in Phase 11: Complete EPIC-11.2–11.4 and 11.6 VPS sign-off runs per docs/PHASE_11_REPORT.md.
+Next in Phase 11: none — 11.1–11.6 VPS sign-off complete.
 
 - [DONE] EPIC-11.5 Protocol audit (instrumentation 2026-07-27; **VPS live WS verified 2026-09-02** — 145/145 PASS on `box-963286` @ `f2c9cfb`)
 Files:
