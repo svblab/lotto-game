@@ -387,7 +387,20 @@ All listed tests verified on VPS — see table above.
 | steady | `19:17:31`–`19:47:47` | FAIL | register p95 158.56 ms; draw_barrel 3.38 ms; peak CPU 81.8% |
 | long | `19:47:50`–`20:47:59` | FAIL | register p95 153.63 ms; draw_barrel 2.07 ms; peak CPU 81.9% |
 
-**Re-verification:** Pending after product + harness fixes — storm/ramp/steady/long must all analyzer-PASS before DONE.
+### Re-verification after fixes (commit `f7c180b`, 2026-09-03)
+
+| Scenario | Result | Notes |
+|----------|--------|-------|
+| storm | FAIL (exit 1) | register p95 **100.97 ms** (was ~154 ms); draw_barrel 2.73 ms PASS; mem OK |
+| ramp | FAIL (exit 1) | register p95 **103.89 ms**; peak CPU **10.1%** PASS (interval sampling); mem OK |
+| steady (30m) | **NOT RUN** / in progress at last agent poll | started `2026-09-03T18:35:36Z` on VPS; poll interrupted |
+| long (60m) | **NOT RUN** / queued after steady | same batch |
+
+**CPU harness fix:** Confirmed on ramp — peak CPU 10.1% (was falsely 69–82% from lifetime `ps %cpu`).
+
+**Register remaining gap:** After removing redundant verify, register p95 ≈ 101–104 ms vs <100 ms. VPS bcrypt cost 10 alone averages ~63 ms; with SQLite/session overhead, p95 exceeds 100 ms on 1 CPU. Further improvement requires lowering hash cost (ADR/security) or changing acceptance criteria (owner decision).
+
+**Re-verification:** Incomplete — steady/long results must be captured; EPIC remains **BLOCKED** until analyzer PASS or owner decides on criteria/cost.
 
 ---
 
