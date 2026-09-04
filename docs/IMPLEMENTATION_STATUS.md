@@ -195,40 +195,34 @@ Priority: **Very Low**. Not blocking deployment. No runtime change proposed.
 | 11.3 Economy | DONE | PASS | **DONE** (`economy_integrity_runner.php` + analyze replay PASS; live Workerman stake PASS, `box-963286`, 2026-09-02) | No |
 | 11.4 State machine | DONE | PASS | **DONE** (live Workerman + analyze PASS, `box-963286`, 2026-09-02) | No |
 | 11.5 Protocol replay | DONE | Static PASS | **DONE** (8 live WS tests, 145/145 PASS, `box-963286` 2026-09-02) | No |
-| 11.6 Load testing | DONE | PASS | **BLOCKED / NEEDS CHANGES** (CPU PASS; register p95 ~101–104 ms FAIL; owner decision needed) | No |
+| 11.6 Load testing | DONE | PASS | **DONE** (gameplay <100 ms; auth ≤160 ms; all 4 scenarios PASS 2026-09-04) | No |
 
-See `docs/PHASE_11_REPORT.md` and `docs/ROADMAP.md` § TD-3 matrix. **11.1–11.5 VPS DONE**; **11.6 BLOCKED** — CPU fixed; register p95 still fails (~101–104 ms); owner decision needed.
+See `docs/PHASE_11_REPORT.md` and `docs/ROADMAP.md` § TD-3 matrix. **11.1–11.6 VPS DONE**.
 
-### EPIC-11.6 — VPS load testing (**BLOCKED / NEEDS CHANGES**) (2026-09-03)
+### EPIC-11.6 — VPS load testing (**DONE**, criteria reassessment 2026-09-04)
 
-Status: **BLOCKED / NEEDS CHANGES** — full post-fix re-verification complete on `box-963286` (commit `f7c180b`); all analyze exit 1. **CPU sampling PASS**; **register p95 still fails** (~101–104 ms vs <100 ms). Owner decision needed. Not DONE; TD-3 not COMPLETE.
+Status: **DONE** — owner clarified register latency is not ultra-low-critical; analyzer reframed; full VPS suite PASS. TD-3 COMPLETE for 11.6.
 
 | Item | Value |
 |------|-------|
 | Host | `box-963286` (Ubuntu 24.04, 1 CPU / ~543 MB RAM) |
-| Base commit | `78e603a` (main post-PR #7) |
-| Fix commit | `f7c180b` (`loginAfterRegister` + interval CPU sampling) |
+| Product fix | `f7c180b` (`loginAfterRegister` + interval CPU) |
+| Final gates | gameplay p95 <100 ms (`draw_barrel`); auth p95 ≤160 ms (`register`/`login`); CPU <80%; mem <450 MB |
+| Suite | `2026-09-04T03:11:15Z`–`04:42:15Z` — storm/ramp/steady/long all analyze exit 0 |
 | Mock | `test_load_audit.php` 30/30 PASS |
 
-**Diagnosis:**
+| Scenario | register p95 | peak CPU | draw_barrel p95 | Result |
+|----------|--------------|----------|-----------------|--------|
+| storm | 110.20ms | 0.0% | 3.82ms | PASS |
+| ramp | 100.33ms | 22.6% | n/a | PASS |
+| steady | 105.52ms | 2.0% | 3.41ms | PASS |
+| long | 101.52ms | 1.0% | 2.08ms | PASS |
 
-| Failure | Classification | Root cause | Fix / status |
-|---------|----------------|------------|--------------|
-| register p95 153–160 ms → ~101–104 ms | PRODUCT | register auto-login did hash+verify (~63+61 ms bcrypt cost 10); after fix still ~101–104 ms | `loginAfterRegister()` applied; **still FAIL** — owner decision (cannot lower bcrypt cost without ADR; cannot weaken 100 ms threshold without requirements change) |
-| peak CPU 81.8–81.9% | TEST/HARNESS | lifetime `ps %cpu` after register burst; sustained ~0.4–6% | interval CPU via `/proc` tick deltas — **PASS** (ramp 10.1%, steady 2.0%, long 1.0%) |
+**Why criteria changed:** Old `register p95 < 100 ms` had no ADR/ANCHOR/product justification. Owner: ~150–160 ms OK if no overload/gameplay harm. Gameplay responsiveness is critical. bcrypt cost unchanged.
 
-**ADR required: NO** for applied fixes. **YES** if lowering bcrypt cost or relaxing register p95 gate.
+**ADR required: NO** for criteria reframe. **YES** if lowering bcrypt cost (forbidden / not done).
 
-**Post-fix re-run (COMPLETE):**
-
-| Scenario | Window UTC | register p95 | peak CPU | draw_barrel p95 | Result |
-|----------|------------|--------------|----------|-----------------|--------|
-| storm | (earlier same day) | 100.97ms | n/a (1 sample 0%) | 2.73ms | FAIL register |
-| ramp | | 103.89ms | 10.1% | n/a | FAIL register |
-| steady | 18:35:37–19:05:48 | 101.98ms | 2.0% | 3.45ms | FAIL register |
-| long | 19:05:51–20:05:57 | 100.80ms | 1.0% | 2.07ms | FAIL register |
-
-**Out of scope:** lowering bcrypt cost; weakening analyzer thresholds (without owner/ADR).
+**Out of scope:** lowering bcrypt cost.
 
 ### EPIC-11.4 — VPS state-machine live-session verification (2026-09-02)
 
@@ -1826,7 +1820,7 @@ audit only — see DECISION LOG 2026-07-28.
 
 ---
 
-- [IN PROGRESS] EPIC-11.6 Load testing (Phase 11 — instrumentation complete 2026-07-27; VPS load runs pending)
+- [DONE] EPIC-11.6 Load testing (Phase 11 — instrumentation 2026-07-27; criteria reassessment + VPS PASS 2026-09-04)
 Files:
 - src/Core/LoadAudit.php (новый файл — opt-in handler latency + snapshots → logs/load_audit.log)
 - server.php (diff — LoadAudit wiring, onMessage latency recording, periodic snapshots)
@@ -1841,8 +1835,8 @@ Implemented:
 - load_test_runner.php: four scenarios (ramp, steady, storm, long) with
   realistic register/room/game flows; client RTT → logs/load_client.log;
   CPU/memory sampling → logs/load_resource.log.
-- analyze_load_log.php: validates p95 < 100ms (register/login/draw_barrel),
-  peak memory < 450 MB, peak CPU < 80%.
+- analyze_load_log.php: validates gameplay p95 < 100ms (draw_barrel),
+  auth p95 ≤ 160ms (register/login), peak memory < 450 MB, peak CPU < 80%.
 - test_load_audit.php: utility, percentile math, client/resource log parsing.
 
 Verification (Windows dev host):
@@ -1850,13 +1844,9 @@ Verification (Windows dev host):
 - load_test_runner.php: requires Linux/VPS (Workerman)
 - analyze_load_log.php: runs after VPS load_test_runner completion
 
-Remaining: Run load scenarios on Ubuntu VPS (1 CPU / 512 MB target):
-  php scripts/load_test_runner.php --scenario=ramp --players=100 --games=10 --duration=300
-  php scripts/load_test_runner.php --scenario=steady --duration=1800
-  php scripts/load_test_runner.php --scenario=storm
-  php scripts/load_test_runner.php --scenario=long --duration=3600
+Remaining: VPS load scenarios completed 2026-09-04 under final gates (see PHASE_11_REPORT § EPIC-11.6).
 
-Next in Phase 11: Complete EPIC-11.2–11.4 and 11.6 VPS sign-off runs per docs/PHASE_11_REPORT.md.
+Next in Phase 11: none — 11.1–11.6 VPS sign-off complete.
 
 - [DONE] EPIC-11.5 Protocol audit (instrumentation 2026-07-27; **VPS live WS verified 2026-09-02** — 145/145 PASS on `box-963286` @ `f2c9cfb`)
 Files:

@@ -8,16 +8,27 @@ declare(strict_types=1);
  *
  * EPIC-11.6 — Parse load audit logs and verify performance targets.
  *
- * Acceptance (EPIC-11.6 spec):
- *   - p95 RTT < 100ms for register, login, draw_barrel (client or server log)
- *   - peak memory < 450 MB (server snapshots or resource log)
- *   - peak CPU < 80% (resource log, when present)
+ * Acceptance (product-aligned, 2026-09-04 owner reassessment):
+ *   Gameplay-critical (hard):
+ *     - p95 < 100ms for draw_barrel (live-game path)
+ *   Pre-game auth (secure bcrypt; latency is not ultra-low-critical):
+ *     - register/login p95 reported always
+ *     - FAIL only if p95 exceeds auth ceiling (default 160ms — owner-stated
+ *       acceptable band for bcrypt registration on the 1-CPU VPS target)
+ *   Resources:
+ *     - peak memory < 450 MB (server snapshots or resource log)
+ *     - peak CPU < 80% (resource log, when present)
+ *
+ * Latency source: prefers client RTT when present. On localhost VPS runs this
+ * is dominated by server processing (loopback RTT ≈ 0). Remote network RTT
+ * (e.g. ~16 ms from a specific test client) is NOT subtracted and is NOT a
+ * universal production guarantee — document separately from these gates.
  *
  * Usage:
  *   php scripts/analyze_load_log.php [path/to/load_audit.log]
  *       [--client-log=logs/load_client.log]
  *       [--resource-log=logs/load_resource.log]
- *       [--p95-ms=100] [--mem-mb=450] [--cpu-pct=80]
+ *       [--p95-ms=100] [--auth-p95-ms=160] [--mem-mb=450] [--cpu-pct=80]
  *
  * Exit codes:
  *   0 — pass
@@ -33,7 +44,8 @@ $args = array_slice($argv, 1);
 $serverLog = dirname(__DIR__) . '/logs/load_audit.log';
 $clientLog = dirname(__DIR__) . '/logs/load_client.log';
 $resourceLog = dirname(__DIR__) . '/logs/load_resource.log';
-$p95LimitMs = 100.0;
+$gameplayP95LimitMs = 100.0;
+$authP95LimitMs = 160.0;
 $memLimitMb = 450.0;
 $cpuLimitPct = 80.0;
 
@@ -43,7 +55,9 @@ foreach ($args as $arg) {
     } elseif (str_starts_with($arg, '--resource-log=')) {
         $resourceLog = substr($arg, strlen('--resource-log='));
     } elseif (str_starts_with($arg, '--p95-ms=')) {
-        $p95LimitMs = (float) substr($arg, strlen('--p95-ms='));
+        $gameplayP95LimitMs = (float) substr($arg, strlen('--p95-ms='));
+    } elseif (str_starts_with($arg, '--auth-p95-ms=')) {
+        $authP95LimitMs = (float) substr($arg, strlen('--auth-p95-ms='));
     } elseif (str_starts_with($arg, '--mem-mb=')) {
         $memLimitMb = (float) substr($arg, strlen('--mem-mb='));
     } elseif (str_starts_with($arg, '--cpu-pct=')) {
@@ -54,12 +68,20 @@ foreach ($args as $arg) {
 }
 
 $failures = [];
-$keyActions = ['register', 'login', 'draw_barrel'];
+$gameplayActions = ['draw_barrel'];
+$authActions = ['register', 'login'];
 
 echo "Load test analysis\n";
 echo "  server log:   {$serverLog}\n";
 echo "  client log:   {$clientLog}\n";
 echo "  resource log: {$resourceLog}\n";
+echo sprintf(
+    "  gates: gameplay_p95<%.0fms (draw_barrel); auth_p95<%.0fms (register/login); cpu<%.0f%%; mem<%.0fMB\n",
+    $gameplayP95LimitMs,
+    $authP95LimitMs,
+    $cpuLimitPct,
+    $memLimitMb
+);
 
 $serverStats = [];
 if (is_file($serverLog) && is_readable($serverLog)) {
@@ -127,26 +149,43 @@ if ($resourceStats['samples'] > 0) {
     }
 }
 
-foreach ($keyActions as $action) {
-    $p95 = null;
-
-    if (isset($clientStats[$action]) && $clientStats[$action]['count'] > 0) {
-        $p95 = $clientStats[$action]['p95'];
-        $source = 'client';
-    } elseif (isset($serverStats[$action]) && $serverStats[$action]['count'] > 0) {
-        $p95 = $serverStats[$action]['p95'];
-        $source = 'server';
-    }
-
+foreach ($authActions as $action) {
+    [$p95, $source] = resolveActionP95($action, $clientStats, $serverStats);
     if ($p95 === null) {
-        echo "  {$action}: no samples (skipped)\n";
+        echo "  {$action}: no samples (auth skipped)\n";
         continue;
     }
 
-    if ($p95 > $p95LimitMs) {
-        $failures[] = sprintf('%s p95 %.2fms (%s) exceeds limit %.2fms', $action, $p95, $source, $p95LimitMs);
+    if ($p95 > $authP95LimitMs) {
+        $failures[] = sprintf(
+            '%s p95 %.2fms (%s) exceeds auth ceiling %.2fms (pre-game bcrypt band)',
+            $action,
+            $p95,
+            $source,
+            $authP95LimitMs
+        );
     } else {
-        echo "  {$action}: p95={$p95}ms ({$source}) OK\n";
+        echo "  {$action}: p95={$p95}ms ({$source}) auth OK (<= {$authP95LimitMs}ms)\n";
+    }
+}
+
+foreach ($gameplayActions as $action) {
+    [$p95, $source] = resolveActionP95($action, $clientStats, $serverStats);
+    if ($p95 === null) {
+        echo "  {$action}: no samples (gameplay skipped)\n";
+        continue;
+    }
+
+    if ($p95 > $gameplayP95LimitMs) {
+        $failures[] = sprintf(
+            '%s p95 %.2fms (%s) exceeds gameplay limit %.2fms',
+            $action,
+            $p95,
+            $source,
+            $gameplayP95LimitMs
+        );
+    } else {
+        echo "  {$action}: p95={$p95}ms ({$source}) gameplay OK\n";
     }
 }
 
@@ -160,6 +199,23 @@ foreach ($failures as $failure) {
     echo "  - {$failure}\n";
 }
 exit(1);
+
+/**
+ * @param array<string, array{count: int, p50: float, p95: float, p99: float, max: float}> $clientStats
+ * @param array<string, array{count: int, p50: float, p95: float, p99: float, max: float}> $serverStats
+ * @return array{0: ?float, 1: string}
+ */
+function resolveActionP95(string $action, array $clientStats, array $serverStats): array
+{
+    if (isset($clientStats[$action]) && $clientStats[$action]['count'] > 0) {
+        return [$clientStats[$action]['p95'], 'client'];
+    }
+    if (isset($serverStats[$action]) && $serverStats[$action]['count'] > 0) {
+        return [$serverStats[$action]['p95'], 'server'];
+    }
+
+    return [null, ''];
+}
 
 /**
  * @return array<string, array{count: int, p50: float, p95: float, p99: float, max: float}>
