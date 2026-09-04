@@ -195,32 +195,40 @@ Priority: **Very Low**. Not blocking deployment. No runtime change proposed.
 | 11.3 Economy | DONE | PASS | **DONE** (`economy_integrity_runner.php` + analyze replay PASS; live Workerman stake PASS, `box-963286`, 2026-09-02) | No |
 | 11.4 State machine | DONE | PASS | **DONE** (live Workerman + analyze PASS, `box-963286`, 2026-09-02) | No |
 | 11.5 Protocol replay | DONE | Static PASS | **DONE** (8 live WS tests, 145/145 PASS, `box-963286` 2026-09-02) | No |
-| 11.6 Load testing | DONE | PASS | **BLOCKED / NEEDS CHANGES** (acceptance FAIL; diagnosis 2026-09-03) | No |
+| 11.6 Load testing | DONE | PASS | **BLOCKED / NEEDS CHANGES** (CPU PASS; register p95 ~101–104 ms FAIL; owner decision needed) | No |
 
-See `docs/PHASE_11_REPORT.md` and `docs/ROADMAP.md` § TD-3 matrix. **11.1–11.5 VPS DONE**; **11.6 BLOCKED** until analyzer PASS.
+See `docs/PHASE_11_REPORT.md` and `docs/ROADMAP.md` § TD-3 matrix. **11.1–11.5 VPS DONE**; **11.6 BLOCKED** — CPU fixed; register p95 still fails (~101–104 ms); owner decision needed.
 
 ### EPIC-11.6 — VPS load testing (**BLOCKED / NEEDS CHANGES**) (2026-09-03)
 
-Status: **BLOCKED / NEEDS CHANGES** — scenarios executed; acceptance not met.
+Status: **BLOCKED / NEEDS CHANGES** — full post-fix re-verification complete on `box-963286` (commit `f7c180b`); all analyze exit 1. **CPU sampling PASS**; **register p95 still fails** (~101–104 ms vs <100 ms). Owner decision needed. Not DONE; TD-3 not COMPLETE.
 
 | Item | Value |
 |------|-------|
 | Host | `box-963286` (Ubuntu 24.04, 1 CPU / ~543 MB RAM) |
 | Base commit | `78e603a` (main post-PR #7) |
+| Fix commit | `f7c180b` (`loginAfterRegister` + interval CPU sampling) |
 | Mock | `test_load_audit.php` 30/30 PASS |
 
 **Diagnosis:**
 
-| Failure | Classification | Root cause | Fix |
-|---------|----------------|------------|-----|
-| register p95 153–160 ms | PRODUCT | register auto-login did hash+verify (~63+61 ms bcrypt cost 10) | `loginAfterRegister()` skips same-request verify |
-| peak CPU 81.8–81.9% | TEST/HARNESS | lifetime `ps %cpu` after register burst; sustained ~0.4–6% | interval CPU via `/proc` tick deltas |
+| Failure | Classification | Root cause | Fix / status |
+|---------|----------------|------------|--------------|
+| register p95 153–160 ms → ~101–104 ms | PRODUCT | register auto-login did hash+verify (~63+61 ms bcrypt cost 10); after fix still ~101–104 ms | `loginAfterRegister()` applied; **still FAIL** — owner decision (cannot lower bcrypt cost without ADR; cannot weaken 100 ms threshold without requirements change) |
+| peak CPU 81.8–81.9% | TEST/HARNESS | lifetime `ps %cpu` after register burst; sustained ~0.4–6% | interval CPU via `/proc` tick deltas — **PASS** (ramp 10.1%, steady 2.0%, long 1.0%) |
 
-**ADR required: NO**
+**ADR required: NO** for applied fixes. **YES** if lowering bcrypt cost or relaxing register p95 gate.
 
-**Prior runs (2026-09-02):** storm/ramp/steady/long all analyze exit 1. Re-run pending after fixes.
+**Post-fix re-run (COMPLETE):**
 
-**Out of scope:** lowering bcrypt cost; weakening analyzer thresholds.
+| Scenario | Window UTC | register p95 | peak CPU | draw_barrel p95 | Result |
+|----------|------------|--------------|----------|-----------------|--------|
+| storm | (earlier same day) | 100.97ms | n/a (1 sample 0%) | 2.73ms | FAIL register |
+| ramp | | 103.89ms | 10.1% | n/a | FAIL register |
+| steady | 18:35:37–19:05:48 | 101.98ms | 2.0% | 3.45ms | FAIL register |
+| long | 19:05:51–20:05:57 | 100.80ms | 1.0% | 2.07ms | FAIL register |
+
+**Out of scope:** lowering bcrypt cost; weakening analyzer thresholds (without owner/ADR).
 
 ### EPIC-11.4 — VPS state-machine live-session verification (2026-09-02)
 

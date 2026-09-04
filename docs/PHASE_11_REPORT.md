@@ -387,20 +387,22 @@ All listed tests verified on VPS — see table above.
 | steady | `19:17:31`–`19:47:47` | FAIL | register p95 158.56 ms; draw_barrel 3.38 ms; peak CPU 81.8% |
 | long | `19:47:50`–`20:47:59` | FAIL | register p95 153.63 ms; draw_barrel 2.07 ms; peak CPU 81.9% |
 
-### Re-verification after fixes (commit `f7c180b`, 2026-09-03)
+### Re-verification after fixes (commit `f7c180b`, 2026-09-03) — COMPLETE
 
-| Scenario | Result | Notes |
-|----------|--------|-------|
-| storm | FAIL (exit 1) | register p95 **100.97 ms** (was ~154 ms); draw_barrel 2.73 ms PASS; mem OK |
-| ramp | FAIL (exit 1) | register p95 **103.89 ms**; peak CPU **10.1%** PASS (interval sampling); mem OK |
-| steady (30m) | **NOT RUN** / in progress at last agent poll | started `2026-09-03T18:35:36Z` on VPS; poll interrupted |
-| long (60m) | **NOT RUN** / queued after steady | same batch |
+All four scenarios re-run on `box-963286`; every `analyze_load_log.php` exit **1**. **CPU harness PASS**; **register p95 only remaining failure**. Status remains **BLOCKED / NEEDS CHANGES** (not DONE; TD-3 not COMPLETE).
 
-**CPU harness fix:** Confirmed on ramp — peak CPU 10.1% (was falsely 69–82% from lifetime `ps %cpu`).
+| Scenario | Window UTC | register p95 | peak CPU | draw_barrel p95 | Result |
+|----------|------------|--------------|----------|-----------------|--------|
+| storm | (earlier same day) | 100.97ms | n/a (1 sample 0%) | 2.73ms | FAIL register |
+| ramp | | 103.89ms | 10.1% | n/a | FAIL register |
+| steady | 18:35:37–19:05:48 | 101.98ms | 2.0% | 3.45ms | FAIL register |
+| long | 19:05:51–20:05:57 | 100.80ms | 1.0% | 2.07ms | FAIL register |
 
-**Register remaining gap:** After removing redundant verify, register p95 ≈ 101–104 ms vs <100 ms. VPS bcrypt cost 10 alone averages ~63 ms; with SQLite/session overhead, p95 exceeds 100 ms on 1 CPU. Further improvement requires lowering hash cost (ADR/security) or changing acceptance criteria (owner decision).
+**CPU harness fix:** Confirmed PASS — ramp peak CPU 10.1%; steady 2.0%; long 1.0% (was falsely 69–82% from lifetime `ps %cpu`).
 
-**Re-verification:** Incomplete — steady/long results must be captured; EPIC remains **BLOCKED** until analyzer PASS or owner decides on criteria/cost.
+**Register remaining gap:** After removing redundant verify, register p95 ≈ 101–104 ms vs <100 ms across all scenarios. VPS bcrypt cost 10 alone averages ~63 ms; with SQLite/session overhead, p95 exceeds 100 ms on 1 CPU. Further improvement requires lowering hash cost (ADR/security) or changing acceptance criteria (owner decision). Cannot lower bcrypt cost without ADR; cannot weaken 100 ms threshold without requirements change.
+
+**Re-verification:** Complete (all four scenarios). EPIC remains **BLOCKED / NEEDS CHANGES** until analyzer PASS or owner decides on criteria/cost.
 
 ---
 
@@ -411,7 +413,7 @@ See `docs/IMPLEMENTATION_STATUS.md` § TECHNICAL DEBT and § KNOWN GAPS:
 - **TD-1:** `admin_stats_data` — **implementation complete**; documentation/status reconciliation pending (Low, not blocking deployment).
 - **TD-2:** `error.banned` — reserved/unused per ADR-007; `banned` packet canonical (Very Low, documentation only).
 - Real-WS test log noise (low) — unchanged.
-- Phase 11 VPS verification (TD-3) — **11.1–11.5 DONE**; **11.6 BLOCKED / NEEDS CHANGES** (acceptance FAIL; diagnosis + fixes in progress).
+- Phase 11 VPS verification (TD-3) — **11.1–11.5 DONE**; **11.6 BLOCKED / NEEDS CHANGES** (full post-fix re-run; CPU PASS; register p95 still FAIL; owner decision needed).
 
 ---
 
@@ -422,7 +424,7 @@ See `docs/IMPLEMENTATION_STATUS.md` § TECHNICAL DEBT and § KNOWN GAPS:
 | All protocol actions wired | ✅ Fixed (P11-001) |
 | Unit/integration tests pass | ✅ 28/28 on Windows |
 | Live WS tests pass | ✅ **145/145 PASS** on VPS (`box-963286`, `f2c9cfb`, 2026-09-02) |
-| Memory/timer/load audits | ✅ **11.1–11.5 VPS verified**; ⛔ **11.6 BLOCKED** (register p95 / peak CPU acceptance FAIL) |
+| Memory/timer/load audits | ✅ **11.1–11.5 VPS verified**; ⛔ **11.6 BLOCKED** (register p95 acceptance FAIL; CPU harness PASS) |
 | Protocol docs synced | ✅ `admin_stats_data` implemented (TD-1 docs reconciliation only); `error.banned` reserved per ADR-007 (TD-2) |
 
 **Verdict:** Proceed with Phase 12 frontend development in parallel with completing remaining EPIC-11.6 VPS load verification (TD-3). Live-server protocol tests, memory/stability, timer drift, economy integrity, and state-machine live-session replay are verified on Ubuntu VPS. `admin_stats_data` is implemented end-to-end; remaining TD-1 work is documentation reconciliation only.
