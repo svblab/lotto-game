@@ -149,6 +149,46 @@ test_healthcheck_failure_handling() {
     fi
 }
 
+test_data_volume_permissions() {
+    echo "--- data volume permissions ---"
+    if ! lotto_docker_check >/dev/null 2>&1; then
+        skip "Docker not available — volume permission test skipped"
+        return 0
+    fi
+    if ! sudo -n true 2>/dev/null; then
+        skip "passwordless sudo not available — volume permission test skipped"
+        return 0
+    fi
+
+    local tmp_root volume image
+    tmp_root="$(mktemp -d)"
+    volume="lotto-volperm$$"
+    image="lotto-game:volperm$$"
+    LOTTO_STATE_ROOT="${tmp_root}/state"
+
+    docker build -t "${image}" -f "${LOTTO_REPO_ROOT}/deploy/docker/Dockerfile" "${LOTTO_REPO_ROOT}" >/dev/null
+    lotto_prepare_data_volume "${volume}" "${image}"
+
+    local owner write_ok
+    owner="$(docker run --rm --user root \
+        -v "${volume}:/app/data" \
+        --entrypoint stat \
+        "${image}" \
+        -c '%u:%g %a' /app/data)"
+    assert_eq "prepared volume owner and mode" "1000:1000 750" "${owner}"
+
+    write_ok="$(docker run --rm --user "${LOTTO_DATA_UID}:${LOTTO_DATA_GID}" \
+        -v "${volume}:/app/data" \
+        --entrypoint sh \
+        "${image}" \
+        -c 'php -r "file_put_contents(\"/app/data/.write_test\", \"ok\");" && test -f /app/data/.write_test && echo yes' 2>/dev/null || echo no)"
+    assert_eq "uid ${LOTTO_DATA_UID} can write to prepared volume" "yes" "${write_ok}"
+
+    docker volume rm "${volume}" >/dev/null 2>&1 || true
+    docker image rm "${image}" >/dev/null 2>&1 || true
+    rm -rf "${tmp_root}"
+}
+
 test_docker_integration() {
     echo "--- docker integration (optional) ---"
     if ! lotto_docker_check >/dev/null 2>&1; then
@@ -190,6 +230,7 @@ test_compose_env_generation
 test_image_reference_count
 test_static_files
 test_healthcheck_failure_handling
+test_data_volume_permissions
 test_docker_integration
 
 echo ""
