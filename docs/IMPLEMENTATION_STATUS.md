@@ -1,5 +1,23 @@
 # Implementation Status — Lotto Game Project
 
+## EPIC-14.1 — Version 1.0 Release (2026-09-05)
+
+Status: **Sign-off complete** — decision **V1.0 — READY WITH UNVERIFIED GATES**.
+**`v1.0` tag not created** (production browser/VPS/TLS/restart gates unverified).
+
+VERIFICATION (2026-09-05, updated VPS reconciliation):
+- `php run_ALL_tests.php` — 59/59 PASS
+- SSH `root@186.246.50.81` (`box-963286`) — **PASS**
+- VPS dev WS smoke (register/create_room/login) — **PASS** on `:8080` dev instance
+- VPS backup/restore (active dev `game.db`, staging copy) — **PASS**
+- Dev Workerman controlled restart + SQLite persistence — **PASS**
+- Production deployment (`/opt/lotto-game`, `lotto-server`, nginx/TLS) — **absent** on test VPS
+- Browser/E2E on HTTPS/WSS `/ws` — **UNVERIFIED** (no domain/nginx on test VPS)
+
+ADR required: **NO** (documentation-only).
+
+Report: `docs/EPIC_14_1_REPORT.md`
+
 ## Phase 14 — Release Candidate (2026-09-05)
 
 Status: **EPIC-14.0 complete** — release-readiness audit; no code blockers;
@@ -7,7 +25,8 @@ decision: **READY WITH UNVERIFIED OPERATIONAL GATES**.
 
 - [DONE] EPIC-14.0 Release Candidate audit — protocol, auth, state machine, economy,
   reconnect/AFK, frontend static tests, security configuration review
-- [PENDING] EPIC-14.1 Version 1.0 Release — requires fresh VPS/browser/backup gates
+- [DONE] EPIC-14.1 Version 1.0 Release sign-off — **V1.0 READY WITH UNVERIFIED GATES**;
+  `v1.0` tag withheld pending production operational verification
 
 VERIFICATION (local Windows dev host, 2026-09-05):
 - `php run_ALL_tests.php` — 59/59 PASS
