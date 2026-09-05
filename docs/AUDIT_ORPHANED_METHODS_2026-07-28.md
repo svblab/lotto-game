@@ -13,9 +13,9 @@ Closed by:
   `finishApartment`)
 - EPIC-13.4 — test corrections (`your_turn` + `game_afk_timer_id`)
 
-Still open (not this audit's original "orphaned methods"):
-- EPIC-13.6 reconnect mid-turn drawer turn-signal — see IMPLEMENTATION_STATUS.md
-  KNOWN GAPS (protocol / `your_turn` resend; not reproduced live)
+Closed (ADR-017, EPIC-13.6):
+- Reconnect mid-turn drawer turn-signal — `reconnect_state` carries
+  `is_my_turn` + AFK fields; see `test_reconnect.php` GROUP 3d.
 - EPIC-13.5 apartment early-finish on kick/ban — implemented (self-heal timer
   remains as a backstop)
 
@@ -50,7 +50,7 @@ timer armed at game start).
 | Area | Confidence | Notes |
 |------|------------|-------|
 | Admin kick/ban during apartment — no `allRequiredAnswered()` → `finishApartment()` | Logic gap was confirmed | EPIC-13.5: early-finish check; 10s apartment timer remains a self-heal backstop. |
-| Reconnect mid-turn — no `your_turn` resend | Spec ambiguous | EPIC-13.6 investigation; still a KNOWN GAP. |
+| Reconnect mid-turn — no `your_turn` resend | Resolved | ADR-017: `reconnect_state` turn fields; GROUP 3d regression. |
 | `RoomManager::findRoomIdByUserId()` | Zero production callers | Only `test_lobby_integration.php`. EPIC-13.7 (optional cleanup). |
 
 ## Methods verified as wired (not orphaned)
