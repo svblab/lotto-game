@@ -1797,11 +1797,14 @@ Files:
 
 Verification: test_admin_kick TEST 9 PASS; test_apartment 32/32.
 
-- [DONE] EPIC-13.6 Investigation: reconnect mid-turn drawer turn-signal
-Finding: **Frontend does NOT self-activate draw button from reconnect_state.**
-`onReconnectState` (playing) calls `UI().setDrawButton(false, false)` and
-`reconnect_state` carries no active-drawer field. Reconnecting drawer needs
-separate `your_turn` resend or protocol extension — deferred to follow-up Epic.
+- [DONE] EPIC-13.6 Reconnect mid-turn drawer turn-signal (ADR-017)
+Finding: backend contract satisfied via additive `reconnect_state` fields —
+`is_my_turn`, `afk_start`, `turn_seconds`, `auto_draws` when the reconnecting
+player is `active_drawer_conn_id` (no duplicate `your_turn` / `turn_ready`).
+Implementation: `ReconnectService::buildReconnectState()` +
+`restorePlayerConnection()` AFK restart for active drawer.
+Regression: `tests/Manual/test_reconnect.php` GROUP 3d (176/176 suite PASS).
+Client `onReconnectState` UI wiring remains Phase 12 Frontend scope.
 
 - [DONE] EPIC-13.7 Cleanup: RoomManager::findRoomIdByUserId()
 Decision: **(b) intentionally-retained utility** — docblock updated; no
@@ -4075,11 +4078,11 @@ Result:
   непредвиденного исключения в `login()` под `error.auth_invalid_credentials`
   с общим текстом, а не только `Auth rate limited` (ADR-028).
 
-- ⚠️ OPEN (EPIC-13.6, 2026-07-28): Reconnect mid-turn — reconnecting active
-  drawer does not receive `your_turn`; frontend `onReconnectState` explicitly
-  disables draw button (`setDrawButton(false, false)`) and `reconnect_state`
-  carries no active-drawer field. Requires follow-up Epic (protocol change or
-  `your_turn` resend) before implementation — not reproduced live yet.
+- ✅ RESOLVED (EPIC-13.6 / ADR-017, 2026-07-28 implementation; status reconciled
+  2026-09-05): Reconnect mid-turn — `reconnect_state` playing payload includes
+  `is_my_turn` + AFK fields for the active drawer; GROUP 3d in
+  `test_reconnect.php` covers backend contract. Frontend draw-button restore
+  from those fields is Phase 12 scope, not a backend blocker.
 
 - ⚠️ OPEN (низкий приоритет, найдено при FIX-12): real-WS-client
   subprocess-тесты (test_auth_packet_routing.php, test_lobby_packet_routing.php,
@@ -4156,6 +4159,8 @@ PHASE 7 — APARTMENT: COMPLETE
 PHASE 8 — RECONNECT & AFK: COMPLETE
 PHASE 9 — ADMIN: COMPLETE
 PHASE 10 — WEBSOCKET PROTOCOL: COMPLETE (10.0-10.7 all done)
+PHASE 11 — AUDITS & LOAD TESTING: COMPLETE (11.0–11.6 VPS verified)
+PHASE 13 — GAME AFK WIRING & ORPHANED-METHOD FIXES: COMPLETE (EPIC-13.0–13.7)
 
 Integration tests:
 
@@ -4214,8 +4219,10 @@ root-caused and resolved; full regression 0 failed)
 Next planned work (see `docs/ROADMAP.md`):
 
 ```text
+PHASE 12 — FRONTEND (next)
 SYSTEM DEPLOYMENT: D — DONE (D1 verified 2026-09-01)
-TECHNICAL DEBT: TD-1 docs reconciliation; TD-3 Phase 11 VPS runs (11.6 pending; 11.1 DONE; 11.2 DONE; 11.3 DONE; 11.4 DONE; 11.5 DONE)
+TECHNICAL DEBT: TD-1 DONE; TD-3 Phase 11 VPS DONE (11.1–11.6)
+PHASE 13 — GAME AFK WIRING: DONE (verified 2026-09-05 on origin/main @ 55e193b)
 ```
 
 PHASE 10 — WEBSOCKET PROTOCOL: COMPLETE (10.0-10.7 all done). Server-side

@@ -188,16 +188,16 @@ Goal: Wire the implemented-but-unconnected game AFK timer and first-turn
 `your_turn` into production paths; close gaps from the 2026-07-28 orphaned-
 methods audit (docs/AUDIT_ORPHANED_METHODS_2026-07-28.md). Reclaims Phase 13
 number previously skipped (see note below).
-Status: In progress.
+Status: Complete (verified on `origin/main` @ `55e193b`, 2026-09-05).
 
 - EPIC-13.0 ADR: Game AFK timer wiring decision — Completed
-- EPIC-13.1 Wire first-turn your_turn + AFK arm into handleStartGame()
-- EPIC-13.2 Wire AFK arm into handleDrawBarrel() turn rotation
-- EPIC-13.3 Wire AFK arm into drawer-replacement paths
-- EPIC-13.4 Test corrections + turn-start integration test
-- EPIC-13.5 Apartment early-finish check on kick/ban removal
-- EPIC-13.6 Investigation: reconnect mid-turn drawer turn-signal
-- EPIC-13.7 Cleanup: dead utility RoomManager::findRoomIdByUserId() (optional)
+- EPIC-13.1 Wire first-turn your_turn + AFK arm into handleStartGame() — Completed
+- EPIC-13.2 Wire AFK arm into handleDrawBarrel() turn rotation — Completed
+- EPIC-13.3 Wire AFK arm into drawer-replacement paths — Completed
+- EPIC-13.4 Test corrections + turn-start integration test — Completed
+- EPIC-13.5 Apartment early-finish check on kick/ban removal — Completed
+- EPIC-13.6 Reconnect mid-turn drawer turn-signal (ADR-017 `reconnect_state` fields) — Completed
+- EPIC-13.7 Cleanup: dead utility RoomManager::findRoomIdByUserId() (optional) — Completed (retained; used by LobbyService)
 
 ---
 
