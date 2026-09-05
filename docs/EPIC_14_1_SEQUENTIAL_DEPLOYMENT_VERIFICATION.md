@@ -210,3 +210,19 @@ Native smoke path works, but Docker clean deployment fails reproducibly, PHP 8.1
 ## 12. Next smallest action
 
 Next smallest action: Fix `deploy/docker/install.sh` (or compose init step) so the first `init_db.php` run can write to a fresh named volume as uid 1000 — e.g. one-shot root init with `chown 1000:1000 /app/data`, or documented volume permission bootstrap — then re-run this sequential verification on the same disposable VPS.
+
+---
+
+## Follow-up — Docker volume permission fix (2026-09-05)
+
+**Branch:** `feature/epic-14-1-fix-docker-volume-permissions` @ `36282a6`
+
+| Item | Before fix | After fix |
+|------|------------|-----------|
+| Docker clean deployment | **FAIL** | **PASS** |
+| `deploy/docker/tests/run_tests.sh` | integration FAIL | **29/29 PASS** |
+| Volume `/app/data` | `root:root` 755 | `1000:1000` 750 |
+| WS auth/lobby on Docker | N/A | **PASS** |
+| Release decision | V1.0 — BLOCKED | V1.0 — **READY WITH UNVERIFIED GATES** |
+
+Full report: `docs/EPIC_14_1_DOCKER_DEPLOYMENT_FIX.md`
