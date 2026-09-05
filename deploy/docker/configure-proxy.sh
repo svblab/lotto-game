@@ -54,6 +54,7 @@ lotto_load_instance_env "${INSTANCE}"
 
 UPSTREAM_PORT="${LOTTO_HOST_PORT}"
 PUBLIC_ROOT="${LOTTO_REPO_ROOT}/public"
+STATIC_ROOT="$(lotto_instance_dir "${INSTANCE}")/public"
 SITE_NAME="lotto-docker-${INSTANCE}"
 SITE_FILE="/etc/nginx/sites-available/${SITE_NAME}"
 ORIGIN="$(lotto_https_origin_for_fqdn "${FQDN}")"
@@ -62,6 +63,12 @@ if [[ ! -d "${PUBLIC_ROOT}" ]]; then
     lotto_err "Missing static root: ${PUBLIC_ROOT}"
     exit 1
 fi
+
+mkdir -p "$(lotto_instance_dir "${INSTANCE}")"
+rm -rf "${STATIC_ROOT}"
+cp -a "${PUBLIC_ROOT}" "${STATIC_ROOT}"
+chown -R www-data:www-data "${STATIC_ROOT}"
+chmod -R a+rX "${STATIC_ROOT}"
 
 lotto_info "Configuring nginx TLS proxy for ${FQDN} → 127.0.0.1:${UPSTREAM_PORT}"
 lotto_info "DNS ${FQDN} resolves to ${RESOLVED_IP}"
@@ -79,7 +86,7 @@ map \$http_upgrade \$connection_upgrade {
 server {
     listen 80;
     server_name ${FQDN};
-    root ${PUBLIC_ROOT};
+    root ${STATIC_ROOT};
     index index.html;
     location / {
         try_files \$uri \$uri/ /index.html;
@@ -114,7 +121,7 @@ server {
     ssl_certificate     /etc/letsencrypt/live/${FQDN}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/${FQDN}/privkey.pem;
 
-    root ${PUBLIC_ROOT};
+    root ${STATIC_ROOT};
     index index.html;
 
     location / {
