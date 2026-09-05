@@ -10,6 +10,8 @@ LOTTO_DEFAULT_STATE_ROOT="/var/lib/lotto-game"
 LOTTO_DEFAULT_INSTANCE="default"
 LOTTO_DEFAULT_CONTAINER_PORT="8080"
 LOTTO_DEFAULT_BIND_ADDRESS="127.0.0.1"
+LOTTO_DATA_UID="1000"
+LOTTO_DATA_GID="1000"
 
 lotto_err() {
     echo "ERROR: $*" >&2
@@ -102,6 +104,23 @@ lotto_instance_metadata_exists() {
 lotto_volume_exists() {
     local volume_name="$1"
     docker volume inspect "${volume_name}" >/dev/null 2>&1
+}
+
+# Fresh Docker named volumes mount at /app/data as root:root. The app service runs as
+# uid 1000 (see compose.yaml). Prepare ownership once before init_db / first start.
+lotto_prepare_data_volume() {
+    local volume_name="$1"
+    local image="$2"
+
+    if ! lotto_volume_exists "${volume_name}"; then
+        docker volume create "${volume_name}" >/dev/null
+    fi
+
+    docker run --rm --user root \
+        -v "${volume_name}:/app/data" \
+        --entrypoint sh \
+        "${image}" \
+        -c "chown ${LOTTO_DATA_UID}:${LOTTO_DATA_GID} /app/data && chmod 750 /app/data"
 }
 
 lotto_port_in_use() {

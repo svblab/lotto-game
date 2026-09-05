@@ -132,6 +132,8 @@ lotto_info "Building image ${LOTTO_IMAGE}..."
 lotto_compose_cmd "${INSTANCE}" build --pull
 
 if [[ "${NEW_DATABASE}" -eq 1 ]]; then
+    lotto_info "Preparing data volume permissions..."
+    lotto_prepare_data_volume "${LOTTO_VOLUME_NAME}" "${LOTTO_IMAGE}"
     lotto_info "Initializing SQLite database..."
     lotto_compose_cmd "${INSTANCE}" run --rm --no-deps \
         --entrypoint php \
