@@ -1,5 +1,25 @@
 # Implementation Status — Lotto Game Project
 
+## EPIC-14.1 — Sequential deployment verification (2026-09-05)
+
+Status: **BLOCKED** — native smoke PASS on clean VPS; Docker `install.sh` FAIL on fresh volume permissions.
+
+- [DONE] Clean VPS baseline (`box-963286`, Ubuntu 22.04.5 post-reinstall)
+- [DONE] Native/systemd per `ADMIN_VPS_DEPLOY.md` — smoke (HTTP, WS auth/lobby, backup/restore, restart)
+- [DONE] Native removal — zero RUSBINGO residue before Docker phase
+- [FAIL] Docker `deploy/docker/install.sh` — `init_db.php` cannot write to fresh volume (uid 1000 vs root-owned mount)
+- [UNVERIFIED] HTTPS / WSS / browser E2E — no operator test domain
+- [UNVERIFIED] Full gameplay/AFK/apartment/reconnect on live native `game.db`
+
+VERIFICATION (`box-963286`, commit `2c69908`, 2026-09-05):
+- Native regression: `sudo -u www-data php run_ALL_tests.php` — **51/59** (PHP 8.1.2; 8 files need PHP 8.2+)
+- Docker: image build PASS; install **FAIL** at DB init (see report)
+- `bash deploy/docker/tests/run_tests.sh` — static PASS; live integration FAIL (same DB init)
+
+Report: `docs/EPIC_14_1_SEQUENTIAL_DEPLOYMENT_VERIFICATION.md`
+
+ADR required: **NO** (deploy-script defect within ADR-036 scope).
+
 ## Phase 14 — Release Candidate (2026-09-05)
 
 Status: **EPIC-14.0 complete** — release-readiness audit; no code blockers;
