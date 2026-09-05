@@ -6,6 +6,21 @@
 
 Канонический путь на сервере: `/opt/lotto-game`. Сервис: `lotto-server.service`. Пользователь процесса: `www-data`.
 
+**Этот документ описывает только одну модель** — существующий production single-instance
+(`/opt/lotto-game` + `lotto-server.service`). В репозитории есть **другие поддерживаемые
+модели**; не путайте их с production runbook ниже.
+
+| Модель | Когда использовать | Авторитетный документ / точка входа |
+|--------|--------------------|-------------------------------------|
+| **Production (этот runbook)** | Один инстанс, `www-data`, `/opt/lotto-game`, домен + nginx + TLS | **этот файл** (`ADMIN_VPS_DEPLOY.md`) |
+| **Generic systemd (новый VPS, несколько инстансов)** | Native PHP на хосте, `/opt/lotto-game-<name>/`, `lotto-game-<name>.service` | `deploy/systemd/README.md`, `docs/LOCAL_ENVIRONMENT.md` § Generic systemd |
+| **Docker Compose (новый VPS)** | Контейнеры, без PHP на хосте, несколько изолированных инстансов | `deploy/docker/`, `docs/LOCAL_ENVIRONMENT.md` § Docker, ADR-036 |
+| **Разработка / аудит** | Локальный или временный dev-процесс (`php server.php`, `scripts/start_server.php`) | `docs/LOCAL_ENVIRONMENT.md` |
+
+Решения зафиксированы в **ADR-036** (Docker), **ADR-037** (разделение `deploy/docker/` vs
+`deploy/systemd/`), **ADR-027** (TLS/WSS через reverse proxy). Общего `deploy/install.sh`
+и переключателя `--mode docker|systemd` **нет**.
+
 Связанные документы (не обязательны для первого запуска):
 
 - `README.md` — краткий обзор и примеры конфигов
