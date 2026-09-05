@@ -106,6 +106,7 @@ test_image_reference_count() {
 test_static_files() {
     echo "--- static file checks ---"
     assert_true "Dockerfile exists" test -f "${LOTTO_REPO_ROOT}/deploy/docker/Dockerfile"
+    assert_true "configure-proxy.sh exists" test -f "${LOTTO_REPO_ROOT}/deploy/docker/configure-proxy.sh"
     assert_true "compose.yaml exists" test -f "${LOTTO_COMPOSE_FILE}"
     assert_true "healthcheck.php exists" test -f "${LOTTO_REPO_ROOT}/deploy/docker/healthcheck.php"
     if bash -n "${DEPLOY_DIR}/install.sh"; then
@@ -146,6 +147,16 @@ test_healthcheck_failure_handling() {
         assert_false "healthcheck fails on closed port" true
     else
         assert_true "healthcheck fails on closed port" true
+    fi
+}
+
+test_provisioning_fqdn_detection() {
+    echo "--- provisioning FQDN detection ---"
+    assert_eq "override FQDN" "example.test" "$(LOTTO_PROVISIONING_FQDN_OVERRIDE=example.test lotto_detect_provisioning_fqdn)"
+    if lotto_detect_provisioning_fqdn >/dev/null 2>&1; then
+        assert_true "host provisioning FQDN configured" true
+    else
+        skip "host provisioning FQDN not set — expected on dev workstations"
     fi
 }
 
@@ -230,6 +241,7 @@ test_compose_env_generation
 test_image_reference_count
 test_static_files
 test_healthcheck_failure_handling
+test_provisioning_fqdn_detection
 test_data_volume_permissions
 test_docker_integration
 

@@ -72,6 +72,18 @@ lotto_os_check
 lotto_docker_check
 lotto_repo_check
 
+DETECTED_FQDN=""
+if [[ -z "${ALLOWED_ORIGINS}" ]]; then
+    if DETECTED_FQDN="$(lotto_detect_provisioning_fqdn 2>/dev/null)"; then
+        lotto_validate_fqdn_dns "${DETECTED_FQDN}" >/dev/null
+        ALLOWED_ORIGINS="$(lotto_https_origin_for_fqdn "${DETECTED_FQDN}")"
+        lotto_info "Detected provisioning FQDN '${DETECTED_FQDN}' → LOTTO_ALLOWED_ORIGINS=${ALLOWED_ORIGINS}"
+    fi
+fi
+if [[ -z "${TRUSTED_PROXY_IPS}" ]]; then
+    TRUSTED_PROXY_IPS="127.0.0.1,::1"
+fi
+
 STATE_DIR="$(lotto_instance_dir "${INSTANCE}")"
 METADATA_EXISTS=0
 VOLUME_NAME="lotto-${INSTANCE}-data"
@@ -166,5 +178,9 @@ lotto_info ""
 lotto_info "Lotto Game instance '${INSTANCE}' is running."
 lotto_info "  WebSocket: ws://${BIND_ADDRESS}:${HOST_PORT}/"
 lotto_info "  Reverse proxy upstream: http://${BIND_ADDRESS}:${HOST_PORT} (see docs/LOCAL_ENVIRONMENT.md)"
+if [[ -n "${DETECTED_FQDN}" ]]; then
+    lotto_info "  Public HTTPS (after proxy): https://${DETECTED_FQDN}/"
+    lotto_info "  Configure host TLS proxy: sudo ./deploy/docker/configure-proxy.sh --name ${INSTANCE}"
+fi
 lotto_info "  Logs: docker compose -f deploy/docker/compose.yaml --env-file ${STATE_DIR}/instance.env -p lotto-${INSTANCE} logs -f app"
 lotto_info "  Remove: sudo ./deploy/docker/remove.sh --name ${INSTANCE}"
