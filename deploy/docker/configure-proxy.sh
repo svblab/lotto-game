@@ -65,6 +65,7 @@ if [[ ! -d "${PUBLIC_ROOT}" ]]; then
 fi
 
 mkdir -p "$(lotto_instance_dir "${INSTANCE}")"
+chmod 755 "$(lotto_instance_dir "${INSTANCE}")"
 rm -rf "${STATIC_ROOT}"
 cp -a "${PUBLIC_ROOT}" "${STATIC_ROOT}"
 chown -R www-data:www-data "${STATIC_ROOT}"
