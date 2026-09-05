@@ -161,6 +161,8 @@ bash "${SCRIPT_DIR}/install.sh" --name "${INSTANCE}" --port "${UPSTREAM_PORT}" \
     --allowed-origins "${ORIGIN}" \
     --trusted-proxy-ips "${LOTTO_TRUSTED_PROXY_IPS}"
 
+chmod 755 "$(lotto_instance_dir "${INSTANCE}")"
+
 lotto_info ""
 lotto_info "TLS proxy configured."
 lotto_info "  HTTPS: ${ORIGIN}/"

@@ -212,7 +212,7 @@ lotto_write_instance_env() {
     local dir image volume network container
     dir="$(lotto_instance_dir "${instance}")"
     mkdir -p "${dir}"
-    chmod 700 "${dir}"
+    chmod 755 "${dir}"
 
     image="lotto-game:${instance}"
     volume="lotto-${instance}-data"
