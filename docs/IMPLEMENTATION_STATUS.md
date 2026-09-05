@@ -1,5 +1,17 @@
 # Implementation Status — Lotto Game Project
 
+## EPIC-14.1 — Docker domain/TLS automation (2026-09-05)
+
+Status: **Docker HTTPS/WSS verified** on `rusbingo.online`; full browser E2E **UNVERIFIED**.
+
+- [DONE] FQDN from `hostnamectl` static hostname → auto `LOTTO_ALLOWED_ORIGINS`
+- [DONE] `deploy/docker/configure-proxy.sh` (nginx + Let's Encrypt, ADR-027)
+- [DONE] `https://rusbingo.online` HTTP 200; valid Let's Encrypt cert; WSS `/ws` handshake
+- [UNVERIFIED] Interactive browser gameplay / AFK / reconnect E2E
+- [OPEN] Feature branches not merged to `main` (PR #14, domain/TLS PR)
+
+Report: `docs/EPIC_14_1_DOCKER_DOMAIN_TLS_VERIFICATION.md`
+
 ## EPIC-14.1 — Sequential deployment verification (2026-09-05)
 
 Status: **READY WITH UNVERIFIED GATES** — native smoke PASS; Docker clean deploy **PASS** after volume-permission fix (`36282a6`).
