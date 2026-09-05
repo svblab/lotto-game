@@ -1,5 +1,22 @@
 # Implementation Status — Lotto Game Project
 
+## EPIC-14.1 — Final production verification (2026-09-05)
+
+Status: **BLOCKED** — no operator domain; canonical HTTPS/WSS/browser E2E not performed.
+
+- [BLOCKED] Operator test/production domain — **not supplied** (prerequisite for TLS/WSS/browser)
+- [UNVERIFIED] Canonical native production on VPS (`ADMIN_VPS_DEPLOY.md` with Let's Encrypt)
+- [UNVERIFIED] HTTPS / TLS / WSS `/ws` / browser E2E / live gameplay on production URL
+- [OPEN] PR #14 (Docker volume fix) — not merged to `main`
+- [OPEN] PR #11 — not merged (per release instructions)
+
+Prior evidence on feature branches (not on `main`): PR #13 sequential native smoke;
+PR #14 Docker fix verification.
+
+Report: `docs/EPIC_14_1_FINAL_PRODUCTION_VERIFICATION.md`
+
+ADR required: **NO**
+
 ## Phase 14 — Release Candidate (2026-09-05)
 
 Status: **EPIC-14.0 complete** — release-readiness audit; no code blockers;
