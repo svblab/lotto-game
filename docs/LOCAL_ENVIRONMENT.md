@@ -173,6 +173,27 @@ sudo ./deploy/docker/remove.sh --name lotto-01 --yes
 Point your reverse proxy at each instance's published loopback port (ADR-027 pattern).
 See `deploy/docker/install.sh --help` for optional env flags.
 
+**Provisioning contract (FQDN):** before install, set the VPS static hostname to your
+public domain (not the provider machine name):
+
+```bash
+sudo hostnamectl set-hostname rusbingo.online   # example; use your domain
+```
+
+`install.sh` reads `hostnamectl` static hostname (not `hostname -f` short name), validates
+DNS resolves, and sets `LOTTO_ALLOWED_ORIGINS=https://<fqdn>` when `--allowed-origins`
+is omitted.
+
+**Host TLS (nginx + Let's Encrypt):** after `install.sh`, run:
+
+```bash
+sudo ./deploy/docker/configure-proxy.sh --name default
+```
+
+This applies the ADR-027 nginx upstream pattern to `127.0.0.1:<host-port>` and serves
+static files from the Git checkout `public/`. TLS is terminated on the host, not inside
+the container.
+
 ### Docker tests
 
 ```bash

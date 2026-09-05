@@ -84,6 +84,53 @@ lotto_repo_check() {
     fi
 }
 
+# Provisioning contract (ADR-027 + Docker): the VPS static hostname must be the public
+# FQDN before deploy, e.g. `sudo hostnamectl set-hostname rusbingo.online`.
+# Short machine names (box-963286) are NOT converted to a DNS domain.
+lotto_detect_provisioning_fqdn() {
+    local candidate=""
+
+    if [[ -n "${LOTTO_PROVISIONING_FQDN_OVERRIDE:-}" ]]; then
+        candidate="${LOTTO_PROVISIONING_FQDN_OVERRIDE}"
+    elif command -v hostnamectl >/dev/null 2>&1; then
+        candidate="$(hostnamectl status 2>/dev/null | awk -F': ' '/Static hostname/ {gsub(/^[ \t]+/,"",$2); print $2; exit}')"
+    fi
+    if [[ -z "${candidate}" && -f /etc/hostname ]]; then
+        candidate="$(tr -d '[:space:]' < /etc/hostname)"
+    fi
+
+    if [[ ! "${candidate}" =~ ^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$ ]]; then
+        lotto_err "Provisioning FQDN not configured (static hostname must be a public domain)."
+        lotto_err "Before deploy run: sudo hostnamectl set-hostname your.domain.example"
+        lotto_err "Current static hostname: '${candidate:-<empty>}'"
+        return 1
+    fi
+
+    echo "${candidate}"
+}
+
+lotto_validate_fqdn_dns() {
+    local fqdn="$1"
+    local resolved=""
+
+    if command -v getent >/dev/null 2>&1; then
+        resolved="$(getent ahosts "${fqdn}" 2>/dev/null | awk '/STREAM|RAW/ {print $1; exit}')"
+    fi
+    if [[ -z "${resolved}" ]] && command -v dig >/dev/null 2>&1; then
+        resolved="$(dig +short "${fqdn}" A 2>/dev/null | head -1)"
+    fi
+    if [[ -z "${resolved}" ]]; then
+        lotto_err "FQDN '${fqdn}' does not resolve to an A record."
+        return 1
+    fi
+    echo "${resolved}"
+}
+
+lotto_https_origin_for_fqdn() {
+    local fqdn="$1"
+    echo "https://${fqdn}"
+}
+
 lotto_compose_cmd() {
     local instance="$1"
     shift
