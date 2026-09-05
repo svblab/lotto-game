@@ -206,11 +206,11 @@ Status: Complete (verified on `origin/main` @ `55e193b`, 2026-09-05).
 Goal: Production readiness — release candidate through v1.0. Previously
 numbered EPIC-12.7/12.8 (Phase 12's own final two epics); given its own
 phase number once Phase 12 was reassigned to Frontend (see note below).
-Status: In progress — EPIC-14.0 sign-off complete (2026-09-05); see
-`docs/PHASE_14_REPORT.md`.
+Status: EPIC-14.0 complete; EPIC-14.1 sign-off 2026-09-05 — see
+`docs/PHASE_14_REPORT.md` and `docs/EPIC_14_1_REPORT.md`.
 
 - EPIC-14.0 Release Candidate — **DONE** (audit 2026-09-05; READY WITH UNVERIFIED OPERATIONAL GATES)
-- EPIC-14.1 Version 1.0 Release — Pending operational gate verification (browser/VPS/backup)
+- EPIC-14.1 Version 1.0 Release — **DONE** (sign-off 2026-09-05; **V1.0 — READY WITH UNVERIFIED GATES**; `v1.0` tag **not** created)
 
 ---
 
