@@ -1,5 +1,41 @@
 # Implementation Status — Lotto Game Project
 
+## Phase 12 — Frontend verification (2026-09-05)
+
+Status: **Complete** — implementation already present on `main`; Phase 12
+sign-off is verification + documentation reconciliation (no protocol or
+backend changes).
+
+- [DONE] EPIC-12.0 `public/js/ws.js` — connection lifecycle, ping, auto-reconnect, ADR-027 URL resolution, packet dispatch
+- [DONE] EPIC-12.1 `public/js/app.js` — state, packet routing, animation queue, `turn_ready` / AFK semantics
+- [DONE] EPIC-12.2 Lobby UI — room list/create/join, password, host, bank, start-game (`public/js/ui.js`, `index.html`)
+- [DONE] EPIC-12.3 Game UI — cards, masked opponents, turn/AFK, drawer, barrels, nudge, apartment, game-over
+- [DONE] EPIC-12.4 Reconnect UI — overlay, `reconnect_state` restore (waiting/playing), `is_my_turn` turn restoration
+- [DONE] EPIC-12.5 Localization — `public/js/i18n.js`, six locales (`en`, `ru`, `es`, `fr`, `zh`, `tr`)
+- [DONE] EPIC-12.6 Frontend tests — `test_frontend_structure.php`, `test_frontend_logic.php`, `test_frontend_i18n.php`
+
+Files (authoritative frontend surface):
+- `public/index.html`, `public/css/style.css`
+- `public/js/ws.js`, `public/js/app.js`, `public/js/ui.js`, `public/js/i18n.js`, `public/js/sound.js`
+- `public/locales/*.json`
+- `tests/Manual/test_frontend_*.php`, `tests/Manual/test_ws_url_resolution.php`
+
+VERIFICATION (local Windows dev host, 2026-09-05):
+- `php tests/Manual/test_frontend_structure.php` — 55/55 PASS
+- `php tests/Manual/test_frontend_logic.php` — 7/7 PASS
+- `php tests/Manual/test_frontend_i18n.php` — 16/16 PASS
+- `php tests/Manual/test_ws_url_resolution.php` — 19/19 PASS
+- `php tests/Manual/test_protocol_completeness.php` — 99/99 PASS (1 known warning)
+- `php run_ALL_tests.php` — 59/59 test files PASS
+- `git diff --check` — PASS
+- Browser/E2E — **not run** in this session (manual QA checklist remains for audio timing, etc.)
+
+Notes: EPIC-13.6 historical finding (`reconnect_state` draw-button activation) is
+**resolved** in current `onReconnectState()` via `is_my_turn` + `syncTurnUi()`.
+No ADR required (ADR required: NO).
+
+Report: `docs/PHASE_12_REPORT.md`
+
 ## Docker Compose deployment (ADR-036) (2026-08-29)
 
 Status: **Completed** — scripts under `deploy/docker/`.
