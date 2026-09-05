@@ -19,8 +19,17 @@ try {
     }
 
     $key = base64_encode(random_bytes(16));
+    $originLine = '';
+    $allowedOrigins = getenv('LOTTO_ALLOWED_ORIGINS');
+    if (is_string($allowedOrigins) && $allowedOrigins !== '') {
+        $firstOrigin = trim(explode(',', $allowedOrigins)[0]);
+        if ($firstOrigin !== '') {
+            $originLine = "Origin: {$firstOrigin}\r\n";
+        }
+    }
     $request = "GET / HTTP/1.1\r\n"
         . "Host: {$host}:{$port}\r\n"
+        . $originLine
         . "Upgrade: websocket\r\n"
         . "Connection: Upgrade\r\n"
         . "Sec-WebSocket-Key: {$key}\r\n"
