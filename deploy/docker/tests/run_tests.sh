@@ -124,7 +124,12 @@ test_static_files() {
     else
         assert_false "healthcheck.sh syntax" true
     fi
-    if php -l "${LOTTO_REPO_ROOT}/deploy/docker/healthcheck.php" >/dev/null 2>&1; then
+    if bash -n "${DEPLOY_DIR}/admin-bootstrap.sh"; then
+        assert_true "admin-bootstrap.sh syntax" true
+    else
+        assert_false "admin-bootstrap.sh syntax" true
+    fi
+    if php -l "${LOTTO_REPO_ROOT}/deploy/lib/reset_admin_bootstrap.php" >/dev/null 2>&1; then
         assert_true "healthcheck.php syntax" true
     else
         assert_false "healthcheck.php syntax" true
@@ -244,6 +249,10 @@ test_healthcheck_failure_handling
 test_provisioning_fqdn_detection
 test_data_volume_permissions
 test_docker_integration
+
+echo ""
+echo "--- AHPC admin bootstrap tests ---"
+bash "${SCRIPT_DIR}/test_admin_bootstrap.sh"
 
 echo ""
 echo "Results: ${TESTS_PASSED}/${TESTS_RUN} passed, ${TESTS_FAILED} failed, ${TESTS_SKIPPED} skipped"

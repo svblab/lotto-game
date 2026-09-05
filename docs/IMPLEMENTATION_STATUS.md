@@ -1,5 +1,18 @@
 # Implementation Status — Lotto Game Project
 
+## EPIC-14.1 — Cloud-safe admin bootstrap (AHPC, ADR-038) (2026-09-05)
+
+Status: **Implementation complete** — pending credential delivery for Docker + generic systemd.
+
+- [DONE] AHPC pending file (`root:root` `0600`) per instance
+- [DONE] `deploy/docker/admin-bootstrap.sh` + `deploy/systemd/admin-bootstrap.sh`
+- [DONE] `install.sh --non-interactive` exit `42` without password in output
+- [DONE] Explicit `acknowledge`; `reset` recovery; existing DB unchanged on re-install
+- [DONE] Tests: `deploy/docker/tests/test_admin_bootstrap.sh`, `deploy/systemd/tests/test_admin_bootstrap.sh`
+- [UNVERIFIED] Live VPS disposable Docker AHPC integration (Linux + Docker + sudo)
+
+ADR: `docs/ADR/038-admin-bootstrap-credential-delivery.md`
+
 ## EPIC-14.1 — Docker domain/TLS automation (2026-09-05)
 
 Status: **Docker HTTPS/WSS verified** on `rusbingo.online`; full browser E2E **UNVERIFIED**.

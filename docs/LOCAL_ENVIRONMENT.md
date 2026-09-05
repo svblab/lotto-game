@@ -139,6 +139,28 @@ Default instance name (when `--name` omitted): `default`.
 Re-running install for the same `--name` is idempotent: existing data is preserved;
 the container/image may be rebuilt safely.
 
+### Admin bootstrap (AHPC, ADR-038)
+
+On a **fresh** database, `install.sh` creates the `admin` user and promotes the
+one-time password to a root-only pending file:
+
+`/var/lib/lotto-game/<instance>/admin-bootstrap.pending` (`0600`, never in logs or
+`instance.env`).
+
+```bash
+sudo ./deploy/docker/admin-bootstrap.sh --name lotto-01 status
+sudo ./deploy/docker/admin-bootstrap.sh --name lotto-01 read          # TTY only
+sudo ./deploy/docker/admin-bootstrap.sh --name lotto-01 read --format=json  # automation
+sudo ./deploy/docker/admin-bootstrap.sh --name lotto-01 acknowledge
+sudo ./deploy/docker/admin-bootstrap.sh --name lotto-01 reset         # recovery
+```
+
+Non-interactive provisioning (`install.sh --non-interactive`) exits **42** with JSON
+metadata (path/state only — no password). The **provisioning layer** must store the
+credential in an external secret manager, then call `acknowledge`.
+
+Re-install on an existing volume does **not** regenerate credentials or pending files.
+
 ### Multiple instances
 
 ```bash
@@ -278,9 +300,25 @@ sudo ./deploy/systemd/healthcheck.sh demo
 
 Supported install options (see `./deploy/systemd/install.sh --help`):
 
-- `--name`, `--port`, `--bind`, `--allowed-origins`, `--trusted-proxy-ips`, `--max-accounts-per-ip`
+- `--name`, `--port`, `--bind`, `--allowed-origins`, `--trusted-proxy-ips`, `--max-accounts-per-ip`, `--non-interactive`
 
 Update and remove take the instance name as the first positional argument only.
+
+### Admin bootstrap (AHPC, ADR-038)
+
+Fresh install promotes the one-time admin password to:
+
+`/opt/lotto-game-<name>/config/admin-bootstrap.pending` (`root:root`, `0600`).
+
+```bash
+sudo ./deploy/systemd/admin-bootstrap.sh --name demo status
+sudo ./deploy/systemd/admin-bootstrap.sh --name demo read
+sudo ./deploy/systemd/admin-bootstrap.sh --name demo acknowledge
+sudo ./deploy/systemd/admin-bootstrap.sh --name demo reset
+```
+
+Same semantics as Docker AHPC (`docs/ADR/038-admin-bootstrap-credential-delivery.md`).
+Existing `game.db` on re-install is never modified.
 
 ### Persistent layout (per instance)
 
@@ -291,6 +329,7 @@ Update and remove take the instance name as the first positional argument only.
   logs/                server and Workerman logs
   config/environment   instance env (preserved on update)
   config/deployment.json  metadata v1 (no secrets)
+  config/admin-bootstrap.pending  one-time admin password (ADR-038; removed after acknowledge)
 /var/backups/lotto-game/<name>/   instance backup dir (optional/empty until used)
 /etc/systemd/system/lotto-game-<name>.service
 ```

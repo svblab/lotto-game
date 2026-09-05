@@ -147,7 +147,7 @@ test_metadata_schema() {
 
 test_static_syntax() {
     echo "--- shell syntax ---"
-    for script in lib/common.sh install.sh remove.sh update.sh healthcheck.sh; do
+    for script in lib/common.sh install.sh remove.sh update.sh healthcheck.sh admin-bootstrap.sh; do
         if bash -n "${DEPLOY_DIR}/${script}"; then
             assert_true "${script} syntax" true
         else
@@ -558,6 +558,10 @@ test_c_unit_refresh_detection
 test_c_update_lock
 test_c_update_failure_no_metadata_touch
 test_static_syntax
+
+echo ""
+echo "--- AHPC admin bootstrap tests ---"
+bash "${SCRIPT_DIR}/test_admin_bootstrap.sh"
 
 echo ""
 echo "Systemd deployment tests: ${TESTS_PASSED}/${TESTS_RUN} passed, ${TESTS_FAILED} failed"

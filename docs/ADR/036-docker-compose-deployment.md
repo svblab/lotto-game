@@ -57,11 +57,10 @@ replace, or modify the existing native/systemd production instance.
 6. **Container logging (stdout-only)**: in Docker mode,
    `LOTTO_SERVER_LOG=php://stdout` and `LOTTO_WORKERMAN_LOG_FILE=php://stdout`.
    `Logger` accepts stream targets; file-based 30-day rotation described for native
-   systemd deployment does not apply (nothing on disk to rotate). Admin bootstrap
-   credentials from `init_db.php` are written once to a `0600` file on the data
-   volume (`LOTTO_ADMIN_BOOTSTRAP_FILE`), read by `install.sh` on the host terminal,
-   then deleted — never emitted through the container stdout stream captured by
-   `docker logs`.
+   systemd deployment does not apply (nothing on disk to rotate). **Admin bootstrap
+   credential delivery** follows **ADR-038 (AHPC)** — pending file on host metadata,
+   explicit `admin-bootstrap.sh read` / `acknowledge`; never stdout, Docker logs, or
+   Compose env. ADR-036 §6 bootstrap lifecycle is superseded where it conflicts.
 
 7. **Healthcheck**: minimal standalone `deploy/docker/healthcheck.php` copied into
    the runtime image performs a real RFC6455 WebSocket handshake against

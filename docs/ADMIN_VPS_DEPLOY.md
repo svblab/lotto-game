@@ -420,6 +420,12 @@ sudo bash admin_emergency_control.sh force-restart
 
 ### 8.3. Пароль администратора
 
+**Native production** (`/opt/lotto-game`, этот документ §3.3): `init_db.php` печатает пароль один раз в терминал.
+
+**Docker / generic systemd** (новые VPS, не production): пароль выдаётся через AHPC
+(`admin-bootstrap.sh read` → сохранить → `acknowledge`). См.
+`docs/ADR/038-admin-bootstrap-credential-delivery.md` и `docs/LOCAL_ENVIRONMENT.md`.
+
 Предпочтительно: войти как `admin` → смена пароля в панели (нужен текущий пароль).
 
 Аварийно, если пароль потерян (сервис можно не останавливать; лучше — в окне без игроков):
