@@ -154,7 +154,7 @@ a client against it — memory, timers, economy, state machine, protocol,
 and load, all audited while the protocol is still cheap to change if an
 audit surfaces something. Previously numbered Phase 12.0-12.6; reordered
 ahead of Frontend (see note below).
-Status: In progress (EPIC-11.0 started 2026-07-27; see docs/PHASE_11_REPORT.md).
+Status: Complete (EPIC-11.0–11.6 DONE; see docs/PHASE_11_REPORT.md).
 
 - EPIC-11.0 Full integration testing — DONE
 - EPIC-11.1 Memory audit — **DONE** (VPS 6h memory/stability PASS on `box-963286`, 2026-09-02)
@@ -172,14 +172,15 @@ See **TD-3** under TECHNICAL DEBT for VPS verification matrix (11.1–11.6).
 Goal: Minimal playable client, built against a server already audited in
 Phase 11. Previously numbered Phase 11; reordered after Audits & Load
 Testing (see note below).
+Status: Complete (verified on `main` @ `55e193b`, 2026-09-05; see docs/PHASE_12_REPORT.md).
 
-- EPIC-12.0 ws.js
-- EPIC-12.1 app.js
-- EPIC-12.2 Lobby UI
-- EPIC-12.3 Game UI
-- EPIC-12.4 Reconnect UI
-- EPIC-12.5 Localization
-- EPIC-12.6 Frontend integration tests
+- EPIC-12.0 ws.js — **DONE**
+- EPIC-12.1 app.js — **DONE**
+- EPIC-12.2 Lobby UI — **DONE**
+- EPIC-12.3 Game UI — **DONE**
+- EPIC-12.4 Reconnect UI — **DONE**
+- EPIC-12.5 Localization — **DONE**
+- EPIC-12.6 Frontend integration tests — **DONE**
 
 ---
 
