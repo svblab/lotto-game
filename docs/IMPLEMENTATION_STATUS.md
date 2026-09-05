@@ -1,5 +1,25 @@
 # Implementation Status — Lotto Game Project
 
+## Phase 14 — Release Candidate (2026-09-05)
+
+Status: **EPIC-14.0 complete** — release-readiness audit; no code blockers;
+decision: **READY WITH UNVERIFIED OPERATIONAL GATES**.
+
+- [DONE] EPIC-14.0 Release Candidate audit — protocol, auth, state machine, economy,
+  reconnect/AFK, frontend static tests, security configuration review
+- [PENDING] EPIC-14.1 Version 1.0 Release — requires fresh VPS/browser/backup gates
+
+VERIFICATION (local Windows dev host, 2026-09-05):
+- `php run_ALL_tests.php` — 59/59 PASS
+- `git diff --check` — PASS
+- `gh api` — `origin/main` @ `a8794f3` (PR #9); `git fetch` failed (SSL)
+- Browser/E2E — **UNVERIFIED** (browser automation unavailable)
+- VPS smoke / backup-restore / TLS-WSS — **UNVERIFIED** in this session (Phase 11 evidence retained)
+
+ADR required: **NO** (documentation-only branch changes).
+
+Report: `docs/PHASE_14_REPORT.md`
+
 ## Phase 12 — Frontend verification (2026-09-05)
 
 Status: **Complete** — implementation already present on `main`; Phase 12
