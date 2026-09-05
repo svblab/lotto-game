@@ -563,6 +563,36 @@ lotto_run_composer() {
         --working-dir="${app_path}"
 }
 
+lotto_ahpc_pending_path_systemd() {
+    echo "$(lotto_config_path "$1")/admin-bootstrap.pending"
+}
+
+lotto_ahpc_ack_path_systemd() {
+    echo "$(lotto_config_path "$1")/admin-bootstrap.ack"
+}
+
+lotto_promote_systemd_bootstrap_credential() {
+    local instance="$1"
+    local data pending ahpc_lib bootstrap_file
+
+    ahpc_lib="${LOTTO_SYSTEMD_LIB_DIR}/../../lib/admin-bootstrap-common.sh"
+    # shellcheck source=../../lib/admin-bootstrap-common.sh
+    source "${ahpc_lib}"
+
+    data="$(lotto_data_path "${instance}")"
+    bootstrap_file="${data}/.admin_bootstrap"
+    pending="$(lotto_ahpc_pending_path_systemd "${instance}")"
+
+    if [[ ! -f "${bootstrap_file}" ]]; then
+        lotto_err "Bootstrap credential not found after init_db: ${bootstrap_file}"
+        return 1
+    fi
+
+    lotto_ahpc_promote_bootstrap_file "${instance}" "${bootstrap_file}" "${pending}"
+    chmod 600 "${pending}"
+    chown root:root "${pending}"
+}
+
 lotto_write_env_file() {
     local instance="$1"
     local port="$2"
@@ -661,6 +691,12 @@ lotto_wait_for_active_unit() {
 
 lotto_cleanup_failed_install() {
     local instance="$1"
+    local pending_path
+    pending_path="$(lotto_ahpc_pending_path_systemd "${instance}" 2>/dev/null || true)"
+    if [[ -n "${pending_path}" && -f "${pending_path}" ]]; then
+        lotto_info "Pending AHPC credential preserved at ${pending_path}; skipping destructive cleanup."
+        return 0
+    fi
     local unit user root created_user
     unit="$(lotto_systemd_unit "${instance}")"
     user="$(lotto_service_user "${instance}")"

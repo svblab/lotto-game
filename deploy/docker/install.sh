@@ -18,6 +18,7 @@ ALLOWED_ORIGINS="${LOTTO_ALLOWED_ORIGINS:-}"
 TRUSTED_PROXY_IPS="${LOTTO_TRUSTED_PROXY_IPS:-}"
 MAX_ACCOUNTS_PER_IP="${LOTTO_MAX_ACCOUNTS_PER_IP:-}"
 FRESH_INSTALL=0
+NON_INTERACTIVE=0
 
 usage() {
     cat <<'EOF'
@@ -34,6 +35,7 @@ Options:
   --allowed-origins V  LOTTO_ALLOWED_ORIGINS (comma-separated)
   --trusted-proxy-ips V LOTTO_TRUSTED_PROXY_IPS
   --max-accounts-per-ip N LOTTO_MAX_ACCOUNTS_PER_IP
+  --non-interactive    Machine-readable handoff (exit 42 when credential pending)
   -h, --help           Show this help
 
 Examples:
@@ -55,6 +57,7 @@ while [[ $# -gt 0 ]]; do
         --allowed-origins) ALLOWED_ORIGINS="$2"; shift 2 ;;
         --trusted-proxy-ips) TRUSTED_PROXY_IPS="$2"; shift 2 ;;
         --max-accounts-per-ip) MAX_ACCOUNTS_PER_IP="$2"; shift 2 ;;
+        --non-interactive) NON_INTERACTIVE=1; shift ;;
         -h|--help) usage; exit 0 ;;
         *) lotto_err "Unknown option: $1"; usage; exit 2 ;;
     esac
@@ -152,6 +155,8 @@ if [[ "${NEW_DATABASE}" -eq 1 ]]; then
         -e LOTTO_DB_PATH=/app/data/game.db \
         -e LOTTO_ADMIN_BOOTSTRAP_FILE=/app/data/.admin_bootstrap \
         app init_db.php
+    lotto_info "Promoting admin bootstrap credential to AHPC pending file..."
+    lotto_promote_docker_bootstrap_credential "${INSTANCE}" "${LOTTO_IMAGE}" "${LOTTO_VOLUME_NAME}"
 fi
 
 lotto_info "Starting container ${LOTTO_CONTAINER_NAME}..."
@@ -161,14 +166,20 @@ lotto_info "Waiting for healthcheck..."
 lotto_wait_healthy "${INSTANCE}" 120
 
 if [[ "${NEW_DATABASE}" -eq 1 ]]; then
-    BOOTSTRAP="$(lotto_read_bootstrap_from_volume "${LOTTO_IMAGE}" "${LOTTO_VOLUME_NAME}")"
-    if [[ -n "${BOOTSTRAP}" ]]; then
-        lotto_info ""
-        lotto_info "=== One-time admin bootstrap credential (save now) ==="
-        echo "${BOOTSTRAP}"
-        lotto_info "===================================================="
-        lotto_delete_bootstrap_from_volume "${LOTTO_IMAGE}" "${LOTTO_VOLUME_NAME}"
+    # shellcheck source=../lib/admin-bootstrap-common.sh
+    source "${SCRIPT_DIR}/../lib/admin-bootstrap-common.sh"
+    pending_path="$(lotto_ahpc_pending_path_docker "${INSTANCE}")"
+    if [[ "${NON_INTERACTIVE}" -eq 1 ]]; then
+        lotto_ahpc_emit_handoff_json "${INSTANCE}" "${pending_path}"
+        FRESH_INSTALL=0
+        trap - ERR
+        exit 42
     fi
+    lotto_info ""
+    lotto_info "Admin bootstrap credential is pending (AHPC)."
+    lotto_info "Retrieve once: sudo ./deploy/docker/admin-bootstrap.sh --name ${INSTANCE} read"
+    lotto_info "Then acknowledge: sudo ./deploy/docker/admin-bootstrap.sh --name ${INSTANCE} acknowledge"
+    lotto_info "Pending path: ${pending_path}"
 fi
 
 FRESH_INSTALL=0

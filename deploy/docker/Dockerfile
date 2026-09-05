@@ -27,6 +27,7 @@ COPY --from=builder --chown=lotto:lotto /build/src ./src
 COPY --from=builder --chown=lotto:lotto /build/server.php ./server.php
 COPY --from=builder --chown=lotto:lotto /build/init_db.php ./init_db.php
 COPY --chown=lotto:lotto deploy/docker/healthcheck.php /app/healthcheck.php
+COPY --chown=lotto:lotto deploy/lib/reset_admin_bootstrap.php /app/reset_admin_bootstrap.php
 
 USER lotto
 

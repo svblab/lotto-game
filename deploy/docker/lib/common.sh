@@ -273,14 +273,41 @@ lotto_image_used_by_other_instances() {
     return 1
 }
 
-lotto_read_bootstrap_from_volume() {
-    local image="$1"
-    local volume_name="$2"
-    docker run --rm \
+lotto_ahpc_pending_path_docker() {
+    echo "$(lotto_instance_dir "$1")/admin-bootstrap.pending"
+}
+
+lotto_ahpc_ack_path_docker() {
+    echo "$(lotto_instance_dir "$1")/admin-bootstrap.ack"
+}
+
+lotto_promote_docker_bootstrap_credential() {
+    local instance="$1"
+    local image="$2"
+    local volume_name="$3"
+    local bootstrap_host_tmp pending_path ahpc_lib
+
+    ahpc_lib="${LOTTO_DEPLOY_LIB_DIR}/../../lib/admin-bootstrap-common.sh"
+    # shellcheck source=../../lib/admin-bootstrap-common.sh
+    source "${ahpc_lib}"
+
+    bootstrap_host_tmp="$(mktemp)"
+    chmod 600 "${bootstrap_host_tmp}"
+    if ! docker run --rm \
         --entrypoint cat \
         -v "${volume_name}:/app/data:ro" \
         "${image}" \
-        /app/data/.admin_bootstrap 2>/dev/null || true
+        /app/data/.admin_bootstrap >"${bootstrap_host_tmp}" 2>/dev/null; then
+        rm -f "${bootstrap_host_tmp}"
+        lotto_err "Bootstrap credential not found in volume after init_db."
+        return 1
+    fi
+
+    pending_path="$(lotto_ahpc_pending_path_docker "${instance}")"
+    lotto_ahpc_promote_bootstrap_file "${instance}" "${bootstrap_host_tmp}" "${pending_path}"
+    rm -f "${bootstrap_host_tmp}"
+
+    lotto_delete_bootstrap_from_volume "${image}" "${volume_name}"
 }
 
 lotto_delete_bootstrap_from_volume() {
@@ -325,6 +352,12 @@ lotto_wait_healthy() {
 
 lotto_cleanup_partial_instance() {
     local instance="$1"
+    local pending_path
+    pending_path="$(lotto_ahpc_pending_path_docker "${instance}" 2>/dev/null || true)"
+    if [[ -n "${pending_path}" && -f "${pending_path}" ]]; then
+        lotto_info "Pending AHPC credential preserved at ${pending_path}; skipping destructive cleanup."
+        return 0
+    fi
     lotto_load_instance_env "${instance}" 2>/dev/null || return 0
     lotto_compose_cmd "${instance}" down --remove-orphans >/dev/null 2>&1 || true
     if [[ -n "${LOTTO_VOLUME_NAME:-}" ]] && lotto_volume_exists "${LOTTO_VOLUME_NAME}"; then

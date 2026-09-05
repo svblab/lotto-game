@@ -16,6 +16,7 @@ MAX_ACCOUNTS_PER_IP=""
 FRESH_INSTALL=0
 CREATED_USER="false"
 NEW_DATABASE=0
+NON_INTERACTIVE=0
 
 usage() {
     cat <<'EOF'
@@ -28,6 +29,7 @@ Options:
   --allowed-origins V      LOTTO_ALLOWED_ORIGINS
   --trusted-proxy-ips V    LOTTO_TRUSTED_PROXY_IPS
   --max-accounts-per-ip N  LOTTO_MAX_ACCOUNTS_PER_IP
+  --non-interactive        Machine-readable handoff (exit 42 when credential pending)
   -h, --help               Show this help
 
 Examples:
@@ -49,6 +51,7 @@ while [[ $# -gt 0 ]]; do
         --allowed-origins) ALLOWED_ORIGINS="$2"; shift 2 ;;
         --trusted-proxy-ips) TRUSTED_PROXY_IPS="$2"; shift 2 ;;
         --max-accounts-per-ip) MAX_ACCOUNTS_PER_IP="$2"; shift 2 ;;
+        --non-interactive) NON_INTERACTIVE=1; shift ;;
         -h|--help) usage; exit 0 ;;
         *) lotto_err "Unknown option: $1"; usage; exit 2 ;;
     esac
@@ -137,6 +140,8 @@ if [[ ! -f "${DATA}/game.db" ]]; then
         LOTTO_DB_PATH="${LOTTO_DB_PATH}" \
         LOTTO_ADMIN_BOOTSTRAP_FILE="${LOTTO_ADMIN_BOOTSTRAP_FILE}" \
         php "${APP}/init_db.php"
+    lotto_info "Promoting admin bootstrap credential to AHPC pending file..."
+    lotto_promote_systemd_bootstrap_credential "${INSTANCE}"
 fi
 
 lotto_info "Installing systemd unit ${UNIT}..."
@@ -160,12 +165,21 @@ lotto_write_metadata "${INSTANCE}" "${HOST_PORT}" "${BIND_ADDRESS}" "${CREATED_U
 chmod 640 "$(lotto_metadata_file "${INSTANCE}")"
 chown root:"${USER}" "$(lotto_metadata_file "${INSTANCE}")"
 
-if [[ "${NEW_DATABASE}" -eq 1 && -f "${DATA}/.admin_bootstrap" ]]; then
+if [[ "${NEW_DATABASE}" -eq 1 ]]; then
+    # shellcheck source=../lib/admin-bootstrap-common.sh
+    source "${SCRIPT_DIR}/../lib/admin-bootstrap-common.sh"
+    pending_path="$(lotto_ahpc_pending_path_systemd "${INSTANCE}")"
+    if [[ "${NON_INTERACTIVE}" -eq 1 ]]; then
+        lotto_ahpc_emit_handoff_json "${INSTANCE}" "${pending_path}"
+        FRESH_INSTALL=0
+        trap - ERR
+        exit 42
+    fi
     lotto_info ""
-    lotto_info "=== One-time admin bootstrap credential (save now) ==="
-    cat "${DATA}/.admin_bootstrap"
-    lotto_info "===================================================="
-    rm -f "${DATA}/.admin_bootstrap"
+    lotto_info "Admin bootstrap credential is pending (AHPC)."
+    lotto_info "Retrieve once: sudo ./deploy/systemd/admin-bootstrap.sh --name ${INSTANCE} read"
+    lotto_info "Then acknowledge: sudo ./deploy/systemd/admin-bootstrap.sh --name ${INSTANCE} acknowledge"
+    lotto_info "Pending path: ${pending_path}"
 fi
 
 FRESH_INSTALL=0
