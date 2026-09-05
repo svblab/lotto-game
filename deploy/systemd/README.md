@@ -37,7 +37,22 @@ sudo ./deploy/systemd/update.sh demo         # refresh app; preserve data/config
 sudo ./deploy/systemd/remove.sh demo        # stop and remove instance
 ```
 
-Install options: `--name`, `--port`, `--bind`, `--allowed-origins`, `--trusted-proxy-ips`, `--max-accounts-per-ip` (see `install.sh --help`).
+Install options: `--name`, `--port`, `--bind`, `--allowed-origins`, `--trusted-proxy-ips`, `--max-accounts-per-ip`, `--non-interactive` (see `install.sh --help`).
+
+## Admin bootstrap (AHPC, ADR-038)
+
+На **новой** базе пароль `admin` не выводится в терминал `install.sh`. Он попадает
+в `config/admin-bootstrap.pending` (`root:root`, `0600`):
+
+```bash
+sudo ./deploy/systemd/admin-bootstrap.sh --name demo status
+sudo ./deploy/systemd/admin-bootstrap.sh --name demo read [--format=json]
+sudo ./deploy/systemd/admin-bootstrap.sh --name demo acknowledge
+sudo ./deploy/systemd/admin-bootstrap.sh --name demo reset   # после acknowledge
+```
+
+`install.sh --non-interactive` → exit **42** на свежей БД (без пароля в выводе).
+Полная спецификация: `docs/ADR/038-admin-bootstrap-credential-delivery.md`.
 
 Commands print instance, unit, user, paths, and port before mutating state so operators can confirm they are **not** targeting production or Docker.
 

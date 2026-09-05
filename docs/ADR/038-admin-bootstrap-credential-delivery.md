@@ -216,4 +216,4 @@ No Kubernetes or cloud-provider integration in this ADR.
 - ADR-036 — Docker Compose deployment (bootstrap §6 superseded where noted)
 - ADR-037 — Deployment mode separation
 - `deploy/lib/admin-bootstrap-common.sh` — shared AHPC helpers
-- `deploy/lib/reset_admin_bootstrap.php` — password rotation for `reset`
+- `deploy/lib/reset_admin_bootstrap.php` — password rotation for `reset` (Docker: copied into runtime image at `/app/reset_admin_bootstrap.php`; systemd: invoked from repo checkout)

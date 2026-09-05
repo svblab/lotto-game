@@ -9,7 +9,8 @@ Status: **Implementation complete** — pending credential delivery for Docker +
 - [DONE] `install.sh --non-interactive` exit `42` without password in output
 - [DONE] Explicit `acknowledge`; `reset` recovery; existing DB unchanged on re-install
 - [DONE] Tests: `deploy/docker/tests/test_admin_bootstrap.sh`, `deploy/systemd/tests/test_admin_bootstrap.sh`
-- [UNVERIFIED] Live VPS disposable Docker AHPC integration (Linux + Docker + sudo)
+- [DONE] Live disposable Docker AHPC integration (Linux + Docker; exit 42, read/ack/reset, multi-instance)
+- [DONE] Path fix + Docker image `reset_admin_bootstrap.php` (post-review `06416db`)
 
 ADR: `docs/ADR/038-admin-bootstrap-credential-delivery.md`
 

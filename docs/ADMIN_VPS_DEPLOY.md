@@ -424,6 +424,7 @@ sudo bash admin_emergency_control.sh force-restart
 
 **Docker / generic systemd** (новые VPS, не production): пароль выдаётся через AHPC
 (`admin-bootstrap.sh read` → сохранить → `acknowledge`). См.
+[deploy/docker/README.md](../deploy/docker/README.md),
 `docs/ADR/038-admin-bootstrap-credential-delivery.md` и `docs/LOCAL_ENVIRONMENT.md`.
 
 Предпочтительно: войти как `admin` → смена пароля в панели (нужен текущий пароль).

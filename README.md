@@ -3,7 +3,7 @@
 WebSocket-сервер на чистом PHP 8.x + Workerman + SQLite3.  
 Клиент — Vanilla JS SPA.
 
-**Развёртывание на VPS (для администратора):** пошаговый runbook — [docs/ADMIN_VPS_DEPLOY.md](docs/ADMIN_VPS_DEPLOY.md). Ниже — сжатые команды и примеры конфигов; при расхождении с runbook-ом ориентируйтесь на него.
+**Развёртывание на VPS (для администратора):** пошаговый runbook — [docs/ADMIN_VPS_DEPLOY.md](docs/ADMIN_VPS_DEPLOY.md). Полный указатель документации — [docs/README.md](docs/README.md). Ниже — сжатые команды и примеры конфигов; при расхождении с runbook-ом ориентируйтесь на него.
 
 ### Модели развёртывания (выберите одну)
 
@@ -11,7 +11,7 @@ WebSocket-сервер на чистом PHP 8.x + Workerman + SQLite3.
 |--------|----------------------|-------------|
 | **Production (существующее)** | Один инстанс на VPS, `www-data`, порт 8080 | [docs/ADMIN_VPS_DEPLOY.md](docs/ADMIN_VPS_DEPLOY.md) |
 | **Generic systemd (новый VPS, несколько инстансов)** | Native systemd, `/opt/lotto-game-<name>/` | [deploy/systemd/README.md](deploy/systemd/README.md), [docs/LOCAL_ENVIRONMENT.md](docs/LOCAL_ENVIRONMENT.md) |
-| **Docker Compose (новый VPS)** | Контейнеры, без PHP на хосте | [deploy/docker/](deploy/docker/), [docs/LOCAL_ENVIRONMENT.md](docs/LOCAL_ENVIRONMENT.md) |
+| **Docker Compose (новый VPS)** | Контейнеры, без PHP на хосте | [deploy/docker/README.md](deploy/docker/README.md), [docs/LOCAL_ENVIRONMENT.md](docs/LOCAL_ENVIRONMENT.md) |
 
 Примеры generic systemd (не production):
 
@@ -26,10 +26,12 @@ sudo ./deploy/systemd/remove.sh demo
 
 ## Требования к серверу
 - VPS с 1 CPU, 512 МБ ОЗУ (SSD)
-- Ubuntu 22.04 LTS
-- PHP 8.0+
+- Ubuntu 22.04 или 24.04 LTS
+- PHP 8.2+ (CLI; на VPS рекомендуется 8.4)
 - Composer
 - SQLite3
+
+Для **Docker**-развёртывания PHP на хосте не нужен — см. [deploy/docker/README.md](deploy/docker/README.md).
 
 ## 1. Установка
 
@@ -48,9 +50,12 @@ git clone <репозиторий> lotto-game
 cd lotto-game
 composer install
 
-# Инициализация БД
+# Инициализация БД (native / локальная разработка)
 php init_db.php
-# (выведет пароль администратора)
+# Выведет одноразовый пароль admin в терминал (см. §7 для сброса)
+
+# Для Docker и generic systemd пароль НЕ выводится здесь — используйте
+# admin-bootstrap.sh (AHPC, ADR-038); см. deploy/docker/README.md
 ```
 
 ## 2. Демонизация (systemd)
@@ -258,7 +263,7 @@ UPDATE users SET banned_until = 0 WHERE username = '...';
 
 ## 6. Графические заглушки
 
-Разместите в `img/`:
+Разместите в `public/img/`:
 - `logo.png` (300x120)
 - `barrel.png` (64x64)
 - `chip.png` (48x48)

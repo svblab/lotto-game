@@ -1,5 +1,20 @@
 # Local Environment
 
+## Какой документ читать
+
+| Задача | Документ |
+|--------|----------|
+| Production VPS (`/opt/lotto-game`, nginx, `lotto-server.service`) | `docs/ADMIN_VPS_DEPLOY.md` |
+| Docker на новом VPS | `deploy/docker/README.md` + § Docker ниже |
+| Generic systemd (несколько инстансов) | `deploy/systemd/README.md` + § Generic systemd ниже |
+| Правила игры для игроков | `docs/GAME_RULES.md` |
+| Протокол WebSocket (разработка) | `docs/ANCHOR_PROTOCOL.md` |
+| Статус реализации (разработчики) | `docs/IMPLEMENTATION_STATUS.md` |
+
+Нет единого `deploy/install.sh` и нет флага `--mode docker|systemd`.
+
+---
+
 Host: Ubuntu 24.04
 PHP: 8.4.21
 Composer: 2.9.8
@@ -144,16 +159,38 @@ the container/image may be rebuilt safely.
 On a **fresh** database, `install.sh` creates the `admin` user and promotes the
 one-time password to a root-only pending file:
 
-`/var/lib/lotto-game/<instance>/admin-bootstrap.pending` (`0600`, never in logs or
-`instance.env`).
+`/var/lib/lotto-game/<instance>/admin-bootstrap.pending` (`root:root`, `0600`).
+
+**Пароль никогда не попадает** в stdout установки, Docker logs, `instance.env` или
+Compose-конфиг. Только явная команда `read` (TTY или `--format=json`).
+
+#### Типовой сценарий (первый запуск)
 
 ```bash
+sudo ./deploy/docker/install.sh --name lotto-01
+# Сообщение: credential pending — см. admin-bootstrap.sh
+
 sudo ./deploy/docker/admin-bootstrap.sh --name lotto-01 status
-sudo ./deploy/docker/admin-bootstrap.sh --name lotto-01 read          # TTY only
-sudo ./deploy/docker/admin-bootstrap.sh --name lotto-01 read --format=json  # automation
+sudo ./deploy/docker/admin-bootstrap.sh --name lotto-01 read          # TTY
+# или: read --format=json  для CI/ansible
+
+# Сохраните пароль во внешнем хранилище секретов, затем:
 sudo ./deploy/docker/admin-bootstrap.sh --name lotto-01 acknowledge
-sudo ./deploy/docker/admin-bootstrap.sh --name lotto-01 reset         # recovery
 ```
+
+После `acknowledge` файл pending удаляется; повторный `read` → exit `2`.
+
+#### Все команды AHPC
+
+```bash
+sudo ./deploy/docker/admin-bootstrap.sh --name lotto-01 status [--format=json]
+sudo ./deploy/docker/admin-bootstrap.sh --name lotto-01 read [--format=json]
+sudo ./deploy/docker/admin-bootstrap.sh --name lotto-01 acknowledge
+sudo ./deploy/docker/admin-bootstrap.sh --name lotto-01 reset
+```
+
+`reset` требует отсутствия pending (сначала `acknowledge`). Генерирует новый
+пароль в БД и новый pending-файл; старый пароль не восстанавливается.
 
 Non-interactive provisioning (`install.sh --non-interactive`) exits **42** with JSON
 metadata (path/state only — no password). The **provisioning layer** must store the
@@ -179,6 +216,8 @@ sudo docker compose -f deploy/docker/compose.yaml \
   --env-file /var/lib/lotto-game/lotto-01/instance.env \
   -p lotto-lotto-01 logs -f app
 ```
+
+Compose project name: `lotto-<instance>` (для `--name lotto-01` → `lotto-lotto-01`).
 
 **Docker deployment logs to stdout only**; file-based log rotation applies to native
 deployments, not containers.
@@ -311,11 +350,14 @@ Fresh install promotes the one-time admin password to:
 `/opt/lotto-game-<name>/config/admin-bootstrap.pending` (`root:root`, `0600`).
 
 ```bash
-sudo ./deploy/systemd/admin-bootstrap.sh --name demo status
-sudo ./deploy/systemd/admin-bootstrap.sh --name demo read
+sudo ./deploy/systemd/admin-bootstrap.sh --name demo status [--format=json]
+sudo ./deploy/systemd/admin-bootstrap.sh --name demo read [--format=json]
 sudo ./deploy/systemd/admin-bootstrap.sh --name demo acknowledge
 sudo ./deploy/systemd/admin-bootstrap.sh --name demo reset
 ```
+
+`install.sh --non-interactive` на новой БД завершается с exit **42** (без пароля в
+выводе) — та же семантика, что у Docker.
 
 Same semantics as Docker AHPC (`docs/ADR/038-admin-bootstrap-credential-delivery.md`).
 Existing `game.db` on re-install is never modified.
