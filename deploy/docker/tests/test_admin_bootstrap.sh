@@ -162,7 +162,7 @@ test_handoff_json_no_password() {
     lotto_ahpc_write_pending_atomic "${pending}" "default" "${password}"
     out="$(lotto_ahpc_emit_handoff_json "default" "${pending}")"
     assert_not_contains "handoff hides password" "${out}" "${password}"
-    assert_eq "handoff required" "true" "$(echo "${out}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["handoff_required"])')"
+    assert_eq "handoff required" "true" "$(echo "${out}" | python3 -c 'import json,sys; print(json.dumps(json.load(sys.stdin)["handoff_required"]))')"
     rm -rf "${tmp}"
 }
 

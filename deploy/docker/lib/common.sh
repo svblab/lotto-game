@@ -287,7 +287,7 @@ lotto_promote_docker_bootstrap_credential() {
     local volume_name="$3"
     local bootstrap_host_tmp pending_path ahpc_lib
 
-    ahpc_lib="${LOTTO_DEPLOY_LIB_DIR}/../lib/admin-bootstrap-common.sh"
+    ahpc_lib="${LOTTO_DEPLOY_LIB_DIR}/../../lib/admin-bootstrap-common.sh"
     # shellcheck source=../../lib/admin-bootstrap-common.sh
     source "${ahpc_lib}"
 

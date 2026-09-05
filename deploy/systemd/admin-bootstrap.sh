@@ -84,6 +84,7 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --name) INSTANCE="$2"; shift 2 ;;
         --format) FORMAT="$2"; shift 2 ;;
+        --format=*) FORMAT="${1#*=}"; shift ;;
         status|read|acknowledge|reset) COMMAND="$1"; shift ;;
         -h|--help) usage; exit 0 ;;
         *) lotto_ahpc_err "Unknown argument: $1"; usage; exit 2 ;;
@@ -136,6 +137,6 @@ case "${COMMAND}" in
         lotto_ahpc_acknowledge "${INSTANCE}" "${PENDING_PATH}" "${ACK_PATH}"
         ;;
     reset)
-        lotto_ahpc_systemd_reset "${INSTANCE}"
+        lotto_ahpc_systemd_reset "${INSTANCE}" || exit $?
         ;;
 esac

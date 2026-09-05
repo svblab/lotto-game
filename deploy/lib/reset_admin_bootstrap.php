@@ -26,6 +26,7 @@ if (!is_file($dbPathEnv)) {
 try {
     $pdo = new PDO('sqlite:' . $dbPathEnv);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $pdo->exec('PRAGMA busy_timeout=10000;');
 
     $stmt = $pdo->prepare('SELECT id FROM users WHERE username = :username LIMIT 1');
     $stmt->execute([':username' => 'admin']);

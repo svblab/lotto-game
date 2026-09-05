@@ -41,6 +41,19 @@ assert_true() {
     fi
 }
 
+assert_false() {
+    local desc="$1"
+    shift
+    TESTS_RUN=$((TESTS_RUN + 1))
+    if ! "$@"; then
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+        echo "PASS: ${desc}"
+    else
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+        echo "FAIL: ${desc}" >&2
+    fi
+}
+
 test_systemd_pending_paths() {
     echo "--- systemd pending paths ---"
     local tmp

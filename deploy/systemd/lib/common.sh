@@ -575,7 +575,7 @@ lotto_promote_systemd_bootstrap_credential() {
     local instance="$1"
     local data pending ahpc_lib bootstrap_file
 
-    ahpc_lib="${LOTTO_SYSTEMD_LIB_DIR}/../lib/admin-bootstrap-common.sh"
+    ahpc_lib="${LOTTO_SYSTEMD_LIB_DIR}/../../lib/admin-bootstrap-common.sh"
     # shellcheck source=../../lib/admin-bootstrap-common.sh
     source "${ahpc_lib}"
 

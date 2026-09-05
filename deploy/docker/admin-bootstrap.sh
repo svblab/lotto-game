@@ -69,12 +69,13 @@ lotto_ahpc_docker_reset() {
 
     bootstrap_tmp="$(mktemp)"
     chmod 600 "${bootstrap_tmp}"
-    trap 'rm -f "${bootstrap_tmp}"' RETURN
+    trap 'rm -f "${bootstrap_tmp}"; lotto_compose_cmd "${instance}" start app >/dev/null 2>&1 || true' RETURN
+
+    lotto_compose_cmd "${instance}" stop app >/dev/null 2>&1 || true
 
     docker run --rm \
         --user "${LOTTO_DATA_UID}:${LOTTO_DATA_GID}" \
         -v "${volume}:/app/data" \
-        -v "${LOTTO_REPO_ROOT}/deploy/lib/reset_admin_bootstrap.php:/app/reset_admin_bootstrap.php:ro" \
         -e LOTTO_DB_PATH=/app/data/game.db \
         -e LOTTO_ADMIN_BOOTSTRAP_FILE=/app/data/.admin_bootstrap_reset \
         --entrypoint php \
@@ -85,7 +86,12 @@ lotto_ahpc_docker_reset() {
         --entrypoint cat \
         -v "${volume}:/app/data:ro" \
         "${image}" \
-        /app/data/.admin_bootstrap_reset >"${bootstrap_tmp}"
+        /app/data/.admin_bootstrap_reset >"${bootstrap_tmp}" 2>/dev/null || return 10
+
+    if [[ ! -s "${bootstrap_tmp}" ]]; then
+        lotto_ahpc_err "Reset bootstrap artifact missing after password rotation."
+        return 10
+    fi
 
     docker run --rm \
         --entrypoint rm \
@@ -96,6 +102,7 @@ lotto_ahpc_docker_reset() {
     password="$(lotto_ahpc_parse_bootstrap_file "${bootstrap_tmp}")" || return 10
     lotto_ahpc_write_pending_atomic "${pending}" "${instance}" "${password}"
     rm -f "${bootstrap_tmp}"
+    lotto_compose_cmd "${instance}" start app >/dev/null 2>&1 || true
     trap - RETURN
 }
 
@@ -103,6 +110,7 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --name) INSTANCE="$2"; shift 2 ;;
         --format) FORMAT="$2"; shift 2 ;;
+        --format=*) FORMAT="${1#*=}"; shift ;;
         status|read|acknowledge|reset) COMMAND="$1"; shift ;;
         -h|--help) usage; exit 0 ;;
         *) lotto_ahpc_err "Unknown argument: $1"; usage; exit 2 ;;
@@ -155,6 +163,6 @@ case "${COMMAND}" in
         lotto_ahpc_acknowledge "${INSTANCE}" "${PENDING_PATH}" "${ACK_PATH}"
         ;;
     reset)
-        lotto_ahpc_docker_reset "${INSTANCE}"
+        lotto_ahpc_docker_reset "${INSTANCE}" || exit $?
         ;;
 esac
