@@ -395,30 +395,43 @@ Business logic forbidden in `server.php`, `init_db.php`.
 src/Core/ Auth/ Lobby/ Game/ Admin/ Chat/ Infrastructure/
 ```
 
-### Core (ConnectionManager.php, RoomManager.php, Logger.php, Helpers.php, Constants.php)
-Responsibilities: room/user lookup, helpers, constants, logging.
+### Core (LottoWorker.php, RoomManager.php, Logger.php, Helpers.php, Constants.php, ServerRuntimeSettings.php, EconomyAudit.php, LoadAudit.php, MemoryAudit.php, StateMachineAudit.php, TimerAudit.php)
+Responsibilities: Workerman worker/runtime state, room/user lookup, helpers,
+constants, logging, admin-configurable runtime settings, and the read-only
+audit/instrumentation subsystems (economy integrity, load latency, memory
+stability, state-machine, timer-drift — Phase 11, advisory only, never
+mutate game state).
 Forbidden: game/economy/admin logic.
 
-### Auth (AuthHandler.php, AuthService.php, SessionService.php, LoginThrottleService.php, IpAccountLimitService.php)
+*Note: an earlier revision of this registry named a `ConnectionManager.php`
+class that was never implemented; connection/user lookup lives on
+`LottoWorker` (`$worker->userConnections`) instead — see Part 6.*
+
+### Auth (AuthHandler.php, AuthService.php, SessionService.php, LoginThrottleService.php, IpAccountLimitService.php, PasswordPolicy.php, ReconnectTokenService.php, SessionGuardService.php)
 Responsibilities: register, login, logout, session tokens, daily bonus, per-IP
-live account cap at login (ADR-031).
+live account cap at login (ADR-031), password strength policy (ADR-033),
+reconnect-token issuance/lookup, and single-live-session eviction guard.
 Forbidden: room logic, game logic.
 
-### Lobby (LobbyHandler.php, LobbyService.php)
-Responsibilities: room create/join/leave, host transfer, lobby AFK.
+### Lobby (LobbyHandler.php, LobbyService.php, LobbyHostService.php)
+Responsibilities: room create/join/leave, host transfer (incl. lobby-AFK host
+handover, ADR-010), lobby AFK.
 Forbidden: draw barrel, victory, apartment.
 
-### Game (GameHandler.php, GameService.php, LottoEngine.php, VictoryService.php, ApartmentService.php, ReconnectService.php)
+### Game (GameHandler.php, GameService.php, GameTurnService.php, GameFinishService.php, LottoEngine.php, VictoryService.php, ApartmentService.php, ReconnectService.php)
 Responsibilities: game start, draw barrel, mark numbers, victory detection, apartment, reconnect.
 Forbidden: authentication, admin actions.
 
-- **LottoEngine**: pure math — card/bag generation. Forbidden: db, connections, rooms, timers.
+- **LottoEngine**: pure math — card/bag generation, win-chance indicator. Forbidden: db, connections, rooms, timers.
+- **GameTurnService**: `your_turn`/AFK-timer arming, turn rotation, draw-barrel turn flow (EPIC-24.0, ADR-015 move-only split from GameService). Forbidden: db access, victory payout.
+- **GameFinishService**: `game_over` payout, double-victory shares, bot-win bank burn, bot-win-streak mint (ADR-034 §7). Forbidden: draw/turn logic.
 - **VictoryService**: victory detection, double victory, share calculation. Forbidden: socket sending, db access.
 - **ApartmentService**: line detection, pause logic, response tracking. Forbidden: victory logic, authentication.
 - **ReconnectService**: disconnect handling, reconnect lookup, state restore. Forbidden: game start, victory.
 
-### Admin (AdminHandler.php, AdminService.php)
-Responsibilities: kick, ban, unban, close room, logs. Forbidden: game mechanics.
+### Admin (AdminHandler.php, AdminService.php, AdminSettingsService.php)
+Responsibilities: kick, ban, unban, close room, logs, runtime settings
+get/set (`admin_get_settings`/`admin_set_settings`). Forbidden: game mechanics.
 
 ### Chat (ChatHandler.php, ChatService.php, FileTransferService.php) — ADR-030
 Responsibilities: password-room chat broadcast; consent-based 1-to-1 file
@@ -742,21 +755,30 @@ Removal reasons: `leave, disconnect, afk, refuse, kicked, banned, admin_close`.
 - Timers: global `$watchdogTimerId`; room `$room['lobby_afk_timer_id']`, `$room['game_afk_timer_id']`, `$room['apartment_timer_id']`; player `$player['reconnect_timer']`.
 
 ## Class Names (allowed only)
-- Services: `AuthService, LoginThrottleService, IpAccountLimitService, LobbyService, GameService, VictoryService, ApartmentService, ReconnectService, AdminService, SessionService, ChatService, FileTransferService`
+- Services: `AuthService, LoginThrottleService, IpAccountLimitService, LobbyService, LobbyHostService, GameService, GameTurnService, GameFinishService, VictoryService, ApartmentService, ReconnectService, AdminService, AdminSettingsService, SessionService, SessionGuardService, ReconnectTokenService, ChatService, FileTransferService`
 - Auth helpers: `PasswordPolicy` (ADR-033)
 - Handlers: `AuthHandler, LobbyHandler, GameHandler, AdminHandler, ChatHandler`
-- Core: `ConnectionManager, RoomManager, Logger, Constants`
+- Core: `LottoWorker, RoomManager, Logger, Constants, ServerRuntimeSettings, EconomyAudit, LoadAudit, MemoryAudit, StateMachineAudit, TimerAudit`
 - Infrastructure: `Database, PreparedStatements`
 - Engine: `LottoEngine` with methods `generateCard(), generateBag()`
+
+*(`ConnectionManager` was removed from this registry — see § Core module note
+above; it was never implemented and is not a valid class name to introduce.)*
 
 ## Function Names (allowed only)
 - Helpers: `sendJson(), sendError(), broadcastToRoom(), serverLog()`
 - Room lifecycle: `createRoom(), destroyRoom()`
-- Lobby: `joinRoom(), leaveRoom(), startGame(), transferHost()`
-- Game: `drawBarrel(), processBarrel(), markNumber(), checkVictory(), triggerApartment(), nextDrawer()`
+- Protocol entry points (Handler classes only, one per `action`): `handle<Action>()`,
+  e.g. `handleCreateRoom(), handleJoinRoom(), handleLeaveRoom(), handleStartGame(),
+  handleDrawBarrel(), handleTurnReady(), handleNudgeTurn(), handleApartmentChoice(),
+  handleReconnect()`. Handlers delegate to a same-named or descriptively-named
+  Service method (see below) — a Handler method must not contain business logic.
+- Lobby (Service): `handleCreateRoom(), handleJoinRoom(), handleLeaveRoom(), transferHost()`
+- Game (Service): `handleStartGame(), handleDrawBarrel(), markNumber(), nextDrawer(), triggerApartment()`
+  (draw-loop internals live in `GameTurnService`, e.g. `drawBarrelsThisTurn()` — private, not a protocol entry point)
 - Removal: `removePlayerFromLobby(), removePlayerFromGame(), removePlayerFromApartment()` (no generic `removePlayer()`)
 - Reconnect: `handleDisconnect(), handleReconnect(), buildReconnectState()`
-- Apartment: `startApartment(), finishApartment(), processApartmentChoice()`
+- Apartment: `prepareApartment(), triggerApartment(), finishApartment(), handleApartmentChoice(), onApartmentTimeout()` (no separate `startApartment()`/`processApartmentChoice()` — folded into the names above)
 - Victory: `checkCardVictory(), checkAllVictories(), checkBotVictory(), calculatePrize(), finishGame(), finishBotWin()`
 
 ## Protocol Packet Types (allowed)

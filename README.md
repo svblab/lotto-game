@@ -37,7 +37,9 @@ sudo ./deploy/systemd/remove.sh demo
 
 ```bash
 sudo apt update
-sudo apt install -y php8.1-cli php8.1-sqlite3 php8.1-mbstring php8.1-xml php8.1-curl php8.1-zip
+sudo apt install -y php-cli php-sqlite3 php-mbstring php-xml php-curl php-zip
+# ^ пакеты без версии — ставится PHP из репозитория дистрибутива (см. требование
+# "PHP 8.2+" выше); канонические команды — docs/ADMIN_VPS_DEPLOY.md §2
 
 # Установка Composer
 php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
@@ -303,7 +305,7 @@ sudo bash admin_emergency_control.sh
 
 Автоматически предпочитает `systemctl` (юнит `lotto-server.service`), если он установлен на сервере (штатный путь по разделу 2 выше); иначе управляет процессом напрямую через `php server.php`. Все действия пишутся в `logs/admin_control.log` с таймстампами.
 
-⚠️ **Это операционный (CLI) инструмент для системного администратора сервера** — не игровая admin-функция. Модерация игроков (бан/кик/закрытие комнаты) выполняется через существующие WebSocket-пакеты `admin_ban_user`/`admin_kick_user`/`admin_close_room` (см. [ANCHOR_PROTOCOL.md](ANCHOR_PROTOCOL.md)), это отдельный, уже реализованный механизм (Phase 9 + EPIC-10.6), и данный скрипт его не заменяет и не дублирует.
+⚠️ **Это операционный (CLI) инструмент для системного администратора сервера** — не игровая admin-функция. Модерация игроков (бан/кик/закрытие комнаты) выполняется через существующие WebSocket-пакеты `admin_ban_user`/`admin_kick_user`/`admin_close_room` (см. [docs/ANCHOR_PROTOCOL.md](docs/ANCHOR_PROTOCOL.md)), это отдельный, уже реализованный механизм (Phase 9 + EPIC-10.6), и данный скрипт его не заменяет и не дублирует.
 
 Кнопка Restart в веб-админке вызывает этот скрипт на **Linux**. На Windows-хосте кнопка отключена, пакет `admin_restart_server` возвращает явную ошибку — используйте `php scripts/start_server.php restart`.
 
