@@ -1226,7 +1226,7 @@ D2/D3 validation or implementation evidence before gate PASS.
 | **HD-D6** | `network_mode: host` — justify or exclude | Audit | **Recommend CLOSE** | D2 audit: not used in `compose.yaml` |
 | **HD-D7** | Supported OS targets (certified + compatibility) | Policy | **DECIDED** | 2026-09-06 |
 | **HD-D8** | Installer-first / automated installation model | Policy | **DECIDED** | 2026-09-06 |
-| **HD-D9** | Canonical input = single immutable application release archive (`docker build`) | Policy | **DECIDED** | 2026-09-06 |
+| **HD-D9** | Canonical input = single immutable application release archive (`docker build`) | Policy | **REMEDIATED** | 2026-09-06 — implementation commit; D3 validation **PENDING** |
 | **HD-D10** | All-in-container application boundary (no host nginx/host `public/` runtime) | Policy | **DECIDED** | 2026-09-06 |
 | — | Artifact hosting / download mechanism | Policy | Open | Before D3 |
 | — | OCI image distribution / registry publication | Future | Open | After first Docker cycle evidence |

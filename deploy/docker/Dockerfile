@@ -12,6 +12,14 @@ COPY server.php init_db.php ./
 
 FROM php:8.4-cli-bookworm AS runtime
 
+ARG LOTTO_APPLICATION_VERSION=unknown
+ARG LOTTO_APPLICATION_GIT_SHA=unknown
+ARG LOTTO_RELEASE_ARCHIVE_SHA256=unknown
+
+LABEL org.rusbingo.application.version="${LOTTO_APPLICATION_VERSION}" \
+      org.rusbingo.application.git-sha="${LOTTO_APPLICATION_GIT_SHA}" \
+      org.rusbingo.release-archive.sha256="${LOTTO_RELEASE_ARCHIVE_SHA256}"
+
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libsqlite3-dev \
     && docker-php-ext-install pdo_sqlite pcntl posix \

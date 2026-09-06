@@ -17,6 +17,9 @@ PIDS_LIMIT="${LOTTO_PIDS_LIMIT:-256}"
 ALLOWED_ORIGINS="${LOTTO_ALLOWED_ORIGINS:-}"
 TRUSTED_PROXY_IPS="${LOTTO_TRUSTED_PROXY_IPS:-}"
 MAX_ACCOUNTS_PER_IP="${LOTTO_MAX_ACCOUNTS_PER_IP:-}"
+APPLICATION_VERSION="${LOTTO_APPLICATION_VERSION:-v1.0}"
+RELEASE_ARCHIVE="${LOTTO_RELEASE_ARCHIVE:-}"
+RELEASE_MANIFEST="${LOTTO_RELEASE_MANIFEST:-}"
 FRESH_INSTALL=0
 NON_INTERACTIVE=0
 
@@ -35,13 +38,16 @@ Options:
   --allowed-origins V  LOTTO_ALLOWED_ORIGINS (comma-separated)
   --trusted-proxy-ips V LOTTO_TRUSTED_PROXY_IPS
   --max-accounts-per-ip N LOTTO_MAX_ACCOUNTS_PER_IP
+  --application-version V  Application release version for manifest lookup (default: v1.0)
+  --release-archive PATH   Immutable application release archive (required)
+  --release-manifest PATH  Trusted release manifest (default: release-manifests/<version>.env)
   --non-interactive    Machine-readable handoff (exit 42 when credential pending)
   -h, --help           Show this help
 
 Examples:
-  sudo ./deploy/docker/install.sh
-  sudo ./deploy/docker/install.sh --name lotto-01
-  sudo ./deploy/docker/install.sh --name lotto-02 --port 8081
+  sudo ./deploy/docker/install.sh --release-archive ./rusbingo-v1.0.tar.gz
+  sudo ./deploy/docker/install.sh --name lotto-01 --release-archive /path/to/rusbingo-v1.0.tar.gz
+  sudo ./deploy/docker/install.sh --name lotto-02 --port 8081 --release-archive /path/to/archive.tar.gz
 EOF
 }
 
@@ -57,6 +63,9 @@ while [[ $# -gt 0 ]]; do
         --allowed-origins) ALLOWED_ORIGINS="$2"; shift 2 ;;
         --trusted-proxy-ips) TRUSTED_PROXY_IPS="$2"; shift 2 ;;
         --max-accounts-per-ip) MAX_ACCOUNTS_PER_IP="$2"; shift 2 ;;
+        --application-version) APPLICATION_VERSION="$2"; shift 2 ;;
+        --release-archive) RELEASE_ARCHIVE="$2"; shift 2 ;;
+        --release-manifest) RELEASE_MANIFEST="$2"; shift 2 ;;
         --non-interactive) NON_INTERACTIVE=1; shift ;;
         -h|--help) usage; exit 0 ;;
         *) lotto_err "Unknown option: $1"; usage; exit 2 ;;
@@ -72,8 +81,24 @@ trap cleanup_on_error ERR
 
 lotto_validate_instance_name "${INSTANCE}"
 lotto_os_check
+lotto_deploy_check
 lotto_docker_check
-lotto_repo_check
+
+if [[ -z "${RELEASE_ARCHIVE}" ]]; then
+    lotto_err "Release archive is required (--release-archive PATH or LOTTO_RELEASE_ARCHIVE)."
+    lotto_err "Docker V1 builds only from a verified immutable release archive (HD-D9)."
+    lotto_err "Mutable Git checkout / repository root is not used as build input."
+    exit 1
+fi
+
+if [[ ! -f "${RELEASE_ARCHIVE}" ]]; then
+    lotto_err "Release archive not found: ${RELEASE_ARCHIVE}"
+    exit 1
+fi
+
+if [[ -z "${RELEASE_MANIFEST}" ]]; then
+    RELEASE_MANIFEST="$(lotto_release_manifest_path_for_version "${APPLICATION_VERSION}")"
+fi
 
 DETECTED_FQDN=""
 if [[ -z "${ALLOWED_ORIGINS}" ]]; then
@@ -113,6 +138,9 @@ if lotto_port_in_use "${HOST_PORT}"; then
     fi
 fi
 
+lotto_info "Verifying release archive against trusted manifest ${RELEASE_MANIFEST}..."
+lotto_prepare_instance_release_build "${INSTANCE}" "${RELEASE_ARCHIVE}" "${RELEASE_MANIFEST}"
+
 lotto_write_instance_env \
     "${INSTANCE}" \
     "${HOST_PORT}" \
@@ -123,7 +151,16 @@ lotto_write_instance_env \
     "${PIDS_LIMIT}" \
     "${ALLOWED_ORIGINS}" \
     "${TRUSTED_PROXY_IPS}" \
-    "${MAX_ACCOUNTS_PER_IP}"
+    "${MAX_ACCOUNTS_PER_IP}" \
+    "${LOTTO_BUILD_CONTEXT}" \
+    "${LOTTO_APPLICATION_VERSION}" \
+    "${LOTTO_APPLICATION_GIT_SHA}" \
+    "${LOTTO_RELEASE_ARCHIVE_SHA256}" \
+    "$(basename "${RELEASE_ARCHIVE}")"
+
+if [[ -n "${LOTTO_RELEASE_PROVENANCE_FILE:-}" ]]; then
+    lotto_info "Release provenance recorded at ${LOTTO_RELEASE_PROVENANCE_FILE}"
+fi
 
 lotto_load_instance_env "${INSTANCE}"
 

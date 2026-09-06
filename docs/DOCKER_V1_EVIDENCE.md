@@ -24,7 +24,7 @@ gates are PASS.
 | **HD-D4** | Registry-independent contract | **DECIDED** | 2026-09-06 | PENDING (registry selection) |
 | **HD-D7** | Supported OS targets | **DECIDED** | 2026-09-06 | PENDING (D3 validation matrix) |
 | **HD-D8** | Installer-first / automated installation | **DECIDED** | 2026-09-06 | PENDING (installer implementation) |
-| **HD-D9** | Canonical input = single immutable application release archive | **DECIDED** | 2026-09-06 | PENDING (D1.1 build evidence) |
+| **HD-D9** | Canonical input = single immutable application release archive | **DECIDED** | 2026-09-06 | See § HD-D9 remediation below |
 | **HD-D10** | All-in-container application boundary (no host nginx/host `public/` runtime) | **DECIDED** | 2026-09-06 | PENDING (remediation per D2 findings) |
 | **HD-D5** | Container-only application storage (no named volume / bind mount) | **REMEDIATED** | 2026-09-06 | See § HD-D5 remediation below |
 
@@ -249,6 +249,67 @@ validated at **D3** / **D10** (not PASS in this task).
 
 ---
 
+## HD-D9 remediation — verified release archive build input
+
+**Remediation date (UTC):** 2026-09-06
+**Scope:** Docker build/install from immutable application release archive with
+trusted SHA256 verification — no mutable Git checkout fallback.
+
+### Release artifact contract
+
+| Field | Value (v1.0 baseline) |
+|-------|------------------------|
+| Application version | `v1.0` |
+| Full Git SHA | `508cc280704ed72cc3e85df03e57bd6fb42d24ee` |
+| Archive format | `git archive --format=tar.gz --prefix=rusbingo/ v1.0` |
+| Expected archive SHA256 | `780bb0ea9157a326908afee593f3f7acbbf1c043903094c2bbd7072e4eb166a8` |
+| Trusted manifest | `deploy/docker/release-manifests/v1.0.env` |
+| Build context | Extracted `rusbingo/` prefix inside instance `verified-release/` work dir |
+
+**Identity separation:** Git SHA ≠ archive SHA256 ≠ image digest.
+
+### Changes
+
+| Component | Change |
+|-----------|--------|
+| `deploy/docker/lib/release-artifact.sh` | SHA256 verify, tar path validation, safe extract |
+| `deploy/docker/release-manifests/v1.0.env` | Trusted expected SHA256 + release identity |
+| `deploy/docker/install.sh` | Requires `--release-archive`; verifies before build |
+| `deploy/docker/lib/common.sh` | `lotto_prepare_instance_release_build`; provenance in `instance.env` |
+| `deploy/docker/compose.yaml` | Build args for provenance labels |
+| `deploy/docker/Dockerfile` | `ARG`/`LABEL` for application version, Git SHA, archive SHA256 |
+| `deploy/docker/tests/test_release_artifact.sh` | Verification + failure + provenance tests |
+
+### Finding status
+
+| ID | D2 status | Post-HD-D9 |
+|----|-----------|------------|
+| **F-D2-02** | FAIL | **REMEDIATED** — build from verified archive; no Git checkout fallback |
+
+### Verification (static)
+
+| Check | Result |
+|-------|--------|
+| `git diff --check` | *recorded at commit* |
+| `deploy/docker/tests/test_release_artifact.sh` | **PASS** — 14/14 (1 skipped: Linux-only install test) |
+| Install without `--release-archive` | **FAIL** (expected; Linux test skipped on non-Linux) |
+| Tampered archive + trusted SHA256 | **FAIL** (expected) |
+| Valid `v1.0` archive + manifest | **PASS** |
+| Provenance metadata fields | **PASS** |
+| No `LOTTO_BUILD_CONTEXT=${LOTTO_REPO_ROOT}` default | **PASS** |
+
+### Verification (runtime)
+
+| Check | Result |
+|-------|--------|
+| `docker build` from verified extracted archive | **NOT RUN** — Docker daemon unavailable |
+| Image labels contain version/SHA/archive SHA256 | **NOT RUN** |
+| `deploy/docker/tests/run_tests.sh` full integration | **NOT RUN** — requires Linux + Docker + sudo |
+
+**HD-D9 gate:** implementation **REMEDIATED**; D1.1/D3 installation validation **PENDING**.
+
+---
+
 **Audit date (UTC):** 2026-09-06
 **Auditor:** Cursor (documentation-only audit)
 **Repository HEAD:** `4f14b1418b575fb9e9a181596e9a5add34204d7b`
@@ -262,7 +323,7 @@ before D3. **No remediation performed in this audit.**
 | Area | Verdict |
 |------|---------|
 | One container / one worker / one SQLite (topology) | **Partial PASS** — single service, `Worker->count=1`; SQLite on named volume breaks storage contract |
-| HD-D1 / HD-D9 release provenance | **FAIL** — build uses mutable git checkout, not immutable release archive |
+| HD-D1 / HD-D9 release provenance | **REMEDIATED** — verified archive build input (HD-D9) |
 | Ephemeral container-local state (no host app volume) | **FAIL** — `data:/app/data` named volume persists `game.db` on host |
 | Zero residue after container deletion | **FAIL** — container removal alone leaves volume + host metadata |
 | HD-D8 installer-first automation | **GAP** — scripts exist; Docker Engine not auto-installed; requires git clone |
@@ -274,7 +335,7 @@ before D3. **No remediation performed in this audit.**
 
 | Area | Requirement | Current state | Status | Evidence | Next action |
 |------|-------------|---------------|--------|----------|-------------|
-| Release provenance | HD-D1 / HD-D9 | `docker compose build` from `LOTTO_BUILD_CONTEXT=${LOTTO_REPO_ROOT}` (mutable git checkout); no release archive SHA256 | **FAIL** | `deploy/docker/lib/common.sh` L225; `install.sh` L146–147; `Dockerfile` L7–11 | Implement archive-based build input per HD-D9 |
+| Release provenance | HD-D1 / HD-D9 | Verified archive → SHA256 → extract → `LOTTO_BUILD_CONTEXT`; manifest `release-manifests/v1.0.env` | **REMEDIATED** | `release-artifact.sh`; `install.sh` | D3 runtime proof **PENDING** |
 | Dockerfile | one-container WS runtime | Multi-stage PHP 8.4-cli; non-root uid 1000; `pcntl`+`pdo_sqlite`; **no `public/`** in image | **GAP** | `deploy/docker/Dockerfile` L1–45 | Remediation per **HD-D10** — embed `public/` in container |
 | Workerman | one worker / lifecycle | `$worker->count = 1`; `CMD php server.php start`; PID file on `/app/data` | **PASS** / **OBSERVATION** | `server.php` L169–170, L686; `compose.yaml` L28 | Runtime-verify SIGTERM/`docker stop` at D3 |
 | SQLite | inside container writable layer | `LOTTO_DB_PATH=/app/data/game.db` in container writable layer (no volume mount) | **REMEDIATED** | `compose.yaml`; `Dockerfile` `/app/data` | HD-D5 — D3 runtime proof **PENDING** |
@@ -297,16 +358,15 @@ before D3. **No remediation performed in this audit.**
 | Status | **REMEDIATED** — static + runtime checks at remediation commit |
 | ADR / Human | **HD-D5** |
 
-#### F-D2-02 — Build uses mutable git checkout, not HD-D9 release archive (**FAIL**)
+#### F-D2-02 — Build uses mutable git checkout, not HD-D9 release archive (**REMEDIATED** — HD-D9)
 
 | Field | Value |
 |-------|-------|
-| Files | `deploy/docker/lib/common.sh` L80–84, L225; `install.sh` L146–147; `Dockerfile` L7–11 |
-| Observed | `lotto_repo_check` requires git checkout; `LOTTO_BUILD_CONTEXT` = repo root; `COPY` from live tree |
-| Requirement | HD-D9: single immutable application release archive → SHA256 → `docker build` |
-| Impact | Build not reproducible from `v1.0` / `508cc28` without mutable `main`; silent drift possible |
-| Next action | Implement archive ingestion path (hosting/download still open) |
-| ADR / Human | Artifact hosting still **open**; HD-D9 policy decided |
+| Files | `deploy/docker/install.sh`; `deploy/docker/lib/common.sh` (historical); `deploy/docker/lib/release-artifact.sh` |
+| Observed (D2) | `lotto_repo_check` required git checkout; `LOTTO_BUILD_CONTEXT` = repo root |
+| Remediation | HD-D9 (2026-09-06): `--release-archive` + trusted manifest SHA256 → extract → build context |
+| Status | **REMEDIATED** — no mutable Git checkout fallback |
+| ADR / Human | **HD-D9** |
 
 #### F-D2-03 — Zero residue requires explicit volume removal (**PARTIAL** — HD-D5)
 
@@ -395,7 +455,7 @@ before D3. **No remediation performed in this audit.**
 | 5 | Networking | **OPEN** | Host nginx + loopback upstream; no TLS in container |
 | 6 | Storage / zero residue | **PARTIAL** | HD-D5: container-local DB; D10 host metadata/nginx **PENDING** |
 | 7 | DB initialization | **PASS** | `init_db.php` via `compose exec`; AHPC per ADR-038 |
-| 8 | Release artifact (HD-D9) | **FAIL** | No archive path |
+| 8 | Release artifact (HD-D9) | **REMEDIATED** | Verified archive + SHA256; hosting/download still open |
 | 9 | Security (static) | **PASS** | Hardening baseline present |
 | 10 | Observability | **PASS** | stdout + healthcheck |
 | 11 | Installer readiness (HD-D8) | **GAP** | Partial scripts only |
@@ -413,7 +473,7 @@ before D3. **No remediation performed in this audit.**
 ### Recommended remediation order (post Human review)
 
 1. ~~**HD-D5**~~ — **REMEDIATED** (2026-09-06). See § HD-D5 remediation.
-2. **HD-D9 implementation** — Archive-based build context; SHA256 gate; decouple from mutable `main`.
+2. ~~**HD-D9 implementation**~~ — **REMEDIATED** (2026-09-06). See § HD-D9 remediation.
 3. **HD-D10 remediation** — Embed `public/` in container; retire host nginx/host-static as Docker V1 delivery path.
 4. **HD-D8 installer** — Docker Engine bootstrap, `RUSBINGO_DOMAIN` precedence, idempotency, unified flow.
 5. **D10 scope** — Teardown per HD-D10: container, volumes, host `public/` copy, nginx/certs, installer artifacts.

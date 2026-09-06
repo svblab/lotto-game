@@ -59,6 +59,35 @@ skip() {
     echo "SKIP: ${desc}"
 }
 
+make_v1_release_archive() {
+    local output="$1"
+    if ! command -v git >/dev/null 2>&1; then
+        return 1
+    fi
+    git -C "${LOTTO_REPO_ROOT}" archive --format=tar.gz --prefix=rusbingo/ -o "${output}" v1.0
+}
+
+write_test_instance_env() {
+    local instance="$1"
+    local host_port="$2"
+    lotto_write_instance_env \
+        "${instance}" \
+        "${host_port}" \
+        "127.0.0.1" \
+        8080 \
+        "256m" \
+        "0.5" \
+        256 \
+        "" \
+        "" \
+        "" \
+        "/tmp/lotto-test-build-context" \
+        "v1.0" \
+        "508cc280704ed72cc3e85df03e57bd6fb42d24ee" \
+        "780bb0ea9157a326908afee593f3f7acbbf1c043903094c2bbd7072e4eb166a8" \
+        "rusbingo-v1.0.tar.gz"
+}
+
 assert_not_contains() {
     local desc="$1"
     local haystack="$2"
@@ -86,7 +115,7 @@ test_compose_no_application_volumes() {
     local tmp_root env_file rendered
     tmp_root="$(mktemp -d)"
     LOTTO_STATE_ROOT="${tmp_root}/state"
-    lotto_write_instance_env "cfgtest" 18099 "127.0.0.1" 8080 "256m" "0.5" 256 "" "" ""
+    lotto_write_instance_env "cfgtest" 18099 "127.0.0.1" 8080 "256m" "0.5" 256 "" "" "" "/tmp/lotto-cfgtest-context" "v1.0" "508cc280704ed72cc3e85df03e57bd6fb42d24ee" "780bb0ea9157a326908afee593f3f7acbbf1c043903094c2bbd7072e4eb166a8" "rusbingo-v1.0.tar.gz"
     env_file="$(lotto_instance_env_file cfgtest)"
     rendered="$(docker compose -f "${LOTTO_COMPOSE_FILE}" --env-file "${env_file}" -p lotto-cfgtest config)"
     assert_not_contains "rendered compose has no data:/app/data" "${rendered}" "data:/app/data"
@@ -115,11 +144,12 @@ test_compose_env_generation() {
     local tmp_root
     tmp_root="$(mktemp -d)"
     LOTTO_STATE_ROOT="${tmp_root}/state"
-    lotto_write_instance_env "test01" 8099 "127.0.0.1" 8080 "256m" "0.5" 256 "" "" ""
+    write_test_instance_env "test01" 8099
     assert_true "metadata file created" test -f "${tmp_root}/state/test01/instance.env"
     lotto_load_instance_env "test01"
     assert_eq "instance name recorded" "test01" "${LOTTO_INSTANCE}"
-    assert_eq "host port" "8099" "${LOTTO_HOST_PORT}"
+    assert_eq "application version recorded" "v1.0" "${LOTTO_APPLICATION_VERSION}"
+    assert_eq "application git sha recorded" "508cc280704ed72cc3e85df03e57bd6fb42d24ee" "${LOTTO_APPLICATION_GIT_SHA}"
     assert_false "no application volume in metadata" bash -c 'grep -q "^LOTTO_VOLUME_NAME=" "${tmp_root}/state/test01/instance.env"'
     rm -rf "${tmp_root}"
 }
@@ -130,8 +160,8 @@ test_image_reference_count() {
     tmp_root="$(mktemp -d)"
     LOTTO_STATE_ROOT="${tmp_root}/state"
     mkdir -p "${tmp_root}/state/a" "${tmp_root}/state/b"
-    lotto_write_instance_env "a" 8080 "127.0.0.1" 8080 "256m" "0.5" 256 "" "" ""
-    lotto_write_instance_env "b" 8081 "127.0.0.1" 8080 "256m" "0.5" 256 "" "" ""
+    write_test_instance_env "a" 8080
+    write_test_instance_env "b" 8081
     lotto_load_instance_env "a"
     local image_a="${LOTTO_IMAGE}"
     assert_false "same-tag other instance not detected when tags differ" lotto_image_used_by_other_instances "${image_a}" "a"
@@ -207,10 +237,26 @@ test_data_dir_permissions() {
         return 0
     fi
 
-    local image owner write_ok
+    local tmp archive manifest work_dir image owner write_ok
+    tmp="$(mktemp -d)"
+    archive="${tmp}/rusbingo-v1.0.tar.gz"
+    manifest="$(lotto_release_manifest_path_for_version v1.0)"
+    work_dir="${tmp}/work"
     image="lotto-game:datadir$$"
 
-    docker build -t "${image}" -f "${LOTTO_REPO_ROOT}/deploy/docker/Dockerfile" "${LOTTO_REPO_ROOT}" >/dev/null
+    if ! make_v1_release_archive "${archive}"; then
+        skip "git archive unavailable — /app/data permission test skipped"
+        rm -rf "${tmp}"
+        return 0
+    fi
+
+    lotto_release_prepare_build_context "${archive}" "${manifest}" "${work_dir}"
+    docker build -t "${image}" \
+        -f "${LOTTO_BUILD_CONTEXT}/deploy/docker/Dockerfile" \
+        --build-arg "LOTTO_APPLICATION_VERSION=${LOTTO_APPLICATION_VERSION}" \
+        --build-arg "LOTTO_APPLICATION_GIT_SHA=${LOTTO_APPLICATION_GIT_SHA}" \
+        --build-arg "LOTTO_RELEASE_ARCHIVE_SHA256=${LOTTO_RELEASE_ARCHIVE_SHA256}" \
+        "${LOTTO_BUILD_CONTEXT}" >/dev/null
 
     owner="$(docker run --rm --user "${LOTTO_DATA_UID}:${LOTTO_DATA_GID}" \
         --entrypoint stat \
@@ -225,6 +271,7 @@ test_data_dir_permissions() {
     assert_eq "uid ${LOTTO_DATA_UID} can write to /app/data" "yes" "${write_ok}"
 
     docker image rm "${image}" >/dev/null 2>&1 || true
+    rm -rf "${tmp}"
 }
 
 test_docker_integration() {
@@ -234,10 +281,17 @@ test_docker_integration() {
         return 0
     fi
 
-    local tmp_root instance
+    local tmp_root instance archive
     tmp_root="$(mktemp -d)"
     instance="itest$$"
+    archive="${tmp_root}/rusbingo-v1.0.tar.gz"
     LOTTO_STATE_ROOT="${tmp_root}/state"
+
+    if ! make_v1_release_archive "${archive}"; then
+        skip "git archive unavailable — runtime install/remove tests skipped"
+        rm -rf "${tmp_root}"
+        return 0
+    fi
 
     if ! sudo -n true 2>/dev/null; then
         skip "passwordless sudo not available — skipping live docker install test"
@@ -245,14 +299,17 @@ test_docker_integration() {
         return 0
     fi
 
-    LOTTO_STATE_ROOT="${tmp_root}/state" bash "${DEPLOY_DIR}/install.sh" --name "${instance}" --port 18091 --mem-limit 128m
+    LOTTO_STATE_ROOT="${tmp_root}/state" bash "${DEPLOY_DIR}/install.sh" \
+        --name "${instance}" --port 18091 --mem-limit 128m \
+        --release-archive "${archive}"
     assert_true "instance metadata after install" lotto_instance_metadata_exists "${instance}"
     lotto_load_instance_env "${instance}"
     assert_true "container after install" lotto_container_exists "${LOTTO_CONTAINER_NAME}"
     assert_true "game.db inside container" lotto_db_exists_in_container "${instance}"
     assert_false "no legacy application volume" lotto_volume_exists "lotto-${instance}-data"
 
-    LOTTO_STATE_ROOT="${tmp_root}/state" bash "${DEPLOY_DIR}/install.sh" --name "${instance}" --port 18091
+    LOTTO_STATE_ROOT="${tmp_root}/state" bash "${DEPLOY_DIR}/install.sh" \
+        --name "${instance}" --port 18091 --release-archive "${archive}"
     assert_true "game.db survives idempotent reinstall" lotto_db_exists_in_container "${instance}"
 
     LOTTO_STATE_ROOT="${tmp_root}/state" bash "${DEPLOY_DIR}/healthcheck.sh" --name "${instance}"
@@ -275,6 +332,10 @@ test_healthcheck_failure_handling
 test_provisioning_fqdn_detection
 test_data_dir_permissions
 test_docker_integration
+
+echo ""
+echo "--- HD-D9 release artifact tests ---"
+bash "${SCRIPT_DIR}/test_release_artifact.sh"
 
 echo ""
 echo "--- AHPC admin bootstrap tests ---"

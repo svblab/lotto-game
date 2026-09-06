@@ -190,14 +190,22 @@ test_docker_ahpc_integration() {
         return 0
     fi
 
-    local tmp_root instance install_out pending_path password status_json
+    local tmp_root instance install_out pending_path password status_json archive
     tmp_root="$(mktemp -d)"
     instance="ahpc$$"
+    archive="${tmp_root}/rusbingo-v1.0.tar.gz"
     LOTTO_STATE_ROOT="${tmp_root}/state"
+
+    if ! command -v git >/dev/null 2>&1 || ! git -C "${LOTTO_REPO_ROOT}" archive --format=tar.gz --prefix=rusbingo/ -o "${archive}" v1.0 2>/dev/null; then
+        skip "git archive unavailable — docker AHPC integration"
+        rm -rf "${tmp_root}"
+        return 0
+    fi
 
     set +e
     install_out="$(LOTTO_STATE_ROOT="${tmp_root}/state" bash "${DEPLOY_DIR}/install.sh" \
-        --name "${instance}" --port 18092 --mem-limit 128m --non-interactive 2>&1)"
+        --name "${instance}" --port 18092 --mem-limit 128m --non-interactive \
+        --release-archive "${archive}" 2>&1)"
     install_rc=$?
     set -e
 
@@ -214,7 +222,8 @@ test_docker_ahpc_integration() {
     assert_true "pending password verifies against db" lotto_ahpc_verify_login_password "${db_tmp}" "${password}"
     rm -f "${db_tmp}"
 
-    LOTTO_STATE_ROOT="${tmp_root}/state" bash "${DEPLOY_DIR}/install.sh" --name "${instance}" --port 18092 >/dev/null
+    LOTTO_STATE_ROOT="${tmp_root}/state" bash "${DEPLOY_DIR}/install.sh" \
+        --name "${instance}" --port 18092 --release-archive "${archive}" >/dev/null
     assert_true "pending survives reinstall" test -f "${pending_path}"
 
     LOTTO_STATE_ROOT="${tmp_root}/state" bash "${DEPLOY_DIR}/admin-bootstrap.sh" --name "${instance}" acknowledge

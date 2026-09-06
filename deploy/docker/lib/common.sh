@@ -13,6 +13,9 @@ LOTTO_DEFAULT_BIND_ADDRESS="127.0.0.1"
 LOTTO_DATA_UID="1000"
 LOTTO_DATA_GID="1000"
 
+# shellcheck source=release-artifact.sh
+source "${LOTTO_DEPLOY_LIB_DIR}/release-artifact.sh"
+
 lotto_err() {
     echo "ERROR: $*" >&2
 }
@@ -77,9 +80,13 @@ lotto_os_check() {
     fi
 }
 
-lotto_repo_check() {
-    if [[ ! -f "${LOTTO_REPO_ROOT}/server.php" || ! -f "${LOTTO_REPO_ROOT}/composer.json" ]]; then
-        lotto_err "Run this script from a lotto-game Git checkout (missing server.php/composer.json)."
+lotto_deploy_check() {
+    if [[ ! -f "${LOTTO_DEPLOY_LIB_DIR}/../Dockerfile" ]]; then
+        lotto_err "Docker deployment files are missing (expected deploy/docker/Dockerfile)."
+        return 1
+    fi
+    if [[ ! -f "${LOTTO_DEPLOY_LIB_DIR}/release-artifact.sh" ]]; then
+        lotto_err "Docker release artifact helper is missing."
         return 1
     fi
 }
@@ -219,6 +226,11 @@ lotto_write_instance_env() {
     local allowed_origins="${8:-}"
     local trusted_proxy_ips="${9:-}"
     local max_accounts_per_ip="${10:-}"
+    local build_context="${11:-}"
+    local application_version="${12:-}"
+    local application_git_sha="${13:-}"
+    local release_archive_sha256="${14:-}"
+    local release_archive_file="${15:-}"
 
     local dir image network container
     dir="$(lotto_instance_dir "${instance}")"
@@ -232,7 +244,7 @@ lotto_write_instance_env() {
     cat > "$(lotto_instance_env_file "${instance}")" <<EOF
 LOTTO_INSTANCE=${instance}
 LOTTO_IMAGE=${image}
-LOTTO_BUILD_CONTEXT=${LOTTO_REPO_ROOT}
+LOTTO_BUILD_CONTEXT=${build_context}
 LOTTO_CONTAINER_NAME=${container}
 LOTTO_NETWORK_NAME=${network}
 LOTTO_HOST_PORT=${host_port}
@@ -244,8 +256,25 @@ LOTTO_PIDS_LIMIT=${pids_limit}
 LOTTO_ALLOWED_ORIGINS=${allowed_origins}
 LOTTO_TRUSTED_PROXY_IPS=${trusted_proxy_ips}
 LOTTO_MAX_ACCOUNTS_PER_IP=${max_accounts_per_ip}
+LOTTO_APPLICATION_VERSION=${application_version}
+LOTTO_APPLICATION_GIT_SHA=${application_git_sha}
+LOTTO_RELEASE_ARCHIVE_SHA256=${release_archive_sha256}
+LOTTO_RELEASE_ARCHIVE_FILE=${release_archive_file}
 EOF
     chmod 600 "$(lotto_instance_env_file "${instance}")"
+}
+
+lotto_prepare_instance_release_build() {
+    local instance="$1"
+    local archive_path="$2"
+    local manifest_path="$3"
+    local work_dir
+
+    work_dir="$(lotto_instance_dir "${instance}")/verified-release"
+    mkdir -p "${work_dir}"
+    chmod 700 "${work_dir}"
+
+    lotto_release_prepare_build_context "${archive_path}" "${manifest_path}" "${work_dir}"
 }
 
 lotto_load_instance_env() {

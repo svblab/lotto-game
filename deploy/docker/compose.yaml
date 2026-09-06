@@ -7,6 +7,10 @@ services:
     build:
       context: ${LOTTO_BUILD_CONTEXT}
       dockerfile: deploy/docker/Dockerfile
+      args:
+        LOTTO_APPLICATION_VERSION: ${LOTTO_APPLICATION_VERSION}
+        LOTTO_APPLICATION_GIT_SHA: ${LOTTO_APPLICATION_GIT_SHA}
+        LOTTO_RELEASE_ARCHIVE_SHA256: ${LOTTO_RELEASE_ARCHIVE_SHA256}
     container_name: ${LOTTO_CONTAINER_NAME}
     restart: unless-stopped
     # Writable /app/data lives in the container filesystem (HD-D5). read_only is

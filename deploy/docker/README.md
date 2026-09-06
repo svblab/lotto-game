@@ -8,11 +8,21 @@
 
 ## Быстрый старт
 
+Создайте immutable release archive (пример для `v1.0`):
+
 ```bash
-git clone https://github.com/svblab/lotto-game.git
-cd lotto-game
-sudo ./deploy/docker/install.sh --name lotto-01
+git archive --format=tar.gz --prefix=rusbingo/ -o rusbingo-v1.0.tar.gz v1.0
 ```
+
+Установка **только** из verified archive (HD-D9):
+
+```bash
+sudo ./deploy/docker/install.sh \
+  --release-archive ./rusbingo-v1.0.tar.gz
+```
+
+Trusted SHA256 для `v1.0` — в `deploy/docker/release-manifests/v1.0.env`.
+Docker build **не** использует mutable Git checkout / `main`.
 
 После **первой** установки (новая база) пароль администратора **не** выводится в
 терминал. Используйте AHPC:
@@ -56,6 +66,7 @@ sudo ./deploy/docker/admin-bootstrap.sh --name lotto-01 acknowledge
 | Образ | `lotto-game:<name>` |
 | Метаданные на хосте | `/var/lib/lotto-game/<name>/` |
 | Pending-пароль (AHPC) | `/var/lib/lotto-game/<name>/admin-bootstrap.pending` |
+| Verified release provenance | `/var/lib/lotto-game/<name>/verified-release/release-provenance.env` |
 
 `game.db` и application state хранятся **внутри контейнера** (writable layer).
 Docker named volume для game state **не используется**. Удаление контейнера
