@@ -59,12 +59,12 @@ skip() {
     echo "SKIP: ${desc}"
 }
 
-make_v1_release_archive() {
+make_v11_release_archive() {
     local output="$1"
     if ! command -v git >/dev/null 2>&1; then
         return 1
     fi
-    git -C "${LOTTO_REPO_ROOT}" archive --format=tar.gz --prefix=rusbingo/ -o "${output}" v1.0
+    git -C "${LOTTO_REPO_ROOT}" archive --format=tar.gz --prefix=rusbingo/ -o "${output}" ed42d7a2d278a7f27260fc06249b14bc1d638b6d
 }
 
 write_test_instance_env() {
@@ -239,21 +239,20 @@ test_data_dir_permissions() {
 
     local tmp archive manifest work_dir image owner write_ok
     tmp="$(mktemp -d)"
-    archive="${tmp}/rusbingo-v1.0.tar.gz"
-    manifest="$(lotto_release_manifest_path_for_version v1.0)"
+    archive="${tmp}/rusbingo-v1.1.tar.gz"
+    manifest="$(lotto_release_manifest_path_for_version v1.1)"
     work_dir="${tmp}/work"
     image="lotto-game:datadir$$"
 
-    if ! make_v1_release_archive "${archive}"; then
+    if ! make_v11_release_archive "${archive}"; then
         skip "git archive unavailable — /app/data permission test skipped"
         rm -rf "${tmp}"
         return 0
     fi
 
     lotto_release_prepare_build_context "${archive}" "${manifest}" "${work_dir}"
-    lotto_apply_docker_v1_runtime_overlay "${LOTTO_BUILD_CONTEXT}"
     docker build -t "${image}" \
-        -f "${LOTTO_DOCKERFILE}" \
+        -f "${LOTTO_BUILD_CONTEXT}/deploy/docker/Dockerfile" \
         --build-arg "LOTTO_APPLICATION_VERSION=${LOTTO_APPLICATION_VERSION}" \
         --build-arg "LOTTO_APPLICATION_GIT_SHA=${LOTTO_APPLICATION_GIT_SHA}" \
         --build-arg "LOTTO_RELEASE_ARCHIVE_SHA256=${LOTTO_RELEASE_ARCHIVE_SHA256}" \
@@ -285,10 +284,10 @@ test_docker_integration() {
     local tmp_root instance archive
     tmp_root="$(mktemp -d)"
     instance="itest$$"
-    archive="${tmp_root}/rusbingo-v1.0.tar.gz"
+    archive="${tmp_root}/rusbingo-v1.1.tar.gz"
     LOTTO_STATE_ROOT="${tmp_root}/state"
 
-    if ! make_v1_release_archive "${archive}"; then
+    if ! make_v11_release_archive "${archive}"; then
         skip "git archive unavailable — runtime install/remove tests skipped"
         rm -rf "${tmp_root}"
         return 0

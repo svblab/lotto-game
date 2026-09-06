@@ -17,7 +17,7 @@ PIDS_LIMIT="${LOTTO_PIDS_LIMIT:-256}"
 ALLOWED_ORIGINS="${LOTTO_ALLOWED_ORIGINS:-}"
 TRUSTED_PROXY_IPS="${LOTTO_TRUSTED_PROXY_IPS:-}"
 MAX_ACCOUNTS_PER_IP="${LOTTO_MAX_ACCOUNTS_PER_IP:-}"
-APPLICATION_VERSION="${LOTTO_APPLICATION_VERSION:-v1.0}"
+APPLICATION_VERSION="${LOTTO_APPLICATION_VERSION:-v1.1}"
 RELEASE_ARCHIVE="${LOTTO_RELEASE_ARCHIVE:-}"
 RELEASE_MANIFEST="${LOTTO_RELEASE_MANIFEST:-}"
 FRESH_INSTALL=0
@@ -38,15 +38,15 @@ Options:
   --allowed-origins V  LOTTO_ALLOWED_ORIGINS (comma-separated)
   --trusted-proxy-ips V LOTTO_TRUSTED_PROXY_IPS
   --max-accounts-per-ip N LOTTO_MAX_ACCOUNTS_PER_IP
-  --application-version V  Application release version for manifest lookup (default: v1.0)
+  --application-version V  Application release version for manifest lookup (default: v1.1)
   --release-archive PATH   Immutable application release archive (required)
   --release-manifest PATH  Trusted release manifest (default: release-manifests/<version>.env)
   --non-interactive    Machine-readable handoff (exit 42 when credential pending)
   -h, --help           Show this help
 
 Examples:
-  sudo ./deploy/docker/install.sh --release-archive ./rusbingo-v1.0.tar.gz
-  sudo ./deploy/docker/install.sh --name lotto-01 --release-archive /path/to/rusbingo-v1.0.tar.gz
+  sudo ./deploy/docker/install.sh --release-archive ./rusbingo-v1.1.tar.gz
+  sudo ./deploy/docker/install.sh --name lotto-01 --release-archive /path/to/rusbingo-v1.1.tar.gz
   sudo ./deploy/docker/install.sh --name lotto-02 --port 8081 --release-archive /path/to/archive.tar.gz
 EOF
 }

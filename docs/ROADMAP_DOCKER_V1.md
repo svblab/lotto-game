@@ -330,6 +330,38 @@ RUSBINGO container
 
 #### Boundaries (HD-D9 does NOT decide / implement)
 
+- Exact archive filename/format policy
+- Installer GitHub download implementation
+- OCI registry remote pull
+
+#### Remediation approval (**APPROVED** 2026-09-06)
+
+Human reviewer explicitly approved commit `fd84a48` (`fix(docker): restore immutable
+release provenance`) and **Application v1.1** as the canonical Docker V1 application
+release input:
+
+| Field | Value |
+|-------|--------|
+| Application version | `v1.1` |
+| Full Git SHA | `ed42d7a2d278a7f27260fc06249b14bc1d638b6d` |
+| Archive SHA256 | `568f528bd32c854f637fb2c31afaeeefeb57aceb8a50331d0dd0daeae60e944a` |
+| Trusted manifest | `deploy/docker/release-manifests/v1.1.env` |
+
+**Approved invariant:**
+
+```text
+immutable v1.1 release artifact
+    → SHA256 verification
+    → verified extraction
+    → Docker build
+    → application runtime
+```
+
+No post-verification application overlay from `LOTTO_REPO_ROOT`. NLD Application
+`v1.0` (`508cc280704ed72cc3e85df03e57bd6fb42d24ee`) remains unchanged.
+
+D3 installation validation **PENDING**.
+
 | Topic | Status |
 |-------|--------|
 | OCI image distribution pipeline | **Not** a Docker V1 prerequisite; may be evaluated later from practical evidence |
@@ -533,6 +565,22 @@ Host may retain only OS + Docker infrastructure + explicitly unrelated system da
 
 ---
 
+## Human Decision HD-D6 — Docker networking (**APPROVED** 2026-09-06)
+
+**Decision:** Docker V1 **excludes** `network_mode: host`.
+
+**Canonical networking:**
+
+```text
+Docker bridge network
++
+published host:container ports
+```
+
+Re-adoption of `network_mode: host` requires a future explicit Human Decision.
+
+---
+
 ## D2.1 — Installation contract freeze
 
 ### Human Decision HD-D8 — **DECIDED** (2026-09-06)
@@ -606,7 +654,7 @@ the application container.
 продолжить/проверить установку, либо явно сообщить пользователю о существующей
 установке. **Не реализуется** в рамках фиксации HD-D8.
 
-### Human Decision HD-D7 — **DECIDED** (2026-09-06)
+### Human Decision HD-D7 — **APPROVED** (2026-09-06)
 
 **Target audience:** пользователь может установить игровой сервер на Ubuntu **не
 старше 22.04**, Debian **не старше 12** или аналогичные Linux systems.
@@ -633,7 +681,17 @@ the application container.
 > **Не** формулировать как «RUSBINGO поддерживает любой Linux».
 
 Матрица точных версий Docker Engine / Compose и минимальных VPS resources —
-**уточняется после D2/D3 audit**; не выдумывается на этапе policy decisions.
+**APPROVED 2026-09-06** (certification/release floors; installer enforcement is
+separate implementation work):
+
+| Prerequisite | V1 certification floor |
+|--------------|------------------------|
+| Docker Engine | **≥ 24.0** |
+| Compose | **V2 plugin** (`docker compose`) |
+| Minimum VPS | **1 vCPU**, **1 GiB RAM**, **5 GiB** free disk |
+
+Installer version pinning / prerequisite checks — **not** part of this Human Decision;
+see D2.1 / D3 validation.
 
 ### Goal
 
@@ -663,14 +721,14 @@ D2.1 freeze / D3 validation (audit-dependent):
 
 | Item | To be specified |
 |------|-----------------|
-| Prerequisites | Exact Docker Engine / Compose versions (after D2/D3 audit) |
+| Prerequisites | **HD-D7 APPROVED:** Engine ≥ 24.0; Compose V2 plugin; 1 vCPU / 1 GiB RAM / 5 GiB disk |
 | Supported OS | **HD-D7** certified + compatibility targets |
 | Required ports | Host ports for HTTP/HTTPS/WSS upstream |
 | Filesystem assumptions | Host paths for install metadata only (no game data volume) |
 | Install command | Canonical entry point |
 | Uninstall command | Canonical entry point |
 | Upgrade model | Future decision (not HD-D1) |
-| Minimum VPS resources | After D2/D3 audit |
+| Minimum VPS resources | **HD-D7 APPROVED** (see prerequisite table above) |
 
 ### Persistence model
 
@@ -896,7 +954,7 @@ Each finding: severity, evidence, impact, disposition, PASS/FAIL.
 
 ## D8.1 — Image vulnerability scan
 
-### Human Decision HD-D2 — **DECIDED** (2026-09-06)
+### Human Decision HD-D2 — **APPROVED** (2026-09-06)
 
 **Policy:**
 
@@ -927,8 +985,18 @@ Each accepted HIGH **must** have separate evidence/disposition record:
 | Disposition | ACCEPTED / REJECTED / MITIGATED |
 | Mitigation (if applicable) | |
 
-**Not decided by HD-D2:** numeric threshold for count of HIGH findings (separate
-decision if needed).
+**Not decided by HD-D2 (original 2026-09-06):** numeric threshold for count of HIGH
+findings — **waived / not applicable** (Human approval 2026-09-06; see register).
+
+**Final policy (APPROVED 2026-09-06):**
+
+| Severity | Rule |
+|----------|------|
+| **CRITICAL** | **0 allowed** — any CRITICAL blocks release |
+| **HIGH** | No numeric count cap; every HIGH requires individual documented technical disposition |
+| **HIGH (block)** | Any exploitable or unresolved HIGH blocks release |
+
+Generic «HIGH not exploitable» without per-finding justification remains **insufficient**.
 
 ### Tool
 
@@ -1305,21 +1373,19 @@ D2/D3 validation or implementation evidence before gate PASS.
 | ID | Decision | Type | Status | Date |
 |----|----------|------|--------|------|
 | **HD-D1** | Immutable Release model — artifact resolution architecture | Policy | **DECIDED** | 2026-09-06 |
-| **HD-D2** | HIGH vulnerability disposition policy (CRITICAL=0; HIGH per-finding) | Policy | **DECIDED** | 2026-09-06 |
+| **HD-D2** | HIGH vulnerability disposition policy (CRITICAL=0; HIGH per-finding; no numeric cap) | Policy | **APPROVED** | 2026-09-06 |
 | **HD-D3** | Docker release versioning / provenance linkage | Policy | **DECIDED** | 2026-09-06 |
 | **HD-D4** | Registry-independent OCI contract + GitHub Releases artifact channel (V1) | Policy | **DECIDED** | 2026-09-06 |
 | **HD-D5** | ADR-036 named-volume remediation vs Docker V1 contract | Audit | **REMEDIATED** | 2026-09-06 — implementation commit; D3/D10 validation **PENDING** |
-| **HD-D6** | `network_mode: host` — justify or exclude | Audit | **Recommend CLOSE** | D2 audit: not used in `compose.yaml` |
-| **HD-D7** | Supported OS targets (certified + compatibility) | Policy | **DECIDED** | 2026-09-06 |
+| **HD-D6** | `network_mode: host` — excluded; bridge + published ports | Policy | **APPROVED** | 2026-09-06 |
+| **HD-D7** | Supported OS targets + Docker/VPS prerequisite floors | Policy | **APPROVED** | 2026-09-06 |
 | **HD-D8** | Installer-first / automated installation model | Policy | **DECIDED** | 2026-09-06 |
-| **HD-D9** | Canonical input = single immutable application release archive (`docker build`) | Policy | **REMEDIATED** | 2026-09-06 — implementation commit; D3 validation **PENDING** |
+| **HD-D9** | Canonical input = immutable release archive; remediation `fd84a48`; Application **v1.1** canonical | Policy | **REMEDIATION APPROVED** | 2026-09-06 |
 | **HD-D10** | All-in-container application boundary (no host nginx/host `public/` runtime) | Implementation | **REMEDIATED** | 2026-09-06 |
 | — | OCI image distribution / registry publication | Future | **Open** | OCI registry not chosen; Docker Hub not selected |
-| — | Exact Docker Engine / Compose versions | Audit | Open | After D2/D3 |
-| — | Minimum VPS resources | Audit | Open | After D2/D3 |
 | — | Specific registry, repository, image tag, credentials | Implementation | Open | Before Docker Release |
 | — | Upgrade command, procedure, SQLite migration | Future | Open | Post HD-D1 |
-| — | Numeric HIGH count threshold | Policy | Open | If needed |
+| — | Numeric HIGH count threshold | Policy | **Waived / N/A** | 2026-09-06 — HD-D2 APPROVED |
 
 ---
 

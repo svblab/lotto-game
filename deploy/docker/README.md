@@ -8,21 +8,24 @@
 
 ## Быстрый старт
 
-Создайте immutable release archive (пример для `v1.0`):
+Создайте immutable release archive (пример для `v1.1` — canonical Docker V1 с HD-D10 runtime):
 
 ```bash
-git archive --format=tar.gz --prefix=rusbingo/ -o rusbingo-v1.0.tar.gz v1.0
+git archive --format=tar.gz --prefix=rusbingo/ \
+  -o rusbingo-v1.1.tar.gz ed42d7a2d278a7f27260fc06249b14bc1d638b6d
 ```
 
 Установка **только** из verified archive (HD-D9):
 
 ```bash
 sudo ./deploy/docker/install.sh \
-  --release-archive ./rusbingo-v1.0.tar.gz
+  --release-archive ./rusbingo-v1.1.tar.gz
 ```
 
-Trusted SHA256 для `v1.0` — в `deploy/docker/release-manifests/v1.0.env`.
-Docker build **не** использует mutable Git checkout / `main`.
+Trusted SHA256 для `v1.1` — в `deploy/docker/release-manifests/v1.1.env`.
+Для NLD baseline `v1.0` — `release-manifests/v1.0.env` (без HD-D10 container runtime).
+Docker build **не** использует mutable Git checkout / `main` и **не** накладывает
+application overlay после SHA256 verification.
 
 После **первой** установки (новая база) пароль администратора **не** выводится в
 терминал. Используйте AHPC:
