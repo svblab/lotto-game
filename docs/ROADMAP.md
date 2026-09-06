@@ -3,6 +3,9 @@
 ## Purpose
 Authoritative source for Epic numbering, implementation order, dependency order, and project completion status. If implementation order contradicts this doc, this doc is correct.
 
+**Production V1.0 release path** (gates, DNS/TLS/E2E, go-live) — separate SSOT:
+[`docs/ROADMAP_V1_PRODUCTION.md`](ROADMAP_V1_PRODUCTION.md) (EPIC-15–21 decomposition).
+
 ---
 
 # PHASE 0 — FOUNDATION

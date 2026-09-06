@@ -7,6 +7,7 @@
 
 | Документ | Когда использовать |
 |----------|-------------------|
+| [ROADMAP_V1_PRODUCTION.md](ROADMAP_V1_PRODUCTION.md) | **SSOT** — путь к V1.0 в production: gates G0–G11, фазы, Human approvals |
 | [ADMIN_VPS_DEPLOY.md](ADMIN_VPS_DEPLOY.md) | **Production** на одном VPS: `/opt/lotto-game`, `lotto-server.service`, nginx, HTTPS |
 | [../deploy/docker/README.md](../deploy/docker/README.md) | **Docker** на новом VPS (контейнеры, AHPC, `configure-proxy.sh`) |
 | [../deploy/systemd/README.md](../deploy/systemd/README.md) | **Generic systemd**: несколько native-инстансов `/opt/lotto-game-<name>/` |
