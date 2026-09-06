@@ -5,10 +5,30 @@
 
 ## Эксплуатация сервера
 
+### NLD V1.0 — released
+
+Native Linux Deployment (systemd + nginx + `/opt/lotto-game`) — **released** (tag `v1.0`).
+
 | Документ | Когда использовать |
 |----------|-------------------|
 | [ROADMAP_V1_PRODUCTION.md](ROADMAP_V1_PRODUCTION.md) | **SSOT** — путь к V1.0 в production: gates G0–G11, фазы, Human approvals |
 | [RELEASE_CONTRACT_V1.md](RELEASE_CONTRACT_V1.md) | **G0** — V1.0 release contract (**PASS**, H1 approved) |
+
+### Docker V1 — separate validation / release track
+
+Docker как **отдельный** installation/distribution target — **не released**; собственный
+цикл валидации D0–D12 и Human gate H-D1. Не заменяет и не изменяет NLD `v1.0`.
+
+| Документ | Когда использовать |
+|----------|-------------------|
+| [ROADMAP_DOCKER_V1.md](ROADMAP_DOCKER_V1.md) | **SSOT** — Docker V1 validation roadmap (D0–D12, H-D1) |
+| [DOCKER_V1_EVIDENCE.md](DOCKER_V1_EVIDENCE.md) | Индекс evidence для Docker gates (шаблон, заполняется при валидации) |
+| [ADR/039-docker-v1-distribution-target.md](ADR/039-docker-v1-distribution-target.md) | Архитектурное решение: Docker V1, ephemeral container state |
+
+### Общая эксплуатация
+
+| Документ | Когда использовать |
+|----------|-------------------|
 | [G1_PRODUCTION_CONFIGURATION.md](G1_PRODUCTION_CONFIGURATION.md) | **G1 / EPIC-16** — production config verification (READY FOR HUMAN APPROVAL) |
 | [EPIC_17_PRODUCTION_DEPLOYMENT.md](EPIC_17_PRODUCTION_DEPLOYMENT.md) | **EPIC-17** — canonical production deploy evidence (`b3531d1` @ `rusbingo.online`) |
 | [ADMIN_VPS_DEPLOY.md](ADMIN_VPS_DEPLOY.md) | **Production** на одном VPS: `/opt/lotto-game`, `lotto-server.service`, nginx, HTTPS |
