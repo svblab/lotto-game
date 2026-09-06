@@ -92,15 +92,45 @@ forking application logic and without revising NLD V1.0.
    - Versioning schemes that hide the underlying application version are
      **forbidden**.
 
-9. **Registry-independent contract (HD-D4, decided 2026-09-06).**
+9. **Registry-independent contract (HD-D4-A, decided 2026-09-06).**
    - Docker images must remain OCI/container-image **portable**.
    - Docker V1 contract must **not** depend on one registry's proprietary features.
    - Production evidence must use **immutable image digest** when an image is used.
-   - Specific registry is **not chosen yet** — mandatory before Docker Release.
+   - Specific OCI registry is **not chosen** — Docker Hub **not selected**.
    - Architecture must **not** block future publication via Docker Hub.
-   - HD-D4 does **not** decide: registry name, repository, image tag, credentials.
+   - Pre-built **OCI image distribution is not a Docker V1 prerequisite**.
+   - HD-D4-A does **not** decide: OCI registry name, repository name, image tag, credentials.
 
-10. **Supported OS targets (HD-D7, decided 2026-09-06).**
+10. **GitHub Releases distribution channel (HD-D4 V1, decided 2026-09-06).**
+    - **GitHub Releases** is the **official distribution channel** for Docker V1
+      immutable application release archives.
+    - Target flow: Application Release → GitHub Release → immutable release archive
+      + trusted release metadata/SHA256 → Docker installer → SHA256 verification →
+      `docker build` → RUSBINGO container.
+    - Each Docker-installable archive is bound to exactly one application release.
+    - Distribution identity preserves: application version, full Git SHA, artifact
+      filename, artifact SHA256.
+    - SHA256 verification is a **mandatory security boundary**. A GitHub Release
+      asset does **not** replace the trusted expected SHA256 (e.g.
+      `deploy/docker/release-manifests/v1.0.env`).
+    - Future installer must: acquire archive → verify expected SHA256 → extract →
+      build (**policy only — download not implemented**).
+    - Installer must **not** obtain mutable `main` / Git checkout / floating
+      `latest` source. Docker installation must **not** depend on Git checkout.
+    - Docker **runtime** does **not** depend on GitHub Releases after installation.
+    - The distribution channel is **not** part of RUSBINGO runtime architecture.
+    - **Replaceability:** GitHub Releases is the V1 distribution **implementation**,
+      not a permanent runtime dependency. A future HTTPS/CDN/object-storage channel
+      may replace it if the contract holds: immutable artifact + trusted metadata
+      + SHA256 verification + application provenance. No multi-provider abstraction
+      in V1.
+    - Baseline `v1.0` reference: version `v1.0`, Git SHA
+      `508cc280704ed72cc3e85df03e57bd6fb42d24ee`, archive SHA256
+      `780bb0ea9157a326908afee593f3f7acbbf1c043903094c2bbd7072e4eb166a8`.
+    - HD-D4 V1 does **not** implement: GitHub Actions pipeline, Release publication,
+      installer HTTP download, OCI registry infrastructure.
+
+11. **Supported OS targets (HD-D7, decided 2026-09-06).**
     - **Officially certified minimum:** Ubuntu 22.04 LTS, Ubuntu 24.04 LTS,
       Debian 12.
     - Other Linux distributions may be **compatible** if they support required
@@ -110,45 +140,48 @@ forking application logic and without revising NLD V1.0.
     - Exact Docker Engine / Compose versions and minimum VPS resources — after
       D2/D3 audit (not decided now).
 
-11. **Installer-first installation model (HD-D8, decided 2026-09-06).**
+12. **Installer-first installation model (HD-D8, decided 2026-09-06).**
     - Goal: ordinary user installs game server on clean supported Linux VPS with
       maximum automation via RUSBINGO installer.
     - Docker Engine is **not** a user prerequisite — installer installs it if
       absent.
     - Installer must perform OS check, prerequisites, Docker/Compose setup,
-      domain resolution, verified release archive acquisition (HD-D9), provenance
-      verification, `docker build`, container start, post-install verification,
-      and present server address.
+      domain resolution, verified release archive acquisition from **GitHub Releases**
+      (**HD-D4 V1**), provenance verification (HD-D9), `docker build`, container
+      start, post-install verification, and present server address.
     - Domain resolution (host installer): `RUSBINGO_DOMAIN` → hostname →
       interactive prompt; no in-container interactive config.
     - **Idempotency** (future): re-run must not accidentally create second server
       or independent application state.
     - HD-D8 is **policy only** — not implemented in this ADR.
 
-12. **HIGH vulnerability policy (HD-D2, decided 2026-09-06).**
+13. **HIGH vulnerability policy (HD-D2, decided 2026-09-06).**
     - CRITICAL vulnerabilities: **release blocker** (must be 0).
     - HIGH: may be ACCEPTED only with **individual documented disposition**
       proving non-exploitability / non-applicability to supported runtime.
     - Generic «HIGH not exploitable» without per-CVE evidence is **insufficient**.
     - Numeric HIGH count threshold — **not decided**.
 
-13. **Canonical release archive input (HD-D9, decided 2026-09-06).**
+14. **Canonical release archive input (HD-D9, decided 2026-09-06).**
     - Docker V1 uses the **single immutable application release artifact** (release
       archive — e.g. `.tar` / `.tar.gz` / `.rar` style) as the canonical input for
       Docker installation.
-    - Target flow: Application Release → single immutable release archive → SHA256
-      verification → Docker installer → `docker build` → RUSBINGO container.
-    - Future installer: obtain artifact → verify SHA256 → use as build input →
-      build image → start container (**policy only — not implemented**).
+    - Target flow: Application Release → GitHub Release (**HD-D4 V1**) → immutable
+      release archive → SHA256 verification → Docker installer → `docker build` →
+      RUSBINGO container.
+    - Future installer: obtain artifact from distribution channel → verify SHA256 →
+      use as build input → build image → start container (**policy only — not
+      implemented**).
     - A separate pre-built **OCI image distribution pipeline is not a prerequisite**
       for Docker V1. OCI distribution may be evaluated later based on evidence from
       the first Docker installation/release cycle — **not permanently rejected**.
-    - HD-D9 does **not** decide: artifact hosting, download mechanism, exact archive
-      filename/format policy, registry, remote pull, installer implementation.
-    - **HD-D4** registry-independent contract remains in force; registry selection
-      still TBD before Docker Release if registry distribution is used.
+    - HD-D9 does **not** decide: exact archive filename/format policy, installer
+      implementation, OCI registry remote pull.
+    - **HD-D4-A** OCI registry-independent contract remains in force; OCI registry
+      selection still open. **HD-D4 V1** decides artifact hosting channel (GitHub
+      Releases).
 
-14. **Application boundary inside container (HD-D10, decided 2026-09-06).**
+15. **Application boundary inside container (HD-D10, decided 2026-09-06).**
     - Docker V1 places the **entire RUSBINGO application stack inside the
       container**: application code, `public/` and browser SPA, Workerman,
       HTTP/WebSocket serving, SQLite and `game.db`, application runtime state,
@@ -171,9 +204,9 @@ forking application logic and without revising NLD V1.0.
     - Historical `deploy/docker/configure-proxy.sh` (host nginx + host `public/`)
       is **ADR-036 staging** — superseded for Docker V1 by this decision (see
       ADR-036 supersession note).
-    - HD-D10 does **not** decide: registry, artifact hosting, installer
-      implementation, archive-based build, exact in-container TLS layout, or
-      remediation of `deploy/docker/`.
+    - HD-D10 does **not** decide: OCI registry, installer implementation,
+      archive-based build, exact in-container TLS layout, or remediation of
+      `deploy/docker/`.
 
    Because Docker V1 stores application state inside the container filesystem,
    any future upgrade between immutable Docker releases must account for game

@@ -333,11 +333,11 @@ RUSBINGO container
 | Topic | Status |
 |-------|--------|
 | OCI image distribution pipeline | **Not** a Docker V1 prerequisite; may be evaluated later from practical evidence |
-| Registry selection, Docker Hub publication | Open (**HD-D4**) |
+| Registry selection, Docker Hub publication | Open (**HD-D4-A** — OCI registry not chosen) |
 | Registry credentials, repository naming, image tag scheme | Open |
 | Remote image pull workflow | Open |
-| Artifact hosting provider | Open |
-| Exact download mechanism | Open |
+| Artifact hosting provider | **DECIDED** — GitHub Releases (**HD-D4 V1**) |
+| Exact download mechanism (installer) | Open — future HD-D8 implementation |
 | Installer implementation | Future (**HD-D8** policy only) |
 | Exact archive filename / `.tar` vs `.tar.gz` vs `.rar` | Open unless existing docs establish it |
 
@@ -345,12 +345,12 @@ RUSBINGO container
 > implementation evidence, D2 audit, or D3 installation validation has passed.
 > All such gates remain **PENDING**.
 
-### Must document before D3 (delivery — hosting still open)
+### Must document before D3 (delivery)
 
 | Item | Description |
 |------|-------------|
 | **Artifact type (canonical input)** | Single immutable application release archive per application release (**HD-D9**) |
-| **Artifact source (hosting/delivery)** | Where/how installer obtains the archive — **not** decided by HD-D9 |
+| **Artifact source (hosting/delivery)** | GitHub Releases — official V1 channel (**HD-D4 V1**); installer download **not implemented** |
 | **Artifact identifier** | Application tag + full SHA + SHA256 content hash |
 | **Verification mechanism** | SHA256 verification against D0 recorded hash |
 | **Checksum mismatch** | Build/install **MUST FAIL**; no silent fallback to `main` or working tree |
@@ -362,7 +362,8 @@ RUSBINGO container
 
 - [x] HD-D1 Immutable Release model recorded
 - [x] HD-D9 canonical release archive input recorded
-- [ ] Artifact hosting / download mechanism documented
+- [x] HD-D4 V1 GitHub Releases distribution channel documented
+- [ ] Installer GitHub Release download implemented (HD-D8)
 - [ ] Reproducible build demonstrated without mutable `main` checkout
 - [ ] D1.1 implementation evidence recorded in `DOCKER_V1_EVIDENCE.md`
 
@@ -1129,6 +1130,11 @@ Only after **H-D1** is Docker Release permitted.
 
 ### Human Decision HD-D4 — **DECIDED** (2026-09-06)
 
+HD-D4 comprises **two** independent contracts: (A) OCI registry portability and
+(B) V1 **distribution channel** for immutable release archives.
+
+#### HD-D4-A — OCI registry-independent contract
+
 **Registry strategy:**
 
 > Сначала определить registry-independent contract; конкретный registry выбрать
@@ -1140,11 +1146,91 @@ Only after **H-D1** is Docker Release permitted.
 | Image portability | OCI/container-image portable |
 | Contract dependency | **Must not** depend on one registry's proprietary features |
 | Production evidence | Image identity via **immutable digest** when image is used |
-| Registry selection | **Not chosen yet** — mandatory before Docker Release |
+| Registry selection | **Not chosen yet** — Docker Hub **not selected** |
 | Docker Hub | Architecture must not block future publication |
+| Pre-built OCI distribution | **Not** a Docker V1 prerequisite |
 
-**Not decided by HD-D4:** registry name, repository name, image tag, credentials,
-registry account.
+**Not decided by HD-D4-A:** OCI registry name, repository name, image tag,
+credentials, registry account, publication pipeline.
+
+#### HD-D4 V1 — GitHub Releases distribution channel (**DECIDED** 2026-09-06)
+
+**Decision:** **GitHub Releases** is the **official distribution channel** for
+Docker V1 immutable application release archives.
+
+> GitHub Releases является официальным distribution channel Docker V1 для
+> immutable release archives.
+
+```text
+Application Release
+        ↓
+GitHub Release
+        ↓
+immutable release archive
+        +
+trusted release metadata / SHA256
+        ↓
+Docker installer (future)
+        ↓
+SHA256 verification
+        ↓
+Docker build
+```
+
+| Rule | Detail |
+|------|--------|
+| Channel | **GitHub Releases** — official V1 distribution channel |
+| Artifact binding | Each Docker-installable archive bound to one application release |
+| Distribution identity | Application version + full Git SHA + artifact filename + artifact SHA256 |
+| SHA256 | **Mandatory** security boundary; GitHub asset does **not** replace trusted expected SHA256 |
+| Future installer | acquire archive → verify SHA256 → extract → build (**policy — not implemented**) |
+| Git / mutable source | Installer must **not** fetch `latest` / `main` / Git checkout |
+| Post-install runtime | Docker runtime does **not** depend on GitHub Releases |
+| Runtime architecture | Distribution channel is **not** part of RUSBINGO runtime architecture |
+
+**Baseline `v1.0` verified values (reference only):**
+
+| Field | Value |
+|-------|-------|
+| Application version | `v1.0` |
+| Full Git SHA | `508cc280704ed72cc3e85df03e57bd6fb42d24ee` |
+| Archive SHA256 | `780bb0ea9157a326908afee593f3f7acbbf1c043903094c2bbd7072e4eb166a8` |
+| Trusted manifest | `deploy/docker/release-manifests/v1.0.env` |
+
+**Identity separation (unchanged):**
+
+```text
+Git tag / application version
+        ≠
+full Git SHA
+        ≠
+release archive SHA256
+        ≠
+Docker image digest
+```
+
+**Replaceability rule:** GitHub Releases is the **V1 distribution implementation**,
+not a permanent runtime dependency. A future channel (HTTPS CDN, object storage,
+etc.) may replace GitHub Releases if the same contract holds:
+
+```text
+immutable artifact
+        +
+trusted release metadata
+        +
+SHA256 verification
+        +
+application provenance
+```
+
+Do **not** implement multi-provider abstraction in V1 — document contract only.
+
+**Not decided / not in scope:** GitHub Actions publish pipeline, actual GitHub
+Release publication, installer HTTP download implementation, exact release asset
+filename policy beyond existing `release-manifests/` convention.
+
+**Implementation status:** **policy only** — installer GitHub download **not
+implemented** (HD-D8 future work).
 
 ### Identity
 
@@ -1221,15 +1307,14 @@ D2/D3 validation or implementation evidence before gate PASS.
 | **HD-D1** | Immutable Release model — artifact resolution architecture | Policy | **DECIDED** | 2026-09-06 |
 | **HD-D2** | HIGH vulnerability disposition policy (CRITICAL=0; HIGH per-finding) | Policy | **DECIDED** | 2026-09-06 |
 | **HD-D3** | Docker release versioning / provenance linkage | Policy | **DECIDED** | 2026-09-06 |
-| **HD-D4** | Registry-independent contract (registry TBD before release) | Policy | **DECIDED** | 2026-09-06 |
+| **HD-D4** | Registry-independent OCI contract + GitHub Releases artifact channel (V1) | Policy | **DECIDED** | 2026-09-06 |
 | **HD-D5** | ADR-036 named-volume remediation vs Docker V1 contract | Audit | **REMEDIATED** | 2026-09-06 — implementation commit; D3/D10 validation **PENDING** |
 | **HD-D6** | `network_mode: host` — justify or exclude | Audit | **Recommend CLOSE** | D2 audit: not used in `compose.yaml` |
 | **HD-D7** | Supported OS targets (certified + compatibility) | Policy | **DECIDED** | 2026-09-06 |
 | **HD-D8** | Installer-first / automated installation model | Policy | **DECIDED** | 2026-09-06 |
 | **HD-D9** | Canonical input = single immutable application release archive (`docker build`) | Policy | **REMEDIATED** | 2026-09-06 — implementation commit; D3 validation **PENDING** |
 | **HD-D10** | All-in-container application boundary (no host nginx/host `public/` runtime) | Policy | **DECIDED** | 2026-09-06 |
-| — | Artifact hosting / download mechanism | Policy | Open | Before D3 |
-| — | OCI image distribution / registry publication | Future | Open | After first Docker cycle evidence |
+| — | OCI image distribution / registry publication | Future | **Open** | OCI registry not chosen; Docker Hub not selected |
 | — | Exact Docker Engine / Compose versions | Audit | Open | After D2/D3 |
 | — | Minimum VPS resources | Audit | Open | After D2/D3 |
 | — | Specific registry, repository, image tag, credentials | Implementation | Open | Before Docker Release |

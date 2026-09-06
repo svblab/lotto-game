@@ -21,7 +21,7 @@ gates are PASS.
 | **HD-D1** | Immutable Release model | **DECIDED** | 2026-09-06 | PENDING (D1.1) |
 | **HD-D2** | HIGH vulnerability disposition policy | **DECIDED** | 2026-09-06 | PENDING (D8.1 scan) |
 | **HD-D3** | Docker release versioning / provenance | **DECIDED** | 2026-09-06 | PENDING (release packaging) |
-| **HD-D4** | Registry-independent contract | **DECIDED** | 2026-09-06 | PENDING (registry selection) |
+| **HD-D4** | Registry-independent OCI contract + GitHub Releases artifact channel (V1) | **DECIDED** | 2026-09-06 | PENDING (installer GitHub download) |
 | **HD-D7** | Supported OS targets | **DECIDED** | 2026-09-06 | PENDING (D3 validation matrix) |
 | **HD-D8** | Installer-first / automated installation | **DECIDED** | 2026-09-06 | PENDING (installer implementation) |
 | **HD-D9** | Canonical input = single immutable application release archive | **DECIDED** | 2026-09-06 | See § HD-D9 remediation below |
@@ -138,7 +138,8 @@ gates are PASS.
 | Installer obtains archive → verify → build → start container | **DECIDED** (future implementation) |
 | Pre-built OCI image distribution as V1 prerequisite | **Rejected as prerequisite** (may be evaluated later) |
 
-**Not decided by HD-D9:** hosting provider, download mechanism, archive filename/format policy, registry, remote pull, installer code.
+**Not decided by HD-D9:** exact archive filename/format policy, installer GitHub
+download code, OCI registry remote pull.
 
 **Implementation evidence (still PENDING — gate D1.1 remains PENDING):**
 
@@ -820,9 +821,11 @@ Implementation evidence: PENDING.
 
 ---
 
-## HD-D4 — Registry strategy (policy)
+## HD-D4 — Registry + distribution channel (policy)
 
 **Status:** **DECIDED** (2026-09-06)
+
+### HD-D4-A — OCI registry-independent contract
 
 | Rule | Status |
 |------|--------|
@@ -830,9 +833,44 @@ Implementation evidence: PENDING.
 | No dependency on one registry's proprietary features | **DECIDED** |
 | Production evidence uses immutable digest | **DECIDED** |
 | Must not block future Docker Hub publication | **DECIDED** |
-| Specific registry / repository / tag / credentials | **Not decided** |
+| Pre-built OCI image distribution as V1 prerequisite | **Rejected** |
+| Specific OCI registry / repository / tag / credentials | **Not decided** — Docker Hub **not selected** |
 
-Implementation evidence: PENDING.
+### HD-D4 V1 — GitHub Releases distribution channel
+
+**Decision:** GitHub Releases is the **official distribution channel** for Docker V1
+immutable application release archives.
+
+```text
+Application Release → GitHub Release → immutable archive + trusted SHA256
+        → Docker installer (future) → SHA256 verification → Docker build
+```
+
+| Rule | Status |
+|------|--------|
+| Official V1 distribution channel | **GitHub Releases** |
+| Distribution identity | Application version + full Git SHA + artifact filename + artifact SHA256 |
+| SHA256 verification | **Mandatory**; GitHub asset ≠ trusted expected SHA256 |
+| Git / mutable checkout | **Forbidden** for Docker installation |
+| Runtime dependency on GitHub | **None** after install |
+| Distribution channel in runtime architecture | **Excluded** |
+| Replaceability | Channel replaceable if immutable artifact + metadata + SHA256 + provenance contract preserved |
+| Installer GitHub download | **Not implemented** (HD-D8 future) |
+| GitHub Actions / Release publication | **Not implemented** |
+
+**Baseline `v1.0` reference values:**
+
+| Field | Value |
+|-------|-------|
+| Application version | `v1.0` |
+| Full Git SHA | `508cc280704ed72cc3e85df03e57bd6fb42d24ee` |
+| Archive SHA256 | `780bb0ea9157a326908afee593f3f7acbbf1c043903094c2bbd7072e4eb166a8` |
+| Trusted manifest | `deploy/docker/release-manifests/v1.0.env` |
+
+**Identity separation:** Git tag/version ≠ full Git SHA ≠ archive SHA256 ≠ image digest.
+
+Implementation evidence (OCI registry): **PENDING**.
+Implementation evidence (installer download): **PENDING**.
 
 ---
 
