@@ -2,9 +2,10 @@
 
 **Status:** Accepted roadmap (documentation only — **not** a release approval)  
 **Repository:** `svblab/lotto-game`  
-**Last reviewed against `main`:** `720f005` (2026-09-06)
+**Last reviewed against `main`:** `8c41891` (2026-09-06)
 
-**Release contract (G0):** [`docs/RELEASE_CONTRACT_V1.md`](RELEASE_CONTRACT_V1.md) — **READY FOR HUMAN APPROVAL** (not PASS)
+**Release contract (G0):** [`docs/RELEASE_CONTRACT_V1.md`](RELEASE_CONTRACT_V1.md) — **PASS** (H1)
+**G1 configuration (EPIC-16):** [`docs/G1_PRODUCTION_CONFIGURATION.md`](G1_PRODUCTION_CONFIGURATION.md) — **READY FOR HUMAN APPROVAL**
 
 **Related:** `docs/ROADMAP.md` (feature epics), `docs/ADMIN_VPS_DEPLOY.md` (production runbook)
 
@@ -223,7 +224,7 @@ Cursor **не** считает production готовым по локальным
 
 | Gate | Description | Priority | Executor | Decision | V1.0 blocker | Evidence |
 |------|-------------|----------|----------|----------|--------------|----------|
-| **G0** | Release Contract — [`RELEASE_CONTRACT_V1.md`](RELEASE_CONTRACT_V1.md) утверждён | P0 | Human + Cursor | Human (H1) | **YES** | H1 sign-off on contract @ SHA — **PREPARED, not PASS** |
+| **G0** | Release Contract — [`RELEASE_CONTRACT_V1.md`](RELEASE_CONTRACT_V1.md) утверждён | P0 | Human + Cursor | Human (H1) | **YES** | H1 sign-off — **PASS** |
 | **G1** | Canonical deployment на VPS | P0 | Cursor + Human | Human (H5) | **YES** | Install + health on target VPS @ SHA |
 | **G2** | Domain / DNS | P0 | Human | Human (H3, H4) | **YES** | DNS + curl/openssl checks |
 | **G3** | HTTPS / WSS live | P0 | Cursor + Human | Human (H5) | **YES** | `https://` + `wss://…/ws` handshake @ domain |
@@ -317,8 +318,8 @@ Cursor не подменяет H1–H9.
 |---|---|
 | **Goal** | Domain as config; WS URL derivable from public origin |
 | **Inputs** | H3 domain; template env file design |
-| **Deliverables** | `.env.example` entries; nginx `server_name`; `LOTTO_ALLOWED_ORIGINS` / future `APP_DOMAIN`; production meta tags documented |
-| **Checks** | No production domain string in `src/` or `public/js/` |
+| **Deliverables** | `.env.example` not required; `LOTTO_*` in systemd; production meta documented; `deploy/native/` templates |
+| **Checks** | No production domain in `src/` or `public/js/`; meta `/ws` contract |
 | **Acceptance** | Configuration review checklist PASS |
 | **Executor** | Cursor + Human |
 | **P0 blocker** | Part of G2/G3 |
@@ -504,7 +505,7 @@ Roadmap синтезируется в следующие Epic (номера **н
 | Epic | Scope |
 |------|-------|
 | **EPIC-15** | V1.0 Release Contract (G0, H1, evidence process) — **G0 PREPARED** (`RELEASE_CONTRACT_V1.md`) |
-| **EPIC-16** | Production Configuration & Domain (`APP_DOMAIN`, `.env.example`, meta/Origin alignment) |
+| **EPIC-16** | Production configuration & domain (`LOTTO_*`, meta, native templates) — **G1 READY** (`G1_PRODUCTION_CONFIGURATION.md`) |
 | **EPIC-17** | Canonical Production Deployment (install automation, path layout, G1) |
 | **EPIC-18** | Production Security & TLS (G3, G8, nginx hardening) |
 | **EPIC-19** | Production E2E & Recovery (G4, G5, G7) |

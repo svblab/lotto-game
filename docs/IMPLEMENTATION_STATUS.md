@@ -1,17 +1,22 @@
 # Implementation Status — Lotto Game Project
 
-## V1.0 Production Release — EPIC-15 (G0 Release Contract) (2026-09-06)
+## V1.0 Production Release — EPIC-15 / EPIC-16 (2026-09-06)
 
-Status: **G0 PREPARED — READY FOR HUMAN APPROVAL** (not PASS; not V1.0 ready).
+**G0:** **PASS** (H1 approved release contract @ `8c41891`)
 
-- [DONE] `docs/RELEASE_CONTRACT_V1.md` — canonical architecture, config, persistence, evidence, SHA/tag rules
-- [DONE] `docs/ROADMAP_V1_PRODUCTION.md` updated — OD-1..OD-5 resolved; G0 points to contract
-- [PENDING] **H1** — Human approval of release contract (G0 PASS)
-- [PENDING] G1–G11 production gates @ release SHA on operator VPS
+**EPIC-16 (G1 configuration):** **READY FOR HUMAN APPROVAL** (not PASS)
 
-**Note:** production **EPIC-15** (this section) ≠ feature **EPIC-15.x** (AFK cascade below).
+- [DONE] G0 — `docs/RELEASE_CONTRACT_V1.md` (H1 approved)
+- [DONE] EPIC-16 — configuration audit; `docs/G1_PRODUCTION_CONFIGURATION.md`
+- [DONE] Native templates — `deploy/native/` (systemd + nginx examples)
+- [DONE] No `APP_ENV`/`APP_DOMAIN`; `LOTTO_*` + HTML meta verified in code
+- [PENDING] **H3** — production domain (G2/G3 blocked)
+- [PENDING] Full G1 VPS install evidence @ release SHA (requires H2/H3)
+- [PENDING] G1 Human approval (configuration layer)
 
-Contract: `docs/RELEASE_CONTRACT_V1.md` · Roadmap: `docs/ROADMAP_V1_PRODUCTION.md`
+**Note:** production **EPIC-15–16** ≠ feature **EPIC-15.x** (AFK cascade below).
+
+Contract: `docs/RELEASE_CONTRACT_V1.md` · G1: `docs/G1_PRODUCTION_CONFIGURATION.md`
 
 ## EPIC-14.1 — Cloud-safe admin bootstrap (AHPC, ADR-038) (2026-09-05)
 

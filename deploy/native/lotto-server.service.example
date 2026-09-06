@@ -1,0 +1,23 @@
+# Canonical V1.0 native production — copy to /etc/systemd/system/lotto-server.service
+# Replace your-domain.com with Human-approved production domain (H3).
+# See docs/ADMIN_VPS_DEPLOY.md §3.5 and deploy/native/README.md
+
+[Unit]
+Description=Lotto WebSocket Server
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/lotto-game
+ExecStart=/usr/bin/php /opt/lotto-game/server.php start
+Restart=always
+RestartSec=5
+MemoryMax=400M
+MemoryHigh=350M
+Environment=LOTTO_ALLOWED_ORIGINS=https://your-domain.com
+Environment=LOTTO_TRUSTED_PROXY_IPS=127.0.0.1,::1
+
+[Install]
+WantedBy=multi-user.target

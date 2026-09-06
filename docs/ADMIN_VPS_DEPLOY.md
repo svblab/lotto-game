@@ -8,7 +8,9 @@
 
 Связанные документы (не обязательны для первого запуска):
 
-- `docs/RELEASE_CONTRACT_V1.md` — V1.0 release contract (G0); canonical production obligations
+- `docs/RELEASE_CONTRACT_V1.md` — V1.0 release contract (G0 PASS)
+- `docs/G1_PRODUCTION_CONFIGURATION.md` — G1 / EPIC-16 configuration verification
+- `deploy/native/` — canonical systemd + nginx **example** templates (`your-domain.com`)
 - `docs/ROADMAP_V1_PRODUCTION.md` — gates G0–G11 и путь к V1.0
 - `README.md` — краткий обзор и примеры конфигов
 - `docs/LOCAL_ENVIRONMENT.md` — тесты и переменные окружения
@@ -125,6 +127,8 @@ ADMIN PASSWORD:
 
 ### 3.5. systemd
 
+Шаблон в репозитории: `deploy/native/lotto-server.service.example` (замените `your-domain.com`).
+
 Создайте `/etc/systemd/system/lotto-server.service`:
 
 ```ini
@@ -162,6 +166,8 @@ sudo systemctl status lotto-server --no-pager
 Если статус `failed` — сразу §9 (часто виноваты права на `game.db` / `logs/`).
 
 ### 3.6. nginx + Let's Encrypt
+
+Шаблон в репозитории: `deploy/native/nginx-lotto-game.example.conf`.
 
 **Порядок:** сначала HTTP-виртуальный хост, потом сертификат, потом полный HTTPS-конфиг с `/ws`. Certbot не должен затереть `location /ws`.
 

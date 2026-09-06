@@ -1,12 +1,12 @@
 # V1.0 Release Contract
 
-**Document ID:** `RELEASE_CONTRACT_V1`  
-**Gate:** G0 (Release Contract)  
-**G0 status:** **READY FOR HUMAN APPROVAL** — not PASS; project is **not** V1.0 ready  
-**Prepared against `main`:** `720f005` (2026-09-06)  
-**Human approval required:** **H1** (explicit sign-off on this contract)
+**Document ID:** `RELEASE_CONTRACT_V1`
+**Gate:** G0 (Release Contract)
+**G0 status:** **PASS** (H1 approved 2026-09-06)
+**Prepared against `main`:** `8c41891` (2026-09-06)
+**G1 configuration (EPIC-16):** [`docs/G1_PRODUCTION_CONFIGURATION.md`](G1_PRODUCTION_CONFIGURATION.md) — **READY FOR HUMAN APPROVAL** (not PASS)
 
-**Parent roadmap:** [`docs/ROADMAP_V1_PRODUCTION.md`](ROADMAP_V1_PRODUCTION.md)  
+**Parent roadmap:** [`docs/ROADMAP_V1_PRODUCTION.md`](ROADMAP_V1_PRODUCTION.md)
 **Production runbook:** [`docs/ADMIN_VPS_DEPLOY.md`](ADMIN_VPS_DEPLOY.md)
 
 ---
@@ -494,9 +494,9 @@ G0 is **PREPARED** when all items below are true. G0 is **PASS** only after **H1
 | 12 | SHA / tag relationship documented (§16) | ✓ Prepared |
 | 13 | Open decisions explicitly listed (§18) | ✓ Prepared |
 | 14 | **No** production readiness claim in this document | ✓ Prepared |
-| 15 | **Human H1 approval** recorded | ⏳ **Pending** |
+| 15 | **Human H1 approval** recorded | ✓ **PASS** (2026-09-06) |
 
-**G0 gate status:** **READY FOR HUMAN APPROVAL** — not PASS.
+**G0 gate status:** **PASS** (H1 approved).
 
 ---
 
@@ -514,7 +514,7 @@ G0 is **PREPARED** when all items below are true. G0 is **PASS** only after **H1
 
 | Item | Owner | When |
 |------|-------|------|
-| **H1** — approve this release contract | Human | G0 PASS |
+| **H1** — approve this release contract | Human | **DONE** (G0 PASS) |
 | Production domain `<domain>` | Human (H3) | Before G2 |
 | VPS for production gates | Human (H2) | Before G1 |
 

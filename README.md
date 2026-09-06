@@ -197,8 +197,18 @@ sudo ufw deny 8080/tcp
 
 ### 3.5. Локальная разработка (без TLS)
 
-По умолчанию в `index.html`: `lotto-ws-port="8080"`, `lotto-ws-path=""`.
-Клиент подключается к `ws://localhost:8080`. Reverse proxy не нужен.
+В **репозитории** `public/index.html` уже содержит **production** meta-теги
+(`lotto-ws-port=""`, `lotto-ws-path="/ws"`) — для HTTPS за nginx.
+
+Для локальной разработки **без** reverse proxy временно задайте в `index.html`:
+
+```html
+<meta name="lotto-ws-port" content="8080">
+<meta name="lotto-ws-path" content="">
+```
+
+Клиент подключится к `ws://localhost:8080`. Не коммитьте dev-значения в `main`.
+Альтернатива: отдавать `public/` через nginx локально с `/ws` → `127.0.0.1:8080`.
 
 ### 3.6. Автообновление сертификата
 

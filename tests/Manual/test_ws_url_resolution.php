@@ -74,6 +74,12 @@ if ($html === false) {
     ok('public/index.html readable');
     str_contains($html, 'name="lotto-ws-port"') ? ok('index.html: lotto-ws-port meta present') : fail('index.html: lotto-ws-port meta present');
     str_contains($html, 'name="lotto-ws-path"') ? ok('index.html: lotto-ws-path meta present') : fail('index.html: lotto-ws-path meta present');
+    preg_match('/name="lotto-ws-port"\s+content=""/', $html)
+        ? ok('index.html: production lotto-ws-port empty (V1.0 contract)')
+        : fail('index.html: production lotto-ws-port empty (V1.0 contract)');
+    preg_match('/name="lotto-ws-path"\s+content="\/ws"/', $html)
+        ? ok('index.html: production lotto-ws-path /ws (V1.0 contract)')
+        : fail('index.html: production lotto-ws-path /ws (V1.0 contract)');
 }
 
 $cases = [
