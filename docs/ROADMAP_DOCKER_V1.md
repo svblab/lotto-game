@@ -697,6 +697,24 @@ see D2.1 / D3 validation.
 
 До реальной установки на VPS зафиксировать **Docker Installation Contract**.
 
+**Frozen (2026-09-06):** normative contract in
+[`docs/DOCKER_V1_EVIDENCE.md`](DOCKER_V1_EVIDENCE.md) § **D2.1 — FROZEN**.
+Summary below; evidence file is authoritative for D3 acceptance criteria.
+
+### Frozen installation contract (summary)
+
+| Area | Contract |
+|------|----------|
+| Supported host | HD-D7 certified OS + certification floors (Engine ≥ 24.0, Compose V2, 1 vCPU / 1 GiB / 5 GiB disk) |
+| Installer | `sudo ./deploy/docker/install.sh --release-archive <path>`; gaps vs HD-D8 documented in evidence |
+| Domain | HD-D8 order: `RUSBINGO_DOMAIN` → hostname → prompt; implementation gaps recorded |
+| Release | Immutable v1.1 archive → manifest SHA256 → extract → build; no overlay |
+| Topology | 1 container / 1 worker / 1 SQLite; multi-writer unsupported |
+| Networking | HD-D6: bridge + published ports; no `network_mode: host` |
+| Storage | Container-local `/app/data/game.db`; no host app state volume |
+| Post-install | Container healthy; HTTP + `/ws`; DB init; provenance match (D3 criteria) |
+| Uninstall | `remove.sh`; no persistent host game state (D10 validates later) |
+
 ### Domain resolution
 
 Supported UX (host-side installer only) — **see HD-D8** (approved):
@@ -749,8 +767,10 @@ not a persistent Docker volume.
 
 ### Acceptance
 
-- [ ] Installation contract document frozen in evidence D2.1
-- [ ] Human review of domain resolution and topology rules
+- [x] Installation contract document frozen in evidence D2.1 (2026-09-06)
+- [x] Human review of domain resolution and topology rules (HD-D6/HD-D7/HD-D8/HD-D9 approved)
+
+**D2.1 gate:** **FROZEN** — D3 **NOT STARTED**.
 
 ---
 

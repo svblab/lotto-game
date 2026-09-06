@@ -55,7 +55,7 @@ gates are PASS.
 | **D1** | Docker project architecture | PENDING | | | | |
 | **D1.1** | Artifact resolution | PENDING | | | | |
 | **D2** | Docker implementation audit | **AUDIT COMPLETE** | 2026-09-06 | `4f14b14` | n/a | See § D2 below — remediation required before D3 |
-| **D2.1** | Installation contract freeze | PENDING | | | | |
+| **D2.1** | Installation contract freeze | **FROZEN** | 2026-09-06 | `946c534` | n/a | See § D2.1 below |
 | **D3** | Clean installation | PENDING | | | | |
 | **D4** | Functional / browser E2E | PENDING | | | | |
 | **D5** | Persistence & container lifecycle | PENDING | | | | |
@@ -643,47 +643,246 @@ before D3. **No remediation performed in this audit.**
 
 ---
 
-## D2.1 — Installation contract freeze
+## D2.1 — Installation contract freeze — **FROZEN** (2026-09-06)
 
-### Human Decision HD-D7 — **APPROVED** (2026-09-06)
+**Status:** Contract frozen for D3 validation. **Not** implementation complete; gaps
+between contract/policy and current `deploy/docker/` scripts are explicitly recorded.
 
-**Certified minimum:** Ubuntu 22.04 LTS, Ubuntu 24.04 LTS, Debian 12.
+**Canonical application input (HD-D9 APPROVED):** Application **v1.1** —
+`ed42d7a2d278a7f27260fc06249b14bc1d638b6d`, archive SHA256
+`568f528bd32c854f637fb2c31afaeeefeb57aceb8a50331d0dd0daeae60e944a`, manifest
+`deploy/docker/release-manifests/v1.1.env`. NLD `v1.0` unchanged.
 
-**Compatibility:** other Linux if Docker Engine + Compose + system requirements met — not certified until validation matrix PASS.
+Normative contract sections below. **Certification/release floor** = V1 release
+requirement. **Installer enforcement** = future implementation (HD-D8); not required
+to be fully implemented at D2.1 freeze.
 
-**Certification/release floors (APPROVED 2026-09-06; installer enforcement separate):**
+---
 
-| Prerequisite | V1 floor |
-|--------------|----------|
-| Docker Engine | **≥ 24.0** |
-| Compose | **V2 plugin** (`docker compose`) |
-| Minimum VPS | **1 vCPU**, **1 GiB RAM**, **5 GiB** free disk |
+### 1. Supported host
 
-### Human Decision HD-D6 — **APPROVED** (2026-09-06)
+| Item | Certification / release floor (HD-D7 APPROVED) | Current installer enforcement |
+|------|-----------------------------------------------|------------------------------|
+| Certified OS | Ubuntu 22.04 LTS, Ubuntu 24.04 LTS, Debian 12 | `lotto_os_check`: Linux + debian/ubuntu only |
+| Compatibility OS | Other Linux with Docker + Compose + resources — **not certified** until matrix PASS | Same debian/ubuntu gate only |
+| Docker Engine | **≥ 24.0** | **GAP:** presence + daemon reachability only; no version floor |
+| Compose | **V2 plugin** (`docker compose`) | **Partial:** `docker compose version` required |
+| CPU | **≥ 1 vCPU** | **GAP:** not checked |
+| RAM | **≥ 1 GiB** | **GAP:** not checked (container default `mem_limit=256m`) |
+| Free disk | **≥ 5 GiB** | **GAP:** not checked |
+| Host capabilities | Docker Engine + Compose plugin; root/sudo for install scripts | `lotto_docker_check` |
 
-**Decision:** exclude `network_mode: host`. Canonical: Docker bridge network + published host:container ports. Re-adoption requires future Human Decision.
+---
 
-### Human Decision HD-D8 — **DECIDED** (2026-09-06)
+### 2. Installer entrypoint
 
-**Model:** Installer-first; Docker Engine installed by installer if absent; idempotency required (future implementation).
+| Item | Contract |
+|------|----------|
+| Canonical entrypoint | `sudo ./deploy/docker/install.sh` |
+| Root/sudo | **Required** (Docker socket, `/var/lib/lotto-game/`, port bind) |
+| Required input | `--release-archive PATH` (immutable application release archive) |
+| Default application version | `v1.1` (`--application-version` overrides manifest lookup) |
+| Default manifest | `deploy/docker/release-manifests/<version>.env` |
+| Non-interactive | `--non-interactive` → exit **42** when AHPC admin credential pending |
+| Success exit | **0** (or **42** for non-interactive handoff) |
+| Failure exit | Non-zero; `set -euo pipefail`; invalid args → **2** |
+| Auxiliary scripts | `healthcheck.sh`, `remove.sh`, `admin-bootstrap.sh` (not part of install contract) |
 
-**Domain resolution:** `RUSBINGO_DOMAIN` → hostname → interactive prompt (host installer only).
+**HD-D8 policy gaps (not D2.1 blockers):** unified RUSBINGO installer wrapper; Docker
+Engine bootstrap when absent; prerequisite version/resource enforcement.
 
-**Implementation evidence (still PENDING):**
+---
 
-- Domain resolution precedence documented
-- Install / uninstall commands
-- Upgrade model (future)
-- Persistence statement: no host application state
-- Topology: 1 container / 1 worker / 1 SQLite
+### 3. Domain resolution
+
+**Frozen policy order (HD-D8 APPROVED):**
+
+1. `RUSBINGO_DOMAIN` — if set and valid
+2. System hostname
+3. Interactive prompt if hostname unusable
+
+**Valid domain (D3 acceptance):** public FQDN matching
+`^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$`;
+for auto-detected origins, DNS **A record** must resolve (`lotto_validate_fqdn_dns`).
+
+**Current implementation (`install.sh` / `common.sh`):**
+
+| Policy step | Implemented | Notes |
+|-------------|-------------|-------|
+| `RUSBINGO_DOMAIN` | **GAP** | Not read; use `--allowed-origins` or auto-detect path |
+| Hostname | **Partial** | `lotto_detect_provisioning_fqdn`: static hostname via `hostnamectl` / `/etc/hostname` |
+| Interactive prompt | **GAP** | Not implemented |
+| Override (testing) | Yes | `LOTTO_PROVISIONING_FQDN_OVERRIDE` env (installer helper, not policy variable) |
+
+When FQDN auto-detect succeeds and `--allowed-origins` unset, installer sets
+`LOTTO_ALLOWED_ORIGINS` to `http://<fqdn>,https://<fqdn>`.
+
+In-container interactive domain configuration: **forbidden** (HD-D8).
+
+---
+
+### 4. Release acquisition
+
+**Required flow (contract):**
+
+```text
+distribution channel (HD-D4 V1: GitHub Releases — policy)
+    → immutable release archive file on host
+    → trusted release manifest (version, full Git SHA, archive SHA256)
+    → SHA256 verification
+    → verified extraction → LOTTO_BUILD_CONTEXT
+    → docker build (Dockerfile from verified context)
+    → container runtime
+```
+
+**Forbidden:** `latest` / `main` checkout as build input; floating archive identity;
+unverified archive; post-verification application overlay from `LOTTO_REPO_ROOT`.
+
+**Current implementation:** Operator supplies local `--release-archive`; manifest
+from `release-manifests/v1.1.env` by default; `lotto_prepare_instance_release_build`
+verifies SHA256 and extracts only. **GAP:** installer does not download from GitHub
+Releases (HD-D4 V1 channel policy; download implementation pending).
+
+---
+
+### 5. Container topology
+
+| Item | Contract |
+|------|----------|
+| Containers per instance | **One** application container (`lotto-<name>-app`) |
+| Workerman workers | **One** (`server.php` worker count = 1) |
+| SQLite databases | **One** per container (`/app/data/game.db`) |
+| Multi-writer / shared SQLite | **Unsupported** (D5.1 boundary test later) |
+| Multi-instance on one host | Tooling allows `--name`; **not** certified V1 production topology |
+
+---
+
+### 6. Ports and network contract
+
+**Networking (HD-D6 APPROVED):** Docker **bridge** network per instance
+(`lotto-<name>-net`). **`network_mode: host` excluded.**
+
+| Item | Contract |
+|------|----------|
+| HTTP | Published `${LOTTO_BIND_ADDRESS}:${LOTTO_HOST_PORT}` → container port (default **8080**) |
+| WebSocket | Same published port; path **`/ws`** (`LOTTO_WS_PATH=/ws`); SPA contract `lotto-ws-port=""` |
+| Bind address | Configurable (`--bind`; default **0.0.0.0**) |
+| Host port | Configurable (`--port`; default auto-pick or reuse from `instance.env`) |
+| Container port | Configurable (`--container-port`; default **8080**) |
+| TLS/WSS | **OPEN** — not part of V1 install contract |
+
+---
+
+### 7. Configuration
+
+| Layer | Variables / artifacts |
+|-------|----------------------|
+| Installer CLI | `--name`, `--port`, `--bind`, `--container-port`, `--mem-limit`, `--cpu-limit`, `--pids-limit`, `--allowed-origins`, `--trusted-proxy-ips`, `--max-accounts-per-ip`, `--application-version`, `--release-archive`, `--release-manifest`, `--non-interactive` |
+| Installer env (FQDN testing) | `LOTTO_PROVISIONING_FQDN_OVERRIDE`, `LOTTO_STATE_ROOT`, `LOTTO_APPLICATION_VERSION`, `LOTTO_RELEASE_ARCHIVE` |
+| Generated host metadata | `/var/lib/lotto-game/<instance>/instance.env` — image, build context, ports, provenance, compose project |
+| Verified release provenance | `/var/lib/lotto-game/<instance>/verified-release/release-provenance.env` |
+| Container environment | `LOTTO_WS_PORT`, `LOTTO_HTTP_PUBLIC`, `LOTTO_WS_PATH`, `LOTTO_DB_PATH`, `LOTTO_ALLOWED_ORIGINS`, `LOTTO_TRUSTED_PROXY_IPS`, `LOTTO_MAX_ACCOUNTS_PER_IP`, logging paths |
+| Immutable release metadata | `LOTTO_APPLICATION_VERSION`, `LOTTO_APPLICATION_GIT_SHA`, `LOTTO_RELEASE_ARCHIVE_SHA256` in manifest, `instance.env`, image build args |
+
+**Policy variable not yet wired:** `RUSBINGO_DOMAIN` (see §3 gap).
+
+---
+
+### 8. Storage and lifecycle contract
+
+| Item | Contract |
+|------|----------|
+| Database | `/app/data/game.db` inside container writable layer |
+| Writable paths | `/app/data/` (SQLite, Workerman PID file); `/tmp` (tmpfs) |
+| Host application state | **None** — no named app volume, no `game.db` bind mount |
+| Host metadata | `/var/lib/lotto-game/<instance>/` (instance.env, verified-release, AHPC pending) — **not** game state |
+| Survives container restart | Yes — same container filesystem |
+| Destroyed on container removal | Application state including `game.db` |
+| Backup | Exportable artifact only (D6 gate — **PENDING**); not a persistent volume |
+
+**Later validation:** D5 persistence/restart; D10 zero residue after uninstall.
+
+---
+
+### 9. Post-install verification (D3 acceptance criteria)
+
+Contract-level success **before** D3 execution:
+
+| Check | Method (current tooling) |
+|-------|---------------------------|
+| Container running | `docker ps`; `lotto_container_exists` |
+| Healthcheck passing | Compose healthcheck + `lotto_wait_healthy` (120s) |
+| HTTP reachable | `http://<bind>:<host-port>/` serves SPA from `/app/public` |
+| WebSocket reachable | `ws://<bind>:<host-port>/ws` (or WSS when TLS decided) |
+| Database initialized | `/app/data/game.db` exists in container |
+| Provenance matches release | `instance.env` + `release-provenance.env` agree with `v1.1` manifest |
+| Admin bootstrap (new install) | AHPC pending file; non-interactive exit **42** |
+
+**Not in contract:** TLS/WSS termination (OPEN).
+
+---
+
+### 10. Idempotency
+
+**Contract expectation (HD-D8):** Re-run must not create duplicate independent game
+servers or duplicate application state.
+
+**Current behavior:**
+
+| Scenario | Behavior |
+|----------|----------|
+| Re-run same `--name` | Updates image/container; reuses saved port/bind; skips `init_db` if `game.db` exists |
+| Fresh install failure | `cleanup_on_error` may remove partial instance (preserves AHPC pending) |
+| Different `--name` | Separate instance — **not** certified multi-instance V1 topology |
+
+**Gaps:** No unified installer guard against unsupported multi-instance production;
+HD-D8 full idempotency semantics pending implementation.
+
+---
+
+### 11. Failure boundary
+
+Practical contract (current `install.sh` behavior):
+
+| Stage | On failure |
+|-------|------------|
+| Prerequisite / OS / Docker | Error message; exit non-zero; no partial container |
+| Domain / origins auto-detect | FQDN/DNS failure skips auto origins (install may continue with empty `LOTTO_ALLOWED_ORIGINS`) |
+| Missing / invalid archive | Exit before build |
+| SHA256 verification | Exit before extract |
+| Extract / manifest | Exit before build context use |
+| Docker build / start | Exit; fresh install triggers partial cleanup |
+| DB init / healthcheck | Exit; fresh install triggers partial cleanup |
+| Rollback guarantee | **None** beyond partial instance cleanup on fresh-install ERR trap |
+
+---
+
+### 12. Uninstall boundary
+
+| Item | Contract |
+|------|----------|
+| Entrypoint | `sudo ./deploy/docker/remove.sh --name <instance> --yes` |
+| Must remove | Container, instance bridge network, instance image (if unshared), host metadata dir |
+| Must not retain | Persistent host `game.db`, application named volumes, application bind mounts |
+| Game state | Destroyed with container (no host recovery without D6 export) |
+
+**D10** will validate zero residue; contract defined here for later gate.
+
+---
+
+### Human Decision references (unchanged)
+
+HD-D2, HD-D6, HD-D7, HD-D9 remediation — **APPROVED** (see register above).
+
+### Contract freeze record
 
 | Field | Value |
 |-------|-------|
-| **Result** | PENDING |
-| **Date (UTC)** | |
-| **Tested SHA** | |
-| **Contract document link** | |
-| **Notes / findings** | |
+| **Result** | **FROZEN** |
+| **Date (UTC)** | 2026-09-06 |
+| **Branch / basis** | `fix/docker-hd-d9-provenance` (`fd84a48`, `946c534`) |
+| **Contract location** | This section + `ROADMAP_DOCKER_V1.md` § D2.1 |
+| **D3** | **NOT STARTED** |
 
 ---
 
