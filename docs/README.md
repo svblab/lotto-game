@@ -16,8 +16,9 @@ Native Linux Deployment (systemd + nginx + `/opt/lotto-game`) — **released** (
 
 ### Docker V1 — separate validation / release track
 
-Docker как **отдельный** installation/distribution target — **не released**; собственный
-цикл валидации D0–D12 и Human gate H-D1. Не заменяет и не изменяет NLD `v1.0`.
+Docker как **отдельный** installation/distribution target — **не released**;
+предварительные Human Decisions HD-D1–D4, HD-D7, HD-D8 зафиксированы в roadmap;
+собственный цикл валидации D0–D12 и Human gate H-D1. Не заменяет и не изменяет NLD `v1.0`.
 
 | Документ | Когда использовать |
 |----------|-------------------|

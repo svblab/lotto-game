@@ -191,7 +191,7 @@ Docker project — **отдельный проект/слой**, не второ
 
 **Decision:** **Immutable Release model** (variant B).
 
-> Каждый Docker release жёстко соответствует конкретному immutable application release.
+> Каждый Docker release жёстко связан с конкретным immutable application release.
 
 #### Release chain (RUSBINGO)
 
@@ -203,11 +203,7 @@ immutable release artifact
 SHA256 verification
     ↓
 Docker Release 1.0
-```
 
-При следующей модернизации приложения:
-
-```text
 Application v1.1
     ↓
 immutable release artifact
@@ -226,7 +222,30 @@ Docker Release 1.1  →  отдельный release, основанный на A
 ```
 
 Существующая установленная Docker версия **не должна автоматически получать
-изменения** из `main`, latest source или другого mutable источника.
+изменения** из:
+
+- `main`;
+- latest source;
+- mutable source archive;
+- floating application version.
+
+#### Release metadata / provenance (required)
+
+Docker version может иметь **собственную нумерацию**, но release metadata
+**обязана** сохранять provenance:
+
+| Field | Requirement |
+|-------|-------------|
+| Application version | Explicit (e.g. `v1.0`) |
+| Application Git SHA | **Full 40-character SHA** (normative documents, acceptance criteria, commands) |
+| Immutable artifact | Reference to the artifact used for build |
+| Artifact SHA256 | When applicable — recorded and verifiable |
+
+> Короткий SHA (`508cc28`) допускается **только** как визуальное сокращение в
+> prose. В нормативных документах, acceptance criteria и командах — **полный SHA**:
+> `508cc280704ed72cc3e85df03e57bd6fb42d24ee`.
+
+Storage, registry, tagging и upgrade implementation **не входят** в HD-D1.
 
 ### Architectural principles (HD-D1)
 
@@ -280,7 +299,7 @@ Baseline application release: tag **`v1.0`** → SHA
 | **Artifact identifier** | Application tag + SHA + SHA256 content hash |
 | **Verification mechanism** | SHA256 verification against D0 recorded hash |
 | **Checksum mismatch** | Build/install **MUST FAIL**; no silent fallback to `main` or working tree |
-| **Version pinning** | Docker release pinned to exactly one application release (e.g. `v1.0` / `508cc28`) |
+| **Version pinning** | Docker release pinned to exactly one application release (e.g. `v1.0` / `508cc280704ed72cc3e85df03e57bd6fb42d24ee`) |
 | **Release identity mapping** | Docker release identity → application release (one-to-one) |
 
 ### Acceptance
@@ -374,15 +393,115 @@ Audit and document:
 
 ## D2.1 — Installation contract freeze
 
+### Human Decision HD-D8 — **DECIDED** (2026-09-06)
+
+**Model:** Installer-first / automated installation.
+
+> Цель Docker V1 — позволить обычному пользователю установить игровой сервер на
+> чистый поддерживаемый Linux VPS с максимально возможной автоматизацией.
+
+#### Target installation flow
+
+```text
+Clean supported Linux VPS
+        ↓
+RUSBINGO installer
+        ↓
+OS compatibility check
+        ↓
+Docker Engine installation if absent
+        ↓
+Docker Compose availability/configuration
+        ↓
+Domain resolution
+        ↓
+Immutable RUSBINGO Docker image acquisition
+        ↓
+Image/provenance verification
+        ↓
+Container creation/start
+        ↓
+Post-install verification
+        ↓
+Working RUSBINGO server
+```
+
+**Key decision:** Docker Engine **не является обязательным предварительным
+условием** для конечного пользователя. Если Docker отсутствует, installer
+устанавливает Docker Engine сам.
+
+Installer **должен** (future implementation — not in scope now):
+
+| Step | Responsibility |
+|------|----------------|
+| Detect supported OS | HD-D7 compatibility / certified targets |
+| Check prerequisites | OS, resources (exact matrix — after D2/D3 audit) |
+| Install Docker Engine | If absent |
+| Ensure Compose functionality | Plugin or equivalent mechanism |
+| Acquire immutable Docker release | Per HD-D1 |
+| Configure domain | Per domain resolution below |
+| Start server | Single container topology |
+| Post-install verification | Smoke / health checks |
+| Present result to user | Server address and status |
+
+#### Domain resolution (approved)
+
+Deterministic precedence (host-side installer **only**):
+
+1. `RUSBINGO_DOMAIN` — if set and valid
+2. VPS hostname
+3. If hostname unsuitable — **interactive prompt**
+
+Interactive domain configuration occurs on the **host installer**, **not** inside
+the application container.
+
+#### Idempotency (future implementation requirement)
+
+> Повторный запуск installer не должен случайно создавать второй игровой server
+> или второй независимый application state.
+
+При существующей установке installer должен определить состояние и либо безопасно
+продолжить/проверить установку, либо явно сообщить пользователю о существующей
+установке. **Не реализуется** в рамках фиксации HD-D8.
+
+### Human Decision HD-D7 — **DECIDED** (2026-09-06)
+
+**Target audience:** пользователь может установить игровой сервер на Ubuntu **не
+старше 22.04**, Debian **не старше 12** или аналогичные Linux systems.
+
+#### Officially certified targets (minimum)
+
+| OS | Version |
+|----|---------|
+| Ubuntu | 22.04 LTS |
+| Ubuntu | 24.04 LTS |
+| Debian | 12 |
+
+#### Compatibility target (not certified)
+
+Допускается установка на другие Linux distributions, если они:
+
+- поддерживают требуемый Docker Engine;
+- поддерживают требуемый Compose mechanism;
+- удовлетворяют системным требованиям RUSBINGO.
+
+Такие ОС **не считаются officially supported/certified**, пока не прошли
+соответствующую validation matrix.
+
+> **Не** формулировать как «RUSBINGO поддерживает любой Linux».
+
+Матрица точных версий Docker Engine / Compose и минимальных VPS resources —
+**уточняется после D2/D3 audit**; не выдумывается на этапе policy decisions.
+
 ### Goal
 
 До реальной установки на VPS зафиксировать **Docker Installation Contract**.
 
 ### Domain resolution
 
-Supported UX (host-side installer only):
+Supported UX (host-side installer only) — **see HD-D8** (approved):
 
-1. `RUSBINGO_DOMAIN` — if explicitly set
+1. `RUSBINGO_DOMAIN` — if explicitly set and valid
 2. Else system hostname
 3. If hostname missing / invalid / unsuitable — **interactive prompt**
 
@@ -397,19 +516,19 @@ Supported UX (host-side installer only):
 
 ### Installation model
 
-Must define:
+**Installer-first model:** see **HD-D8** (approved). Must additionally define at
+D2.1 freeze / D3 validation (audit-dependent):
 
 | Item | To be specified |
 |------|-----------------|
-| Prerequisites | Docker Engine, Compose plugin, OS |
-| Supported OS | e.g. Debian/Ubuntu LTS (exact matrix — Human at D2.1) |
-| Required Docker version | Minimum tested version |
-| Required Compose version | Plugin vs standalone |
+| Prerequisites | Exact Docker Engine / Compose versions (after D2/D3 audit) |
+| Supported OS | **HD-D7** certified + compatibility targets |
 | Required ports | Host ports for HTTP/HTTPS/WSS upstream |
 | Filesystem assumptions | Host paths for install metadata only (no game data volume) |
 | Install command | Canonical entry point |
 | Uninstall command | Canonical entry point |
-| Upgrade model | How image/app version changes without breaking contract |
+| Upgrade model | Future decision (not HD-D1) |
+| Minimum VPS resources | After D2/D3 audit |
 
 ### Persistence model
 
@@ -443,8 +562,9 @@ not a persistent Docker volume.
 
 ### Checks
 
-- Docker installation (if not preinstalled — operator responsibility)
-- Image build or pull (per D1.1 artifact resolution)
+- OS compatibility check (HD-D7)
+- Docker installation by installer if absent (HD-D8 — not operator prerequisite)
+- Image build or pull (per D1.1 / HD-D1 artifact resolution)
 - Container creation
 - Application startup
 - Domain configuration
@@ -634,6 +754,40 @@ Each finding: severity, evidence, impact, disposition, PASS/FAIL.
 
 ## D8.1 — Image vulnerability scan
 
+### Human Decision HD-D2 — **DECIDED** (2026-09-06)
+
+**Policy:**
+
+| Severity | Rule |
+|----------|------|
+| **CRITICAL** | **Release blocker** — must be 0 at release |
+| **HIGH** | May be **ACCEPTED** only with **individual documented disposition** |
+
+HIGH vulnerability **сама по себе не блокирует** Docker release, если доказано,
+что vulnerability не exploitable / не применима к runtime scenario и это
+**обосновано**.
+
+**Insufficient:** generic statement such as «HIGH not exploitable» without
+per-finding justification.
+
+#### Required fields per accepted HIGH
+
+Each accepted HIGH **must** have separate evidence/disposition record:
+
+| Field | Required |
+|-------|-------------|
+| CVE / identifier | |
+| Severity | |
+| Affected component | |
+| Runtime affected | YES / NO |
+| Exploitability in supported RUSBINGO configuration | |
+| Technical justification | |
+| Disposition | ACCEPTED / REJECTED / MITIGATED |
+| Mitigation (if applicable) | |
+
+**Not decided by HD-D2:** numeric threshold for count of HIGH findings (separate
+decision if needed).
+
 ### Tool
 
 Reproducible scanner (e.g. **Trivy** or equivalent).
@@ -652,11 +806,12 @@ Reproducible scanner (e.g. **Trivy** or equivalent).
 ### Minimum threshold
 
 ```text
-CRITICAL = 0   (hard gate)
-HIGH       = policy defined separately with justification (Human at D8.1)
+CRITICAL = 0   (hard gate — HD-D2)
+HIGH       = individual disposition required per finding (HD-D2)
 ```
 
-**Forbidden:** arbitrary criteria such as «fewer than 5 CRITICAL».
+**Forbidden:** arbitrary criteria such as «fewer than 5 CRITICAL» or blanket
+«all HIGH accepted» without per-CVE evidence.
 
 ### Acceptance
 
@@ -758,7 +913,7 @@ No RUSBINGO game-server residue.
 
 ### Mandatory verification
 
-- Exact application release SHA (`v1.0` / `508cc28`)
+- Exact application release SHA (`v1.0` / `508cc280704ed72cc3e85df03e57bd6fb42d24ee`)
 - Exact Docker artifact / image identity (digest)
 - Clean working tree of Docker project at recorded SHA
 - Installation reproducibility
@@ -776,9 +931,9 @@ No RUSBINGO game-server residue.
 ### Release identity rule
 
 ```text
-docker_tested_application_sha  = v1.0 release SHA (508cc28)
+docker_tested_application_sha  = v1.0 release SHA (508cc280704ed72cc3e85df03e57bd6fb42d24ee)
 docker_tested_image_digest     = immutable image identity
-docker_released_image_digest   = docker_tested_image_digest  (at H-D1)
+docker_released_image_digest   = docker_tested_image_digest  (at H-D1 gate)
 ```
 
 ### Acceptance
@@ -799,8 +954,8 @@ Human (**H-D1**) must explicitly confirm:
 - [ ] Accepted P2/P3 findings listed
 - [ ] No unresolved P0/P1
 - [ ] Final Docker artifact / image identity
-- [ ] Final application release SHA (`v1.0` / `508cc28`)
-- [ ] Docker release naming / tagging decided
+- [ ] Final application release SHA (`v1.0` / `508cc280704ed72cc3e85df03e57bd6fb42d24ee`)
+- [ ] Docker release versioning / provenance per HD-D3
 
 Only after **H-D1** is Docker Release permitted.
 
@@ -808,15 +963,51 @@ Only after **H-D1** is Docker Release permitted.
 
 ## Docker release
 
+### Human Decision HD-D3 — **DECIDED** (2026-09-06)
+
+**Versioning policy:**
+
+> Docker release должен иметь явную связь с application version, но **не обязан**
+> использовать абсолютно тот же номер версии.
+
+| Rule | Detail |
+|------|--------|
+| Docker release version | May differ from application version |
+| Release metadata | **Must** explicitly state application version |
+| Provenance | **Required** to specific immutable application release |
+| Minimum traceability | `Docker Release → Application Version → Full Git SHA` |
+| Forbidden | Versioning scheme where application version cannot be determined from Docker release |
+
+**Not decided by HD-D3:** exact Docker release tag string, image tag naming.
+
+### Human Decision HD-D4 — **DECIDED** (2026-09-06)
+
+**Registry strategy:**
+
+> Сначала определить registry-independent contract; конкретный registry выбрать
+> до Docker Release. Архитектура не должна создавать препятствий для
+> последующей публикации через Docker Hub.
+
+| Rule | Detail |
+|------|--------|
+| Image portability | OCI/container-image portable |
+| Contract dependency | **Must not** depend on one registry's proprietary features |
+| Production evidence | Image identity via **immutable digest** when image is used |
+| Registry selection | **Not chosen yet** — mandatory before Docker Release |
+| Docker Hub | Architecture must not block future publication |
+
+**Not decided by HD-D4:** registry name, repository name, image tag, credentials,
+registry account.
+
 ### Identity
 
 | Rule | Detail |
 |------|--------|
-| Separate from NLD | Docker release has **own** version tag / image identity |
+| Separate from NLD | Docker release has **own** version identity (HD-D3) |
 | NLD `v1.0` | **Do not modify** |
+| Provenance | `Docker Release → Application Version → Full Git SHA` (HD-D3) |
 | `latest` tag | If used — **convenience alias only**, not sole release identity |
-| Preferred | Immutable version tag (e.g. `rusbingo-docker-v1.0.0` — exact name: Human decision) |
-| Registry | Image naming defined after registry selection (Human decision) |
+| Registry | Per HD-D4 — contract defined; specific registry TBD before release |
 
 ### Not in scope of this document
 
@@ -855,7 +1046,7 @@ All gate evidence: [`docs/DOCKER_V1_EVIDENCE.md`](DOCKER_V1_EVIDENCE.md).
 ```text
 gate_id:
 application_release_tag:    # v1.0
-application_release_sha:    # 508cc28
+application_release_sha:    # full 40-char SHA, e.g. 508cc280704ed72cc3e85df03e57bd6fb42d24ee
 docker_image_id:            # digest when applicable
 environment:                # docker-clean-vps | docker-staging | ...
 os:
@@ -875,17 +1066,25 @@ notes:
 
 ## Human decision register
 
-| ID | Decision | Status | Owner | When |
-|----|----------|--------|-------|------|
-| **HD-D1** | Immutable Release model (variant B) — artifact resolution architecture | **RESOLVED** (2026-09-06) | Human | D1.1 |
-| **HD-D2** | HIGH vulnerability threshold policy (D8.1) | Open | Human | Before D8.1 PASS |
-| **HD-D3** | Docker release naming / tagging | Open | Human | Before H-D1 |
-| **HD-D4** | Container registry and image naming | Open | Human | Before Docker release |
-| **HD-D5** | Remediation of ADR-036 named-volume implementation vs Docker V1 contract | Open | Human | After D2 audit |
-| **HD-D6** | `network_mode: host` — justify or exclude | Open | Human | D2 audit |
-| **HD-D7** | Supported OS matrix (exact versions) | Open | Human | D2.1 freeze |
-| — | Artifact storage / delivery mechanism (where artifact is hosted) | Open | Human | Before D3 |
-| — | Upgrade command, procedure, SQLite migration | Open | Human | Future (post HD-D1) |
+**Legend:** **Policy** = preliminary Human decision (contract); **Audit** = requires
+D2/D3 validation or implementation evidence before gate PASS.
+
+| ID | Decision | Type | Status | Date |
+|----|----------|------|--------|------|
+| **HD-D1** | Immutable Release model — artifact resolution architecture | Policy | **DECIDED** | 2026-09-06 |
+| **HD-D2** | HIGH vulnerability disposition policy (CRITICAL=0; HIGH per-finding) | Policy | **DECIDED** | 2026-09-06 |
+| **HD-D3** | Docker release versioning / provenance linkage | Policy | **DECIDED** | 2026-09-06 |
+| **HD-D4** | Registry-independent contract (registry TBD before release) | Policy | **DECIDED** | 2026-09-06 |
+| **HD-D5** | ADR-036 named-volume remediation vs Docker V1 contract | Audit | Open | After D2 |
+| **HD-D6** | `network_mode: host` — justify or exclude | Audit | Open | D2 audit |
+| **HD-D7** | Supported OS targets (certified + compatibility) | Policy | **DECIDED** | 2026-09-06 |
+| **HD-D8** | Installer-first / automated installation model | Policy | **DECIDED** | 2026-09-06 |
+| — | Artifact storage / delivery mechanism | Policy | Open | Before D3 |
+| — | Exact Docker Engine / Compose versions | Audit | Open | After D2/D3 |
+| — | Minimum VPS resources | Audit | Open | After D2/D3 |
+| — | Specific registry, repository, image tag, credentials | Implementation | Open | Before Docker Release |
+| — | Upgrade command, procedure, SQLite migration | Future | Open | Post HD-D1 |
+| — | Numeric HIGH count threshold | Policy | Open | If needed |
 
 ---
 

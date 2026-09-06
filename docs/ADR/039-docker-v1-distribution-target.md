@@ -57,37 +57,83 @@ forking application logic and without revising NLD V1.0.
    subsequent implementation epics.
 
 6. **No application fork.** Docker build must consume an **immutable** application
-   release artifact tied to `v1.0` / `508cc28`, not a silently moving `main` branch.
+   release artifact tied to `v1.0` /
+   `508cc280704ed72cc3e85df03e57bd6fb42d24ee`, not a silently moving `main`
+   branch, latest source, mutable source archive, or floating application version.
 
-7. **Immutable Release model (HD-D1, accepted 2026-09-06).** Each Docker release
+7. **Immutable Release model (HD-D1, decided 2026-09-06).** Each Docker release
    corresponds **exactly** to one immutable application release:
 
    ```text
-   Application release (tag + SHA)
+   Application release (tag + full SHA)
        → immutable release artifact
        → SHA256 verification
        → Docker release (separate identity)
    ```
 
-   - Docker release identity must unambiguously identify the application release
-     it was built from.
+   - Release metadata must preserve provenance: application version, **full
+     40-character Git SHA**, immutable artifact reference, artifact SHA256 when
+     applicable.
+   - Docker version numbering may differ from application version (HD-D3).
    - An existing Docker installation **must not** automatically receive changes
-     from `main`, latest source, or any other mutable source when a new application
-     release appears.
-   - A new application release produces a **separate** Docker release; coexistence
-     of Docker Release N on Application vN while Application vN+1 exists is
-     expected and correct.
-   - Upgrade of an existing installation to a newer Docker release is a **future
-     operation** — not defined by HD-D1.
+     from `main`, latest source, mutable source archive, or floating application
+     version when a new application release appears.
+   - A new application release produces a **separate** Docker release.
+   - Upgrade of an existing installation is a **future operation** — not
+     defined by HD-D1.
 
-   HD-D1 does **not** decide: artifact storage location, registry, image naming,
-   Docker release tag naming, upgrade command/procedure, backup-before-upgrade, or
-   SQLite migration mechanism (see roadmap Human decision register).
+   HD-D1 does **not** decide: artifact storage, registry, image naming, release
+   tag naming, upgrade implementation.
+
+8. **Docker release versioning (HD-D3, decided 2026-09-06).**
+   - Docker release version and application version **may differ**.
+   - Docker release metadata **must** explicitly state application version.
+   - Minimum traceability: `Docker Release → Application Version → Full Git SHA`.
+   - Versioning schemes that hide the underlying application version are
+     **forbidden**.
+
+9. **Registry-independent contract (HD-D4, decided 2026-09-06).**
+   - Docker images must remain OCI/container-image **portable**.
+   - Docker V1 contract must **not** depend on one registry's proprietary features.
+   - Production evidence must use **immutable image digest** when an image is used.
+   - Specific registry is **not chosen yet** — mandatory before Docker Release.
+   - Architecture must **not** block future publication via Docker Hub.
+   - HD-D4 does **not** decide: registry name, repository, image tag, credentials.
+
+10. **Supported OS targets (HD-D7, decided 2026-09-06).**
+    - **Officially certified minimum:** Ubuntu 22.04 LTS, Ubuntu 24.04 LTS,
+      Debian 12.
+    - Other Linux distributions may be **compatible** if they support required
+      Docker Engine, Compose mechanism, and system requirements — but are **not
+      officially certified** until validation matrix PASS.
+    - Do **not** claim «any Linux is supported».
+    - Exact Docker Engine / Compose versions and minimum VPS resources — after
+      D2/D3 audit (not decided now).
+
+11. **Installer-first installation model (HD-D8, decided 2026-09-06).**
+    - Goal: ordinary user installs game server on clean supported Linux VPS with
+      maximum automation via RUSBINGO installer.
+    - Docker Engine is **not** a user prerequisite — installer installs it if
+      absent.
+    - Installer must perform OS check, prerequisites, Docker/Compose setup,
+      domain resolution, immutable image acquisition, provenance verification,
+      container start, post-install verification, and present server address.
+    - Domain resolution (host installer): `RUSBINGO_DOMAIN` → hostname →
+      interactive prompt; no in-container interactive config.
+    - **Idempotency** (future): re-run must not accidentally create second server
+      or independent application state.
+    - HD-D8 is **policy only** — not implemented in this ADR.
+
+12. **HIGH vulnerability policy (HD-D2, decided 2026-09-06).**
+    - CRITICAL vulnerabilities: **release blocker** (must be 0).
+    - HIGH: may be ACCEPTED only with **individual documented disposition**
+      proving non-exploitability / non-applicability to supported runtime.
+    - Generic «HIGH not exploitable» without per-CVE evidence is **insufficient**.
+    - Numeric HIGH count threshold — **not decided**.
 
    Because Docker V1 stores application state inside the container filesystem,
    any future upgrade between immutable Docker releases must account for game
-   state preservation/restoration (D6 Backup/Restore scope); upgrade is **not**
-   designed or implemented as part of HD-D1.
+   state preservation/restoration (D6); upgrade is **not** designed here.
 
 ## Consequences
 

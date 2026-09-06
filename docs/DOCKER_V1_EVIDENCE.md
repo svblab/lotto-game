@@ -8,6 +8,23 @@ This document defines the **structure** of evidence for Docker V1 validation.
 Results are filled in as gates are executed. **Do not** mark PASS without
 executed procedure and recorded artifacts.
 
+**Policy vs implementation:** Human Decisions marked **DECIDED** below are
+approved **policy/contract** only. They do **not** imply D2/D3/D4… implementation
+gates are PASS.
+
+---
+
+## Human decision register (approved policy)
+
+| ID | Decision | Status | Date | Implementation evidence |
+|----|----------|--------|------|-------------------------|
+| **HD-D1** | Immutable Release model | **DECIDED** | 2026-09-06 | PENDING (D1.1) |
+| **HD-D2** | HIGH vulnerability disposition policy | **DECIDED** | 2026-09-06 | PENDING (D8.1 scan) |
+| **HD-D3** | Docker release versioning / provenance | **DECIDED** | 2026-09-06 | PENDING (release packaging) |
+| **HD-D4** | Registry-independent contract | **DECIDED** | 2026-09-06 | PENDING (registry selection) |
+| **HD-D7** | Supported OS targets | **DECIDED** | 2026-09-06 | PENDING (D3 validation matrix) |
+| **HD-D8** | Installer-first / automated installation | **DECIDED** | 2026-09-06 | PENDING (installer implementation) |
+
 ---
 
 ## Release identity (to be confirmed at D12 / H-D1)
@@ -17,9 +34,8 @@ executed procedure and recorded artifacts.
 | Application release tag | `v1.0` |
 | Application release SHA | `508cc280704ed72cc3e85df03e57bd6fb42d24ee` |
 | Application artifact hash (D0) | `sha256:780bb0ea9157a326908afee593f3f7acbbf1c043903094c2bbd7072e4eb166a8` |
-| Docker image name | *TBD (Human — HD-D4)* |
-| Docker image digest | *TBD* |
-| Docker release tag | *TBD (Human — HD-D3)* |
+| Docker release version | *TBD — HD-D3 allows independent numbering; must link to app version* |
+| Docker image digest | *TBD (HD-D4 — digest-based identity when image used)* |
 | NLD `v1.0` tag | **Unchanged** |
 
 ---
@@ -87,26 +103,27 @@ executed procedure and recorded artifacts.
 
 ## D1.1 — Artifact resolution
 
-### Human Decision HD-D1 — **ACCEPTED** (2026-09-06)
+### Human Decision HD-D1 — **DECIDED** (2026-09-06)
 
 **Model:** Immutable Release (variant B).
 
-> Каждый Docker release жёстко соответствует конкретному immutable application release.
+> Каждый Docker release жёстко связан с конкретным immutable application release.
 
 | Principle | Status |
 |-----------|--------|
-| Immutable application release artifact | **ACCEPTED** |
-| Artifact tied to specific application tag/release | **ACCEPTED** |
-| SHA256 verification required | **ACCEPTED** |
-| No dependency on mutable `main` | **ACCEPTED** |
-| Docker release identity maps to application release | **ACCEPTED** |
-| Existing installation does not auto-update on new app release | **ACCEPTED** |
-| New application release → separate Docker release | **ACCEPTED** |
+| Immutable application release artifact | **DECIDED** |
+| Artifact tied to specific application tag/release | **DECIDED** |
+| SHA256 verification required | **DECIDED** |
+| No dependency on mutable `main` / latest / floating version | **DECIDED** |
+| Release metadata: app version + full 40-char SHA + artifact + SHA256 | **DECIDED** |
+| Docker release identity maps to application release | **DECIDED** |
+| Existing installation does not auto-update on new app release | **DECIDED** |
+| New application release → separate Docker release | **DECIDED** |
 | Upgrade of existing installation | **Out of scope** (future decision) |
 
-**Not decided by HD-D1:** artifact storage location, registry, image naming, release tag naming, upgrade command/procedure, backup-before-upgrade, SQLite migration.
+**Not decided by HD-D1:** artifact storage, registry, image naming, release tag naming, upgrade.
 
-**Expected evidence (implementation — still pending):**
+**Implementation evidence (still PENDING):**
 
 - Artifact delivery mechanism documented (storage — separate decision)
 - SHA256 verification demonstrated at build/install
@@ -115,11 +132,11 @@ executed procedure and recorded artifacts.
 
 | Field | Value |
 |-------|-------|
-| **HD-D1 decision** | **ACCEPTED** |
+| **HD-D1 decision** | **DECIDED** |
 | **Decision date (UTC)** | 2026-09-06 |
 | **Model** | Immutable Release (variant B) |
 | **Implementation result** | PENDING |
-| **Tested SHA** | |
+| **Baseline application SHA** | `508cc280704ed72cc3e85df03e57bd6fb42d24ee` |
 | **Artifact source** | *TBD — not HD-D1* |
 | **Verification command** | |
 | **Notes / findings** | |
@@ -150,12 +167,25 @@ executed procedure and recorded artifacts.
 
 ## D2.1 — Installation contract freeze
 
-**Expected evidence:**
+### Human Decision HD-D7 — **DECIDED** (2026-09-06)
+
+**Certified minimum:** Ubuntu 22.04 LTS, Ubuntu 24.04 LTS, Debian 12.
+
+**Compatibility:** other Linux if Docker Engine + Compose + system requirements met — not certified until validation matrix PASS.
+
+**Not decided:** exact Docker Engine / Compose versions, minimum VPS resources (after D2/D3 audit).
+
+### Human Decision HD-D8 — **DECIDED** (2026-09-06)
+
+**Model:** Installer-first; Docker Engine installed by installer if absent; idempotency required (future implementation).
+
+**Domain resolution:** `RUSBINGO_DOMAIN` → hostname → interactive prompt (host installer only).
+
+**Implementation evidence (still PENDING):**
 
 - Domain resolution precedence documented
-- Prerequisites, OS, Docker/Compose versions
 - Install / uninstall commands
-- Upgrade model
+- Upgrade model (future)
 - Persistence statement: no host application state
 - Topology: 1 container / 1 worker / 1 SQLite
 
@@ -306,7 +336,19 @@ executed procedure and recorded artifacts.
 
 ## D8.1 — Image vulnerability scan
 
-**Expected evidence:**
+### Human Decision HD-D2 — **DECIDED** (2026-09-06)
+
+| Severity | Policy |
+|----------|--------|
+| CRITICAL | Release blocker (must be 0) |
+| HIGH | May be ACCEPTED only with individual documented disposition |
+
+Per-accepted-HIGH evidence required: CVE, severity, affected component, runtime
+affected (Y/N), exploitability, justification, disposition, mitigation if any.
+
+**Not decided:** numeric HIGH count threshold.
+
+**Scan implementation evidence (still PENDING):**
 
 - Scanner name + version
 - Image digest scanned
@@ -416,6 +458,37 @@ executed procedure and recorded artifacts.
 | **Final image digest** | |
 | **Docker release tag** | |
 | **Notes** | |
+
+---
+
+## HD-D3 — Docker release versioning (policy)
+
+**Status:** **DECIDED** (2026-09-06)
+
+| Rule | Status |
+|------|--------|
+| Docker version may differ from application version | **DECIDED** |
+| Metadata must state application version | **DECIDED** |
+| Provenance: Docker Release → Application Version → Full Git SHA | **DECIDED** |
+| Exact Docker release tag string | **Not decided** |
+
+Implementation evidence: PENDING.
+
+---
+
+## HD-D4 — Registry strategy (policy)
+
+**Status:** **DECIDED** (2026-09-06)
+
+| Rule | Status |
+|------|--------|
+| OCI/container-image portable | **DECIDED** |
+| No dependency on one registry's proprietary features | **DECIDED** |
+| Production evidence uses immutable digest | **DECIDED** |
+| Must not block future Docker Hub publication | **DECIDED** |
+| Specific registry / repository / tag / credentials | **Not decided** |
+
+Implementation evidence: PENDING.
 
 ---
 
