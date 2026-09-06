@@ -49,15 +49,9 @@ if [[ "${ASSUME_YES}" -ne 1 ]]; then
 fi
 
 lotto_info "Stopping instance '${INSTANCE}'..."
-lotto_compose_cmd "${INSTANCE}" down --remove-orphans --volumes >/dev/null 2>&1 || true
+lotto_compose_cmd "${INSTANCE}" down --remove-orphans >/dev/null 2>&1 || true
 
-if lotto_volume_exists "${LOTTO_VOLUME_NAME}"; then
-    lotto_info "Removing volume ${LOTTO_VOLUME_NAME}..."
-    docker volume rm "${LOTTO_VOLUME_NAME}" >/dev/null 2>&1 || {
-        lotto_err "Failed to remove volume ${LOTTO_VOLUME_NAME}."
-        exit 1
-    }
-fi
+lotto_remove_legacy_application_volume "${INSTANCE}" || exit 1
 
 if docker network inspect "${LOTTO_NETWORK_NAME}" >/dev/null 2>&1; then
     docker network rm "${LOTTO_NETWORK_NAME}" >/dev/null 2>&1 || true
@@ -79,8 +73,9 @@ if docker ps -a --format '{{.Names}}' | grep -qx "${LOTTO_CONTAINER_NAME}"; then
     lotto_err "Container still exists: ${LOTTO_CONTAINER_NAME}"
     FAIL=1
 fi
-if lotto_volume_exists "${LOTTO_VOLUME_NAME}"; then
-    lotto_err "Volume still exists: ${LOTTO_VOLUME_NAME}"
+legacy_volume="$(lotto_legacy_volume_name "${INSTANCE}")"
+if lotto_volume_exists "${legacy_volume}"; then
+    lotto_err "Legacy application volume still exists: ${legacy_volume}"
     FAIL=1
 fi
 if [[ -d "$(lotto_instance_dir "${INSTANCE}")" ]]; then

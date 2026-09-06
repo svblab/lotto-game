@@ -1222,7 +1222,7 @@ D2/D3 validation or implementation evidence before gate PASS.
 | **HD-D2** | HIGH vulnerability disposition policy (CRITICAL=0; HIGH per-finding) | Policy | **DECIDED** | 2026-09-06 |
 | **HD-D3** | Docker release versioning / provenance linkage | Policy | **DECIDED** | 2026-09-06 |
 | **HD-D4** | Registry-independent contract (registry TBD before release) | Policy | **DECIDED** | 2026-09-06 |
-| **HD-D5** | ADR-036 named-volume remediation vs Docker V1 contract | Audit | **OPEN** | After D2 — **D2 audit confirms FAIL**; remediation required |
+| **HD-D5** | ADR-036 named-volume remediation vs Docker V1 contract | Audit | **REMEDIATED** | 2026-09-06 — implementation commit; D3/D10 validation **PENDING** |
 | **HD-D6** | `network_mode: host` — justify or exclude | Audit | **Recommend CLOSE** | D2 audit: not used in `compose.yaml` |
 | **HD-D7** | Supported OS targets (certified + compatibility) | Policy | **DECIDED** | 2026-09-06 |
 | **HD-D8** | Installer-first / automated installation model | Policy | **DECIDED** | 2026-09-06 |

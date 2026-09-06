@@ -9,7 +9,8 @@ services:
       dockerfile: deploy/docker/Dockerfile
     container_name: ${LOTTO_CONTAINER_NAME}
     restart: unless-stopped
-    read_only: true
+    # Writable /app/data lives in the container filesystem (HD-D5). read_only is
+    # incompatible with container-local SQLite without host volumes or tmpfs.
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -29,8 +30,6 @@ services:
       LOTTO_ALLOWED_ORIGINS: ${LOTTO_ALLOWED_ORIGINS:-}
       LOTTO_TRUSTED_PROXY_IPS: ${LOTTO_TRUSTED_PROXY_IPS:-}
       LOTTO_MAX_ACCOUNTS_PER_IP: ${LOTTO_MAX_ACCOUNTS_PER_IP:-}
-    volumes:
-      - data:/app/data
     ports:
       - "${LOTTO_BIND_ADDRESS:-127.0.0.1}:${LOTTO_HOST_PORT}:${LOTTO_CONTAINER_PORT:-8080}"
     healthcheck:
@@ -45,7 +44,3 @@ services:
 networks:
   lotto:
     name: ${LOTTO_NETWORK_NAME}
-
-volumes:
-  data:
-    name: ${LOTTO_VOLUME_NAME}

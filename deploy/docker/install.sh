@@ -89,11 +89,9 @@ fi
 
 STATE_DIR="$(lotto_instance_dir "${INSTANCE}")"
 METADATA_EXISTS=0
-VOLUME_NAME="lotto-${INSTANCE}-data"
 if lotto_instance_metadata_exists "${INSTANCE}"; then
     METADATA_EXISTS=1
     lotto_load_instance_env "${INSTANCE}"
-    VOLUME_NAME="${LOTTO_VOLUME_NAME}"
     if [[ -z "${HOST_PORT}" ]]; then
         HOST_PORT="${LOTTO_HOST_PORT}"
     fi
@@ -130,37 +128,35 @@ lotto_write_instance_env \
 lotto_load_instance_env "${INSTANCE}"
 
 NEW_DATABASE=0
-if ! lotto_volume_exists "${LOTTO_VOLUME_NAME}"; then
-    if [[ "${METADATA_EXISTS}" -eq 1 ]]; then
-        lotto_err "Instance metadata exists but volume ${LOTTO_VOLUME_NAME} is missing."
-        lotto_err "Run: sudo ./deploy/docker/remove.sh --name ${INSTANCE} --yes  then reinstall."
-        exit 1
-    fi
+if [[ "${METADATA_EXISTS}" -eq 0 ]]; then
     NEW_DATABASE=1
     FRESH_INSTALL=1
-    lotto_info "Creating new instance '${INSTANCE}' (volume ${LOTTO_VOLUME_NAME})..."
+    lotto_info "Creating new instance '${INSTANCE}'..."
 else
-    lotto_info "Updating existing instance '${INSTANCE}' (preserving volume ${LOTTO_VOLUME_NAME})..."
+    lotto_info "Updating existing instance '${INSTANCE}'..."
 fi
 
 lotto_info "Building image ${LOTTO_IMAGE}..."
 lotto_compose_cmd "${INSTANCE}" build --pull
 
-if [[ "${NEW_DATABASE}" -eq 1 ]]; then
-    lotto_info "Preparing data volume permissions..."
-    lotto_prepare_data_volume "${LOTTO_VOLUME_NAME}" "${LOTTO_IMAGE}"
-    lotto_info "Initializing SQLite database..."
-    lotto_compose_cmd "${INSTANCE}" run --rm --no-deps \
-        --entrypoint php \
-        -e LOTTO_DB_PATH=/app/data/game.db \
-        -e LOTTO_ADMIN_BOOTSTRAP_FILE=/app/data/.admin_bootstrap \
-        app init_db.php
-    lotto_info "Promoting admin bootstrap credential to AHPC pending file..."
-    lotto_promote_docker_bootstrap_credential "${INSTANCE}" "${LOTTO_IMAGE}" "${LOTTO_VOLUME_NAME}"
-fi
-
 lotto_info "Starting container ${LOTTO_CONTAINER_NAME}..."
 lotto_compose_cmd "${INSTANCE}" up -d --remove-orphans
+
+if [[ "${NEW_DATABASE}" -eq 1 ]] || ! lotto_db_exists_in_container "${INSTANCE}"; then
+    if [[ "${NEW_DATABASE}" -eq 0 ]]; then
+        lotto_info "Database not found in container; initializing SQLite..."
+    else
+        lotto_info "Initializing SQLite database..."
+    fi
+    lotto_compose_cmd "${INSTANCE}" exec -T \
+        -e LOTTO_DB_PATH=/app/data/game.db \
+        -e LOTTO_ADMIN_BOOTSTRAP_FILE=/app/data/.admin_bootstrap \
+        app php init_db.php
+    if [[ "${NEW_DATABASE}" -eq 1 ]]; then
+        lotto_info "Promoting admin bootstrap credential to AHPC pending file..."
+        lotto_promote_docker_bootstrap_credential "${INSTANCE}"
+    fi
+fi
 
 lotto_info "Waiting for healthcheck..."
 lotto_wait_healthy "${INSTANCE}" 120

@@ -190,8 +190,6 @@ forking application logic and without revising NLD V1.0.
 
 **Negative**
 
-- Existing `deploy/docker/compose.yaml` (named volume `data:/app/data`) **conflicts**
-  with Docker V1 contract until remediated — must be caught in D2 audit.
 - Existing `deploy/docker/configure-proxy.sh` (host nginx + host `public/`) **conflicts**
   with HD-D10 until remediated.
 - Container removal without backup **destroys** game data — operators must use

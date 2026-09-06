@@ -210,9 +210,7 @@ test_docker_ahpc_integration() {
         --name "${instance}" read --format=json | python3 -c 'import json,sys; print(json.load(sys.stdin)["password"])')"
     lotto_load_instance_env "${instance}"
     db_tmp="$(mktemp)"
-    docker run --rm --entrypoint cat \
-        -v "${LOTTO_VOLUME_NAME}:/app/data:ro" \
-        "${LOTTO_IMAGE}" /app/data/game.db >"${db_tmp}"
+    lotto_compose_cmd "${instance}" exec -T app cat /app/data/game.db >"${db_tmp}"
     assert_true "pending password verifies against db" lotto_ahpc_verify_login_password "${db_tmp}" "${password}"
     rm -f "${db_tmp}"
 
@@ -241,9 +239,7 @@ test_docker_ahpc_integration() {
 
     LOTTO_STATE_ROOT="${tmp_root}/state" bash "${DEPLOY_DIR}/admin-bootstrap.sh" --name "${instance}" reset
     db_tmp="$(mktemp)"
-    docker run --rm --entrypoint cat \
-        -v "${LOTTO_VOLUME_NAME}:/app/data:ro" \
-        "${LOTTO_IMAGE}" /app/data/game.db >"${db_tmp}"
+    lotto_compose_cmd "${instance}" exec -T app cat /app/data/game.db >"${db_tmp}"
     assert_false "old password fails after reset" lotto_ahpc_verify_login_password "${db_tmp}" "${password}"
     new_password="$(LOTTO_STATE_ROOT="${tmp_root}/state" bash "${DEPLOY_DIR}/admin-bootstrap.sh" \
         --name "${instance}" read --format=json | python3 -c 'import json,sys; print(json.load(sys.stdin)["password"])')"

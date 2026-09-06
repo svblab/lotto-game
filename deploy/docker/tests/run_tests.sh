@@ -59,6 +59,41 @@ skip() {
     echo "SKIP: ${desc}"
 }
 
+assert_not_contains() {
+    local desc="$1"
+    local haystack="$2"
+    local needle="$3"
+    TESTS_RUN=$((TESTS_RUN + 1))
+    if [[ "${haystack}" == *"${needle}"* ]]; then
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+        echo "FAIL: ${desc} (unexpected substring present)" >&2
+    else
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+        echo "PASS: ${desc}"
+    fi
+}
+
+test_compose_no_application_volumes() {
+    echo "--- compose application volume policy ---"
+    assert_false "compose.yaml declares named volumes" grep -q '^volumes:' "${LOTTO_COMPOSE_FILE}"
+    assert_false "compose.yaml mounts data:/app/data" grep -q 'data:/app/data' "${LOTTO_COMPOSE_FILE}"
+
+    if ! lotto_docker_check >/dev/null 2>&1; then
+        skip "Docker not available — compose config volume check skipped"
+        return 0
+    fi
+
+    local tmp_root env_file rendered
+    tmp_root="$(mktemp -d)"
+    LOTTO_STATE_ROOT="${tmp_root}/state"
+    lotto_write_instance_env "cfgtest" 18099 "127.0.0.1" 8080 "256m" "0.5" 256 "" "" ""
+    env_file="$(lotto_instance_env_file cfgtest)"
+    rendered="$(docker compose -f "${LOTTO_COMPOSE_FILE}" --env-file "${env_file}" -p lotto-cfgtest config)"
+    assert_not_contains "rendered compose has no data:/app/data" "${rendered}" "data:/app/data"
+    assert_not_contains "rendered compose has no named app volume" "${rendered}" "lotto-cfgtest-data"
+    rm -rf "${tmp_root}"
+}
+
 test_instance_name_validation() {
     echo "--- instance name validation ---"
     assert_true "default is valid" lotto_validate_instance_name "default"
@@ -84,8 +119,8 @@ test_compose_env_generation() {
     assert_true "metadata file created" test -f "${tmp_root}/state/test01/instance.env"
     lotto_load_instance_env "test01"
     assert_eq "instance name recorded" "test01" "${LOTTO_INSTANCE}"
-    assert_eq "volume name" "lotto-test01-data" "${LOTTO_VOLUME_NAME}"
     assert_eq "host port" "8099" "${LOTTO_HOST_PORT}"
+    assert_false "no application volume in metadata" bash -c 'grep -q "^LOTTO_VOLUME_NAME=" "${tmp_root}/state/test01/instance.env"'
     rm -rf "${tmp_root}"
 }
 
@@ -165,44 +200,31 @@ test_provisioning_fqdn_detection() {
     fi
 }
 
-test_data_volume_permissions() {
-    echo "--- data volume permissions ---"
+test_data_dir_permissions() {
+    echo "--- container /app/data permissions ---"
     if ! lotto_docker_check >/dev/null 2>&1; then
-        skip "Docker not available — volume permission test skipped"
-        return 0
-    fi
-    if ! sudo -n true 2>/dev/null; then
-        skip "passwordless sudo not available — volume permission test skipped"
+        skip "Docker not available — /app/data permission test skipped"
         return 0
     fi
 
-    local tmp_root volume image
-    tmp_root="$(mktemp -d)"
-    volume="lotto-volperm$$"
-    image="lotto-game:volperm$$"
-    LOTTO_STATE_ROOT="${tmp_root}/state"
+    local image owner write_ok
+    image="lotto-game:datadir$$"
 
     docker build -t "${image}" -f "${LOTTO_REPO_ROOT}/deploy/docker/Dockerfile" "${LOTTO_REPO_ROOT}" >/dev/null
-    lotto_prepare_data_volume "${volume}" "${image}"
 
-    local owner write_ok
-    owner="$(docker run --rm --user root \
-        -v "${volume}:/app/data" \
+    owner="$(docker run --rm --user "${LOTTO_DATA_UID}:${LOTTO_DATA_GID}" \
         --entrypoint stat \
         "${image}" \
         -c '%u:%g %a' /app/data)"
-    assert_eq "prepared volume owner and mode" "1000:1000 750" "${owner}"
+    assert_eq "image /app/data owner and mode" "1000:1000 750" "${owner}"
 
     write_ok="$(docker run --rm --user "${LOTTO_DATA_UID}:${LOTTO_DATA_GID}" \
-        -v "${volume}:/app/data" \
         --entrypoint sh \
         "${image}" \
         -c 'php -r "file_put_contents(\"/app/data/.write_test\", \"ok\");" && test -f /app/data/.write_test && echo yes' 2>/dev/null || echo no)"
-    assert_eq "uid ${LOTTO_DATA_UID} can write to prepared volume" "yes" "${write_ok}"
+    assert_eq "uid ${LOTTO_DATA_UID} can write to /app/data" "yes" "${write_ok}"
 
-    docker volume rm "${volume}" >/dev/null 2>&1 || true
     docker image rm "${image}" >/dev/null 2>&1 || true
-    rm -rf "${tmp_root}"
 }
 
 test_docker_integration() {
@@ -225,29 +247,33 @@ test_docker_integration() {
 
     LOTTO_STATE_ROOT="${tmp_root}/state" bash "${DEPLOY_DIR}/install.sh" --name "${instance}" --port 18091 --mem-limit 128m
     assert_true "instance metadata after install" lotto_instance_metadata_exists "${instance}"
-    assert_true "volume after install" lotto_volume_exists "lotto-${instance}-data"
+    lotto_load_instance_env "${instance}"
+    assert_true "container after install" lotto_container_exists "${LOTTO_CONTAINER_NAME}"
+    assert_true "game.db inside container" lotto_db_exists_in_container "${instance}"
+    assert_false "no legacy application volume" lotto_volume_exists "lotto-${instance}-data"
 
     LOTTO_STATE_ROOT="${tmp_root}/state" bash "${DEPLOY_DIR}/install.sh" --name "${instance}" --port 18091
-    assert_true "idempotent reinstall keeps volume" lotto_volume_exists "lotto-${instance}-data"
+    assert_true "game.db survives idempotent reinstall" lotto_db_exists_in_container "${instance}"
 
     LOTTO_STATE_ROOT="${tmp_root}/state" bash "${DEPLOY_DIR}/healthcheck.sh" --name "${instance}"
     assert_true "healthcheck succeeds while running" test $? -eq 0
 
     LOTTO_STATE_ROOT="${tmp_root}/state" bash "${DEPLOY_DIR}/remove.sh" --name "${instance}" --yes
     assert_false "metadata removed" lotto_instance_metadata_exists "${instance}"
-    assert_false "volume removed" lotto_volume_exists "lotto-${instance}-data"
+    assert_false "legacy application volume removed" lotto_volume_exists "lotto-${instance}-data"
 
     rm -rf "${tmp_root}"
 }
 
 test_instance_name_validation
+test_compose_no_application_volumes
 test_port_selection
 test_compose_env_generation
 test_image_reference_count
 test_static_files
 test_healthcheck_failure_handling
 test_provisioning_fqdn_detection
-test_data_volume_permissions
+test_data_dir_permissions
 test_docker_integration
 
 echo ""

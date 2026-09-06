@@ -153,21 +153,32 @@ lotto_volume_exists() {
     docker volume inspect "${volume_name}" >/dev/null 2>&1
 }
 
-# Fresh Docker named volumes mount at /app/data as root:root. The app service runs as
-# uid 1000 (see compose.yaml). Prepare ownership once before init_db / first start.
-lotto_prepare_data_volume() {
-    local volume_name="$1"
-    local image="$2"
+lotto_legacy_volume_name() {
+    local instance="$1"
+    echo "lotto-${instance}-data"
+}
 
-    if ! lotto_volume_exists "${volume_name}"; then
-        docker volume create "${volume_name}" >/dev/null
+lotto_remove_legacy_application_volume() {
+    local instance="$1"
+    local volume_name="${LOTTO_VOLUME_NAME:-$(lotto_legacy_volume_name "${instance}")}"
+
+    if lotto_volume_exists "${volume_name}"; then
+        lotto_info "Removing legacy application volume ${volume_name}..."
+        docker volume rm "${volume_name}" >/dev/null 2>&1 || {
+            lotto_err "Failed to remove legacy application volume ${volume_name}."
+            return 1
+        }
     fi
+}
 
-    docker run --rm --user root \
-        -v "${volume_name}:/app/data" \
-        --entrypoint sh \
-        "${image}" \
-        -c "chown ${LOTTO_DATA_UID}:${LOTTO_DATA_GID} /app/data && chmod 750 /app/data"
+lotto_container_exists() {
+    local container_name="$1"
+    docker ps -a --format '{{.Names}}' | grep -qx "${container_name}"
+}
+
+lotto_db_exists_in_container() {
+    local instance="$1"
+    lotto_compose_cmd "${instance}" exec -T app test -f /app/data/game.db >/dev/null 2>&1
 }
 
 lotto_port_in_use() {
@@ -209,13 +220,12 @@ lotto_write_instance_env() {
     local trusted_proxy_ips="${9:-}"
     local max_accounts_per_ip="${10:-}"
 
-    local dir image volume network container
+    local dir image network container
     dir="$(lotto_instance_dir "${instance}")"
     mkdir -p "${dir}"
     chmod 755 "${dir}"
 
     image="lotto-game:${instance}"
-    volume="lotto-${instance}-data"
     network="lotto-${instance}-net"
     container="lotto-${instance}-app"
 
@@ -224,7 +234,6 @@ LOTTO_INSTANCE=${instance}
 LOTTO_IMAGE=${image}
 LOTTO_BUILD_CONTEXT=${LOTTO_REPO_ROOT}
 LOTTO_CONTAINER_NAME=${container}
-LOTTO_VOLUME_NAME=${volume}
 LOTTO_NETWORK_NAME=${network}
 LOTTO_HOST_PORT=${host_port}
 LOTTO_CONTAINER_PORT=${container_port}
@@ -283,8 +292,6 @@ lotto_ahpc_ack_path_docker() {
 
 lotto_promote_docker_bootstrap_credential() {
     local instance="$1"
-    local image="$2"
-    local volume_name="$3"
     local bootstrap_host_tmp pending_path ahpc_lib
 
     ahpc_lib="${LOTTO_DEPLOY_LIB_DIR}/../../lib/admin-bootstrap-common.sh"
@@ -293,13 +300,9 @@ lotto_promote_docker_bootstrap_credential() {
 
     bootstrap_host_tmp="$(mktemp)"
     chmod 600 "${bootstrap_host_tmp}"
-    if ! docker run --rm \
-        --entrypoint cat \
-        -v "${volume_name}:/app/data:ro" \
-        "${image}" \
-        /app/data/.admin_bootstrap >"${bootstrap_host_tmp}" 2>/dev/null; then
+    if ! lotto_compose_cmd "${instance}" exec -T app cat /app/data/.admin_bootstrap >"${bootstrap_host_tmp}" 2>/dev/null; then
         rm -f "${bootstrap_host_tmp}"
-        lotto_err "Bootstrap credential not found in volume after init_db."
+        lotto_err "Bootstrap credential not found in container after init_db."
         return 1
     fi
 
@@ -307,17 +310,12 @@ lotto_promote_docker_bootstrap_credential() {
     lotto_ahpc_promote_bootstrap_file "${instance}" "${bootstrap_host_tmp}" "${pending_path}"
     rm -f "${bootstrap_host_tmp}"
 
-    lotto_delete_bootstrap_from_volume "${image}" "${volume_name}"
+    lotto_delete_bootstrap_from_container "${instance}"
 }
 
-lotto_delete_bootstrap_from_volume() {
-    local image="$1"
-    local volume_name="$2"
-    docker run --rm \
-        --entrypoint rm \
-        -v "${volume_name}:/app/data" \
-        "${image}" \
-        -f /app/data/.admin_bootstrap >/dev/null 2>&1 || true
+lotto_delete_bootstrap_from_container() {
+    local instance="$1"
+    lotto_compose_cmd "${instance}" exec -T app rm -f /app/data/.admin_bootstrap >/dev/null 2>&1 || true
 }
 
 lotto_wait_healthy() {
@@ -360,9 +358,7 @@ lotto_cleanup_partial_instance() {
     fi
     lotto_load_instance_env "${instance}" 2>/dev/null || return 0
     lotto_compose_cmd "${instance}" down --remove-orphans >/dev/null 2>&1 || true
-    if [[ -n "${LOTTO_VOLUME_NAME:-}" ]] && lotto_volume_exists "${LOTTO_VOLUME_NAME}"; then
-        docker volume rm "${LOTTO_VOLUME_NAME}" >/dev/null 2>&1 || true
-    fi
+    lotto_remove_legacy_application_volume "${instance}" >/dev/null 2>&1 || true
     if [[ -n "${LOTTO_NETWORK_NAME:-}" ]]; then
         docker network rm "${LOTTO_NETWORK_NAME}" >/dev/null 2>&1 || true
     fi

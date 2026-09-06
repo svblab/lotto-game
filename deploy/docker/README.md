@@ -52,11 +52,14 @@ sudo ./deploy/docker/admin-bootstrap.sh --name lotto-01 acknowledge
 |--------|-----|
 | Compose project | `lotto-<name>` |
 | Контейнер | `lotto-<name>-app` |
-| Volume (БД) | `lotto-<name>-data` |
 | Сеть | `lotto-<name>-net` |
 | Образ | `lotto-game:<name>` |
 | Метаданные на хосте | `/var/lib/lotto-game/<name>/` |
 | Pending-пароль (AHPC) | `/var/lib/lotto-game/<name>/admin-bootstrap.pending` |
+
+`game.db` и application state хранятся **внутри контейнера** (writable layer).
+Docker named volume для game state **не используется**. Удаление контейнера
+удаляет game state вместе с ним.
 
 Логи приложения — **только stdout** (`docker compose logs`). Файловая ротация
 как у native systemd не применяется.

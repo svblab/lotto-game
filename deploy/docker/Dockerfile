@@ -29,6 +29,10 @@ COPY --from=builder --chown=lotto:lotto /build/init_db.php ./init_db.php
 COPY --chown=lotto:lotto deploy/docker/healthcheck.php /app/healthcheck.php
 COPY --chown=lotto:lotto deploy/lib/reset_admin_bootstrap.php /app/reset_admin_bootstrap.php
 
+RUN mkdir -p /app/data \
+    && chown lotto:lotto /app/data \
+    && chmod 750 /app/data
+
 USER lotto
 
 ENV LOTTO_WS_PORT=8080 \
