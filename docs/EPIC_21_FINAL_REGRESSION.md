@@ -8,7 +8,7 @@
 **VPS:** `186.246.50.81`  
 **Domain:** `rusbingo.online`
 
-**Conclusion:** **EPIC-21 BLOCKED — G10 NOT PASS** (release identity SHA mismatch; functional regression otherwise PASS)
+**Conclusion:** **EPIC-21 COMPLETE — G10 PASS**
 
 ---
 
@@ -17,24 +17,18 @@
 | Field | Value |
 |-------|--------|
 | `RELEASE_CANDIDATE_SHA` (`origin/main`) | `508cc280704ed72cc3e85df03e57bd6fb42d24ee` (`508cc28`) |
-| Production SHA (`/opt/lotto-game` HEAD) | `b3531d14871f3963c8f4489d85fa1551fbfaf2af` (`b3531d1`) |
-| **Exact equality** | **NO** |
+| Production SHA (`/opt/lotto-game` HEAD) at initial G10 | `b3531d14871f3963c8f4489d85fa1551fbfaf2af` (`b3531d1`) |
+| **Exact equality (initial)** | **NO** |
+| Production SHA after authorized alignment (§22) | `508cc280704ed72cc3e85df03e57bd6fb42d24ee` (`508cc28`) |
+| **Exact equality (final)** | **PASS** — `HEAD == RELEASE_CANDIDATE_SHA == 508cc28` |
 | Delta `b3531d1..508cc28` | **docs-only** (8 files under `docs/`; **zero** runtime/src/public/server changes) |
 | PHP (VPS) | 8.3.6 |
 | Composer (VPS) | 2.10.3 |
 | Timestamp (UTC) | ~06:49–06:51 |
 
-### Remediation (before G11 / tag)
+### Remediation (completed — see §22)
 
-Authorized operator action on VPS (no service/config change expected):
-
-```bash
-cd /opt/lotto-game
-git fetch origin
-git checkout 508cc280704ed72cc3e85df03e57bd6fb42d24ee
-```
-
-Then re-verify `git rev-parse HEAD` equals `RELEASE_CANDIDATE_SHA` and re-run SHA identity check only.
+Authorized docs-only VPS fast-forward to `508cc28` executed 2026-09-06 UTC.
 
 ---
 
@@ -225,7 +219,7 @@ Includes `test_ws_url_resolution.php` meta contract checks (21/21) and full manu
 | Service active | **PASS** |
 | One Workerman worker | **PASS** |
 | WS metadata | **PASS** |
-| **SHA equality** | **FAIL** |
+| **SHA equality** | **PASS** (after §22 alignment) |
 
 ---
 
@@ -233,7 +227,7 @@ Includes `test_ws_url_resolution.php` meta contract checks (21/21) and full manu
 
 | ID | Severity | Finding | Evidence | Release impact |
 |----|----------|---------|----------|----------------|
-| **G10-01** | **P1** | Production git HEAD (`b3531d1`) ≠ `RELEASE_CANDIDATE_SHA` (`508cc28`) | `git rev-parse` on VPS vs `origin/main` | **Blocks G10 PASS** until authorized VPS fast-forward (docs-only) |
+| **G10-01** | **P1** (resolved) | Production git HEAD (`b3531d1`) ≠ `RELEASE_CANDIDATE_SHA` (`508cc28`) | initial G10; **resolved** by §22 alignment | **closed** |
 | G10-02 | P2 | `run_ALL_tests.php` against live `game.db` created 11 test users | user table after suite; cleaned to `admin` + `epic17_92c19235` | Operational hygiene; follow `ADMIN_VPS_DEPLOY` isolation guidance for future runs |
 | G8-01..06 | P2/P3 | Known G8 findings | unchanged | non-blocking |
 | G9-01..03 | P3 | Known G9 findings | unchanged | non-blocking |
@@ -269,17 +263,44 @@ Includes `test_ws_url_resolution.php` meta contract checks (21/21) and full manu
 
 | Gate | Status |
 |------|--------|
-| **G10** | **NOT PASS** (SHA identity) |
+| **G10** | **PASS** |
 | G0–G9 | PASS (unchanged) |
-| G11 | **not evaluated** |
+| G11 | **not evaluated** (human approval — separate gate) |
 
-### Functional acceptance (all PASS except identity)
+### Functional acceptance
 
-Deployment, HTTPS, WSS, Origin, auth, authz, room, game, persistence, recovery invariant, security spot-check, observability spot-check, final smoke (except SHA), `run_ALL_tests` 59/59.
+Deployment, HTTPS, WSS, Origin, auth, authz, room, game, persistence, recovery invariant, security spot-check, observability spot-check, final smoke, `run_ALL_tests` 59/59, SHA identity after §22.
 
-### Blocking criterion
+**Release identity:** `release_candidate_sha = tested_production_sha = 508cc28`
 
-**`RELEASE_CANDIDATE_SHA` ≠ production SHA** — mandatory G10 identity requirement not met.
+---
+
+## 22. SHA alignment (authorized docs-only fast-forward)
+
+**Date (UTC):** 2026-09-06 ~06:54
+**Authorization:** operator-approved checkout of `508cc280704ed72cc3e85df03e57bd6fb42d24ee` only.
+
+| Field | Value |
+|-------|--------|
+| Previous production SHA | `b3531d14871f3963c8f4489d85fa1551fbfaf2af` |
+| Aligned production SHA | `508cc280704ed72cc3e85df03e57bd6fb42d24ee` |
+| `git status --short` after checkout | clean |
+| Service restart | **not performed** |
+| Runtime/config/code change | **none** (docs-only delta on disk) |
+| WS metadata | `lotto-ws-port=""`, `lotto-ws-path="/ws"` — **unchanged** |
+| Users preserved | `admin`, `epic17_92c19235` |
+
+### Post-alignment smoke
+
+| Check | Result |
+|-------|--------|
+| `lotto-server` / `nginx` | `active` |
+| Workerman workers | **1** |
+| HTTPS | `200` |
+| WSS hello | `hello` |
+| `PRAGMA integrity_check` | `ok` |
+
+**Note:** GitHub `origin/main` tip is `ed4d0ab` (adds this evidence file only). VPS is pinned to authorized G10 release candidate `508cc28`; application/runtime tree is identical between `508cc28` and `ed4d0ab`.
 
 ---
 
