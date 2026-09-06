@@ -10,8 +10,9 @@
 - [DONE] EPIC-16 — configuration audit; `docs/G1_PRODUCTION_CONFIGURATION.md`
 - [DONE] Native templates — `deploy/native/` (systemd + nginx examples)
 - [DONE] No `APP_ENV`/`APP_DOMAIN`; `LOTTO_*` + HTML meta verified in code
-- [PENDING] **H3** — production domain (G2/G3 blocked)
-- [PENDING] Full G1 VPS install evidence @ release SHA (requires H2/H3)
+- [DONE] **H2** — VPS `186.246.50.81` (SSH key operator-provided)
+- [DONE] **H3** — production domain `rusbingo.online` (approved 2026-09-06; DNS A → VPS)
+- [PENDING] EPIC-17 — canonical install `/opt/lotto-game` on VPS (G1/G2/G3 evidence)
 - [PENDING] G1 Human approval (configuration layer)
 
 **Note:** production **EPIC-15–16** ≠ feature **EPIC-15.x** (AFK cascade below).

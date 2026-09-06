@@ -3,8 +3,9 @@
 **Gate:** G1 (configuration layer; full VPS install evidence is separate)  
 **G1 status:** **READY FOR HUMAN APPROVAL** — not PASS  
 **G0:** **PASS** (H1 approved release contract)  
-**Verified against `main`:** `8c41891` (2026-09-06)  
-**H3 (production domain):** **PENDING** — no domain selected; G2/G3 not started
+**Verified against `main`:** `9a8cd32` (2026-09-06)  
+**H2 (VPS):** **APPROVED** — `186.246.50.81`, SSH key (operator-provided, not in Git)  
+**H3 (production domain):** **APPROVED** — `rusbingo.online` (2026-09-06)
 
 **Contract:** [`docs/RELEASE_CONTRACT_V1.md`](RELEASE_CONTRACT_V1.md)  
 **Runbook:** [`docs/ADMIN_VPS_DEPLOY.md`](ADMIN_VPS_DEPLOY.md)  
@@ -31,7 +32,7 @@ install on operator VPS @ release SHA — blocked until **H2** (VPS) and **H3** 
 
 | Setting | Mechanism | Production value (when H3 known) |
 |---------|-----------|----------------------------------|
-| Browser Origin | `LOTTO_ALLOWED_ORIGINS` (systemd `Environment=`) | `https://<domain>` |
+| Browser Origin | `LOTTO_ALLOWED_ORIGINS` (systemd `Environment=`) | `https://rusbingo.online` |
 | Trusted proxy | `LOTTO_TRUSTED_PROXY_IPS` | `127.0.0.1,::1` |
 | WSS port (client) | `<meta name="lotto-ws-port">` | `content=""` |
 | WSS path (client) | `<meta name="lotto-ws-path">` | `content="/ws"` |
@@ -154,7 +155,20 @@ Live TLS not configured in this task (H3 pending).
 | 11 | **Human G1 approval** | ⏳ Pending |
 
 **G1 (EPIC-16 configuration):** **READY FOR HUMAN APPROVAL**  
-**G1 (full roadmap gate with VPS evidence):** not PASS until H2/H3 and operator install.
+**G1 (full roadmap gate with VPS evidence):** not PASS until canonical install on VPS @ release SHA (EPIC-17).
+
+### H2 / H3 evidence (2026-09-06)
+
+| Check | Result |
+|-------|--------|
+| VPS IP | `186.246.50.81` (H2 approved) |
+| SSH | root, key path operator-provided (not stored in Git) |
+| H3 domain | `rusbingo.online` (Human approved) |
+| `hostnamectl` static hostname | `rusbingo.online` |
+| DNS `A rusbingo.online` | `186.246.50.81` |
+| Canonical install | Not yet — `/opt/lotto-game`, `lotto-server` absent |
+
+G2 DNS precondition satisfied; G3 (HTTPS/WSS) requires EPIC-17 install + certbot.
 
 ---
 
@@ -166,7 +180,7 @@ Live TLS not configured in this task (H3 pending).
 | Frontend structure | `php tests/Manual/test_frontend_structure.php` | **55/55 PASS** |
 | Origin allow-list (ADR-029) | `php tests/Manual/test_server_bootstrap.php` (tests 9–11) | **24/24 PASS** (full file) |
 
-VPS-only / domain-only tests (G2/G3/G4) not executed — H3 not provided.
+VPS/domain checks (2026-09-06): `dig A rusbingo.online` → `186.246.50.81`; install not started.
 
 ---
 
@@ -176,9 +190,9 @@ VPS-only / domain-only tests (G2/G3/G4) not executed — H3 not provided.
 |----|--------|------|
 | **H1** | Approve release contract | **DONE** (G0 PASS) |
 | **G1 config review** | Approve this configuration verification | Before EPIC-17 VPS install |
-| **H2** | Provide production VPS | Before full G1 VPS evidence |
-| **H3** | Provide production domain | Before G2/G3 |
-| **H5** | Approve deployment configuration on VPS | After domain known |
+| **H2** | Provide production VPS | **DONE** (`186.246.50.81`) |
+| **H3** | Provide production domain | **DONE** (`rusbingo.online`, 2026-09-06) |
+| **H5** | Approve deployment configuration on VPS | After EPIC-17 install |
 
 ---
 
