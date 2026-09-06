@@ -5,6 +5,12 @@ Authoritative source for Epic numbering, implementation order, dependency order,
 
 **Production V1.0 release path** (gates, DNS/TLS/E2E, go-live) — separate SSOT:
 [`docs/ROADMAP_V1_PRODUCTION.md`](ROADMAP_V1_PRODUCTION.md) (EPIC-15–21 decomposition).
+Release contract (G0): [`docs/RELEASE_CONTRACT_V1.md`](RELEASE_CONTRACT_V1.md).
+
+**Epic numbering note:** production stream **EPIC-15–21** (V1.0 go-live) uses
+numbers that **overlap in name only** with feature **EPIC-15.x** (AFK cascade,
+Phase 15 in this file). They are different namespaces — see
+`RELEASE_CONTRACT_V1.md` §18 OD-5.
 
 ---
 

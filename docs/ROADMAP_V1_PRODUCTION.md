@@ -2,7 +2,10 @@
 
 **Status:** Accepted roadmap (documentation only — **not** a release approval)  
 **Repository:** `svblab/lotto-game`  
-**Last reviewed against `main`:** `ae59b92` (2026-09-06)  
+**Last reviewed against `main`:** `720f005` (2026-09-06)
+
+**Release contract (G0):** [`docs/RELEASE_CONTRACT_V1.md`](RELEASE_CONTRACT_V1.md) — **READY FOR HUMAN APPROVAL** (not PASS)
+
 **Related:** `docs/ROADMAP.md` (feature epics), `docs/ADMIN_VPS_DEPLOY.md` (production runbook)
 
 ## Purpose
@@ -86,6 +89,10 @@ Linux VPS
 Текущая production-схема: `/opt/lotto-game`, пользователь `www-data`, порт Workerman
 `8080` на loopback, публично `443`/`80` через nginx.
 
+**Single-worker (V1.0):** ровно один Workerman worker (`Worker->count = 1`).
+`Worker->count > 1` вне контракта V1.0; изменение требует пересмотра контракта и
+gates G4–G7. См. `RELEASE_CONTRACT_V1.md` §3.1.
+
 ### Docker / Compose (не production)
 
 Docker **не deprecated**. Роль для V1.0:
@@ -108,23 +115,38 @@ production path выше.
 ## Domain / configuration contract
 
 Production domain — **configuration**, не часть application source code.
+**Канонический V1.0 контракт:** [`docs/RELEASE_CONTRACT_V1.md`](RELEASE_CONTRACT_V1.md) §5–§8.
 
-### Целевой контракт (V1.0)
+### V1.0 contract (OD-2 resolved)
 
-```text
-APP_ENV=production
-APP_DOMAIN=<production-domain>
-```
-
-Публичный origin и WebSocket endpoint должны быть согласованы:
+Публичные URL для production domain `<domain>`:
 
 ```text
-https://<APP_DOMAIN>/
-wss://<APP_DOMAIN>/ws
+https://<domain>/
+wss://<domain>/ws
 ```
 
-Предпочтительная схема: **один hostname**, без отдельного WS-subdomain, если нет
-архитектурной необходимости:
+**Источники конфигурации (as-is, достаточно для V1.0):**
+
+| Настройка | Где задаётся |
+|-----------|--------------|
+| Origin | `LOTTO_ALLOWED_ORIGINS` в `lotto-server.service` |
+| WSS path/port | meta `lotto-ws-port=""`, `lotto-ws-path="/ws"` в `public/index.html` |
+| TLS / hostname | nginx `server_name` + Let's Encrypt |
+| Proxy client IP | `LOTTO_TRUSTED_PROXY_IPS` + заголовки nginx |
+
+`APP_ENV` / `APP_DOMAIN` **не требуются** для V1.0. Унифицированный env-файл —
+опциональное улучшение **EPIC-16** (post-contract).
+
+### Production domain prerequisite (H3)
+
+Production domain обязателен **до** G2 и G3:
+
+- **G2 (DNS)** и **G3 (HTTPS/WSS)** не начинаются без явно утверждённого Human (H3) production domain.
+- Отсутствие domain на этапе G0 — **не дефект**; это ожидаемая зависимость H3.
+- Cursor не выбирает и не предполагает production domain.
+
+Схема: **один hostname**, без отдельного WS-subdomain:
 
 ```text
 example.com
@@ -141,13 +163,6 @@ example.com
 - WebSocket client hardcode;
 - deployment scripts (кроме шаблонов/примеров);
 - automated tests (использовать test/staging domains).
-
-### Текущее состояние репозитория (см. Open Decisions)
-
-Сегодня WS URL задаётся meta-тегами в `public/index.html` (`lotto-ws-port`,
-`lotto-ws-path`), а Origin — через `LOTTO_ALLOWED_ORIGINS` в systemd unit.
-Переход к `APP_DOMAIN` / единому env-файлу — **цель EPIC-16**, не завершён на
-момент фиксации roadmap.
 
 ---
 
@@ -172,18 +187,20 @@ example.com
 
 ### VPS (вне Git working tree)
 
-Предпочтительная целевая раскладка для V1.0 (может быть уточнена в EPIC-17 без
-изменения canonical deployment model):
+**V1.0 canonical layout (OD-1 resolved):** monolith `/opt/lotto-game/` — см.
+`RELEASE_CONTRACT_V1.md` §4. Разделение на `/etc/lotto-game/`, `/var/lib/lotto-game/`,
+`/var/log/lotto-game/` **отложено до после V1.0** (EPIC-17).
 
-| Класс | Назначение | Предпочтительный path (target) | Текущий production (as-is) |
-|-------|------------|--------------------------------|----------------------------|
-| Configuration | non-secret env | `/etc/lotto-game/lotto-game.env` | `Environment=` в unit + `public/index.html` meta |
-| Secrets | passwords, keys | `/etc/lotto-game/` (`0600`, root) | AHPC pending (Docker/systemd only); native: `init_db` one-shot |
-| Database | SQLite | `/var/lib/lotto-game/game.db` | `/opt/lotto-game/game.db` |
-| Uploads | chat file attachments (persistent) | `/var/lib/lotto-game/uploads/` | under app tree (if used) |
-| Logs | application logs | `/var/log/lotto-game/` | `/opt/lotto-game/logs/` |
-| Backups | offline copies | `/var/backups/lotto-game/` или `/opt/lotto-game/backups/` | `/opt/lotto-game/backups/` (documented) |
-| Application code | git checkout | `/opt/lotto-game/` | `/opt/lotto-game/` |
+| Класс | Назначение | V1.0 canonical path |
+|-------|------------|---------------------|
+| Configuration | non-secret env | `Environment=` в `/etc/systemd/system/lotto-server.service` + meta в `public/index.html` |
+| Secrets | passwords, keys | bcrypt в `game.db`; TLS в `/etc/letsencrypt/`; native admin: `init_db` stdout once |
+| Database | SQLite | `/opt/lotto-game/game.db` |
+| Uploads | chat files | RAM-only (не на диске) — ADR-030 |
+| Logs | application logs | `/opt/lotto-game/logs/` |
+| Backups | offline copies | `/opt/lotto-game/backups/` (+ off-VPS copy — оператор) |
+| Application code | git checkout | `/opt/lotto-game/` |
+| nginx / TLS | reverse proxy | `/etc/nginx/`, `/etc/letsencrypt/` |
 
 SSH keys, passwords, tokens **не передаются** Cursor через prompt, Git или обычные
 текстовые файлы проекта.
@@ -206,13 +223,13 @@ Cursor **не** считает production готовым по локальным
 
 | Gate | Description | Priority | Executor | Decision | V1.0 blocker | Evidence |
 |------|-------------|----------|----------|----------|--------------|----------|
-| **G0** | Release Contract — этот документ утверждён | P0 | Human + Cursor | Human (H1) | **YES** | Signed/approved roadmap revision |
+| **G0** | Release Contract — [`RELEASE_CONTRACT_V1.md`](RELEASE_CONTRACT_V1.md) утверждён | P0 | Human + Cursor | Human (H1) | **YES** | H1 sign-off on contract @ SHA — **PREPARED, not PASS** |
 | **G1** | Canonical deployment на VPS | P0 | Cursor + Human | Human (H5) | **YES** | Install + health on target VPS @ SHA |
 | **G2** | Domain / DNS | P0 | Human | Human (H3, H4) | **YES** | DNS + curl/openssl checks |
 | **G3** | HTTPS / WSS live | P0 | Cursor + Human | Human (H5) | **YES** | `https://` + `wss://…/ws` handshake @ domain |
 | **G4** | Production browser E2E | P0 | Cursor + Human | Human (H6) | **YES** | Recorded E2E checklist @ domain |
 | **G5** | Persistence after restart | P0 | Cursor + Human | Human (H6) | **YES** | Restart + login + state match |
-| **G6** | Backup / restore | P0 | Human + Cursor | Human (H7) | **YES** | Executed restore test, not script-only |
+| **G6** | Backup / restore | P0 | Human + Cursor | Human (H7) | **YES** | **Executed** restore with verified DB/app — not script/docs only (`RELEASE_CONTRACT_V1.md` §11) |
 | **G7** | Recovery (systemd/nginx/WS) | P0 | Cursor + Human | Human (H5) | **YES** | Controlled failure/recovery log |
 | **G8** | Security checklist | P0 | Cursor + Human | Human (H5) | **YES** | Completed security gate form @ SHA |
 | **G9** | Observability / operator runbook | P1 (operational minimum **P0** for go-live) | Cursor | Human (H5) | **YES** for go-live | Operator runbook + smoke commands |
@@ -276,9 +293,9 @@ Cursor не подменяет H1–H9.
 |---|---|
 | **Goal** | Зафиксировать scope, gates, roles, canonical deployment |
 | **Inputs** | Approved feature set on `main`; `docs/PHASE_14_REPORT.md` as historical input only |
-| **Deliverables** | `docs/ROADMAP_V1_PRODUCTION.md` (this file); Human sign-off record |
-| **Checks** | No contradiction with `docs/ANCHOR_CORE.md` deployment boundaries; Open Decisions documented |
-| **Acceptance** | H1 complete; G0 evidence filed |
+| **Deliverables** | `docs/ROADMAP_V1_PRODUCTION.md`; **`docs/RELEASE_CONTRACT_V1.md`**; Human sign-off record (H1) |
+| **Checks** | No contradiction with `docs/ANCHOR_CORE.md`; G0 checklist in contract §17 |
+| **Acceptance** | Contract **PREPARED**; G0 **PASS** only after H1 |
 | **Executor** | Cursor (draft) + Human (approve) |
 | **P0 blocker** | YES (G0) |
 
@@ -323,7 +340,7 @@ Cursor не подменяет H1–H9.
 | | |
 |---|---|
 | **Goal** | Domain resolves to production VPS |
-| **Inputs** | H3, H4 |
+| **Inputs** | **H3** — explicitly approved production domain (gate **must not** start without it) |
 | **Deliverables** | `A`/`AAAA` records; documented TTL |
 | **Checks** | `dig`/`nslookup`; IPv4/IPv6 if used |
 | **Acceptance** | G2 evidence |
@@ -348,10 +365,10 @@ Cursor не подменяет H1–H9.
 | | |
 |---|---|
 | **Goal** | Production-grade TLS and browser WSS |
-| **Inputs** | DNS (G2); nginx vhost |
+| **Inputs** | G2; **H3** approved domain; nginx vhost |
 | **Deliverables** | Let's Encrypt cert; `location /ws`; meta `lotto-ws-port=""`, `lotto-ws-path="/ws"` |
-| **Checks** | HTTP→HTTPS redirect; valid chain; `wss://<domain>/ws` RFC6455 handshake; `LOTTO_ALLOWED_ORIGINS` matches `https://<domain>` |
-| **Acceptance** | G3 evidence — **not** HTTP-only |
+| **Checks** | HTTP→HTTPS redirect; valid chain; `wss://<domain>/ws` RFC6455 handshake; `LOTTO_ALLOWED_ORIGINS` matches `https://<domain>`; meta-tags verified (`RELEASE_CONTRACT_V1.md` §8.1) |
+| **Acceptance** | G3 evidence — **not** HTTP-only; gate **must not** start without H3 domain |
 | **Executor** | Cursor + Human |
 | **P0 blocker** | YES (G3) |
 
@@ -382,10 +399,10 @@ Cursor не подменяет H1–H9.
 
 | | |
 |---|---|
-| **Goal** | Documented procedure **executed**, not theoretical |
+| **Goal** | Restore procedure **executed** and verified — not theoretical |
 | **Procedure** | backup → verify artifact → simulate loss → restore → integrity check → start → functional smoke |
 | **Scope** | SQLite; config references; **no secrets in public backup artifacts** |
-| **Acceptance** | G6 — restore actually performed (Human H7) |
+| **Acceptance** | G6 — real restore performed; evidence must include release SHA, backup artifact, restore target, operator, date/time, DB integrity + app verification. Backup scripts/cron **alone** ≠ PASS (`RELEASE_CONTRACT_V1.md` §11) |
 | **Executor** | Human (execute) + Cursor (procedure doc) |
 | **P0 blocker** | YES (G6) |
 
@@ -486,7 +503,7 @@ Roadmap синтезируется в следующие Epic (номера **н
 
 | Epic | Scope |
 |------|-------|
-| **EPIC-15** | V1.0 Release Contract (G0, H1, evidence process) |
+| **EPIC-15** | V1.0 Release Contract (G0, H1, evidence process) — **G0 PREPARED** (`RELEASE_CONTRACT_V1.md`) |
 | **EPIC-16** | Production Configuration & Domain (`APP_DOMAIN`, `.env.example`, meta/Origin alignment) |
 | **EPIC-17** | Canonical Production Deployment (install automation, path layout, G1) |
 | **EPIC-18** | Production Security & TLS (G3, G8, nginx hardening) |
@@ -515,13 +532,15 @@ V1.0 считается достигнутым только когда:
 
 ## Open Decisions / Conflicts
 
-| ID | Topic | Current repo state | Roadmap target | Resolution owner |
-|----|-------|-------------------|----------------|------------------|
-| **OD-1** | Env file layout | `Environment=` inline in `lotto-server.service`; DB/logs under `/opt/lotto-game/` | `/etc/lotto-game/lotto-game.env` + `/var/lib`, `/var/log` split | EPIC-17; must not break canonical deployment model |
-| **OD-2** | `APP_ENV` / `APP_DOMAIN` | Not implemented; uses `LOTTO_*` + HTML meta for WS | Unified domain contract | EPIC-16 |
-| **OD-3** | Admin bootstrap | Native production: `init_db.php` stdout (ADR-038 exempt); Docker/systemd: AHPC | Documented in ADR-038; no change required for V1.0 native path | Accept as-is for V1.0 |
-| **OD-4** | Prior RC evidence | `docs/PHASE_14_REPORT.md` — RC with unverified browser/VPS gates | Historical only; must re-run G1–G11 @ release SHA | Human + Cursor at RC time |
-| **OD-5** | Epic numbering | `docs/ROADMAP.md` uses EPIC-0.x–14.x for features | EPIC-15–21 reserved for V1.0 production stream | This document; update `ROADMAP.md` index when Epic start |
+Статус на момент EPIC-15 (полная фиксация — `RELEASE_CONTRACT_V1.md` §18):
+
+| ID | Status | V1.0 resolution |
+|----|--------|-----------------|
+| **OD-1** | **RESOLVED** | Canonical layout: `/opt/lotto-game/` monolith. `/etc`/`/var` split — post-V1.0 (EPIC-17). |
+| **OD-2** | **RESOLVED** | `LOTTO_*` + HTML meta + nginx достаточны для V1.0. `APP_ENV`/`APP_DOMAIN` — опционально EPIC-16. |
+| **OD-3** | **RESOLVED** | Native: `init_db.php`. Docker/generic systemd: AHPC (ADR-038). |
+| **OD-4** | **RESOLVED** | Phase 11 / Phase 14 / Docker evidence — historical; G1–G10 перезапускаются @ release SHA. |
+| **OD-5** | **RESOLVED** | Production EPIC-15–21 ≠ feature `EPIC-15.x` (AFK) в `ROADMAP.md`. Renumbering не требуется. |
 
 ### Consistency notes (no hidden conflict)
 
@@ -534,6 +553,7 @@ V1.0 считается достигнутым только когда:
 
 ## References
 
+- `docs/RELEASE_CONTRACT_V1.md` — V1.0 release contract (G0)
 - `docs/ADMIN_VPS_DEPLOY.md` — production install/runbook
 - `docs/LOCAL_ENVIRONMENT.md` — deployment models, tests, AHPC
 - `docs/README.md` — documentation index

@@ -1,5 +1,18 @@
 # Implementation Status — Lotto Game Project
 
+## V1.0 Production Release — EPIC-15 (G0 Release Contract) (2026-09-06)
+
+Status: **G0 PREPARED — READY FOR HUMAN APPROVAL** (not PASS; not V1.0 ready).
+
+- [DONE] `docs/RELEASE_CONTRACT_V1.md` — canonical architecture, config, persistence, evidence, SHA/tag rules
+- [DONE] `docs/ROADMAP_V1_PRODUCTION.md` updated — OD-1..OD-5 resolved; G0 points to contract
+- [PENDING] **H1** — Human approval of release contract (G0 PASS)
+- [PENDING] G1–G11 production gates @ release SHA on operator VPS
+
+**Note:** production **EPIC-15** (this section) ≠ feature **EPIC-15.x** (AFK cascade below).
+
+Contract: `docs/RELEASE_CONTRACT_V1.md` · Roadmap: `docs/ROADMAP_V1_PRODUCTION.md`
+
 ## EPIC-14.1 — Cloud-safe admin bootstrap (AHPC, ADR-038) (2026-09-05)
 
 Status: **Implementation complete** — pending credential delivery for Docker + generic systemd.

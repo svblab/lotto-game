@@ -8,6 +8,8 @@
 
 Связанные документы (не обязательны для первого запуска):
 
+- `docs/RELEASE_CONTRACT_V1.md` — V1.0 release contract (G0); canonical production obligations
+- `docs/ROADMAP_V1_PRODUCTION.md` — gates G0–G11 и путь к V1.0
 - `README.md` — краткий обзор и примеры конфигов
 - `docs/LOCAL_ENVIRONMENT.md` — тесты и переменные окружения
 - `docs/ADR/027-reverse-proxy-tls-termination.md` — почему TLS снаружи PHP
@@ -108,14 +110,18 @@ ADMIN PASSWORD:
 
 ### 3.4. Meta-теги клиента (WSS)
 
-В `public/index.html` для HTTPS должно быть:
+В `public/index.html` для HTTPS **обязательны** production-значения:
 
 ```html
 <meta name="lotto-ws-port" content="">
 <meta name="lotto-ws-path" content="/ws">
 ```
 
-Так браузер открывает `wss://your-domain.com/ws` (порт 443). Сейчас в `main` эти значения уже стоят. После `git pull` проверьте, что их не сбросило на `8080` / пустой path.
+Так браузер открывает `wss://your-domain.com/ws` (порт 443). Сейчас в `main` эти значения уже стоят.
+
+**Проверка обязательна** после каждого `git pull` / обновления кода на production
+(см. §3.8 и §4). Деплой **не считается успешным**, пока meta-теги не подтверждены.
+Контракт V1.0: `docs/RELEASE_CONTRACT_V1.md` §8.1.
 
 ### 3.5. systemd
 
@@ -265,6 +271,7 @@ sudo ufw status
 |----------|--------------------|----------|
 | Юнит | `systemctl is-active lotto-server` | `active` |
 | Порт WS | `ss -ltnp \| grep 8080` | процесс php, не с публичной сети |
+| Meta WSS | `grep lotto-ws public/index.html` | `lotto-ws-port` с `content=""`; `lotto-ws-path` с `content="/ws"` |
 | Сайт | `curl -sI https://your-domain.com` | `200` |
 | Клиент | браузер, регистрация/вход | лобби без ошибки сокета |
 | Админ | вход `admin`, кнопка админки в лобби | панель открывается |
@@ -303,6 +310,19 @@ sudo systemctl status lotto-server --no-pager
 | `package-lock.json` | оставить неотслеживаемым; **не** добавлять в git на VPS |
 | изменённый `public/index.html` | сравнить `git diff`; meta `lotto-ws-port` / `lotto-ws-path` должны остаться production-значениями из §3.4 |
 
+### 4.1. Приёмка после `git pull` (обязательно)
+
+Перед объявлением обновления успешным выполните:
+
+| # | Проверка | Ожидание |
+|---|----------|----------|
+| 1 | `grep lotto-ws public/index.html` | `content=""` у port; `content="/ws"` у path |
+| 2 | `systemctl is-active lotto-server` | `active` |
+| 3 | Браузер: WSS | `wss://your-domain.com/ws`, статус 101 (если сервис уже был на HTTPS) |
+
+Если meta-теги сброшены (например на `8080`), WSS за nginx перестанет работать —
+исправьте **до** завершения деплоя. См. `docs/RELEASE_CONTRACT_V1.md` §8.1.
+
 После pull снова проверьте meta-теги и `systemctl is-active lotto-server`.
 
 ---
@@ -317,7 +337,7 @@ sudo systemctl status lotto-server --no-pager
   sudo -u www-data php /opt/lotto-game/run_ALL_tests.php
   ```
 
-- Не увеличивайте `Worker->count` и не ставьте несколько инстансов на один `game.db` / один порт.
+- Не увеличивайте `Worker->count` и не ставьте несколько инстансов на один `game.db` / один порт. V1.0 контракт: ровно один worker (`docs/RELEASE_CONTRACT_V1.md` §3.1).
 - Не открывайте `8080` в firewall «чтобы проверить сокет». Проверка — через `https://…/ws`.
 - Не включайте на постоянной основе `LOTTO_MEMORY_AUDIT=1` / `LOTTO_ECONOMY_AUDIT=1` без отдельного диска под логи: это отладочные флаги.
 
@@ -366,6 +386,10 @@ sudo systemctl start lotto-server
 ```
 
 Храните копии **вне** этого VPS (скачивание, отдельный диск). В git базу не кладите.
+
+**Gate G6 (V1.0):** наличие cron/скрипта бэкапа **не достаточно** для PASS. Нужно
+**реально выполнить** восстановление, проверить `PRAGMA integrity_check`, запустить
+сервис и сделать smoke-тест. Evidence — см. `docs/RELEASE_CONTRACT_V1.md` §11.
 
 Логи: `logs/server.log`, действия аварийного скрипта — `logs/admin_control.log`. Ротацию `server.log` лучше повесить на `logrotate` (в коде автоматической ротации нет). Пример `/etc/logrotate.d/lotto-game`:
 
