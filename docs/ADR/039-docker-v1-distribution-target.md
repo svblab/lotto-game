@@ -82,7 +82,7 @@ forking application logic and without revising NLD V1.0.
    - Upgrade of an existing installation is a **future operation** — not
      defined by HD-D1.
 
-   HD-D1 does **not** decide: artifact storage, registry, image naming, release
+   HD-D1 does **not** decide: artifact hosting/download, registry, image naming, release
    tag naming, upgrade implementation.
 
 8. **Docker release versioning (HD-D3, decided 2026-09-06).**
@@ -116,8 +116,9 @@ forking application logic and without revising NLD V1.0.
     - Docker Engine is **not** a user prerequisite — installer installs it if
       absent.
     - Installer must perform OS check, prerequisites, Docker/Compose setup,
-      domain resolution, immutable image acquisition, provenance verification,
-      container start, post-install verification, and present server address.
+      domain resolution, verified release archive acquisition (HD-D9), provenance
+      verification, `docker build`, container start, post-install verification,
+      and present server address.
     - Domain resolution (host installer): `RUSBINGO_DOMAIN` → hostname →
       interactive prompt; no in-container interactive config.
     - **Idempotency** (future): re-run must not accidentally create second server
@@ -130,6 +131,22 @@ forking application logic and without revising NLD V1.0.
       proving non-exploitability / non-applicability to supported runtime.
     - Generic «HIGH not exploitable» without per-CVE evidence is **insufficient**.
     - Numeric HIGH count threshold — **not decided**.
+
+13. **Canonical release archive input (HD-D9, decided 2026-09-06).**
+    - Docker V1 uses the **single immutable application release artifact** (release
+      archive — e.g. `.tar` / `.tar.gz` / `.rar` style) as the canonical input for
+      Docker installation.
+    - Target flow: Application Release → single immutable release archive → SHA256
+      verification → Docker installer → `docker build` → RUSBINGO container.
+    - Future installer: obtain artifact → verify SHA256 → use as build input →
+      build image → start container (**policy only — not implemented**).
+    - A separate pre-built **OCI image distribution pipeline is not a prerequisite**
+      for Docker V1. OCI distribution may be evaluated later based on evidence from
+      the first Docker installation/release cycle — **not permanently rejected**.
+    - HD-D9 does **not** decide: artifact hosting, download mechanism, exact archive
+      filename/format policy, registry, remote pull, installer implementation.
+    - **HD-D4** registry-independent contract remains in force; registry selection
+      still TBD before Docker Release if registry distribution is used.
 
    Because Docker V1 stores application state inside the container filesystem,
    any future upgrade between immutable Docker releases must account for game

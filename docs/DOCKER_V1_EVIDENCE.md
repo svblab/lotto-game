@@ -24,6 +24,7 @@ gates are PASS.
 | **HD-D4** | Registry-independent contract | **DECIDED** | 2026-09-06 | PENDING (registry selection) |
 | **HD-D7** | Supported OS targets | **DECIDED** | 2026-09-06 | PENDING (D3 validation matrix) |
 | **HD-D8** | Installer-first / automated installation | **DECIDED** | 2026-09-06 | PENDING (installer implementation) |
+| **HD-D9** | Canonical input = single immutable application release archive | **DECIDED** | 2026-09-06 | PENDING (D1.1 build evidence) |
 
 ---
 
@@ -121,9 +122,23 @@ gates are PASS.
 | New application release → separate Docker release | **DECIDED** |
 | Upgrade of existing installation | **Out of scope** (future decision) |
 
-**Not decided by HD-D1:** artifact storage, registry, image naming, release tag naming, upgrade.
+**Not decided by HD-D1:** artifact hosting/download, registry, image naming, release tag naming, upgrade.
 
-**Implementation evidence (still PENDING):**
+### Human Decision HD-D9 — **DECIDED** (2026-09-06)
+
+> Docker V1 uses the single immutable application release artifact as the canonical
+> input for Docker installation.
+
+| Principle | Status |
+|-----------|--------|
+| One release archive per application release | **DECIDED** |
+| SHA256 verification before `docker build` | **DECIDED** |
+| Installer obtains archive → verify → build → start container | **DECIDED** (future implementation) |
+| Pre-built OCI image distribution as V1 prerequisite | **Rejected as prerequisite** (may be evaluated later) |
+
+**Not decided by HD-D9:** hosting provider, download mechanism, archive filename/format policy, registry, remote pull, installer code.
+
+**Implementation evidence (still PENDING — gate D1.1 remains PENDING):**
 
 - Artifact delivery mechanism documented (storage — separate decision)
 - SHA256 verification demonstrated at build/install
@@ -137,7 +152,10 @@ gates are PASS.
 | **Model** | Immutable Release (variant B) |
 | **Implementation result** | PENDING |
 | **Baseline application SHA** | `508cc280704ed72cc3e85df03e57bd6fb42d24ee` |
-| **Artifact source** | *TBD — not HD-D1* |
+| **HD-D9 decision** | **DECIDED** |
+| **Canonical input** | Single immutable application release archive |
+| **Build model** | Verified archive → `docker build` (not OCI pull prerequisite) |
+| **Artifact hosting/download** | *TBD — not HD-D9* |
 | **Verification command** | |
 | **Notes / findings** | |
 

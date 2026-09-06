@@ -134,11 +134,10 @@ git archive --format=tar.gz --prefix=rusbingo/ v1.0 | sha256sum
 sha256: 780bb0ea9157a326908afee593f3f7acbbf1c043903094c2bbd7072e4eb166a8
 ```
 
-> **Note:** Artifact hash — это evidence **идентичности** application source tree
-> на release SHA. Сам механизм **получения** application artifact для Docker
-> build/install определяется на этапе **D1.1** (Artifact Resolution). D0 не
-> предписывает единственный способ доставки — только фиксирует, **какой** release
-> является baseline и как проверить его целостность.
+> **Note (D0):** Artifact hash — evidence **идентичности** application source tree
+> на release SHA. **HD-D9** (2026-09-06) определяет **тип** canonical input для
+> Docker V1 (single immutable release archive). Механизм **доставки** archive
+> (hosting, download) остаётся открытым до отдельного решения.
 
 ### Acceptance
 
@@ -266,8 +265,10 @@ Storage, registry, tagging и upgrade implementation **не входят** в HD
 
 | Topic | Owner |
 |-------|-------|
-| Где хранится artifact (GitHub Release, другой storage, OCI artifact, …) | Future decision |
-| Container registry | **HD-D4** |
+| Где хранится artifact / exact download mechanism | Open (HD-D9 does **not** decide hosting) |
+| Формат archive filename (`.tar` / `.tar.gz` / `.rar`) | Open unless established elsewhere |
+| OCI image distribution / pre-built image pull | **Not** V1 prerequisite; may be evaluated later |
+| Container registry | **HD-D4** (contract only; selection TBD) |
 | Docker image naming | **HD-D4** |
 | Docker release tag naming | **HD-D3** |
 | Upgrade command / procedure | Future decision |
@@ -291,23 +292,79 @@ tree / `main` branch.
 Baseline application release: tag **`v1.0`** → SHA
 `508cc280704ed72cc3e85df03e57bd6fb42d24ee`.
 
-### Must document before D3 (delivery mechanism — not HD-D1)
+### Human Decision HD-D9 — **DECIDED** (2026-09-06)
+
+**Decision:** Docker V1 uses the **single immutable application release artifact**
+as the canonical input for Docker installation.
+
+> Docker V1 использует единственный immutable application release artifact как
+> canonical input для Docker installation.
+
+Each application release has **exactly one** release artifact file available for
+distribution (currently an archive such as `.tar`, `.tar.gz`, or `.rar` — exact
+filename/format policy not decided here).
+
+#### Target flow (policy)
+
+```text
+Application Release
+        ↓
+single immutable release archive
+        ↓
+SHA256 verification
+        ↓
+Docker installer
+        ↓
+docker build
+        ↓
+RUSBINGO container
+```
+
+#### Future installer responsibilities (not implemented in this decision)
+
+1. Obtain the specific application release artifact
+2. Verify its SHA256
+3. Use the verified artifact as the Docker build input
+4. Build the Docker image
+5. Start the RUSBINGO container
+
+#### Boundaries (HD-D9 does NOT decide / implement)
+
+| Topic | Status |
+|-------|--------|
+| OCI image distribution pipeline | **Not** a Docker V1 prerequisite; may be evaluated later from practical evidence |
+| Registry selection, Docker Hub publication | Open (**HD-D4**) |
+| Registry credentials, repository naming, image tag scheme | Open |
+| Remote image pull workflow | Open |
+| Artifact hosting provider | Open |
+| Exact download mechanism | Open |
+| Installer implementation | Future (**HD-D8** policy only) |
+| Exact archive filename / `.tar` vs `.tar.gz` vs `.rar` | Open unless existing docs establish it |
+
+> Deciding the release archive as canonical input does **not** mean D1.1
+> implementation evidence, D2 audit, or D3 installation validation has passed.
+> All such gates remain **PENDING**.
+
+### Must document before D3 (delivery — hosting still open)
 
 | Item | Description |
 |------|-------------|
-| **Artifact source** | Откуда Docker project получает immutable artifact (storage/delivery — **не** определено HD-D1) |
-| **Artifact identifier** | Application tag + SHA + SHA256 content hash |
+| **Artifact type (canonical input)** | Single immutable application release archive per application release (**HD-D9**) |
+| **Artifact source (hosting/delivery)** | Where/how installer obtains the archive — **not** decided by HD-D9 |
+| **Artifact identifier** | Application tag + full SHA + SHA256 content hash |
 | **Verification mechanism** | SHA256 verification against D0 recorded hash |
 | **Checksum mismatch** | Build/install **MUST FAIL**; no silent fallback to `main` or working tree |
 | **Version pinning** | Docker release pinned to exactly one application release (e.g. `v1.0` / `508cc280704ed72cc3e85df03e57bd6fb42d24ee`) |
-| **Release identity mapping** | Docker release identity → application release (one-to-one) |
+| **Release identity mapping** | Docker Release → Application Version → Full Git SHA (**HD-D3**) |
+| **Build model** | `docker build` from verified archive — not pre-built OCI pull (**HD-D9**) |
 
 ### Acceptance
 
 - [x] HD-D1 Immutable Release model recorded
-- [ ] Artifact delivery mechanism documented (storage location — separate decision)
+- [x] HD-D9 canonical release archive input recorded
+- [ ] Artifact hosting / download mechanism documented
 - [ ] Reproducible build demonstrated without mutable `main` checkout
-- [ ] Evidence linked in `DOCKER_V1_EVIDENCE.md` D1.1
+- [ ] D1.1 implementation evidence recorded in `DOCKER_V1_EVIDENCE.md`
 
 ---
 
@@ -438,7 +495,7 @@ Installer **должен** (future implementation — not in scope now):
 | Check prerequisites | OS, resources (exact matrix — after D2/D3 audit) |
 | Install Docker Engine | If absent |
 | Ensure Compose functionality | Plugin or equivalent mechanism |
-| Acquire immutable Docker release | Per HD-D1 |
+| Acquire immutable release archive | Per HD-D1 / HD-D9; verify SHA256 → `docker build` |
 | Configure domain | Per domain resolution below |
 | Start server | Single container topology |
 | Post-install verification | Smoke / health checks |
@@ -564,7 +621,7 @@ not a persistent Docker volume.
 
 - OS compatibility check (HD-D7)
 - Docker installation by installer if absent (HD-D8 — not operator prerequisite)
-- Image build or pull (per D1.1 / HD-D1 artifact resolution)
+- Image build from verified release archive (HD-D9) — not remote OCI pull prerequisite
 - Container creation
 - Application startup
 - Domain configuration
@@ -1079,7 +1136,9 @@ D2/D3 validation or implementation evidence before gate PASS.
 | **HD-D6** | `network_mode: host` — justify or exclude | Audit | Open | D2 audit |
 | **HD-D7** | Supported OS targets (certified + compatibility) | Policy | **DECIDED** | 2026-09-06 |
 | **HD-D8** | Installer-first / automated installation model | Policy | **DECIDED** | 2026-09-06 |
-| — | Artifact storage / delivery mechanism | Policy | Open | Before D3 |
+| **HD-D9** | Canonical input = single immutable application release archive (`docker build`) | Policy | **DECIDED** | 2026-09-06 |
+| — | Artifact hosting / download mechanism | Policy | Open | Before D3 |
+| — | OCI image distribution / registry publication | Future | Open | After first Docker cycle evidence |
 | — | Exact Docker Engine / Compose versions | Audit | Open | After D2/D3 |
 | — | Minimum VPS resources | Audit | Open | After D2/D3 |
 | — | Specific registry, repository, image tag, credentials | Implementation | Open | Before Docker Release |
