@@ -23,7 +23,7 @@ Docker как **отдельный** installation/distribution target — **не
 | Документ | Когда использовать |
 |----------|-------------------|
 | [ROADMAP_DOCKER_V1.md](ROADMAP_DOCKER_V1.md) | **SSOT** — Docker V1 validation roadmap (D0–D12, H-D1) |
-| [DOCKER_V1_EVIDENCE.md](DOCKER_V1_EVIDENCE.md) | Индекс evidence для Docker gates (шаблон, заполняется при валидации) |
+| [DOCKER_V1_EVIDENCE.md](DOCKER_V1_EVIDENCE.md) | Индекс evidence для Docker gates; **D2.1 installation contract (FROZEN)** |
 | [ADR/039-docker-v1-distribution-target.md](ADR/039-docker-v1-distribution-target.md) | Архитектурное решение: Docker V1, ephemeral container state |
 
 ### Общая эксплуатация
