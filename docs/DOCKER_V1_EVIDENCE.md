@@ -214,8 +214,8 @@ archive-based build, exact in-container TLS layout, remediation of `deploy/docke
 | `server.php` | Env-gated `LOTTO_HTTP_PUBLIC` → HTTP static + `/ws` upgrade (NLD unchanged when unset) |
 | `src/Core/StaticHttpServer.php` | SPA/static serving with path traversal protection |
 | `src/Core/ContainerFrontDoor.php` | WebSocket upgrade on `/ws` within single HTTP worker |
-| `deploy/docker/compose.yaml` | `LOTTO_HTTP_PUBLIC`; dockerfile from installer repo |
-| `deploy/docker/lib/release-artifact.sh` | `lotto_apply_docker_v1_runtime_overlay()` after verified extract |
+| `deploy/docker/compose.yaml` | `LOTTO_HTTP_PUBLIC`; Dockerfile from verified build context (`deploy/docker/Dockerfile`) |
+| `deploy/docker/lib/release-artifact.sh` | Verified extract only — no post-verify application overlay |
 | `deploy/docker/install.sh` | Removed canonical `configure-proxy.sh` handoff |
 | `deploy/docker/healthcheck.php` | Healthcheck uses `LOTTO_WS_PATH` (`/ws`) |
 | `deploy/docker/tests/test_hd_d10.sh` | Static HD-D10 checks |
@@ -250,7 +250,7 @@ separate Human Decision — not implemented in this remediation.
 | No host `public/` bind mount in compose | **PASS** |
 | No application state volumes | **PASS** (HD-D5 retained) |
 | `lotto-ws-port=""` / `lotto-ws-path="/ws"` preserved | **PASS** |
-| HD-D9 verified archive flow | **PASS** (overlay documented) |
+| HD-D9 verified archive flow | **PASS** — immutable release artifact is sole application runtime input |
 | Security controls (`cap_drop`, non-root, …) | **PASS** |
 
 ### Verification (runtime)
@@ -370,6 +370,73 @@ trusted SHA256 verification — no mutable Git checkout fallback.
 | `deploy/docker/tests/run_tests.sh` full integration | **NOT RUN** — requires Linux + Docker + sudo |
 
 **HD-D9 gate:** implementation **REMEDIATED**; D1.1/D3 installation validation **PENDING**.
+
+---
+
+## HD-D9 post-HD-D10 audit remediation — immutable release provenance restored
+
+**Remediation date (UTC):** 2026-09-06  
+**Scope:** Post-HD-D10 audit findings F-HD9-01 … F-HD9-05 — remove post-verification
+application runtime overlay; new application release identity; Dockerfile from
+verified build context.
+
+### Corrected provenance invariant
+
+```text
+immutable release artifact
+    → SHA256 verification
+    → verified extraction
+    → Docker build context (application + deploy/docker/Dockerfile)
+    → docker build
+    → image application runtime
+```
+
+No mutable `LOTTO_REPO_ROOT` application overlay after SHA256 verification.
+
+### Release identity (Docker V1 canonical — Application v1.1)
+
+| Field | Value |
+|-------|--------|
+| Application version | `v1.1` |
+| Full Git SHA | `ed42d7a2d278a7f27260fc06249b14bc1d638b6d` |
+| Archive format | `git archive --format=tar.gz --prefix=rusbingo/ ed42d7a2d278a7f27260fc06249b14bc1d638b6d` |
+| Expected archive SHA256 | `568f528bd32c854f637fb2c31afaeeefeb57aceb8a50331d0dd0daeae60e944a` |
+| Trusted manifest | `deploy/docker/release-manifests/v1.1.env` |
+
+**NLD baseline unchanged:** Application `v1.0` → `508cc280704ed72cc3e85df03e57bd6fb42d24ee`
+(manifest `release-manifests/v1.0.env` unchanged).
+
+### Changes
+
+| Component | Change |
+|-----------|--------|
+| `deploy/docker/release-manifests/v1.1.env` | Trusted SHA256 + release identity for HD-D10 runtime |
+| `deploy/docker/lib/release-artifact.sh` | Removed `lotto_apply_docker_v1_runtime_overlay()`; Dockerfile required in archive |
+| `deploy/docker/lib/common.sh` | Install path = verify + extract only; no `LOTTO_DOCKERFILE` checkout pin |
+| `deploy/docker/compose.yaml` | `dockerfile: deploy/docker/Dockerfile` (context-relative, immutable) |
+| `deploy/docker/install.sh` | Default application version `v1.1` |
+| `deploy/docker/tests/test_release_artifact.sh` | Install-path provenance tests A–G |
+
+### Finding status (post-HD-D10 audit)
+
+| ID | Status |
+|----|--------|
+| **F-HD9-01** | **REMEDIATED** — no post-verification application overlay |
+| **F-HD9-02** | **REMEDIATED** — provenance matches verified archive runtime bytes |
+| **F-HD9-03** | **REMEDIATED** — HD-D10 files in v1.1 release artifact |
+| **F-HD9-04** | **REMEDIATED** — Dockerfile from verified build context |
+| **F-HD9-05** | **REMEDIATED** — tests cover install-path build-context preparation |
+
+### Verification (static)
+
+| Check | Result |
+|-------|--------|
+| `deploy/docker/tests/test_release_artifact.sh` | *Run at commit time* |
+| Tests A–G (archive contents, tamper, byte match, checkout isolation, Dockerfile, provenance, no overlay) | *Run at commit time* |
+| `deploy/docker/tests/test_hd_d10.sh` | *Run at commit time* |
+
+**HD-D9 remediation gate:** **REMEDIATED** (immutable application-runtime invariant restored);
+D3 runtime validation **PENDING**.
 
 ---
 

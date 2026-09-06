@@ -177,6 +177,10 @@ forking application logic and without revising NLD V1.0.
       the first Docker installation/release cycle — **not permanently rejected**.
     - HD-D9 does **not** decide: exact archive filename/format policy, installer
       implementation, OCI registry remote pull.
+    - **Implementation note (2026-09-06):** the verified release archive must
+      contain the immutable Docker build recipe at `deploy/docker/Dockerfile`
+      inside the extracted build context. Installers must not source an unpinned
+      working-tree Dockerfile after SHA256 verification.
     - **HD-D4-A** OCI registry-independent contract remains in force; OCI registry
       selection still open. **HD-D4 V1** decides artifact hosting channel (GitHub
       Releases).

@@ -6,7 +6,7 @@ services:
     image: ${LOTTO_IMAGE}
     build:
       context: ${LOTTO_BUILD_CONTEXT}
-      dockerfile: ${LOTTO_DOCKERFILE}
+      dockerfile: deploy/docker/Dockerfile
       args:
         LOTTO_APPLICATION_VERSION: ${LOTTO_APPLICATION_VERSION}
         LOTTO_APPLICATION_GIT_SHA: ${LOTTO_APPLICATION_GIT_SHA}

@@ -175,6 +175,10 @@ lotto_release_prepare_build_context() {
         lotto_release_err "Verified archive does not contain expected application root at ${context_path}"
         return 1
     fi
+    if [[ ! -f "${context_path}/deploy/docker/Dockerfile" ]]; then
+        lotto_release_err "Verified archive missing deploy/docker/Dockerfile (immutable Docker build recipe)."
+        return 1
+    fi
 
     provenance_file="${work_dir}/release-provenance.env"
     lotto_release_write_provenance_file "${provenance_file}" "${archive_path}"
@@ -184,20 +188,24 @@ lotto_release_prepare_build_context() {
     LOTTO_RELEASE_WORK_DIR="${work_dir}"
 }
 
-lotto_apply_docker_v1_runtime_overlay() {
-    local context_path="$1"
-    local repo_root="${LOTTO_REPO_ROOT:-}"
+lotto_release_archive_member_sha256() {
+    local archive="$1"
+    local member_path="$2"
+    local digest=""
 
-    if [[ -z "${repo_root}" || ! -d "${repo_root}" ]]; then
-        lotto_release_err "Docker runtime overlay requires LOTTO_REPO_ROOT."
+    if [[ ! -f "${archive}" ]]; then
+        lotto_release_err "Release archive not found: ${archive}"
         return 1
     fi
 
-    # Distribution layer + container-native runtime hooks (HD-D10). Application
-    # archive SHA is verified before overlay; these paths are installer-managed.
-    install -D "${repo_root}/server.php" "${context_path}/server.php"
-    install -D "${repo_root}/src/Core/StaticHttpServer.php" "${context_path}/src/Core/StaticHttpServer.php"
-    install -D "${repo_root}/src/Core/ContainerFrontDoor.php" "${context_path}/src/Core/ContainerFrontDoor.php"
-    mkdir -p "${context_path}/deploy/docker"
-    cp -a "${repo_root}/deploy/docker/." "${context_path}/deploy/docker/"
+    if command -v sha256sum >/dev/null 2>&1; then
+        digest="$(tar -xOzf "${archive}" "${member_path}" | sha256sum | awk '{print $1}')"
+    elif command -v shasum >/dev/null 2>&1; then
+        digest="$(tar -xOzf "${archive}" "${member_path}" | shasum -a 256 | awk '{print $1}')"
+    else
+        lotto_release_err "Neither sha256sum nor shasum is available for member digest."
+        return 1
+    fi
+
+    lotto_release_normalize_sha256 "${digest}"
 }
