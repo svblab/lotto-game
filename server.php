@@ -107,6 +107,8 @@ lottoApplyTestConfig();
 
 use Workerman\Worker;
 use Lotto\Core\LottoWorker;
+use Lotto\Core\ContainerFrontDoor;
+use Lotto\Core\StaticHttpServer;
 use Lotto\Core\Constants;
 use Lotto\Core\Logger;
 use Lotto\Core\MemoryAudit;
@@ -156,6 +158,9 @@ use function Lotto\Core\lottoTimerAdd;
 $wsPortEnv = lottoRuntimeEnv('LOTTO_WS_PORT');
 $wsPort = ($wsPortEnv !== null) ? (int) $wsPortEnv : 8080;
 
+$httpPublicDir = lottoRuntimeEnv('LOTTO_HTTP_PUBLIC');
+$containerHttpEnabled = is_string($httpPublicDir) && $httpPublicDir !== '';
+
 $wmLogFile = lottoRuntimeEnv('LOTTO_WORKERMAN_LOG_FILE');
 if ($wmLogFile !== null) {
     Worker::$logFile = $wmLogFile;
@@ -166,7 +171,11 @@ if ($wmPidFile !== null) {
     Worker::$pidFile = $wmPidFile;
 }
 
-$worker = new LottoWorker('websocket://0.0.0.0:' . $wsPort);
+if ($containerHttpEnabled) {
+    $worker = new LottoWorker('http://0.0.0.0:' . $wsPort);
+} else {
+    $worker = new LottoWorker('websocket://0.0.0.0:' . $wsPort);
+}
 $worker->count = 1;
 $worker->name = 'LottoGameServer';
 
@@ -682,5 +691,23 @@ $worker->onClose = function ($connection) use ($worker): void {
         ]);
     }
 };
+
+// Docker V1 (HD-D10): one HTTP listener serves SPA/static and upgrades /ws in-process.
+if ($containerHttpEnabled) {
+    $publicRoot = $httpPublicDir;
+    $gameOnMessage = $worker->onMessage;
+    $worker->onMessage = function ($connection, $data) use ($worker, $publicRoot, $gameOnMessage): void {
+        if ($data instanceof \Workerman\Protocols\Http\Request) {
+            if (ContainerFrontDoor::tryWebSocketUpgrade($connection, $data, $worker)) {
+                return;
+            }
+            StaticHttpServer::serve($connection, $data, $publicRoot);
+            return;
+        }
+        if (is_callable($gameOnMessage)) {
+            $gameOnMessage($connection, $data);
+        }
+    };
+}
 
 Worker::runAll();

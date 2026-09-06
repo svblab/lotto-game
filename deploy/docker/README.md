@@ -48,11 +48,32 @@ sudo ./deploy/docker/admin-bootstrap.sh --name lotto-01 acknowledge
 | Получить пароль (один раз) | `sudo ./deploy/docker/admin-bootstrap.sh --name <instance> read` |
 | Подтвердить получение | `sudo ./deploy/docker/admin-bootstrap.sh --name <instance> acknowledge` |
 | Сброс пароля admin | `sudo ./deploy/docker/admin-bootstrap.sh --name <instance> reset` |
-| nginx + Let's Encrypt | `sudo ./deploy/docker/configure-proxy.sh --name <instance>` |
 | Удаление | `sudo ./deploy/docker/remove.sh --name <instance> --yes` |
 
 Опции установки: `./deploy/docker/install.sh --help`  
-(`--port`, `--mem-limit`, `--allowed-origins`, `--non-interactive`, …)
+(`--port`, `--bind`, `--mem-limit`, `--allowed-origins`, `--non-interactive`, …)
+
+## Container-native runtime (HD-D10)
+
+Canonical Docker V1 **не требует** host nginx, host PHP, host SQLite или host `public/`.
+
+Внутри одного контейнера:
+
+| Компонент | Расположение |
+|-----------|----------------|
+| Application + SPA | `/app/`, `/app/public/` |
+| HTTP + WebSocket | Workerman (`LOTTO_HTTP_PUBLIC`, path `/ws`) |
+| SQLite | `/app/data/game.db` (writable layer) |
+| Логи | stdout (`docker compose logs`) |
+
+По умолчанию публикуется `0.0.0.0:<host-port> → 8080` (HTTP + `ws://…/ws`).
+Для контракта `lotto-ws-port=""` предпочтительно `--port 80`.
+
+**TLS/WSS (`wss://<domain>/ws`):** не реализован в этой remediation — требуется
+отдельное архитектурное решение (см. `docs/DOCKER_V1_EVIDENCE.md` § HD-D10).
+
+`deploy/docker/configure-proxy.sh` — **legacy** (ADR-036 staging), не входит в
+canonical install path.
 
 ## Имена ресурсов Docker
 

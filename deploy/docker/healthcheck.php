@@ -11,6 +11,15 @@ $portEnv = getenv('LOTTO_WS_PORT');
 $port = (is_string($portEnv) && $portEnv !== '') ? (int) $portEnv : 8080;
 $host = '127.0.0.1';
 
+$wsPath = getenv('LOTTO_WS_PATH');
+if (is_string($wsPath) && trim($wsPath) !== '') {
+    $wsPath = '/' . trim($wsPath, '/');
+} elseif (is_string(getenv('LOTTO_HTTP_PUBLIC')) && getenv('LOTTO_HTTP_PUBLIC') !== '') {
+    $wsPath = '/ws';
+} else {
+    $wsPath = '/';
+}
+
 try {
     $sock = @fsockopen($host, $port, $errno, $errstr, 3.0);
     if (!$sock) {
@@ -27,7 +36,7 @@ try {
             $originLine = "Origin: {$firstOrigin}\r\n";
         }
     }
-    $request = "GET / HTTP/1.1\r\n"
+    $request = "GET {$wsPath} HTTP/1.1\r\n"
         . "Host: {$host}:{$port}\r\n"
         . $originLine
         . "Upgrade: websocket\r\n"

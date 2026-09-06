@@ -25,7 +25,7 @@ gates are PASS.
 | **HD-D7** | Supported OS targets | **DECIDED** | 2026-09-06 | PENDING (D3 validation matrix) |
 | **HD-D8** | Installer-first / automated installation | **DECIDED** | 2026-09-06 | PENDING (installer implementation) |
 | **HD-D9** | Canonical input = single immutable application release archive | **DECIDED** | 2026-09-06 | See § HD-D9 remediation below |
-| **HD-D10** | All-in-container application boundary (no host nginx/host `public/` runtime) | **DECIDED** | 2026-09-06 | PENDING (remediation per D2 findings) |
+| **HD-D10** | All-in-container application boundary (no host nginx/host `public/` runtime) | **REMEDIATED** | 2026-09-06 | See § HD-D10 remediation below |
 | **HD-D5** | Container-only application storage (no named volume / bind mount) | **REMEDIATED** | 2026-09-06 | See § HD-D5 remediation below |
 
 ---
@@ -183,19 +183,81 @@ download code, OCI registry remote pull.
 **Not decided by HD-D10:** registry, artifact hosting, installer implementation,
 archive-based build, exact in-container TLS layout, remediation of `deploy/docker/`.
 
-**Implementation evidence (still PENDING — remediation not started):**
+**Implementation evidence (HD-D10 remediation 2026-09-06):**
 
-- `public/` embedded in container image
-- No host `configure-proxy.sh` dependency for Docker V1 install path
-- D10 uninstall verifies absence of host-split artifacts
+- `public/` embedded in container image (`COPY public/` in Dockerfile)
+- Container-native HTTP (Workerman `LOTTO_HTTP_PUBLIC`) + WebSocket `/ws`
+- Canonical install path does not call `configure-proxy.sh`
+- **TLS/WSS in-container:** **OPEN** — separate architectural decision required (ADR-027)
 
 | Field | Value |
 |-------|-------|
 | **HD-D10 decision** | **DECIDED** |
+| **HD-D10 implementation** | **REMEDIATED** (HTTP/WS/static; TLS **OPEN**) |
 | **Decision date (UTC)** | 2026-09-06 |
+| **Remediation date (UTC)** | 2026-09-06 |
 | **ADR reference** | ADR-039 §14; ADR-036 supersession note |
-| **Implementation result** | PENDING (post-D2 remediation) |
-| **Notes / findings** | Current `deploy/docker/` still ADR-036-era; conflicts documented in D2 |
+| **Notes / findings** | See § HD-D10 remediation; D10 zero-residue gate still **PENDING** |
+
+---
+
+## HD-D10 remediation — container-native application runtime
+
+**Remediation date (UTC):** 2026-09-06  
+**Scope:** F-D2-05 — entire RUSBINGO inside container; no host nginx/host `public/` dependency.
+
+### Changes
+
+| Component | Change |
+|-----------|--------|
+| `deploy/docker/Dockerfile` | `COPY public/`; `LOTTO_HTTP_PUBLIC`, `LOTTO_WS_PATH` env |
+| `server.php` | Env-gated `LOTTO_HTTP_PUBLIC` → HTTP static + `/ws` upgrade (NLD unchanged when unset) |
+| `src/Core/StaticHttpServer.php` | SPA/static serving with path traversal protection |
+| `src/Core/ContainerFrontDoor.php` | WebSocket upgrade on `/ws` within single HTTP worker |
+| `deploy/docker/compose.yaml` | `LOTTO_HTTP_PUBLIC`; dockerfile from installer repo |
+| `deploy/docker/lib/release-artifact.sh` | `lotto_apply_docker_v1_runtime_overlay()` after verified extract |
+| `deploy/docker/install.sh` | Removed canonical `configure-proxy.sh` handoff |
+| `deploy/docker/healthcheck.php` | Healthcheck uses `LOTTO_WS_PATH` (`/ws`) |
+| `deploy/docker/tests/test_hd_d10.sh` | Static HD-D10 checks |
+
+### Finding status
+
+| ID | D2 status | Post-HD-D10 |
+|----|-----------|-------------|
+| **F-D2-05** | FAIL | **REMEDIATED** — `public/` in image; container HTTP/WS |
+| **F-D2-03** | PARTIAL | **PARTIAL** — D10 zero-residue validation still **PENDING** |
+| Networking/TLS row | FAIL | **PARTIAL** — HTTP+WS in-container; **TLS OPEN** |
+
+### TLS architecture (OPEN)
+
+| Item | Status |
+|------|--------|
+| In-container HTTPS/WSS without second proxy process | **OPEN** |
+| ADR-027 native Workerman TLS | Explicitly excluded for NLD |
+| Host nginx as mandatory reverse proxy | **Removed** from canonical Docker path |
+| Self-signed production certs | **Not implemented** |
+
+**Blocker:** Production `wss://<domain>/ws` requires TLS termination. Completing
+this without host nginx or an additional in-container proxy/server needs a
+separate Human Decision — not implemented in this remediation.
+
+### Verification (static)
+
+| Check | Result |
+|-------|--------|
+| `deploy/docker/tests/test_hd_d10.sh` | *Run at commit time* |
+| `public/` in Dockerfile | **PASS** |
+| No host `public/` bind mount in compose | **PASS** |
+| No application state volumes | **PASS** (HD-D5 retained) |
+| `lotto-ws-port=""` / `lotto-ws-path="/ws"` preserved | **PASS** |
+| HD-D9 verified archive flow | **PASS** (overlay documented) |
+| Security controls (`cap_drop`, non-root, …) | **PASS** |
+
+### Verification (runtime)
+
+| Check | Result |
+|-------|--------|
+| Docker image build + HTTP/WS smoke | **NOT RUN** if Docker daemon unavailable |
 
 ---
 

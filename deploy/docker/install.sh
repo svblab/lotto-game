@@ -30,8 +30,8 @@ Usage: sudo ./deploy/docker/install.sh [options]
 Options:
   --name NAME          Instance name (default: default)
   --port PORT          Host port to publish (default: auto / reuse saved)
-  --bind ADDRESS       Bind address (default: 127.0.0.1)
-  --container-port P   In-container WS port (default: 8080)
+  --bind ADDRESS       Bind address (default: 0.0.0.0)
+  --container-port P   In-container HTTP/WS port (default: 8080)
   --mem-limit VALUE    Docker mem_limit (default: 256m)
   --cpu-limit VALUE    Docker cpus limit (default: 0.5)
   --pids-limit N       Docker pids_limit (default: 256)
@@ -104,12 +104,12 @@ DETECTED_FQDN=""
 if [[ -z "${ALLOWED_ORIGINS}" ]]; then
     if DETECTED_FQDN="$(lotto_detect_provisioning_fqdn 2>/dev/null)"; then
         lotto_validate_fqdn_dns "${DETECTED_FQDN}" >/dev/null
-        ALLOWED_ORIGINS="$(lotto_https_origin_for_fqdn "${DETECTED_FQDN}")"
+        ALLOWED_ORIGINS="http://${DETECTED_FQDN},$(lotto_https_origin_for_fqdn "${DETECTED_FQDN}")"
         lotto_info "Detected provisioning FQDN '${DETECTED_FQDN}' → LOTTO_ALLOWED_ORIGINS=${ALLOWED_ORIGINS}"
     fi
 fi
 if [[ -z "${TRUSTED_PROXY_IPS}" ]]; then
-    TRUSTED_PROXY_IPS="127.0.0.1,::1"
+    TRUSTED_PROXY_IPS=""
 fi
 
 STATE_DIR="$(lotto_instance_dir "${INSTANCE}")"
@@ -220,11 +220,19 @@ trap - ERR
 
 lotto_info ""
 lotto_info "Lotto Game instance '${INSTANCE}' is running."
-lotto_info "  WebSocket: ws://${BIND_ADDRESS}:${HOST_PORT}/"
-lotto_info "  Reverse proxy upstream: http://${BIND_ADDRESS}:${HOST_PORT} (see docs/LOCAL_ENVIRONMENT.md)"
+lotto_info "  HTTP SPA: http://${BIND_ADDRESS}:${HOST_PORT}/"
+lotto_info "  WebSocket: ws://${BIND_ADDRESS}:${HOST_PORT}/ws"
 if [[ -n "${DETECTED_FQDN}" ]]; then
-    lotto_info "  Public HTTPS (after proxy): https://${DETECTED_FQDN}/"
-    lotto_info "  Configure host TLS proxy: sudo ./deploy/docker/configure-proxy.sh --name ${INSTANCE}"
+    if [[ "${HOST_PORT}" == "80" ]]; then
+        lotto_info "  Public HTTP: http://${DETECTED_FQDN}/"
+        lotto_info "  Public WSS contract (requires TLS architecture decision): wss://${DETECTED_FQDN}/ws"
+    else
+        lotto_info "  Public HTTP (non-standard port): http://${DETECTED_FQDN}:${HOST_PORT}/"
+        lotto_info "  For empty lotto-ws-port contract, publish host port 80 when possible."
+    fi
+    if [[ -n "${ALLOWED_ORIGINS}" ]]; then
+        lotto_info "  LOTTO_ALLOWED_ORIGINS=${ALLOWED_ORIGINS}"
+    fi
 fi
 lotto_info "  Logs: docker compose -f deploy/docker/compose.yaml --env-file ${STATE_DIR}/instance.env -p lotto-${INSTANCE} logs -f app"
 lotto_info "  Remove: sudo ./deploy/docker/remove.sh --name ${INSTANCE}"

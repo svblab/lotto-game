@@ -1313,7 +1313,7 @@ D2/D3 validation or implementation evidence before gate PASS.
 | **HD-D7** | Supported OS targets (certified + compatibility) | Policy | **DECIDED** | 2026-09-06 |
 | **HD-D8** | Installer-first / automated installation model | Policy | **DECIDED** | 2026-09-06 |
 | **HD-D9** | Canonical input = single immutable application release archive (`docker build`) | Policy | **REMEDIATED** | 2026-09-06 — implementation commit; D3 validation **PENDING** |
-| **HD-D10** | All-in-container application boundary (no host nginx/host `public/` runtime) | Policy | **DECIDED** | 2026-09-06 |
+| **HD-D10** | All-in-container application boundary (no host nginx/host `public/` runtime) | Implementation | **REMEDIATED** | 2026-09-06 |
 | — | OCI image distribution / registry publication | Future | **Open** | OCI registry not chosen; Docker Hub not selected |
 | — | Exact Docker Engine / Compose versions | Audit | Open | After D2/D3 |
 | — | Minimum VPS resources | Audit | Open | After D2/D3 |

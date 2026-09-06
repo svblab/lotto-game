@@ -6,10 +6,11 @@ set -euo pipefail
 LOTTO_DEPLOY_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOTTO_REPO_ROOT="$(cd "${LOTTO_DEPLOY_LIB_DIR}/../../.." && pwd)"
 LOTTO_COMPOSE_FILE="${LOTTO_REPO_ROOT}/deploy/docker/compose.yaml"
+LOTTO_DOCKERFILE="${LOTTO_REPO_ROOT}/deploy/docker/Dockerfile"
 LOTTO_DEFAULT_STATE_ROOT="/var/lib/lotto-game"
 LOTTO_DEFAULT_INSTANCE="default"
 LOTTO_DEFAULT_CONTAINER_PORT="8080"
-LOTTO_DEFAULT_BIND_ADDRESS="127.0.0.1"
+LOTTO_DEFAULT_BIND_ADDRESS="0.0.0.0"
 LOTTO_DATA_UID="1000"
 LOTTO_DATA_GID="1000"
 
@@ -202,7 +203,7 @@ lotto_port_in_use() {
 }
 
 lotto_pick_free_port() {
-    local start="${1:-8080}"
+    local start="${1:-80}"
     local end="${2:-8999}"
     local port
     for ((port=start; port<=end; port++)); do
@@ -260,6 +261,7 @@ LOTTO_APPLICATION_VERSION=${application_version}
 LOTTO_APPLICATION_GIT_SHA=${application_git_sha}
 LOTTO_RELEASE_ARCHIVE_SHA256=${release_archive_sha256}
 LOTTO_RELEASE_ARCHIVE_FILE=${release_archive_file}
+LOTTO_DOCKERFILE=${LOTTO_DOCKERFILE:-${LOTTO_REPO_ROOT}/deploy/docker/Dockerfile}
 EOF
     chmod 600 "$(lotto_instance_env_file "${instance}")"
 }
@@ -275,6 +277,7 @@ lotto_prepare_instance_release_build() {
     chmod 700 "${work_dir}"
 
     lotto_release_prepare_build_context "${archive_path}" "${manifest_path}" "${work_dir}"
+    lotto_apply_docker_v1_runtime_overlay "${LOTTO_BUILD_CONTEXT}"
 }
 
 lotto_load_instance_env() {

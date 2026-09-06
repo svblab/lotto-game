@@ -171,7 +171,7 @@ test_image_reference_count() {
 test_static_files() {
     echo "--- static file checks ---"
     assert_true "Dockerfile exists" test -f "${LOTTO_REPO_ROOT}/deploy/docker/Dockerfile"
-    assert_true "configure-proxy.sh exists" test -f "${LOTTO_REPO_ROOT}/deploy/docker/configure-proxy.sh"
+    assert_true "configure-proxy.sh exists (legacy, non-canonical)" test -f "${LOTTO_REPO_ROOT}/deploy/docker/configure-proxy.sh"
     assert_true "compose.yaml exists" test -f "${LOTTO_COMPOSE_FILE}"
     assert_true "healthcheck.php exists" test -f "${LOTTO_REPO_ROOT}/deploy/docker/healthcheck.php"
     if bash -n "${DEPLOY_DIR}/install.sh"; then
@@ -251,17 +251,18 @@ test_data_dir_permissions() {
     fi
 
     lotto_release_prepare_build_context "${archive}" "${manifest}" "${work_dir}"
+    lotto_apply_docker_v1_runtime_overlay "${LOTTO_BUILD_CONTEXT}"
     docker build -t "${image}" \
-        -f "${LOTTO_BUILD_CONTEXT}/deploy/docker/Dockerfile" \
+        -f "${LOTTO_DOCKERFILE}" \
         --build-arg "LOTTO_APPLICATION_VERSION=${LOTTO_APPLICATION_VERSION}" \
         --build-arg "LOTTO_APPLICATION_GIT_SHA=${LOTTO_APPLICATION_GIT_SHA}" \
         --build-arg "LOTTO_RELEASE_ARCHIVE_SHA256=${LOTTO_RELEASE_ARCHIVE_SHA256}" \
         "${LOTTO_BUILD_CONTEXT}" >/dev/null
 
     owner="$(docker run --rm --user "${LOTTO_DATA_UID}:${LOTTO_DATA_GID}" \
-        --entrypoint stat \
+        --entrypoint sh \
         "${image}" \
-        -c '%u:%g %a' /app/data)"
+        -c 'stat -c "%u:%g %a" /app/data')"
     assert_eq "image /app/data owner and mode" "1000:1000 750" "${owner}"
 
     write_ok="$(docker run --rm --user "${LOTTO_DATA_UID}:${LOTTO_DATA_GID}" \
@@ -336,6 +337,10 @@ test_docker_integration
 echo ""
 echo "--- HD-D9 release artifact tests ---"
 bash "${SCRIPT_DIR}/test_release_artifact.sh"
+
+echo ""
+echo "--- HD-D10 container-native runtime tests ---"
+bash "${SCRIPT_DIR}/test_hd_d10.sh"
 
 echo ""
 echo "--- AHPC admin bootstrap tests ---"

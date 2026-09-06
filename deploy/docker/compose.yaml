@@ -6,7 +6,7 @@ services:
     image: ${LOTTO_IMAGE}
     build:
       context: ${LOTTO_BUILD_CONTEXT}
-      dockerfile: deploy/docker/Dockerfile
+      dockerfile: ${LOTTO_DOCKERFILE}
       args:
         LOTTO_APPLICATION_VERSION: ${LOTTO_APPLICATION_VERSION}
         LOTTO_APPLICATION_GIT_SHA: ${LOTTO_APPLICATION_GIT_SHA}
@@ -27,6 +27,8 @@ services:
       - /tmp
     environment:
       LOTTO_WS_PORT: ${LOTTO_CONTAINER_PORT:-8080}
+      LOTTO_HTTP_PUBLIC: /app/public
+      LOTTO_WS_PATH: /ws
       LOTTO_DB_PATH: /app/data/game.db
       LOTTO_SERVER_LOG: php://stdout
       LOTTO_WORKERMAN_LOG_FILE: php://stdout

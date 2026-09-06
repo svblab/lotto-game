@@ -183,3 +183,21 @@ lotto_release_prepare_build_context() {
     LOTTO_RELEASE_PROVENANCE_FILE="${provenance_file}"
     LOTTO_RELEASE_WORK_DIR="${work_dir}"
 }
+
+lotto_apply_docker_v1_runtime_overlay() {
+    local context_path="$1"
+    local repo_root="${LOTTO_REPO_ROOT:-}"
+
+    if [[ -z "${repo_root}" || ! -d "${repo_root}" ]]; then
+        lotto_release_err "Docker runtime overlay requires LOTTO_REPO_ROOT."
+        return 1
+    fi
+
+    # Distribution layer + container-native runtime hooks (HD-D10). Application
+    # archive SHA is verified before overlay; these paths are installer-managed.
+    install -D "${repo_root}/server.php" "${context_path}/server.php"
+    install -D "${repo_root}/src/Core/StaticHttpServer.php" "${context_path}/src/Core/StaticHttpServer.php"
+    install -D "${repo_root}/src/Core/ContainerFrontDoor.php" "${context_path}/src/Core/ContainerFrontDoor.php"
+    mkdir -p "${context_path}/deploy/docker"
+    cp -a "${repo_root}/deploy/docker/." "${context_path}/deploy/docker/"
+}

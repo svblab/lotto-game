@@ -223,8 +223,8 @@ forking application logic and without revising NLD V1.0.
 
 **Negative**
 
-- Existing `deploy/docker/configure-proxy.sh` (host nginx + host `public/`) **conflicts**
-  with HD-D10 until remediated.
+- Existing `deploy/docker/configure-proxy.sh` (host nginx + host `public/`) is
+  **legacy ADR-036 staging** — superseded for canonical Docker V1 (HD-D10 remediated).
 - Container removal without backup **destroys** game data — operators must use
   documented export/import (D6), not rely on host volumes.
 - Docker V1 does not inherit NLD G1–G11 PASS; full D0–D12 cycle required.

@@ -8,6 +8,7 @@ COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-scripts
 
 COPY src/ ./src/
+COPY public/ ./public/
 COPY server.php init_db.php ./
 
 FROM php:8.4-cli-bookworm AS runtime
@@ -32,6 +33,7 @@ WORKDIR /app
 
 COPY --from=builder --chown=lotto:lotto /build/vendor ./vendor
 COPY --from=builder --chown=lotto:lotto /build/src ./src
+COPY --from=builder --chown=lotto:lotto /build/public ./public
 COPY --from=builder --chown=lotto:lotto /build/server.php ./server.php
 COPY --from=builder --chown=lotto:lotto /build/init_db.php ./init_db.php
 COPY --chown=lotto:lotto deploy/docker/healthcheck.php /app/healthcheck.php
@@ -44,6 +46,8 @@ RUN mkdir -p /app/data \
 USER lotto
 
 ENV LOTTO_WS_PORT=8080 \
+    LOTTO_HTTP_PUBLIC=/app/public \
+    LOTTO_WS_PATH=/ws \
     LOTTO_DB_PATH=/app/data/game.db \
     LOTTO_SERVER_LOG=php://stdout \
     LOTTO_WORKERMAN_LOG_FILE=php://stdout \
