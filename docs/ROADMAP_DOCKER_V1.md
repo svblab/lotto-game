@@ -450,6 +450,88 @@ Audit and document:
 
 ---
 
+## Human Decision HD-D10 — Application boundary inside container (**DECIDED** 2026-09-06)
+
+**Decision:** Docker V1 places the **entire RUSBINGO application stack inside the
+container**. A clean supported Linux VPS requires only Docker/Compose
+infrastructure on the host — not RUSBINGO application runtime.
+
+> **Docker V1: весь RUSBINGO размещается внутри контейнера.**
+
+Resolves D2 audit **OPEN** question (host nginx + host `public/` vs all-in-container).
+
+### Inside container (application boundary)
+
+| Component | Included |
+|-----------|----------|
+| RUSBINGO application code (`src/`, `server.php`, `vendor/`) | **Yes** |
+| `public/` and browser SPA | **Yes** |
+| Workerman WebSocket server | **Yes** |
+| HTTP / WebSocket serving (including TLS termination if part of container design) | **Yes** |
+| SQLite engine and `game.db` | **Yes** |
+| Application runtime state (in-RAM game state) | **Yes** |
+| Application logs | **Yes** |
+| Healthcheck | **Yes** |
+| Required runtime dependencies (PHP extensions, etc.) | **Yes** |
+
+### Not required on host (Docker V1)
+
+| Item | Status |
+|------|--------|
+| Host nginx as RUSBINGO runtime | **Not part of Docker V1** |
+| Host PHP | **Not required** |
+| Host SQLite | **Not required** |
+| Host application source tree / `public/` copy | **Not required** |
+| Host-mounted `public/` as canonical delivery | **Forbidden** |
+| Specific PHP/SQLite/nginx versions on VPS | **Not a dependency** — versions come from container image |
+
+Historical `deploy/docker/configure-proxy.sh` (host nginx + host `public/` copy) describes
+**ADR-036 staging** behaviour — **not** canonical Docker V1 architecture (see ADR-036
+supersession note, ADR-039 §14).
+
+### Storage boundary (reaffirms ADR-039)
+
+| Rule | Docker V1 |
+|------|-----------|
+| `game.db` location | **Inside container** writable layer |
+| Named volume for application state | **Not used** |
+| Bind mount for `game.db` | **Not used** |
+| Persistent host storage for game activity/state | **Not part of Docker V1** |
+| Container deletion | **Removes** game state with the container (unless restored from exportable backup artifact per D6) |
+
+### Host may still contain (not RUSBINGO application runtime)
+
+The following on the host are **allowed** and are **not** RUSBINGO application
+runtime/state:
+
+- Docker Engine and Compose plugin
+- Installer scripts / installer metadata
+- Temporary release artifact during install (HD-D9)
+- Temporary backup/export artifacts (D6)
+- Ordinary Docker metadata (images, networks — when not application-persistent volumes)
+
+### D10 (Zero Residue) implications
+
+Uninstall verification **must** confirm absence of:
+
+- Running RUSBINGO container
+- RUSBINGO application state on host
+- `game.db` on host
+- Persistent application-named Docker volumes
+- Application bind mounts for game data/logs
+- Host-served copy of `public/` created for RUSBINGO Docker install
+- RUSBINGO-specific Docker deployment artifacts the installer created, when no longer needed
+
+Host may retain only OS + Docker infrastructure + explicitly unrelated system data.
+
+### HD-D10 does NOT decide
+
+- Registry, artifact hosting, installer implementation, archive-based build
+- Exact in-container TLS/nginx layout (implementation detail for remediation)
+- Remediation of current `deploy/docker/` (HD-D5, post-D2)
+
+---
+
 ## D2.1 — Installation contract freeze
 
 ### Human Decision HD-D8 — **DECIDED** (2026-09-06)
@@ -907,6 +989,11 @@ HIGH       = individual disposition required per finding (HD-D2)
 
 ## D10 — Zero residue / uninstall
 
+### Human Decision HD-D10 context
+
+Zero Residue scope follows **HD-D10** (all-in-container application boundary).
+See § Human Decision HD-D10 for host vs application distinction.
+
 ### Goal (critical)
 
 После uninstall Docker installation на host **не должно остаться** game-server data.
@@ -922,7 +1009,8 @@ HIGH       = individual disposition required per finding (HD-D2)
 - Application containers
 - Application-created Docker networks
 - Installation-specific persistent directories
-- Application-specific host artifacts
+- Host-served copy of `public/` (e.g. from historical `configure-proxy.sh`)
+- RUSBINGO-specific installer-created deployment artifacts when obsolete
 
 ### Verification method
 
@@ -1139,6 +1227,7 @@ D2/D3 validation or implementation evidence before gate PASS.
 | **HD-D7** | Supported OS targets (certified + compatibility) | Policy | **DECIDED** | 2026-09-06 |
 | **HD-D8** | Installer-first / automated installation model | Policy | **DECIDED** | 2026-09-06 |
 | **HD-D9** | Canonical input = single immutable application release archive (`docker build`) | Policy | **DECIDED** | 2026-09-06 |
+| **HD-D10** | All-in-container application boundary (no host nginx/host `public/` runtime) | Policy | **DECIDED** | 2026-09-06 |
 | — | Artifact hosting / download mechanism | Policy | Open | Before D3 |
 | — | OCI image distribution / registry publication | Future | Open | After first Docker cycle evidence |
 | — | Exact Docker Engine / Compose versions | Audit | Open | After D2/D3 |

@@ -4,6 +4,25 @@
 
 Accepted
 
+## Docker V1 validation track — supersession note (2026-09-06)
+
+This ADR documents the **historical ADR-036 Docker Compose staging** implementation
+in `deploy/docker/`. It remains **Accepted** as a record of that implementation.
+
+For the **Docker V1 validation/release track** ([`docs/ROADMAP_DOCKER_V1.md`](../ROADMAP_DOCKER_V1.md),
+ADR-039), the following ADR-036 elements are **superseded** as canonical Docker V1
+architecture (remediation tracked post-D2; **not** implemented in this ADR):
+
+| ADR-036 element | Docker V1 status |
+|-----------------|------------------|
+| Named volume SQLite persistence (`data:/app/data`) | **Superseded** — HD-D5 / ADR-039 |
+| Host nginx + host `public/` via `configure-proxy.sh` | **Superseded** — **HD-D10** |
+| Multi-instance staging as primary model | **Unsupported** in Docker V1 topology |
+| Build from mutable git checkout | **Superseded** — HD-D9 |
+
+NLD V1.0 native production (`docs/ADMIN_VPS_DEPLOY.md`) is **unchanged**. ADR-036
+does not describe NLD and is not modified beyond this note.
+
 ## Context
 
 `ANCHOR_CORE.md` Part 1 documents a single native deployment model: Ubuntu 22.04,

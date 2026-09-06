@@ -25,6 +25,7 @@ gates are PASS.
 | **HD-D7** | Supported OS targets | **DECIDED** | 2026-09-06 | PENDING (D3 validation matrix) |
 | **HD-D8** | Installer-first / automated installation | **DECIDED** | 2026-09-06 | PENDING (installer implementation) |
 | **HD-D9** | Canonical input = single immutable application release archive | **DECIDED** | 2026-09-06 | PENDING (D1.1 build evidence) |
+| **HD-D10** | All-in-container application boundary (no host nginx/host `public/` runtime) | **DECIDED** | 2026-09-06 | PENDING (remediation per D2 findings) |
 
 ---
 
@@ -159,9 +160,42 @@ gates are PASS.
 | **Verification command** | |
 | **Notes / findings** | |
 
----
+### Human Decision HD-D10 — **DECIDED** (2026-09-06)
 
-## D2 — Docker implementation audit
+> Docker V1: весь RUSBINGO размещается внутри контейнера.
+
+| Principle | Status |
+|-----------|--------|
+| Application code, `public/`, SPA, Workerman inside container | **DECIDED** |
+| HTTP/WebSocket serving inside container | **DECIDED** |
+| SQLite + `game.db` inside container writable layer | **DECIDED** |
+| Host nginx as RUSBINGO runtime | **Excluded** |
+| Host PHP / host SQLite / host application files | **Not required** |
+| Host-mounted `public/` as canonical delivery | **Forbidden** |
+| Named volume / bind mount for application state | **Not used** |
+| Container deletion removes game state | **DECIDED** |
+| D10 Zero Residue includes host `public/` copy, nginx/certs, installer artifacts | **DECIDED** |
+
+**Resolves:** D2 audit OPEN (F-D2-05, networking row) — host-split vs all-in-container.
+
+**Not decided by HD-D10:** registry, artifact hosting, installer implementation,
+archive-based build, exact in-container TLS layout, remediation of `deploy/docker/`.
+
+**Implementation evidence (still PENDING — remediation not started):**
+
+- `public/` embedded in container image
+- No host `configure-proxy.sh` dependency for Docker V1 install path
+- D10 uninstall verifies absence of host-split artifacts
+
+| Field | Value |
+|-------|-------|
+| **HD-D10 decision** | **DECIDED** |
+| **Decision date (UTC)** | 2026-09-06 |
+| **ADR reference** | ADR-039 §14; ADR-036 supersession note |
+| **Implementation result** | PENDING (post-D2 remediation) |
+| **Notes / findings** | Current `deploy/docker/` still ADR-036-era; conflicts documented in D2 |
+
+---
 
 **Audit date (UTC):** 2026-09-06
 **Auditor:** Cursor (documentation-only audit)
@@ -189,11 +223,11 @@ before D3. **No remediation performed in this audit.**
 | Area | Requirement | Current state | Status | Evidence | Next action |
 |------|-------------|---------------|--------|----------|-------------|
 | Release provenance | HD-D1 / HD-D9 | `docker compose build` from `LOTTO_BUILD_CONTEXT=${LOTTO_REPO_ROOT}` (mutable git checkout); no release archive SHA256 | **FAIL** | `deploy/docker/lib/common.sh` L225; `install.sh` L146–147; `Dockerfile` L7–11 | Implement archive-based build input per HD-D9 |
-| Dockerfile | one-container WS runtime | Multi-stage PHP 8.4-cli; non-root uid 1000; `pcntl`+`pdo_sqlite`; **no `public/`** in image | **GAP** | `deploy/docker/Dockerfile` L1–45 | Human decision: SPA in container vs host-static split |
+| Dockerfile | one-container WS runtime | Multi-stage PHP 8.4-cli; non-root uid 1000; `pcntl`+`pdo_sqlite`; **no `public/`** in image | **GAP** | `deploy/docker/Dockerfile` L1–45 | Remediation per **HD-D10** — embed `public/` in container |
 | Workerman | one worker / lifecycle | `$worker->count = 1`; `CMD php server.php start`; PID file on `/app/data` | **PASS** / **OBSERVATION** | `server.php` L169–170, L686; `compose.yaml` L28 | Runtime-verify SIGTERM/`docker stop` at D3 |
 | SQLite | inside container writable layer | `LOTTO_DB_PATH=/app/data/game.db` but mounted via **named volume** | **FAIL** | `compose.yaml` L25, L32–33; `Dockerfile` L35 | Remove named volume; DB in container layer (HD-D5) |
 | Volumes | no persistent app state | `volumes: data:/app/data` + `lotto-<instance>-data` | **FAIL** | `compose.yaml` L32–33, L49–51; ADR-036 | Remediation per HD-D5 / ADR-039 |
-| Networking | TLS/WSS topology | Bridge network; publish `127.0.0.1:${HOST_PORT}:8080`; **host nginx** (`configure-proxy.sh`) serves static + TLS + `/ws` proxy | **OPEN** | `compose.yaml` L34–43; `configure-proxy.sh` L55–170 | Human: accept host-split vs all-in-container for V1 installer |
+| Networking | TLS/WSS topology | Bridge network; publish `127.0.0.1:${HOST_PORT}:8080`; **host nginx** (`configure-proxy.sh`) serves static + TLS + `/ws` proxy | **FAIL** | `compose.yaml` L34–43; `configure-proxy.sh` L55–170 | **HD-D10** — all-in-container; host-split superseded |
 | Configuration | runtime contract | `LOTTO_*` via compose; origins from install FQDN detect or flags; no `RUSBINGO_DOMAIN` | **GAP** | `compose.yaml` L23–31; `install.sh` L78–88 | Align installer with HD-D8 domain precedence |
 | Security | container hardening | `read_only: true`, `cap_drop: [ALL]`, `no-new-privileges`, non-root, no docker.sock, no privileged | **PASS** | `compose.yaml` L12–17 | D8.1 vulnerability scan at gate D8.1 |
 | Observability | logs / health | `LOTTO_*_LOG=php://stdout`; compose + Dockerfile HEALTHCHECK via `healthcheck.php` | **PASS** | `compose.yaml` L26–27, L36–41; `Dockerfile` L36–37, L42–43 | — |
@@ -242,19 +276,19 @@ before D3. **No remediation performed in this audit.**
 | Observed | Host paths: `/var/lib/lotto-game/<instance>/` (instance.env, AHPC pending, static copy); nginx vhost + Let's Encrypt certs via `configure-proxy.sh` (not removed by `remove.sh`) |
 | Requirement | D10 zero residue — host must not retain game-server artifacts after uninstall |
 | Impact | `remove.sh` does not clean nginx/TLS artifacts; `configure-proxy.sh` copies `public/` to host |
-| Next action | **OPEN** — define whether nginx/certs are in-scope for D10; document proxy teardown |
-| ADR / Human | **OPEN** (product/installer scope) |
+| Next action | D10 must verify uninstall removes host `public/` copy, nginx vhost, certs per **HD-D10** |
+| ADR / Human | **HD-D10** — host nginx/host `public/` not canonical Docker V1; teardown in D10 scope |
 
-#### F-D2-05 — `public/` not in container image (**GAP** / **OPEN**)
+#### F-D2-05 — `public/` not in container image (**GAP** / **FAIL** vs HD-D10)
 
 | Field | Value |
 |-------|-------|
 | Files | `deploy/docker/Dockerfile` (no `public/` COPY); `configure-proxy.sh` L55–72 |
 | Observed | Container runs Workerman only; HTTPS static SPA served from host `STATIC_ROOT` copy of repo `public/` |
-| Requirement | HD-D8 one-command install on clean VPS — unclear if acceptable split |
+| Requirement | **HD-D10:** `public/` and SPA inside container; host `public/` copy not canonical |
 | Impact | Installer depends on git checkout for static files + separate `configure-proxy.sh` step |
-| Next action | Human decision: keep host-split (nginx on host) vs embed static in image |
-| ADR / Human | **OPEN** — architectural for HD-D8 target UX |
+| Next action | Remediation: embed `public/` in image; remove host-static delivery from Docker V1 path |
+| ADR / Human | **HD-D10** (decided 2026-09-06) |
 
 #### F-D2-06 — Docker Engine not auto-installed (**GAP**)
 
@@ -330,9 +364,9 @@ before D3. **No remediation performed in this audit.**
 
 1. **HD-D5** — Remove named application volume; SQLite in container writable layer; define persistence-within-container-restart model.
 2. **HD-D9 implementation** — Archive-based build context; SHA256 gate; decouple from mutable `main`.
-3. **OPEN decision** — Host nginx + host static vs all-in-container for HD-D8 installer target.
+3. **HD-D10 remediation** — Embed `public/` in container; retire host nginx/host-static as Docker V1 delivery path.
 4. **HD-D8 installer** — Docker Engine bootstrap, `RUSBINGO_DOMAIN` precedence, idempotency, unified flow.
-5. **D10 scope** — Define teardown for nginx/certs/host static copy.
+5. **D10 scope** — Teardown per HD-D10: container, volumes, host `public/` copy, nginx/certs, installer artifacts.
 6. **D3 validation** — Runtime proof: SIGTERM, zero residue, cold install on certified OS.
 
 ### ADR triggers (recommendations only — no ADR created)
@@ -340,15 +374,13 @@ before D3. **No remediation performed in this audit.**
 | Trigger | Recommendation |
 |---------|----------------|
 | Storage remediation | Update ADR-039 consequences or short amendment when implementation starts — ADR-036 already marked superseded for V1 |
-| Host-split static/nginx | Possible ADR if Human confirms split as Docker V1 canonical topology (differs from single-container mental model) |
+| Host-split static/nginx | **Resolved by HD-D10** — ADR-036 supersession note documents historical staging model |
 
 ### Human decisions required
 
 | ID | Question |
 |----|----------|
 | **HD-D5** | Approve remediation plan for named volume removal |
-| **OPEN** | Accept host nginx + host `public/` copy as Docker V1 topology, or require static assets in container |
-| **OPEN** | Include nginx/TLS artifacts in D10 zero-residue scope |
 | **HD-D6** | Recommend **close** as excluded (`network_mode: host` not used) |
 | — | Artifact hosting/download (still open from HD-D9) |
 

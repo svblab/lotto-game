@@ -148,6 +148,33 @@ forking application logic and without revising NLD V1.0.
     - **HD-D4** registry-independent contract remains in force; registry selection
       still TBD before Docker Release if registry distribution is used.
 
+14. **Application boundary inside container (HD-D10, decided 2026-09-06).**
+    - Docker V1 places the **entire RUSBINGO application stack inside the
+      container**: application code, `public/` and browser SPA, Workerman,
+      HTTP/WebSocket serving, SQLite and `game.db`, application runtime state,
+      application logs, healthcheck, and required runtime dependencies.
+    - **Host nginx is not part of Docker V1 runtime.** Host PHP, host SQLite, and
+      host application files are **not required**. Host-mounted `public/` is **not**
+      canonical Docker V1 application delivery. Docker V1 must **not** depend on
+      specific PHP/SQLite/nginx versions installed on the VPS.
+    - **Storage boundary (reaffirms §2–4):** `game.db` lives inside the container;
+      no named volume or bind mount for application state; no persistent host
+      storage for game activity/state; **container deletion removes game state**
+      with the container (exportable backup per D6 excepted).
+    - Host may retain Docker Engine, Compose, installer, temporary release
+      artifacts, backup/export artifacts, and ordinary Docker metadata — these are
+      **not** RUSBINGO application runtime/state.
+    - **D10 Zero Residue** must verify absence of: running RUSBINGO container,
+      application state on host, `game.db`, persistent application volumes,
+      application bind mounts, host-served `public/` copy, and obsolete
+      RUSBINGO-specific installer deployment artifacts.
+    - Historical `deploy/docker/configure-proxy.sh` (host nginx + host `public/`)
+      is **ADR-036 staging** — superseded for Docker V1 by this decision (see
+      ADR-036 supersession note).
+    - HD-D10 does **not** decide: registry, artifact hosting, installer
+      implementation, archive-based build, exact in-container TLS layout, or
+      remediation of `deploy/docker/`.
+
    Because Docker V1 stores application state inside the container filesystem,
    any future upgrade between immutable Docker releases must account for game
    state preservation/restoration (D6); upgrade is **not** designed here.
@@ -165,6 +192,8 @@ forking application logic and without revising NLD V1.0.
 
 - Existing `deploy/docker/compose.yaml` (named volume `data:/app/data`) **conflicts**
   with Docker V1 contract until remediated — must be caught in D2 audit.
+- Existing `deploy/docker/configure-proxy.sh` (host nginx + host `public/`) **conflicts**
+  with HD-D10 until remediated.
 - Container removal without backup **destroys** game data — operators must use
   documented export/import (D6), not rely on host volumes.
 - Docker V1 does not inherit NLD G1–G11 PASS; full D0–D12 cycle required.
