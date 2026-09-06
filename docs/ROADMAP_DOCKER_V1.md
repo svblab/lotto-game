@@ -443,8 +443,10 @@ Audit and document:
 
 ### Acceptance
 
-- [ ] Audit report in evidence D2 with PASS/FAIL per area
-- [ ] Gaps documented with remediation plan before D3
+- [x] Audit report in evidence D2 with PASS/FAIL per area (`DOCKER_V1_EVIDENCE.md` § D2)
+- [x] Gaps documented with remediation plan before D3 (remediation **not** started)
+
+**D2 gate:** audit **COMPLETE** — mandatory constraints **not satisfied**; do **not** proceed to D3 until Human reviews findings and authorizes remediation.
 
 ---
 
@@ -1132,8 +1134,8 @@ D2/D3 validation or implementation evidence before gate PASS.
 | **HD-D2** | HIGH vulnerability disposition policy (CRITICAL=0; HIGH per-finding) | Policy | **DECIDED** | 2026-09-06 |
 | **HD-D3** | Docker release versioning / provenance linkage | Policy | **DECIDED** | 2026-09-06 |
 | **HD-D4** | Registry-independent contract (registry TBD before release) | Policy | **DECIDED** | 2026-09-06 |
-| **HD-D5** | ADR-036 named-volume remediation vs Docker V1 contract | Audit | Open | After D2 |
-| **HD-D6** | `network_mode: host` — justify or exclude | Audit | Open | D2 audit |
+| **HD-D5** | ADR-036 named-volume remediation vs Docker V1 contract | Audit | **OPEN** | After D2 — **D2 audit confirms FAIL**; remediation required |
+| **HD-D6** | `network_mode: host` — justify or exclude | Audit | **Recommend CLOSE** | D2 audit: not used in `compose.yaml` |
 | **HD-D7** | Supported OS targets (certified + compatibility) | Policy | **DECIDED** | 2026-09-06 |
 | **HD-D8** | Installer-first / automated installation model | Policy | **DECIDED** | 2026-09-06 |
 | **HD-D9** | Canonical input = single immutable application release archive (`docker build`) | Policy | **DECIDED** | 2026-09-06 |
