@@ -130,15 +130,17 @@ forking application logic and without revising NLD V1.0.
     - HD-D4 V1 does **not** implement: GitHub Actions pipeline, Release publication,
       installer HTTP download, OCI registry infrastructure.
 
-11. **Supported OS targets (HD-D7, decided 2026-09-06).**
+11. **Supported OS targets (HD-D7, approved 2026-09-06).**
     - **Officially certified minimum:** Ubuntu 22.04 LTS, Ubuntu 24.04 LTS,
       Debian 12.
     - Other Linux distributions may be **compatible** if they support required
       Docker Engine, Compose mechanism, and system requirements — but are **not
       officially certified** until validation matrix PASS.
     - Do **not** claim «any Linux is supported».
-    - Exact Docker Engine / Compose versions and minimum VPS resources — after
-      D2/D3 audit (not decided now).
+    - **Certification/release floors (approved 2026-09-06):** Docker Engine
+      **≥ 24.0**; Docker Compose **V2 plugin** (`docker compose`); minimum VPS
+      **1 vCPU**, **1 GiB RAM**, **5 GiB** free disk. Installer enforcement/pinning
+      is separate implementation work (D2.1 / D3).
 
 12. **Installer-first installation model (HD-D8, decided 2026-09-06).**
     - Goal: ordinary user installs game server on clean supported Linux VPS with
@@ -155,14 +157,16 @@ forking application logic and without revising NLD V1.0.
       or independent application state.
     - HD-D8 is **policy only** — not implemented in this ADR.
 
-13. **HIGH vulnerability policy (HD-D2, decided 2026-09-06).**
-    - CRITICAL vulnerabilities: **release blocker** (must be 0).
-    - HIGH: may be ACCEPTED only with **individual documented disposition**
-      proving non-exploitability / non-applicability to supported runtime.
+13. **HIGH vulnerability policy (HD-D2, approved 2026-09-06).**
+    - CRITICAL vulnerabilities: **0 allowed** — any CRITICAL blocks release.
+    - HIGH: **no numeric count cap**; every HIGH requires **individual documented
+      technical disposition** proving non-exploitability / non-applicability to
+      supported runtime.
+    - Any **exploitable or unresolved** HIGH blocks release.
     - Generic «HIGH not exploitable» without per-CVE evidence is **insufficient**.
-    - Numeric HIGH count threshold — **not decided**.
+    - Numeric HIGH count threshold: **waived / not applicable**.
 
-14. **Canonical release archive input (HD-D9, decided 2026-09-06).**
+14. **Canonical release archive input (HD-D9, decided 2026-09-06; remediation approved 2026-09-06).**
     - Docker V1 uses the **single immutable application release artifact** (release
       archive — e.g. `.tar` / `.tar.gz` / `.rar` style) as the canonical input for
       Docker installation.
@@ -184,6 +188,10 @@ forking application logic and without revising NLD V1.0.
     - **HD-D4-A** OCI registry-independent contract remains in force; OCI registry
       selection still open. **HD-D4 V1** decides artifact hosting channel (GitHub
       Releases).
+    - **Remediation approval (2026-09-06):** commit `fd84a48`; Application **v1.1**
+      (`ed42d7a2d278a7f27260fc06249b14bc1d638b6d`, archive SHA256
+      `568f528bd32c854f637fb2c31afaeeefeb57aceb8a50331d0dd0daeae60e944a`) is the
+      canonical Docker V1 application release input. NLD `v1.0` unchanged.
 
 15. **Application boundary inside container (HD-D10, decided 2026-09-06).**
     - Docker V1 places the **entire RUSBINGO application stack inside the
@@ -215,6 +223,12 @@ forking application logic and without revising NLD V1.0.
    Because Docker V1 stores application state inside the container filesystem,
    any future upgrade between immutable Docker releases must account for game
    state preservation/restoration (D6); upgrade is **not** designed here.
+
+16. **Docker networking (HD-D6, approved 2026-09-06).**
+    - Docker V1 **excludes** `network_mode: host`.
+    - Canonical networking: **Docker bridge network** + **published host:container
+      ports**.
+    - Re-adoption of host networking requires a future explicit Human Decision.
 
 ## Consequences
 

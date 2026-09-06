@@ -19,27 +19,31 @@ gates are PASS.
 | ID | Decision | Status | Date | Implementation evidence |
 |----|----------|--------|------|-------------------------|
 | **HD-D1** | Immutable Release model | **DECIDED** | 2026-09-06 | PENDING (D1.1) |
-| **HD-D2** | HIGH vulnerability disposition policy | **DECIDED** | 2026-09-06 | PENDING (D8.1 scan) |
+| **HD-D2** | HIGH vulnerability disposition policy | **APPROVED** | 2026-09-06 | PENDING (D8.1 scan) |
 | **HD-D3** | Docker release versioning / provenance | **DECIDED** | 2026-09-06 | PENDING (release packaging) |
 | **HD-D4** | Registry-independent OCI contract + GitHub Releases artifact channel (V1) | **DECIDED** | 2026-09-06 | PENDING (installer GitHub download) |
-| **HD-D7** | Supported OS targets | **DECIDED** | 2026-09-06 | PENDING (D3 validation matrix) |
+| **HD-D6** | Docker networking — `network_mode: host` excluded | **APPROVED** | 2026-09-06 | See compose bridge + published ports |
+| **HD-D7** | Supported OS targets + Docker/VPS prerequisite floors | **APPROVED** | 2026-09-06 | PENDING (D3 validation matrix) |
 | **HD-D8** | Installer-first / automated installation | **DECIDED** | 2026-09-06 | PENDING (installer implementation) |
-| **HD-D9** | Canonical input = single immutable application release archive | **DECIDED** | 2026-09-06 | See § HD-D9 remediation below |
+| **HD-D9** | Immutable release archive; remediation `fd84a48`; Application **v1.1** canonical | **REMEDIATION APPROVED** | 2026-09-06 | See § HD-D9 remediation below |
 | **HD-D10** | All-in-container application boundary (no host nginx/host `public/` runtime) | **REMEDIATED** | 2026-09-06 | See § HD-D10 remediation below |
 | **HD-D5** | Container-only application storage (no named volume / bind mount) | **REMEDIATED** | 2026-09-06 | See § HD-D5 remediation below |
 
+**Numeric HIGH count threshold:** **waived / N/A** (HD-D2 APPROVED 2026-09-06).
+
 ---
 
-## Release identity (to be confirmed at D12 / H-D1)
+## Release identity
 
-| Field | Value |
-|-------|-------|
-| Application release tag | `v1.0` |
-| Application release SHA | `508cc280704ed72cc3e85df03e57bd6fb42d24ee` |
-| Application artifact hash (D0) | `sha256:780bb0ea9157a326908afee593f3f7acbbf1c043903094c2bbd7072e4eb166a8` |
-| Docker release version | *TBD — HD-D3 allows independent numbering; must link to app version* |
-| Docker image digest | *TBD (HD-D4 — digest-based identity when image used)* |
-| NLD `v1.0` tag | **Unchanged** |
+| Field | NLD baseline (unchanged) | Docker V1 canonical (APPROVED) |
+|-------|--------------------------|--------------------------------|
+| Application release tag | `v1.0` | `v1.1` |
+| Application release SHA | `508cc280704ed72cc3e85df03e57bd6fb42d24ee` | `ed42d7a2d278a7f27260fc06249b14bc1d638b6d` |
+| Release archive SHA256 | `780bb0ea9157a326908afee593f3f7acbbf1c043903094c2bbd7072e4eb166a8` | `568f528bd32c854f637fb2c31afaeeefeb57aceb8a50331d0dd0daeae60e944a` |
+| Trusted manifest | `release-manifests/v1.0.env` | `release-manifests/v1.1.env` |
+| HD-D9 remediation commit | — | `fd84a48` |
+| Docker release version | *TBD — HD-D3* | *TBD* |
+| NLD `v1.0` tag | **Unchanged** | **Unchanged** |
 
 ---
 
@@ -369,7 +373,7 @@ trusted SHA256 verification — no mutable Git checkout fallback.
 | Image labels contain version/SHA/archive SHA256 | **NOT RUN** |
 | `deploy/docker/tests/run_tests.sh` full integration | **NOT RUN** — requires Linux + Docker + sudo |
 
-**HD-D9 gate:** implementation **REMEDIATED**; D1.1/D3 installation validation **PENDING**.
+**HD-D9 gate:** implementation **REMEDIATION APPROVED** (2026-09-06); D1.1/D3 installation validation **PENDING**.
 
 ---
 
@@ -435,8 +439,8 @@ No mutable `LOTTO_REPO_ROOT` application overlay after SHA256 verification.
 | Tests A–G (archive contents, tamper, byte match, checkout isolation, Dockerfile, provenance, no overlay) | *Run at commit time* |
 | `deploy/docker/tests/test_hd_d10.sh` | *Run at commit time* |
 
-**HD-D9 remediation gate:** **REMEDIATED** (immutable application-runtime invariant restored);
-D3 runtime validation **PENDING**.
+**HD-D9 remediation gate:** **REMEDIATION APPROVED** (Human approval 2026-09-06;
+commit `fd84a48`; Application **v1.1** canonical). D3 installation validation **PENDING**.
 
 ---
 
@@ -571,8 +575,8 @@ before D3. **No remediation performed in this audit.**
 | Observed | Bridge network `lotto-<instance>-net`; publish `127.0.0.1:host:container` |
 | Requirement | HD-D6: justify or exclude `network_mode: host` |
 | Impact | No host-network isolation issue from host mode |
-| Next action | Mark **HD-D6** resolved: exclude `network_mode: host` unless future Human decision |
-| ADR / Human | Recommend close **HD-D6** as "excluded in current compose" |
+| Next action | *(historical D2 audit)* Recommend close — **superseded:** HD-D6 **APPROVED** 2026-09-06 |
+| ADR / Human | **HD-D6 APPROVED** — `network_mode: host` excluded; bridge + published ports |
 
 ### Section audits (summary)
 
@@ -616,12 +620,12 @@ before D3. **No remediation performed in this audit.**
 | Storage remediation | Update ADR-039 consequences or short amendment when implementation starts — ADR-036 already marked superseded for V1 |
 | Host-split static/nginx | **Resolved by HD-D10** — ADR-036 supersession note documents historical staging model |
 
-### Human decisions required
+### Human decisions required *(historical D2 audit — 2026-09-06)*
 
-| ID | Question |
-|----|----------|
-| **HD-D6** | Recommend **close** as excluded (`network_mode: host` not used) |
-| — | Artifact hosting/download (still open from HD-D9) |
+| ID | Question | Current status (2026-09-06) |
+|----|----------|----------------------------|
+| **HD-D6** | `network_mode: host` | **APPROVED** — excluded |
+| — | Artifact hosting/download | Open (HD-D9 boundary) |
 
 ### Vulnerability scan
 
@@ -641,13 +645,23 @@ before D3. **No remediation performed in this audit.**
 
 ## D2.1 — Installation contract freeze
 
-### Human Decision HD-D7 — **DECIDED** (2026-09-06)
+### Human Decision HD-D7 — **APPROVED** (2026-09-06)
 
 **Certified minimum:** Ubuntu 22.04 LTS, Ubuntu 24.04 LTS, Debian 12.
 
 **Compatibility:** other Linux if Docker Engine + Compose + system requirements met — not certified until validation matrix PASS.
 
-**Not decided:** exact Docker Engine / Compose versions, minimum VPS resources (after D2/D3 audit).
+**Certification/release floors (APPROVED 2026-09-06; installer enforcement separate):**
+
+| Prerequisite | V1 floor |
+|--------------|----------|
+| Docker Engine | **≥ 24.0** |
+| Compose | **V2 plugin** (`docker compose`) |
+| Minimum VPS | **1 vCPU**, **1 GiB RAM**, **5 GiB** free disk |
+
+### Human Decision HD-D6 — **APPROVED** (2026-09-06)
+
+**Decision:** exclude `network_mode: host`. Canonical: Docker bridge network + published host:container ports. Re-adoption requires future Human Decision.
 
 ### Human Decision HD-D8 — **DECIDED** (2026-09-06)
 
@@ -810,17 +824,20 @@ before D3. **No remediation performed in this audit.**
 
 ## D8.1 — Image vulnerability scan
 
-### Human Decision HD-D2 — **DECIDED** (2026-09-06)
+### Human Decision HD-D2 — **APPROVED** (2026-09-06)
 
 | Severity | Policy |
 |----------|--------|
-| CRITICAL | Release blocker (must be 0) |
-| HIGH | May be ACCEPTED only with individual documented disposition |
+| CRITICAL | **0 allowed** — any CRITICAL blocks release |
+| HIGH | No numeric count cap; every HIGH requires individual documented technical disposition |
+| HIGH (block) | Any exploitable or unresolved HIGH blocks release |
 
 Per-accepted-HIGH evidence required: CVE, severity, affected component, runtime
 affected (Y/N), exploitability, justification, disposition, mitigation if any.
 
-**Not decided:** numeric HIGH count threshold.
+Generic «HIGH not exploitable» without per-finding justification is **insufficient**.
+
+**Numeric HIGH count threshold:** **waived / N/A** (APPROVED 2026-09-06).
 
 **Scan implementation evidence (still PENDING):**
 
