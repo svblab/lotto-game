@@ -187,32 +187,108 @@ Docker project — **отдельный проект/слой**, не второ
 
 ## D1.1 — Artifact resolution (mandatory)
 
-### Requirement
+### Human Decision HD-D1 — **RESOLVED** (2026-09-06)
+
+**Decision:** **Immutable Release model** (variant B).
+
+> Каждый Docker release жёстко соответствует конкретному immutable application release.
+
+#### Release chain (RUSBINGO)
+
+```text
+Application v1.0
+    ↓
+immutable release artifact
+    ↓
+SHA256 verification
+    ↓
+Docker Release 1.0
+```
+
+При следующей модернизации приложения:
+
+```text
+Application v1.1
+    ↓
+immutable release artifact
+    ↓
+SHA256 verification
+    ↓
+Docker Release 1.1
+```
+
+#### Coexistence rule (no silent updates)
+
+```text
+Docker Release 1.0  →  продолжает работать на Application v1.0
+Application v1.1    →  не изменяет существующие установки Docker 1.0
+Docker Release 1.1  →  отдельный release, основанный на Application v1.1
+```
+
+Существующая установленная Docker версия **не должна автоматически получать
+изменения** из `main`, latest source или другого mutable источника.
+
+### Architectural principles (HD-D1)
+
+| # | Principle |
+|---|-----------|
+| 1 | Docker release использует **immutable application release artifact**. |
+| 2 | Artifact относится к **конкретному** application tag/release. |
+| 3 | Artifact должен иметь **проверяемый SHA256**. |
+| 4 | Docker build/install **не должен зависеть** от mutable `main`. |
+| 5 | Docker release identity должна **однозначно определять** application release, из которого он построен. |
+| 6 | Existing Docker installation **не обновляется автоматически** при появлении нового application release. |
+| 7 | Новый application release порождает **отдельный** Docker release. |
+| 8 | Upgrade существующей установки — **отдельная будущая операция**; **не входит** в HD-D1. |
+
+### HD-D1 explicitly does NOT decide
+
+Следующие вопросы остаются **отдельными** Human decisions / будущими этапами:
+
+| Topic | Owner |
+|-------|-------|
+| Где хранится artifact (GitHub Release, другой storage, OCI artifact, …) | Future decision |
+| Container registry | **HD-D4** |
+| Docker image naming | **HD-D4** |
+| Docker release tag naming | **HD-D3** |
+| Upgrade command / procedure | Future decision |
+| Backup-before-upgrade implementation | Future decision |
+| Migration mechanism для SQLite | Future decision |
+
+### Backup/restore note (future upgrade context)
+
+> Поскольку Docker V1 хранит application state внутри container filesystem,
+> будущий upgrade между immutable Docker releases должен учитывать
+> сохранение/восстановление game state.
+
+Upgrade **не проектируется и не реализуется** в рамках HD-D1. D6 Backup/Restore
+и будущий upgrade lifecycle остаются отдельными этапами.
+
+### Requirement (unchanged)
 
 Docker build/install **должен быть воспроизводим** без доступа к mutable source
 tree / `main` branch.
 
-Используется **immutable release artifact**, привязанный к конкретному release
-SHA/tag (`v1.0` → `508cc28`).
+Baseline application release: tag **`v1.0`** → SHA
+`508cc280704ed72cc3e85df03e57bd6fb42d24ee`.
 
-### Must document (before D3)
+### Must document before D3 (delivery mechanism — not HD-D1)
 
 | Item | Description |
 |------|-------------|
-| **Artifact source** | Откуда Docker project получает application code (e.g. `git archive` of tag, verified tarball, OCI image layer with embedded app — Human decision at D1.1) |
-| **Artifact identifier** | Tag + SHA + optional content hash |
-| **Verification mechanism** | How build verifies it received the correct artifact |
-| **Checksum / hash verification** | Compare against D0 recorded hash |
-| **Mismatch behaviour** | Build/install **MUST FAIL** with explicit error; no silent fallback to `main` or working tree |
-| **Version pinning** | How Docker project requests exactly `v1.0` / `508cc28` |
-
-> Формулировка «Docker project просто берёт исходники из приложения» **без**
-> конкретного механизма — **недопустима** после D1.1.
+| **Artifact source** | Откуда Docker project получает immutable artifact (storage/delivery — **не** определено HD-D1) |
+| **Artifact identifier** | Application tag + SHA + SHA256 content hash |
+| **Verification mechanism** | SHA256 verification against D0 recorded hash |
+| **Checksum mismatch** | Build/install **MUST FAIL**; no silent fallback to `main` or working tree |
+| **Version pinning** | Docker release pinned to exactly one application release (e.g. `v1.0` / `508cc28`) |
+| **Release identity mapping** | Docker release identity → application release (one-to-one) |
 
 ### Acceptance
 
-- [ ] Artifact resolution spec written and linked from evidence D1.1
+- [x] HD-D1 Immutable Release model recorded
+- [ ] Artifact delivery mechanism documented (storage location — separate decision)
 - [ ] Reproducible build demonstrated without mutable `main` checkout
+- [ ] Evidence linked in `DOCKER_V1_EVIDENCE.md` D1.1
 
 ---
 
@@ -797,17 +873,19 @@ notes:
 
 ---
 
-## Human decision register (open)
+## Human decision register
 
-| ID | Decision | Owner | When |
-|----|----------|-------|------|
-| **HD-D1** | Artifact resolution mechanism (D1.1) | Human + Cursor | Before D3 |
-| **HD-D2** | HIGH vulnerability threshold policy (D8.1) | Human | Before D8.1 PASS |
-| **HD-D3** | Docker release naming / tagging | Human | Before H-D1 |
-| **HD-D4** | Container registry and image naming | Human | Before Docker release |
-| **HD-D5** | Remediation of ADR-036 named-volume implementation vs Docker V1 contract | Human | After D2 audit |
-| **HD-D6** | `network_mode: host` — justify or exclude | Human | D2 audit |
-| **HD-D7** | Supported OS matrix (exact versions) | Human | D2.1 freeze |
+| ID | Decision | Status | Owner | When |
+|----|----------|--------|-------|------|
+| **HD-D1** | Immutable Release model (variant B) — artifact resolution architecture | **RESOLVED** (2026-09-06) | Human | D1.1 |
+| **HD-D2** | HIGH vulnerability threshold policy (D8.1) | Open | Human | Before D8.1 PASS |
+| **HD-D3** | Docker release naming / tagging | Open | Human | Before H-D1 |
+| **HD-D4** | Container registry and image naming | Open | Human | Before Docker release |
+| **HD-D5** | Remediation of ADR-036 named-volume implementation vs Docker V1 contract | Open | Human | After D2 audit |
+| **HD-D6** | `network_mode: host` — justify or exclude | Open | Human | D2 audit |
+| **HD-D7** | Supported OS matrix (exact versions) | Open | Human | D2.1 freeze |
+| — | Artifact storage / delivery mechanism (where artifact is hosted) | Open | Human | Before D3 |
+| — | Upgrade command, procedure, SQLite migration | Open | Human | Future (post HD-D1) |
 
 ---
 

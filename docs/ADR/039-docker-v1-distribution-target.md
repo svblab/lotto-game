@@ -59,6 +59,36 @@ forking application logic and without revising NLD V1.0.
 6. **No application fork.** Docker build must consume an **immutable** application
    release artifact tied to `v1.0` / `508cc28`, not a silently moving `main` branch.
 
+7. **Immutable Release model (HD-D1, accepted 2026-09-06).** Each Docker release
+   corresponds **exactly** to one immutable application release:
+
+   ```text
+   Application release (tag + SHA)
+       → immutable release artifact
+       → SHA256 verification
+       → Docker release (separate identity)
+   ```
+
+   - Docker release identity must unambiguously identify the application release
+     it was built from.
+   - An existing Docker installation **must not** automatically receive changes
+     from `main`, latest source, or any other mutable source when a new application
+     release appears.
+   - A new application release produces a **separate** Docker release; coexistence
+     of Docker Release N on Application vN while Application vN+1 exists is
+     expected and correct.
+   - Upgrade of an existing installation to a newer Docker release is a **future
+     operation** — not defined by HD-D1.
+
+   HD-D1 does **not** decide: artifact storage location, registry, image naming,
+   Docker release tag naming, upgrade command/procedure, backup-before-upgrade, or
+   SQLite migration mechanism (see roadmap Human decision register).
+
+   Because Docker V1 stores application state inside the container filesystem,
+   any future upgrade between immutable Docker releases must account for game
+   state preservation/restoration (D6 Backup/Restore scope); upgrade is **not**
+   designed or implemented as part of HD-D1.
+
 ## Consequences
 
 **Positive**

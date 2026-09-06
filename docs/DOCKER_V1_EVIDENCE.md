@@ -87,20 +87,40 @@ executed procedure and recorded artifacts.
 
 ## D1.1 — Artifact resolution
 
-**Expected evidence:**
+### Human Decision HD-D1 — **ACCEPTED** (2026-09-06)
 
-- Artifact source definition
-- Artifact identifier (tag + SHA + hash)
-- Verification mechanism
-- Checksum mismatch → fail behaviour
+**Model:** Immutable Release (variant B).
+
+> Каждый Docker release жёстко соответствует конкретному immutable application release.
+
+| Principle | Status |
+|-----------|--------|
+| Immutable application release artifact | **ACCEPTED** |
+| Artifact tied to specific application tag/release | **ACCEPTED** |
+| SHA256 verification required | **ACCEPTED** |
+| No dependency on mutable `main` | **ACCEPTED** |
+| Docker release identity maps to application release | **ACCEPTED** |
+| Existing installation does not auto-update on new app release | **ACCEPTED** |
+| New application release → separate Docker release | **ACCEPTED** |
+| Upgrade of existing installation | **Out of scope** (future decision) |
+
+**Not decided by HD-D1:** artifact storage location, registry, image naming, release tag naming, upgrade command/procedure, backup-before-upgrade, SQLite migration.
+
+**Expected evidence (implementation — still pending):**
+
+- Artifact delivery mechanism documented (storage — separate decision)
+- SHA256 verification demonstrated at build/install
 - Reproducible build without mutable `main`
+- Release identity mapping recorded
 
 | Field | Value |
 |-------|-------|
-| **Result** | PENDING |
-| **Date (UTC)** | |
+| **HD-D1 decision** | **ACCEPTED** |
+| **Decision date (UTC)** | 2026-09-06 |
+| **Model** | Immutable Release (variant B) |
+| **Implementation result** | PENDING |
 | **Tested SHA** | |
-| **Artifact source** | |
+| **Artifact source** | *TBD — not HD-D1* |
 | **Verification command** | |
 | **Notes / findings** | |
 
